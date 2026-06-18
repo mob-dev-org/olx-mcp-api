@@ -2,7 +2,7 @@
 name: olx-mcp-setup
 description: >-
   Postavljanje i koristenje OLX.ba / PIK.ba toolkita (MCP server i CLI) iz repozitorija
-  olx-pik-toolkit. Koristi ovaj skill kad god korisnik hoce da konfigurise OLX/PIK pristup,
+  olx-mcp-api. Koristi ovaj skill kad god korisnik hoce da konfigurise OLX/PIK pristup,
   postavi token, registruje MCP server u Claude Code, pokrene build, rijesi 403/AUTH probleme,
   generise snapshot kategorija i lokacija, ili pita stvari poput "kako da pokrenem olx",
   "kako dodati olx mcp", "ne radi mi olx token", "olx vraca 403". Takodjer kad treba brzi
@@ -13,8 +13,8 @@ description: >-
 # OLX/PIK toolkit: setup i koristenje
 
 Ovaj skill ti pomaze da postavis i koristis interni toolkit za OLX.ba / PIK.ba shopove.
-Toolkit ima jedno jezgro i dva lica: CLI (`olx-pik-toolkit/dist/cli/index.js`) i MCP server
-(`olx-pik-toolkit/dist/mcp/server.js`). Detalji su u `olx-pik-toolkit/README.md` i `olx-pik-toolkit/PLAN.md`.
+Toolkit ima jedno jezgro i dva lica: CLI (`dist/cli/index.js`) i MCP server
+(`dist/mcp/server.js`). Sve putanje su relativne na korijen repoa. Detalji su u `README.md` i `PLAN.md`.
 
 Cilj: dovesti korisnika do stanja gdje `whoami` vraca nalog, a MCP alati rade u Claude Code.
 
@@ -26,14 +26,13 @@ Cilj: dovesti korisnika do stanja gdje `whoami` vraca nalog, a MCP alati rade u 
 
 ## Redoslijed koraka (uvijek isti)
 
-1. Build (jednom, i poslije svake izmjene koda):
+1. Build (jednom, i poslije svake izmjene koda; iz korijena repoa):
    ```bash
-   cd olx-pik-toolkit
    npm install
    npm run build
    ```
 2. Token. Preporuceno je vec dobijen Bearer token (po korisniku). Postavi ga na jedan od nacina:
-   - U `olx-pik-toolkit/.env`: `OLX_TOKEN=...` (CLI ga cita preko `--env-file=.env`).
+   - U `.env` (u korijenu): `OLX_TOKEN=...` (CLI ga cita preko `--env-file=.env`).
    - Ili u shell okruzenje: `export OLX_TOKEN=...` (MCP `.mcp.json` ga preuzima preko `${OLX_TOKEN}`).
    - Alternativa: `OLX_USERNAME` + `OLX_PASSWORD` (toolkit sam radi login), ili stari
      `OLX_CLIENT_ID` + `OLX_CLIENT_TOKEN`.
@@ -49,7 +48,7 @@ Cilj: dovesti korisnika do stanja gdje `whoami` vraca nalog, a MCP alati rade u 
    claude mcp add olx-pik -s user \
      -e OLX_TOKEN=tvoj_token \
      -e OLX_BASE_URL=https://api.olx.ba \
-     -- node "$(pwd)/olx-pik-toolkit/dist/mcp/server.js"
+     -- node "$(pwd)/dist/mcp/server.js"
    ```
 
 ## Token nikad u git

@@ -4,7 +4,7 @@
       "type": "stdio",
       "command": "node",
       "args": [
-        "olx-pik-toolkit/dist/mcp/server.js"
+        "dist/mcp/server.js"
       ],
       "env": {
         "OLX_BASE_URL": "https://api.olx.ba",

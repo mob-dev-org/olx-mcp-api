@@ -17,7 +17,7 @@ oprezno. Ne izmisljaj podatke o konkurenciji; ako nesto ne mozes dohvatiti, reci
   oglasa u kategoriji sa cijenama). Toolkit ga trenutno NEMA. Vjerovatno postoji javni search na API-ju,
   ali nije dokumentovan u nasem knowledgebase-u.
 
-Dok se to ne potvrdi i ne doda u `olx-pik-toolkit/src/core`, konkurentska analiza se ne moze raditi pouzdano kroz MCP.
+Dok se to ne potvrdi i ne doda u `src/core`, konkurentska analiza se ne moze raditi pouzdano kroz MCP.
 
 ## Predlozeni redoslijed kad se krene u Fazu 2
 

@@ -5,8 +5,10 @@ Ovaj dokument je vodic da se projekat dovrsi lokalno u Claude Code. Kod je vec n
 ## 1. Struktura repozitorija
 
 ```
-olx-pik-toolkit/
+olx-mcp-api/                # korijen repoa (toolkit je flatten-ovan ovdje)
 ├── package.json            # zavisnosti, bin: olx, skripte build/mcp
+├── .mcp.json               # registracija MCP servera za Claude Code
+├── .claude/skills/         # Claude Code skillovi (setup, analiza)
 ├── tsconfig.json           # strict, NodeNext ESM
 ├── .env.example            # konfiguracija (kopiraj u .env)
 ├── .gitignore              # node_modules, dist, .env
@@ -28,7 +30,7 @@ olx-pik-toolkit/
 ## 2. Build lokalno
 
 ```bash
-cd olx-pik-toolkit
+# iz korijena repoa
 npm install
 npm run build
 ```
@@ -79,7 +81,7 @@ Stdio server, lokalni proces. Po korisniku (token ostaje lokalno, ne ide u git):
 claude mcp add olx-pik -s user \
   -e OLX_TOKEN=tvoj_token \
   -e OLX_BASE_URL=https://api.olx.ba \
-  -- node /apsolutna/putanja/olx-pik-toolkit/dist/mcp/server.js
+  -- node /apsolutna/putanja/olx-mcp-api/dist/mcp/server.js
 ```
 
 Za dijeljenje konfiguracije timu (bez tokena) moze i `.mcp.json` u korijenu repoa (`-s project`), pa svako doda svoj token kroz okruzenje:
@@ -107,7 +109,7 @@ Napomene:
 Noćna obnova kroz besplatnih 750 mjesecno, npr. svaki dan u 03:00:
 
 ```
-0 3 * * * cd /putanja/olx-pik-toolkit && OLX_TOKEN=... node dist/cli/index.js refresh all --limit 200 --yes >> /var/log/olx-refresh.log 2>&1
+0 3 * * * cd /putanja/olx-mcp-api && OLX_TOKEN=... node dist/cli/index.js refresh all --limit 200 --yes >> /var/log/olx-refresh.log 2>&1
 ```
 
 ## 7. Git

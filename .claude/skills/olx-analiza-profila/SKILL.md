@@ -21,7 +21,7 @@ ovdje, nego zivi u MCP resursima. Tvoj posao je da je primijenis na stvarne ogla
 
 Prije savjetovanja procitaj MCP resurse (preko olx-pik servera):
 - `olx://knowledgebase` — API referenca, pravila vidljivosti, dijagnostika.
-- Vodic o rangiranju/pretrazi/sortiranju (`olx-pik-toolkit/kb/OLX_PIK_Rangiranje_Pretraga_Sortiranje.md`).
+- Vodic o rangiranju/pretrazi/sortiranju (`kb/OLX_PIK_Rangiranje_Pretraga_Sortiranje.md`).
 
 Tamo je kljucna hijerarhija: kljucne rijeci u naslovu odlucuju DA LI te nadju, svjezina (obnova)
 i izdvajanje odlucuju KOLIKO si visoko. Bez toga savjeti su nagadjanje.
