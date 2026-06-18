@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "olx-pik": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "olx-pik-toolkit/dist/mcp/server.js"
+      ],
+      "env": {
+        "OLX_BASE_URL": "https://api.olx.ba",
+        "OLX_TOKEN": "${OLX_TOKEN:-}"
+      }
+    }
+  }
+}
