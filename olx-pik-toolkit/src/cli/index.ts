@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 import { OlxClient, OlxApiError, OlxAuthError, OlxSpendError } from "../core/index.js";
 import { loadConfig } from "../core/config.js";
 import type { CreateListingInput, SponsorOptions, SponsorType, SponsorDays, RefreshEvery } from "../core/types.js";
@@ -221,6 +222,17 @@ listings
     }
   });
 
+listings
+  .command("limits")
+  .description("Limiti broja oglasa po grupama kategorija (cars, real-estate, other)")
+  .action(async () => {
+    try {
+      out(await (await withAuth()).listingLimits());
+    } catch (e) {
+      fail(e);
+    }
+  });
+
 // ---- Slike ----
 const images = listings.command("images").description("Slike oglasa");
 
@@ -363,6 +375,159 @@ category
   .action(async (id: string) => {
     try {
       out(await (await withAuth()).categoryAttributes(id));
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+category
+  .command("list")
+  .description("Top-level kategorije")
+  .action(async () => {
+    try {
+      out(await (await withAuth()).categories());
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+category
+  .command("children <id>")
+  .description("Podkategorije date kategorije")
+  .action(async (id: string) => {
+    try {
+      out(await (await withAuth()).childrenCategories(id));
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+category
+  .command("get <id>")
+  .description("Jedna kategorija (sadrzi listing_fee, base_listing_price, brand/model_required)")
+  .action(async (id: string) => {
+    try {
+      out(await (await withAuth()).category(id));
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+category
+  .command("brands <id>")
+  .description("Brendovi u kategoriji")
+  .action(async (id: string) => {
+    try {
+      out(await (await withAuth()).categoryBrands(id));
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+category
+  .command("models <id> <brandId>")
+  .description("Modeli za brend u kategoriji")
+  .action(async (id: string, brandId: string) => {
+    try {
+      out(await (await withAuth()).categoryModels(id, brandId));
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+category
+  .command("dump")
+  .description("Povlaci cijelo stablo kategorija i snima u JSON (jednokratni snapshot za repo/MCP)")
+  .option("--out <path>", "izlazni JSON fajl", "kb/categories.json")
+  .option("--depth <n>", "maksimalna dubina stabla", "6")
+  .action(async (opts: { out: string; depth: string }) => {
+    try {
+      const c = await withAuth();
+      const tree = await c.categoryTree(Number(opts.depth) || 6);
+      const payload = { generated_at: new Date().toISOString(), base_url: c.baseUrl, tree };
+      mkdirSync(dirname(opts.out), { recursive: true });
+      writeFileSync(opts.out, JSON.stringify(payload, null, 2));
+      console.error(`Snimljeno ${tree.length} top-level kategorija u ${opts.out}.`);
+      console.error("Savjet: commitaj ovaj fajl da MCP resource olx://categories radi bez API poziva.");
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+// ---- Location ----
+const location = program.command("location").description("Lokacije (drzave, gradovi, kantoni)");
+
+location
+  .command("countries")
+  .description("Drzave (BiH = id 49)")
+  .action(async () => {
+    try {
+      out(await (await withAuth()).countries());
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+location
+  .command("cities")
+  .description("Entiteti/regije")
+  .action(async () => {
+    try {
+      out(await (await withAuth()).cities());
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+location
+  .command("city <id>")
+  .description("Grad po ID (lat, lon, zip, canton_id, state_id)")
+  .action(async (id: string) => {
+    try {
+      out(await (await withAuth()).city(id));
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+location
+  .command("states")
+  .description("Entiteti (country-states)")
+  .action(async () => {
+    try {
+      out(await (await withAuth()).countryStates());
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+location
+  .command("canton-cities <id>")
+  .description("Gradovi u kantonu")
+  .action(async (id: string) => {
+    try {
+      out(await (await withAuth()).cantonCities(id));
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+location
+  .command("dump")
+  .description("Povlaci lokacije (drzave, entiteti, kantoni->gradovi) i snima u JSON (jednokratni snapshot)")
+  .option("--out <path>", "izlazni JSON fajl", "kb/locations.json")
+  .option("--no-cities", "preskoci obilazak kantona za listu gradova")
+  .action(async (opts: { out: string; cities: boolean }) => {
+    try {
+      const c = await withAuth();
+      const snap = await c.locationSnapshot(opts.cities);
+      const payload = { generated_at: new Date().toISOString(), base_url: c.baseUrl, ...snap };
+      mkdirSync(dirname(opts.out), { recursive: true });
+      writeFileSync(opts.out, JSON.stringify(payload, null, 2));
+      console.error(
+        `Snimljeno: ${snap.countries.length} drzava, ${snap.entities.length} entiteta, ${snap.cities.length} gradova u ${opts.out}.`,
+      );
+      console.error("Savjet: commitaj ovaj fajl da MCP resource olx://locations radi bez API poziva.");
     } catch (e) {
       fail(e);
     }

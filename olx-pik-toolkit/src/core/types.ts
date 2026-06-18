@@ -118,6 +118,10 @@ export interface Category {
   [key: string]: unknown;
 }
 
+export interface CategoryNode extends Category {
+  children: CategoryNode[];
+}
+
 export interface CategoryAttribute {
   id: number;
   type?: string;
@@ -171,6 +175,13 @@ export interface RegionEntity {
   name: string;
   code: string;
   cantons?: unknown[];
+}
+
+export interface LocationSnapshot {
+  countries: Country[];
+  entities: RegionEntity[];
+  states: RegionEntity[];
+  cities: City[];
 }
 
 export type SponsorType = 0 | 1 | 2;

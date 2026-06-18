@@ -6,12 +6,14 @@ import type {
   Category,
   CategoryAttribute,
   CategoryFindResult,
+  CategoryNode,
   CategorySuggestion,
   City,
   Country,
   CreateListingInput,
   DiscountInput,
   Listing,
+  LocationSnapshot,
   ListingSummary,
   LoginResponse,
   OlxUser,
@@ -362,6 +364,22 @@ export class OlxClient {
     return this.request<CategoryFindResult[]>("/categories/find", { query: { name } });
   }
 
+  // Rekurzivno prelistava cijelo stablo kategorija (top-level + djeca). Throttle je u request().
+  // Namijenjeno za jednokratni snapshot u kb/categories.json (kategorije se rijetko mijenjaju).
+  async categoryTree(maxDepth = 6): Promise<CategoryNode[]> {
+    const build = async (cat: Category, depth: number): Promise<CategoryNode> => {
+      if (depth >= maxDepth) return { ...cat, children: [] };
+      const kids = (await this.childrenCategories(cat.id)).data;
+      const children: CategoryNode[] = [];
+      for (const kid of kids) children.push(await build(kid, depth + 1));
+      return { ...cat, children };
+    };
+    const top = (await this.categories()).data;
+    const tree: CategoryNode[] = [];
+    for (const cat of top) tree.push(await build(cat, 1));
+    return tree;
+  }
+
   // ---- Locations ----
 
   cities(): Promise<{ data: RegionEntity[] }> {
@@ -382,6 +400,37 @@ export class OlxClient {
 
   cantonCities(id: number | string): Promise<{ data: City[] }> {
     return this.request<{ data: City[] }>(`/cantons/${id}/cities`);
+  }
+
+  // Jednokratni snapshot lokacija (drzave, entiteti, kantoni -> gradovi) za kb/locations.json.
+  // Gradovi se sklapaju obilaskom kantona; ako struktura entiteta ne sadrzi kantone, lista ostaje prazna
+  // (flat liste se svejedno snime). Tacnu strukturu potvrditi uzivo kad token proradi.
+  async locationSnapshot(includeCities = true): Promise<LocationSnapshot> {
+    const countries = (await this.countries()).data;
+    const entities = (await this.cities()).data;
+    const states = (await this.countryStates()).data;
+    const cities: City[] = [];
+
+    if (includeCities) {
+      const cantonIds = new Set<number>();
+      for (const source of [...entities, ...states]) {
+        const cantons = (source as { cantons?: unknown[] }).cantons;
+        if (!Array.isArray(cantons)) continue;
+        for (const canton of cantons) {
+          const id = (canton as { id?: unknown }).id;
+          if (typeof id === "number") cantonIds.add(id);
+        }
+      }
+      for (const id of cantonIds) {
+        try {
+          cities.push(...(await this.cantonCities(id)).data);
+        } catch {
+          // preskoci kanton koji ne vraca gradove
+        }
+      }
+    }
+
+    return { countries, entities, states, cities };
   }
 
   // ---- Sponsored (trosak kredita) ----

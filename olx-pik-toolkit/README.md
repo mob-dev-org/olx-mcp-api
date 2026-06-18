@@ -42,6 +42,17 @@ node dist/cli/index.js listings images rm 12345 67890        # obrisi sliku
 
 Napomena o slikama: upload preko `--url` koristi dokumentovani `images` niz. Upload lokalnih fajlova (`--file`) ide preko `multipart/form-data`; tacan naziv polja nije zvanicno dokumentovan (vidi `uploadImageFiles` u `src/core/index.ts`) i treba ga potvrditi uzivo kad token proradi.
 
+## Snapshot kategorija i lokacija (statički, bez stalnog dohvatanja)
+
+Kategorije i lokacije se rijetko mijenjaju, pa se jednom povuku u JSON i koriste kao statički MCP resource (`olx://categories`, `olx://locations`). Pokreni jednom kad token proradi:
+
+```bash
+node --env-file=.env dist/cli/index.js category dump      # -> kb/categories.json
+node --env-file=.env dist/cli/index.js location dump      # -> kb/locations.json
+```
+
+Zatim commitaj ta dva fajla. Poslije toga AI/MCP čita kategorije i lokacije iz resursa bez ijednog API poziva. Pojedinačni live upiti su i dalje dostupni (`category list/children/get/brands/models`, `location countries/cities/city`).
+
 ## MCP server
 
 ```bash

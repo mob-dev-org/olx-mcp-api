@@ -2,7 +2,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { OlxClient, OlxSpendError } from "../core/index.js";
@@ -11,6 +11,8 @@ import type { SponsorOptions, SponsorType, SponsorDays, RefreshEvery } from "../
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const KB_PATH = resolve(__dirname, "../../kb/OLX_PIK_AI_Knowledgebase.md");
+const CATEGORIES_PATH = resolve(__dirname, "../../kb/categories.json");
+const LOCATIONS_PATH = resolve(__dirname, "../../kb/locations.json");
 
 const config = loadConfig();
 const client = new OlxClient(config);
@@ -61,6 +63,60 @@ server.registerResource(
   async (uri) => {
     const text = readFileSync(KB_PATH, "utf8");
     return { contents: [{ uri: uri.href, mimeType: "text/markdown", text }] };
+  },
+);
+
+// ---- Kategorije kao staticki resource (snapshot, bez API poziva) ----
+server.registerResource(
+  "categories",
+  "olx://categories",
+  {
+    title: "OLX/PIK stablo kategorija",
+    description:
+      "Keширани snapshot stabla kategorija (kb/categories.json). Kategorije se rijetko mijenjaju, pa se citaju odavde umjesto iz API-ja. Ako fajl ne postoji, generisi ga sa CLI: category dump.",
+    mimeType: "application/json",
+  },
+  async (uri) => {
+    if (!existsSync(CATEGORIES_PATH)) {
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: "text/plain",
+            text: "Snapshot kategorija jos nije generisan. Pokreni: node dist/cli/index.js category dump",
+          },
+        ],
+      };
+    }
+    const text = readFileSync(CATEGORIES_PATH, "utf8");
+    return { contents: [{ uri: uri.href, mimeType: "application/json", text }] };
+  },
+);
+
+// ---- Lokacije kao staticki resource (snapshot, bez API poziva) ----
+server.registerResource(
+  "locations",
+  "olx://locations",
+  {
+    title: "OLX/PIK lokacije",
+    description:
+      "Keширани snapshot lokacija (kb/locations.json): drzave, entiteti, gradovi. Citaj odavde za country_id/city_id umjesto iz API-ja. Ako fajl ne postoji, generisi ga sa CLI: location dump.",
+    mimeType: "application/json",
+  },
+  async (uri) => {
+    if (!existsSync(LOCATIONS_PATH)) {
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: "text/plain",
+            text: "Snapshot lokacija jos nije generisan. Pokreni: node dist/cli/index.js location dump",
+          },
+        ],
+      };
+    }
+    const text = readFileSync(LOCATIONS_PATH, "utf8");
+    return { contents: [{ uri: uri.href, mimeType: "application/json", text }] };
   },
 );
 
@@ -154,6 +210,66 @@ server.registerTool(
         locations: args.homepage ? ["homepage"] : undefined,
       }),
     ),
+);
+
+server.registerTool(
+  "olx_categories",
+  { title: "Kategorije", description: "Top-level kategorije. Za stabilan snapshot citaj resource olx://categories.", inputSchema: {}, annotations: readOnly },
+  () => run((c) => c.categories()),
+);
+
+server.registerTool(
+  "olx_category_children",
+  { title: "Podkategorije", description: "Podkategorije date kategorije.", inputSchema: { id: z.union([z.number(), z.string()]) }, annotations: readOnly },
+  (args) => run((c) => c.childrenCategories(args.id)),
+);
+
+server.registerTool(
+  "olx_category",
+  { title: "Kategorija (detalji)", description: "Jedna kategorija: listing_fee, base_listing_price, brand_required, model_required, show_map, show_condition.", inputSchema: { id: z.union([z.number(), z.string()]) }, annotations: readOnly },
+  (args) => run((c) => c.category(args.id)),
+);
+
+server.registerTool(
+  "olx_category_brands",
+  { title: "Brendovi kategorije", description: "Brendovi u kategoriji (za vozila i sl.).", inputSchema: { id: z.union([z.number(), z.string()]) }, annotations: readOnly },
+  (args) => run((c) => c.categoryBrands(args.id)),
+);
+
+server.registerTool(
+  "olx_category_models",
+  { title: "Modeli brenda", description: "Modeli za dati brend u kategoriji. Daje model_id za create payload.", inputSchema: { id: z.union([z.number(), z.string()]), brandId: z.union([z.number(), z.string()]) }, annotations: readOnly },
+  (args) => run((c) => c.categoryModels(args.id, args.brandId)),
+);
+
+server.registerTool(
+  "olx_listing_limits",
+  { title: "Limiti broja oglasa", description: "Limiti broja oglasa po grupama kategorija (cars, real-estate, other).", inputSchema: {}, annotations: readOnly },
+  () => run((c) => c.listingLimits()),
+);
+
+server.registerTool(
+  "olx_countries",
+  { title: "Drzave", description: "Lista drzava (BiH = id 49). Za stabilan snapshot citaj resource olx://locations.", inputSchema: {}, annotations: readOnly },
+  () => run((c) => c.countries()),
+);
+
+server.registerTool(
+  "olx_cities",
+  { title: "Entiteti/regije", description: "Entiteti/regije (sadrze kantone). Za stabilan snapshot citaj resource olx://locations.", inputSchema: {}, annotations: readOnly },
+  () => run((c) => c.cities()),
+);
+
+server.registerTool(
+  "olx_city",
+  { title: "Grad po ID", description: "Detalji grada (lat, lon, zip, canton_id, state_id). Daje city_id za create payload.", inputSchema: { id: z.union([z.number(), z.string()]) }, annotations: readOnly },
+  (args) => run((c) => c.city(args.id)),
+);
+
+server.registerTool(
+  "olx_canton_cities",
+  { title: "Gradovi kantona", description: "Gradovi u datom kantonu.", inputSchema: { id: z.union([z.number(), z.string()]) }, annotations: readOnly },
+  (args) => run((c) => c.cantonCities(args.id)),
 );
 
 // ===== UPIS =====
