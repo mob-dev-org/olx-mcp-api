@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { basename } from "node:path";
 import { loadConfig, type OlxConfig } from "./config.js";
 import type {
   BrandOrModel,
@@ -123,7 +125,9 @@ export class OlxClient {
   private async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
     const { method = "GET", query, body, auth = true } = options;
 
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    // Kod multipart uploada (FormData) Content-Type postavlja fetch sam (sa boundary).
+    const isForm = typeof FormData !== "undefined" && body instanceof FormData;
+    const headers: Record<string, string> = isForm ? {} : { "Content-Type": "application/json" };
     if (auth) Object.assign(headers, this.authHeaders());
 
     const url = this.buildUrl(path, query);
@@ -140,7 +144,7 @@ export class OlxClient {
         const res = await fetch(url, {
           method,
           headers,
-          body: body === undefined ? undefined : JSON.stringify(body),
+          body: body === undefined ? undefined : isForm ? (body as FormData) : JSON.stringify(body),
           signal: controller.signal,
         });
         clearTimeout(timer);
@@ -244,12 +248,29 @@ export class OlxClient {
     return this.request(`/listings/${id}/refresh`, { method: "PUT" });
   }
 
-  // Napomena: binarni upload zahtijeva multipart/form-data. Ovdje saljemo URL-ove slika
-  // jer dokumentacija navodi i image_url atribut. Format potvrditi u Fazi 3 (vidi knowledgebase).
+  // Upload preko URL-a: dokumentacija navodi images array sa image_url atributom.
   uploadImagesByUrl(id: number | string, imageUrls: string[]): Promise<UploadedImage[]> {
     return this.request<UploadedImage[]>(`/listings/${id}/image-upload`, {
       method: "POST",
       body: { images: imageUrls.map((image_url) => ({ image_url })) },
+    });
+  }
+
+  // Upload lokalnih fajlova preko multipart/form-data.
+  // NEPOTVRDJENO: tacan naziv polja ("images[]") nije zvanicno dokumentovan; po potrebi promijeni fieldName.
+  async uploadImageFiles(
+    id: number | string,
+    filePaths: string[],
+    fieldName = "images[]",
+  ): Promise<UploadedImage[]> {
+    const form = new FormData();
+    for (const path of filePaths) {
+      const buffer = await readFile(path);
+      form.append(fieldName, new Blob([buffer]), basename(path));
+    }
+    return this.request<UploadedImage[]>(`/listings/${id}/image-upload`, {
+      method: "POST",
+      body: form,
     });
   }
 

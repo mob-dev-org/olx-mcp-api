@@ -32,7 +32,15 @@ node dist/cli/index.js refresh all --limit 200 --yes      # izvrsi
 
 # Trosak kredita (uvijek trazi --yes)
 node dist/cli/index.js sponsor apply 12345 --type 2 --days 7 --refresh-every 8 --yes
+
+# Slike (URL-ovi i/ili lokalni fajlovi)
+node dist/cli/index.js listings images add 12345 --url https://primjer.com/1.jpg https://primjer.com/2.jpg
+node dist/cli/index.js listings images add 12345 --file ./slika1.jpg ./slika2.jpg
+node dist/cli/index.js listings images main 12345 67890     # postavi glavnu sliku po imageId
+node dist/cli/index.js listings images rm 12345 67890        # obrisi sliku
 ```
+
+Napomena o slikama: upload preko `--url` koristi dokumentovani `images` niz. Upload lokalnih fajlova (`--file`) ide preko `multipart/form-data`; tacan naziv polja nije zvanicno dokumentovan (vidi `uploadImageFiles` u `src/core/index.ts`) i treba ga potvrditi uzivo kad token proradi.
 
 ## MCP server
 

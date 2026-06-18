@@ -221,6 +221,51 @@ listings
     }
   });
 
+// ---- Slike ----
+const images = listings.command("images").description("Slike oglasa");
+
+images
+  .command("add <id>")
+  .description("Dodaje slike na oglas (URL-ovi i/ili lokalni fajlovi)")
+  .option("--url <url...>", "jedan ili vise URL-ova slika")
+  .option("--file <path...>", "jedan ili vise lokalnih fajlova (multipart; format NEPOTVRDJEN)")
+  .action(async (id: string, opts: { url?: string[]; file?: string[] }) => {
+    try {
+      if (!opts.url?.length && !opts.file?.length) {
+        throw new Error("Zadaj bar jedan --url ili --file.");
+      }
+      const c = await withAuth();
+      const result: Record<string, unknown> = {};
+      if (opts.url?.length) result.by_url = await c.uploadImagesByUrl(id, opts.url);
+      if (opts.file?.length) result.by_file = await c.uploadImageFiles(id, opts.file);
+      out(result);
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+images
+  .command("main <id> <imageId>")
+  .description("Postavlja glavnu sliku oglasa")
+  .action(async (id: string, imageId: string) => {
+    try {
+      out(await (await withAuth()).setMainImage(id, Number(imageId)));
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+images
+  .command("rm <id> <imageId>")
+  .description("Brise sliku sa oglasa")
+  .action(async (id: string, imageId: string) => {
+    try {
+      out(await (await withAuth()).deleteImage(id, Number(imageId)));
+    } catch (e) {
+      fail(e);
+    }
+  });
+
 // ---- Refresh ----
 const refresh = program.command("refresh").description("Obnova oglasa (svjezina)");
 

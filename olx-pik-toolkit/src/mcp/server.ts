@@ -288,6 +288,53 @@ server.registerTool(
     }),
 );
 
+server.registerTool(
+  "olx_upload_images",
+  {
+    title: "Dodaj slike",
+    description:
+      "Dodaje slike na oglas. urls = lista URL-ova slika. file_paths = lokalni fajlovi na masini gdje radi server (multipart; tacan format NEPOTVRDJEN). Zadaj bar jedno. Tok: kreiraj oglas, dodaj slike, postavi glavnu, pa objavi.",
+    inputSchema: {
+      id: z.union([z.number(), z.string()]),
+      urls: z.array(z.string()).optional().describe("URL-ovi slika"),
+      file_paths: z.array(z.string()).optional().describe("putanje lokalnih fajlova na serveru"),
+    },
+    annotations: writeOp,
+  },
+  (args) =>
+    run(async (c) => {
+      if (!args.urls?.length && !args.file_paths?.length) {
+        throw new Error("Zadaj urls ili file_paths.");
+      }
+      const result: Record<string, unknown> = {};
+      if (args.urls?.length) result.by_url = await c.uploadImagesByUrl(args.id, args.urls);
+      if (args.file_paths?.length) result.by_file = await c.uploadImageFiles(args.id, args.file_paths);
+      return result;
+    }),
+);
+
+server.registerTool(
+  "olx_set_main_image",
+  {
+    title: "Glavna slika",
+    description: "Postavlja glavnu sliku oglasa po imageId (id slike iz odgovora uploada).",
+    inputSchema: { id: z.union([z.number(), z.string()]), imageId: z.number().int() },
+    annotations: writeOp,
+  },
+  (args) => run((c) => c.setMainImage(args.id, args.imageId)),
+);
+
+server.registerTool(
+  "olx_delete_image",
+  {
+    title: "Obrisi sliku",
+    description: "Brise sliku sa oglasa po imageId.",
+    inputSchema: { id: z.union([z.number(), z.string()]), imageId: z.number().int() },
+    annotations: destructiveOp,
+  },
+  (args) => run((c) => c.deleteImage(args.id, args.imageId)),
+);
+
 // ===== TROSAK KREDITA =====
 
 server.registerTool(
