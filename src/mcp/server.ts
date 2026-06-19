@@ -5,7 +5,7 @@ import { z } from "zod";
 import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
-import { OlxClient, OlxSpendError } from "../core/index.js";
+import { OlxClient, OlxSpendError, OlxApiError } from "../core/index.js";
 import { resolveConfig, listProfileNames } from "../core/config.js";
 import type { SponsorOptions, SponsorType, SponsorDays, RefreshEvery } from "../core/types.js";
 
@@ -57,6 +57,11 @@ async function run(fn: (c: OlxClient) => Promise<unknown>): Promise<ToolResult> 
     if (e instanceof OlxSpendError) {
       const detail = e.price ? `\n${JSON.stringify(e.price, null, 2)}` : "";
       return errResult(`${e.message}${detail}\nPozovi ponovo sa confirm: true da bi se kredit naplatio.`);
+    }
+    if (e instanceof OlxApiError) {
+      // Prikazi tijelo odgovora (npr. 422 validacija po poljima) da se vidi sta tacno fali.
+      const detail = e.body !== undefined ? `\n${JSON.stringify(e.body, null, 2)}` : "";
+      return errResult(`${e.message}${detail}`);
     }
     return errResult(String(e instanceof Error ? e.message : e));
   }
@@ -388,10 +393,11 @@ server.registerTool(
   {
     title: "Kreiraj oglas",
     description:
-      "Kreira oglas. Ostaje DRAFT i NIJE vidljiv dok se ne objavi (olx_publish_listing). Obavezan je title. Za vozila koristi brand_id/model_id i attributes (vidi olx_category_attributes).",
+      "Kreira oglas. Ostaje DRAFT i NIJE vidljiv dok se ne objavi (olx_publish_listing). OBAVEZNI su title i category_id (API odbija bez kategorije). category_id nadji u resource olx://categories-index, a dozvoljene attributes za tu kategoriju preko olx_category_attributes (obavezni atributi su required: true). Za vozila koristi brand_id/model_id.",
     inputSchema: {
       title: z.string().min(1),
-      short_description: z.string().optional(),
+      category_id: z.union([z.number(), z.string()]).describe("ID kategorije (obavezno); vidi olx://categories-index"),
+      short_description: z.string().optional().describe("podnaslov; ulazi u pretragu"),
       description: z.string().optional(),
       country_id: z.union([z.number(), z.string()]).optional(),
       city_id: z.union([z.number(), z.string()]).optional(),

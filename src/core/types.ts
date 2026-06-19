@@ -51,6 +51,7 @@ export interface ListingAttribute {
 
 export interface CreateListingInput {
   title: string;
+  category_id?: number | string;
   short_description?: string;
   description?: string;
   country_id?: number | string;

@@ -107,6 +107,8 @@ Sigurno (citanje, bez troska):
 
 Upis (mijenja stanje, trazi potvrdu):
 - create, publish, update, refresh (one/all), hide, unhide, finish, slike (images add/main/rm).
+- Kreiranje trazi OBAVEZNO `title` i `category_id` (API vraca 422 bez kategorije). category_id nadji u
+  `olx://categories-index`, obavezne atribute (required: true) preko `olx_category_attributes <id>`.
 - Tok kreiranja: kreiraj (DRAFT) -> dodaj slike -> postavi glavnu -> publish. Bez publish oglas nije vidljiv.
 
 Trosak kredita (dupla potvrda, prvo cijena):

@@ -26,6 +26,7 @@ function fail(err: unknown): never {
     console.error(`AUTH: ${err.message}`);
   } else if (err instanceof OlxApiError) {
     console.error(`API (${err.status}): ${err.message}`);
+    if (err.body !== undefined) console.error(JSON.stringify(err.body, null, 2));
   } else {
     console.error(`GRESKA: ${String(err)}`);
   }
