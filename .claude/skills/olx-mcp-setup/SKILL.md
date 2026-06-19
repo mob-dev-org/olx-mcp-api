@@ -62,8 +62,8 @@ korisnik zalijepi token u chat, ne upisuj ga u fajl koji ide na GitHub.
 Kategorije i lokacije se rijetko mijenjaju, pa se jednom povuku u JSON i koriste kao staticki MCP
 resource (`olx://categories`, `olx://locations`) bez stalnog dohvatanja. Pokreni jednom kad token radi:
 ```bash
-node --env-file=.env dist/cli/index.js category dump      # -> kb/categories.json
-node --env-file=.env dist/cli/index.js location dump      # -> kb/locations.json
+node --env-file=.env dist/cli/index.js category dump      # -> olx-dokumentacija/categories.json
+node --env-file=.env dist/cli/index.js location dump      # -> olx-dokumentacija/locations.json
 ```
 Zatim commitaj ta dva fajla.
 

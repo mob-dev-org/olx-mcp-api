@@ -365,7 +365,7 @@ export class OlxClient {
   }
 
   // Rekurzivno prelistava cijelo stablo kategorija (top-level + djeca). Throttle je u request().
-  // Namijenjeno za jednokratni snapshot u kb/categories.json (kategorije se rijetko mijenjaju).
+  // Namijenjeno za jednokratni snapshot u olx-dokumentacija/categories.json (kategorije se rijetko mijenjaju).
   async categoryTree(maxDepth = 6): Promise<CategoryNode[]> {
     const build = async (cat: Category, depth: number): Promise<CategoryNode> => {
       if (depth >= maxDepth) return { ...cat, children: [] };
@@ -402,7 +402,7 @@ export class OlxClient {
     return this.request<{ data: City[] }>(`/cantons/${id}/cities`);
   }
 
-  // Jednokratni snapshot lokacija (drzave, entiteti, kantoni -> gradovi) za kb/locations.json.
+  // Jednokratni snapshot lokacija (drzave, entiteti, kantoni -> gradovi) za olx-dokumentacija/locations.json.
   // Gradovi se sklapaju obilaskom kantona; ako struktura entiteta ne sadrzi kantone, lista ostaje prazna
   // (flat liste se svejedno snime). Tacnu strukturu potvrditi uzivo kad token proradi.
   async locationSnapshot(includeCities = true): Promise<LocationSnapshot> {

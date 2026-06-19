@@ -14,7 +14,7 @@ olx-mcp-api/                # korijen repoa (toolkit je flatten-ovan ovdje)
 ├── .gitignore              # node_modules, dist, .env
 ├── README.md               # brzi start
 ├── PLAN.md                 # ovaj dokument
-├── kb/
+├── olx-dokumentacija/
 │   └── OLX_PIK_AI_Knowledgebase.md   # AI referenca (API + strategija)
 └── src/
     ├── core/

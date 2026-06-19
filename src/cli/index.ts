@@ -438,7 +438,7 @@ category
 category
   .command("dump")
   .description("Povlaci cijelo stablo kategorija i snima u JSON (jednokratni snapshot za repo/MCP)")
-  .option("--out <path>", "izlazni JSON fajl", "kb/categories.json")
+  .option("--out <path>", "izlazni JSON fajl", "olx-dokumentacija/categories.json")
   .option("--depth <n>", "maksimalna dubina stabla", "6")
   .action(async (opts: { out: string; depth: string }) => {
     try {
@@ -515,7 +515,7 @@ location
 location
   .command("dump")
   .description("Povlaci lokacije (drzave, entiteti, kantoni->gradovi) i snima u JSON (jednokratni snapshot)")
-  .option("--out <path>", "izlazni JSON fajl", "kb/locations.json")
+  .option("--out <path>", "izlazni JSON fajl", "olx-dokumentacija/locations.json")
   .option("--no-cities", "preskoci obilazak kantona za listu gradova")
   .action(async (opts: { out: string; cities: boolean }) => {
     try {

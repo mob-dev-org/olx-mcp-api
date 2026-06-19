@@ -47,8 +47,8 @@ Napomena o slikama: upload preko `--url` koristi dokumentovani `images` niz. Upl
 Kategorije i lokacije se rijetko mijenjaju, pa se jednom povuku u JSON i koriste kao statički MCP resource (`olx://categories`, `olx://locations`). Pokreni jednom kad token proradi:
 
 ```bash
-node --env-file=.env dist/cli/index.js category dump      # -> kb/categories.json
-node --env-file=.env dist/cli/index.js location dump      # -> kb/locations.json
+node --env-file=.env dist/cli/index.js category dump      # -> olx-dokumentacija/categories.json
+node --env-file=.env dist/cli/index.js location dump      # -> olx-dokumentacija/locations.json
 ```
 
 Zatim commitaj ta dva fajla. Poslije toga AI/MCP čita kategorije i lokacije iz resursa bez ijednog API poziva. Pojedinačni live upiti su i dalje dostupni (`category list/children/get/brands/models`, `location countries/cities/city`).
@@ -103,4 +103,4 @@ Repozitorij nosi i dva skilla u `.claude/skills/` (folder je skriven u file brow
 Dolaze automatski sa kloniranjem; nista se ne instalira posebno.
 
 Detaljan plan za repo, build, MCP integraciju u Claude Code i rollout tima je u `PLAN.md`.
-Strateska i API referenca za AI je u `kb/OLX_PIK_AI_Knowledgebase.md`.
+Strateska i API referenca za AI je u `olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md`.

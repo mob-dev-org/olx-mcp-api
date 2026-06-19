@@ -10,9 +10,9 @@ import { loadConfig } from "../core/config.js";
 import type { SponsorOptions, SponsorType, SponsorDays, RefreshEvery } from "../core/types.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const KB_PATH = resolve(__dirname, "../../kb/OLX_PIK_AI_Knowledgebase.md");
-const CATEGORIES_PATH = resolve(__dirname, "../../kb/categories.json");
-const LOCATIONS_PATH = resolve(__dirname, "../../kb/locations.json");
+const KB_PATH = resolve(__dirname, "../../olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md");
+const CATEGORIES_PATH = resolve(__dirname, "../../olx-dokumentacija/categories.json");
+const LOCATIONS_PATH = resolve(__dirname, "../../olx-dokumentacija/locations.json");
 
 const config = loadConfig();
 const client = new OlxClient(config);
@@ -73,7 +73,7 @@ server.registerResource(
   {
     title: "OLX/PIK stablo kategorija",
     description:
-      "Keширани snapshot stabla kategorija (kb/categories.json). Kategorije se rijetko mijenjaju, pa se citaju odavde umjesto iz API-ja. Ako fajl ne postoji, generisi ga sa CLI: category dump.",
+      "Keширани snapshot stabla kategorija (olx-dokumentacija/categories.json). Kategorije se rijetko mijenjaju, pa se citaju odavde umjesto iz API-ja. Ako fajl ne postoji, generisi ga sa CLI: category dump.",
     mimeType: "application/json",
   },
   async (uri) => {
@@ -100,7 +100,7 @@ server.registerResource(
   {
     title: "OLX/PIK lokacije",
     description:
-      "Keширани snapshot lokacija (kb/locations.json): drzave, entiteti, gradovi. Citaj odavde za country_id/city_id umjesto iz API-ja. Ako fajl ne postoji, generisi ga sa CLI: location dump.",
+      "Keширани snapshot lokacija (olx-dokumentacija/locations.json): drzave, entiteti, gradovi. Citaj odavde za country_id/city_id umjesto iz API-ja. Ako fajl ne postoji, generisi ga sa CLI: location dump.",
     mimeType: "application/json",
   },
   async (uri) => {
