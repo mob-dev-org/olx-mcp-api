@@ -250,30 +250,35 @@ export class OlxClient {
     return this.request(`/listings/${id}/refresh`, { method: "PUT" });
   }
 
-  // Upload preko URL-a: dokumentacija navodi images array sa image_url atributom.
-  uploadImagesByUrl(id: number | string, imageUrls: string[]): Promise<UploadedImage[]> {
-    return this.request<UploadedImage[]>(`/listings/${id}/image-upload`, {
-      method: "POST",
-      body: { images: imageUrls.map((image_url) => ({ image_url })) },
-    });
-  }
-
-  // Upload lokalnih fajlova preko multipart/form-data.
-  // NEPOTVRDJENO: tacan naziv polja ("images[]") nije zvanicno dokumentovan; po potrebi promijeni fieldName.
-  async uploadImageFiles(
+  // Potvrdjeno uzivo: API NE prihvata image_url, nego stvarne fajlove kao multipart pod poljem images[].
+  // Zato i URL upload preuzme sliku i posalje je kao fajl.
+  private uploadImageBlobs(
     id: number | string,
-    filePaths: string[],
-    fieldName = "images[]",
+    entries: { data: Uint8Array; filename: string }[],
   ): Promise<UploadedImage[]> {
     const form = new FormData();
-    for (const path of filePaths) {
-      const buffer = await readFile(path);
-      form.append(fieldName, new Blob([buffer]), basename(path));
+    for (const entry of entries) form.append("images[]", new Blob([entry.data]), entry.filename);
+    return this.request<UploadedImage[]>(`/listings/${id}/image-upload`, { method: "POST", body: form });
+  }
+
+  // Upload lokalnih fajlova.
+  async uploadImageFiles(id: number | string, filePaths: string[]): Promise<UploadedImage[]> {
+    const entries: { data: Uint8Array; filename: string }[] = [];
+    for (const path of filePaths) entries.push({ data: await readFile(path), filename: basename(path) });
+    return this.uploadImageBlobs(id, entries);
+  }
+
+  // Upload preko URL-a: preuzme svaku sliku pa je posalje kao multipart fajl (API ne prihvata image_url).
+  async uploadImagesByUrl(id: number | string, imageUrls: string[]): Promise<UploadedImage[]> {
+    const entries: { data: Uint8Array; filename: string }[] = [];
+    for (const url of imageUrls) {
+      const res = await fetch(url);
+      if (!res.ok) throw new OlxApiError(`Ne mogu preuzeti sliku: ${url} (${res.status})`, res.status, undefined);
+      const data = new Uint8Array(await res.arrayBuffer());
+      const filename = url.split("?")[0]?.split("/").pop() || "image.jpg";
+      entries.push({ data, filename });
     }
-    return this.request<UploadedImage[]>(`/listings/${id}/image-upload`, {
-      method: "POST",
-      body: form,
-    });
+    return this.uploadImageBlobs(id, entries);
   }
 
   deleteImage(id: number | string, imageId: number): Promise<{ success: boolean }> {

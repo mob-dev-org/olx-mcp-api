@@ -40,7 +40,7 @@ node dist/cli/index.js listings images main 12345 67890     # postavi glavnu sli
 node dist/cli/index.js listings images rm 12345 67890        # obrisi sliku
 ```
 
-Napomena o slikama: upload preko `--url` koristi dokumentovani `images` niz. Upload lokalnih fajlova (`--file`) ide preko `multipart/form-data`; tacan naziv polja nije zvanicno dokumentovan (vidi `uploadImageFiles` u `src/core/index.ts`) i treba ga potvrditi uzivo kad token proradi.
+Napomena o slikama (potvrdjeno uzivo): API prima slike samo kao stvarne fajlove preko `multipart/form-data`, pod poljem `images[]`. Ne prihvata `image_url`. Zato `--url` prvo preuzme sliku pa je posalje kao fajl, a `--file` salje lokalni fajl direktno. Oba zavrse isto na `POST /listings/:id/image-upload`.
 
 ## Snapshot kategorija i lokacija (statički, bez stalnog dohvatanja)
 

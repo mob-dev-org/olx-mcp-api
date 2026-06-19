@@ -524,7 +524,7 @@ server.registerTool(
   {
     title: "Dodaj slike",
     description:
-      "Dodaje slike na oglas. urls = lista URL-ova slika. file_paths = lokalni fajlovi na masini gdje radi server (multipart; tacan format NEPOTVRDJEN). Zadaj bar jedno. Tok: kreiraj oglas, dodaj slike, postavi glavnu, pa objavi.",
+      "Dodaje slike na oglas (multipart, polje images[]; API ne prihvata image_url). urls = slike sa interneta (server ih preuzme pa posalje kao fajl). file_paths = lokalni fajlovi na masini gdje radi server. Zadaj bar jedno. Tok: kreiraj oglas, dodaj slike, postavi glavnu (olx_set_main_image), pa objavi.",
     inputSchema: {
       id: z.union([z.number(), z.string()]),
       urls: z.array(z.string()).optional().describe("URL-ovi slika"),
