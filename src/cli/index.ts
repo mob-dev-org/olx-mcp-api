@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { OlxClient, OlxApiError, OlxAuthError, OlxSpendError } from "../core/index.js";
 import { resolveConfig, listProfileNames } from "../core/config.js";
-import type { CreateListingInput, SponsorOptions, SponsorType, SponsorDays, RefreshEvery } from "../core/types.js";
+import type { CreateListingInput, SponsorOptions, SponsorType, SponsorDays, RefreshEvery, CategoryNode } from "../core/types.js";
 
 // Ucitaj .env ako postoji (Node 20.12+/22). Bez vanjske zavisnosti.
 try {
@@ -35,6 +35,73 @@ function fail(err: unknown): never {
 function client(): OlxClient {
   const profile = (program.opts() as { profile?: string }).profile;
   return new OlxClient(resolveConfig(profile).config);
+}
+
+// Lagani CSV index kategorija: samo polja bitna za izbor kategorije i kreiranje oglasa.
+// Opcije (forme) NISU ovdje; dohvataju se po potrebi sa category attributes <id>.
+const CATEGORY_CSV_HEADERS = [
+  "id",
+  "parent_id",
+  "level",
+  "path",
+  "name",
+  "brand_required",
+  "model_required",
+  "has_models",
+  "show_condition",
+  "listing_fee",
+  "base_listing_price",
+] as const;
+
+interface CategoryCsvRow {
+  id: number;
+  parent_id: number | null;
+  level: number;
+  path: string;
+  name: string;
+  brand_required: 0 | 1;
+  model_required: 0 | 1;
+  has_models: 0 | 1;
+  show_condition: 0 | 1;
+  listing_fee: number | "";
+  base_listing_price: number | "";
+}
+
+function flattenCategories(tree: CategoryNode[]): CategoryCsvRow[] {
+  const rows: CategoryCsvRow[] = [];
+  const flag = (v: unknown): 0 | 1 => (v ? 1 : 0);
+  const numOrEmpty = (v: unknown): number | "" => (typeof v === "number" ? v : "");
+  const walk = (nodes: CategoryNode[], level: number, parentPath: string): void => {
+    for (const node of nodes) {
+      const path = parentPath ? `${parentPath} > ${node.name}` : node.name;
+      rows.push({
+        id: node.id,
+        parent_id: node.parent_id ?? null,
+        level,
+        path,
+        name: node.name,
+        brand_required: flag(node.brand_required),
+        model_required: flag(node.model_required),
+        has_models: flag(node.has_models),
+        show_condition: flag(node.show_condition),
+        listing_fee: numOrEmpty(node.listing_fee),
+        base_listing_price: numOrEmpty(node.base_listing_price),
+      });
+      if (Array.isArray(node.children) && node.children.length) walk(node.children, level + 1, path);
+    }
+  };
+  walk(tree, 1, "");
+  return rows;
+}
+
+function toCsv(rows: CategoryCsvRow[]): string {
+  const esc = (v: unknown): string => {
+    const s = v === null || v === undefined ? "" : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = [CATEGORY_CSV_HEADERS.join(",")];
+  for (const row of rows) lines.push(CATEGORY_CSV_HEADERS.map((h) => esc(row[h])).join(","));
+  return lines.join("\n") + "\n";
 }
 
 async function withAuth(): Promise<OlxClient> {
@@ -462,8 +529,29 @@ category
       const payload = { generated_at: new Date().toISOString(), base_url: c.baseUrl, tree };
       mkdirSync(dirname(opts.out), { recursive: true });
       writeFileSync(opts.out, JSON.stringify(payload, null, 2));
-      console.error(`Snimljeno ${tree.length} top-level kategorija u ${opts.out}.`);
-      console.error("Savjet: commitaj ovaj fajl da MCP resource olx://categories radi bez API poziva.");
+      const csvOut = opts.out.replace(/\.json$/i, ".csv");
+      const rows = flattenCategories(tree);
+      writeFileSync(csvOut, toCsv(rows));
+      console.error(`Snimljeno ${tree.length} top-level (${rows.length} ukupno) u ${opts.out}.`);
+      console.error(`Lagani CSV index: ${csvOut}.`);
+      console.error("Savjet: commitaj oba fajla (JSON + CSV) za MCP resurse olx://categories i olx://categories-index.");
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+category
+  .command("index")
+  .description("Generise lagani CSV index iz postojeceg categories.json (bez API poziva)")
+  .option("--from <path>", "ulazni JSON", "olx-dokumentacija/categories.json")
+  .option("--out <path>", "izlazni CSV", "olx-dokumentacija/categories.csv")
+  .action((opts: { from: string; out: string }) => {
+    try {
+      const parsed = JSON.parse(readFileSync(opts.from, "utf8")) as { tree?: CategoryNode[] };
+      const rows = flattenCategories(parsed.tree ?? []);
+      mkdirSync(dirname(opts.out), { recursive: true });
+      writeFileSync(opts.out, toCsv(rows));
+      console.error(`Lagani CSV index: ${rows.length} kategorija u ${opts.out}.`);
     } catch (e) {
       fail(e);
     }

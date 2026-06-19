@@ -20,6 +20,7 @@ try {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const KB_PATH = resolve(__dirname, "../../olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md");
 const CATEGORIES_PATH = resolve(__dirname, "../../olx-dokumentacija/categories.json");
+const CATEGORIES_CSV_PATH = resolve(__dirname, "../../olx-dokumentacija/categories.csv");
 const LOCATIONS_PATH = resolve(__dirname, "../../olx-dokumentacija/locations.json");
 
 // Jedan server radi na jednom nalogu (profilu), biranom kroz OLX_PROFILE. Za vise klijenata
@@ -77,14 +78,41 @@ server.registerResource(
   },
 );
 
-// ---- Kategorije kao staticki resource (snapshot, bez API poziva) ----
+// ---- Lagani CSV index kategorija (preferirano za pretragu) ----
+server.registerResource(
+  "categories-index",
+  "olx://categories-index",
+  {
+    title: "OLX/PIK index kategorija (CSV)",
+    description:
+      "Lagani CSV za PRONALAZAK kategorije: kolone id, parent_id, level, path, name i zastavice (brand_required, model_required, has_models, show_condition, listing_fee, base_listing_price). Koristi OVO za izbor kategorije po imenu/path. Za forme i opcije izabrane kategorije pozovi alat olx_category_attributes <id> (i olx_category za detalje), ne ucitavaj cijeli categories JSON.",
+    mimeType: "text/csv",
+  },
+  async (uri) => {
+    if (!existsSync(CATEGORIES_CSV_PATH)) {
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: "text/plain",
+            text: "CSV index jos nije generisan. Pokreni: node dist/cli/index.js category dump (ili category index).",
+          },
+        ],
+      };
+    }
+    const text = readFileSync(CATEGORIES_CSV_PATH, "utf8");
+    return { contents: [{ uri: uri.href, mimeType: "text/csv", text }] };
+  },
+);
+
+// ---- Puno stablo kategorija (detaljni snapshot; koristi tek kad CSV index nije dovoljan) ----
 server.registerResource(
   "categories",
   "olx://categories",
   {
-    title: "OLX/PIK stablo kategorija",
+    title: "OLX/PIK stablo kategorija (puni JSON)",
     description:
-      "Keширани snapshot stabla kategorija (olx-dokumentacija/categories.json). Kategorije se rijetko mijenjaju, pa se citaju odavde umjesto iz API-ja. Ako fajl ne postoji, generisi ga sa CLI: category dump.",
+      "Detaljni snapshot cijelog stabla (olx-dokumentacija/categories.json), velik. Za obicnu pretragu kategorije koristi olx://categories-index (CSV). Ovaj puni JSON citaj samo kad trebas polja kojih nema u CSV-u.",
     mimeType: "application/json",
   },
   async (uri) => {

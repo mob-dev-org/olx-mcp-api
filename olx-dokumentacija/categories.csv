@@ -1,0 +1,2031 @@
+id,parent_id,level,path,name,brand_required,model_required,has_models,show_condition,listing_fee,base_listing_price
+1,,1,Vozila,Vozila,0,0,0,1,0,0
+18,1,2,Vozila > Automobili,Automobili,0,0,0,1,70,18
+21,1,2,Vozila > Motocikli,Motocikli,0,0,0,1,70,13
+20,1,2,Vozila > Teretna vozila,Teretna vozila,0,0,0,1,70,14
+22,1,2,Vozila > Bicikli,Bicikli,0,0,0,1,0,10
+426,1,2,Vozila > Nautika,Nautika,0,0,0,1,0,7
+883,1,2,Vozila > Kamperi,Kamperi,0,0,0,1,0,5
+884,1,2,Vozila > Prikolice,Prikolice,0,0,0,1,0,6
+1040,1,2,Vozila > Autobusi i minibusi,Autobusi i minibusi,0,0,0,1,70,4
+2457,1,2,Vozila > ATV / UTV / Quad,ATV / UTV / Quad,0,0,0,1,70,16
+2127,1,2,Vozila > Motorne sanke,Motorne sanke,0,0,0,1,50,8
+2,,1,Nekretnine,Nekretnine,0,0,0,0,0,0
+23,2,2,Nekretnine > Stanovi i apartmani,Stanovi i apartmani,0,0,0,0,190,18
+2668,2,2,Nekretnine > Stan na dan,Stan na dan,0,0,0,0,190,18
+24,2,2,Nekretnine > Kuće,Kuće,0,0,0,0,190,19
+29,2,2,Nekretnine > Zemljišta,Zemljišta,0,0,0,0,190,14
+25,2,2,Nekretnine > Poslovni prostori,Poslovni prostori,0,0,0,0,190,18
+26,2,2,Nekretnine > Vikendice,Vikendice,0,0,0,0,190,17
+30,2,2,Nekretnine > Garaže,Garaže,0,0,0,0,60,9
+1193,2,2,Nekretnine > Montažni objekti,Montažni objekti,0,0,0,1,60,17
+2672,2,2,Nekretnine > Skladišta i hale,Skladišta i hale,0,0,0,0,60,12
+28,2,2,Nekretnine > Sobe,Sobe,0,0,0,0,45,12
+270,2,2,Nekretnine > Ostale nekretnine,Ostale nekretnine,0,0,0,1,50,10
+2159,,1,Servisi i usluge,Servisi i usluge,0,0,0,0,0,5
+2160,2159,2,Servisi i usluge > Auto moto i nautika,Auto moto i nautika,0,0,0,0,35,5
+2165,2160,3,Servisi i usluge > Auto moto i nautika > Auto salon,Auto salon,0,0,0,0,49,6
+2166,2160,3,Servisi i usluge > Auto moto i nautika > Auto servis,Auto servis,0,0,0,0,49,5
+2173,2160,3,Servisi i usluge > Auto moto i nautika > Autoelektričarske usluge,Autoelektričarske usluge,0,0,0,0,49,6
+2162,2160,3,Servisi i usluge > Auto moto i nautika > Autolimarske usluge,Autolimarske usluge,0,0,0,0,49,6
+2161,2160,3,Servisi i usluge > Auto moto i nautika > Automehaničarske usluge,Automehaničarske usluge,0,0,0,0,49,5
+2168,2160,3,Servisi i usluge > Auto moto i nautika > Usluge autopranja i detailing,Usluge autopranja i detailing,0,0,0,0,49,6
+2164,2160,3,Servisi i usluge > Auto moto i nautika > Autopresvlake i usluge tapetiranja,Autopresvlake i usluge tapetiranja,0,0,0,0,49,6
+2336,2160,3,Servisi i usluge > Auto moto i nautika > Autostaklarske usluge,Autostaklarske usluge,0,0,0,0,49,6
+2174,2160,3,Servisi i usluge > Auto moto i nautika > Autotuning usluge,Autotuning usluge,0,0,0,0,49,5
+2169,2160,3,Servisi i usluge > Auto moto i nautika > Moto servis,Moto servis,0,0,0,0,49,5
+2170,2160,3,Servisi i usluge > Auto moto i nautika > Usluge registracije i osiguranja vozila,Usluge registracije i osiguranja vozila,0,0,0,0,49,5
+2335,2160,3,Servisi i usluge > Auto moto i nautika > Servis autoklime,Servis autoklime,0,0,0,0,49,7
+2171,2160,3,Servisi i usluge > Auto moto i nautika > Servis za nautiku,Servis za nautiku,0,0,0,0,49,5
+2167,2160,3,Servisi i usluge > Auto moto i nautika > Tehnički pregled vozila,Tehnički pregled vozila,0,0,0,0,49,5
+2163,2160,3,Servisi i usluge > Auto moto i nautika > Vulkanizerske usluge,Vulkanizerske usluge,0,0,0,0,49,7
+2341,2159,2,"Servisi i usluge > Dizajn, print i štampa","Dizajn, print i štampa",0,0,0,1,25,5
+2584,2341,3,"Servisi i usluge > Dizajn, print i štampa > 3D modeliranje i printanje",3D modeliranje i printanje,0,0,0,1,35,7
+2261,2341,3,"Servisi i usluge > Dizajn, print i štampa > Usluge printanja i kopiranja",Usluge printanja i kopiranja,0,0,0,0,35,6
+2270,2341,3,"Servisi i usluge > Dizajn, print i štampa > Grafički dizajn",Grafički dizajn,0,0,0,0,46,5
+2262,2341,3,"Servisi i usluge > Dizajn, print i štampa > Usluge graviranja",Usluge graviranja,0,0,0,0,35,5
+2271,2341,3,"Servisi i usluge > Dizajn, print i štampa > Reklamne usluge",Reklamne usluge,0,0,0,0,46,6
+2140,2341,3,"Servisi i usluge > Dizajn, print i štampa > Izrada vizit kartica",Izrada vizit kartica,0,0,0,1,35,5
+2175,2159,2,Servisi i usluge > Dom i kancelarija,Dom i kancelarija,0,0,0,0,30,5
+2176,2175,3,Servisi i usluge > Dom i kancelarija > Bravarske usluge,Bravarske usluge,0,0,0,0,55,6
+2178,2175,3,Servisi i usluge > Dom i kancelarija > Dimnjačar,Dimnjačar,0,0,0,0,42,5
+2231,2175,3,Servisi i usluge > Dom i kancelarija > Drveno-stolarski radovi,Drveno-stolarski radovi,0,0,0,0,55,6
+2179,2175,3,Servisi i usluge > Dom i kancelarija > Elektro usluge,Elektro usluge,0,0,0,0,55,6
+2191,2175,3,Servisi i usluge > Dom i kancelarija > Kućni majstor,Kućni majstor,0,0,0,0,55,5
+2182,2175,3,"Servisi i usluge > Dom i kancelarija > Usluge interijera, eksterijera i dekoracija","Usluge interijera, eksterijera i dekoracija",0,0,0,0,55,7
+2188,2175,3,Servisi i usluge > Dom i kancelarija > Keramičarske usluge,Keramičarske usluge,0,0,0,0,55,6
+2183,2175,3,Servisi i usluge > Dom i kancelarija > Montaža i servis klima uređaja,Montaža i servis klima uređaja,0,0,0,0,55,6
+2194,2175,3,Servisi i usluge > Dom i kancelarija > Krojačke usluge,Krojačke usluge,0,0,0,0,42,5
+2196,2175,3,Servisi i usluge > Dom i kancelarija > Molerske usluge,Molerske usluge,0,0,0,0,55,8
+2446,2175,3,Servisi i usluge > Dom i kancelarija > Namještaj po mjeri,Namještaj po mjeri,0,0,0,1,55,6
+2232,2175,3,Servisi i usluge > Dom i kancelarija > PVC stolarski radovi,PVC stolarski radovi,0,0,0,0,55,6
+2185,2175,3,Servisi i usluge > Dom i kancelarija > Plinoservis - serviser i instalater,Plinoservis - serviser i instalater,0,0,0,0,55,5
+2186,2175,3,Servisi i usluge > Dom i kancelarija > Servis kućanskih aparata,Servis kućanskih aparata,0,0,0,0,42,7
+2181,2175,3,Servisi i usluge > Dom i kancelarija > Montaža i servis sigurnosnih sistema,Montaža i servis sigurnosnih sistema,0,0,0,0,55,5
+2189,2175,3,Servisi i usluge > Dom i kancelarija > Staklarske usluge,Staklarske usluge,0,0,0,0,55,7
+2187,2175,3,Servisi i usluge > Dom i kancelarija > Vodoinstalacijske usluge,Vodoinstalacijske usluge,0,0,0,0,55,5
+2177,2175,3,Servisi i usluge > Dom i kancelarija > Usluge čišćenja,Usluge čišćenja,0,0,0,0,42,6
+2197,2159,2,Servisi i usluge > Edukacija i obrazovanje,Edukacija i obrazovanje,0,0,0,0,30,5
+2198,2197,3,Servisi i usluge > Edukacija i obrazovanje > Časovi vožnje,Časovi vožnje,0,0,0,0,42,5
+2199,2197,3,Servisi i usluge > Edukacija i obrazovanje > IT instrukcije i kursevi,IT instrukcije i kursevi,0,0,0,0,42,5
+2206,2197,3,Servisi i usluge > Edukacija i obrazovanje > Instrukcije za škole i fakultete,Instrukcije za škole i fakultete,0,0,0,0,42,6
+2208,2197,3,Servisi i usluge > Edukacija i obrazovanje > Muzičke instrukcije,Muzičke instrukcije,0,0,0,0,42,5
+2203,2197,3,Servisi i usluge > Edukacija i obrazovanje > Škola sporta,Škola sporta,0,0,0,0,42,5
+2202,2197,3,Servisi i usluge > Edukacija i obrazovanje > Instrukcije i kursevi stranih jezika,Instrukcije i kursevi stranih jezika,0,0,0,0,42,5
+2201,2197,3,Servisi i usluge > Edukacija i obrazovanje > Obrazovanje odraslih,Obrazovanje odraslih,0,0,0,0,42,5
+2277,2159,2,"Servisi i usluge > Gastro, zabava i organizacija","Gastro, zabava i organizacija",0,0,0,0,15,5
+2278,2277,3,"Servisi i usluge > Gastro, zabava i organizacija > Catering usluge",Catering usluge,0,0,0,0,21,5
+2283,2277,3,"Servisi i usluge > Gastro, zabava i organizacija > Dekoracijske usluge",Dekoracijske usluge,0,0,0,0,30,5
+2279,2277,3,"Servisi i usluge > Gastro, zabava i organizacija > Foto i video usluge",Foto i video usluge,0,0,0,0,46,5
+2282,2277,3,"Servisi i usluge > Gastro, zabava i organizacija > Muzičke i produkcijske usluge",Muzičke i produkcijske usluge,0,0,0,0,21,5
+2281,2277,3,"Servisi i usluge > Gastro, zabava i organizacija > Organizacija događaja",Organizacija događaja,0,0,0,0,21,5
+2284,2277,3,"Servisi i usluge > Gastro, zabava i organizacija > Prehrambene i mesarske usluge",Prehrambene i mesarske usluge,0,0,0,0,21,5
+2280,2277,3,"Servisi i usluge > Gastro, zabava i organizacija > Rasvjeta, montiranje i održavanje","Rasvjeta, montiranje i održavanje",0,0,0,0,21,5
+2218,2159,2,Servisi i usluge > Građevinarstvo,Građevinarstvo,0,0,0,0,50,5
+2235,2218,3,Servisi i usluge > Građevinarstvo > Usluge adaptacije i renoviranja,Usluge adaptacije i renoviranja,0,0,0,0,70,5
+2219,2218,3,Servisi i usluge > Građevinarstvo > Arhitektonske usluge i dizajn,Arhitektonske usluge i dizajn,0,0,0,0,70,5
+2220,2218,3,Servisi i usluge > Građevinarstvo > Betonski radovi,Betonski radovi,0,0,0,0,70,6
+2224,2218,3,Servisi i usluge > Građevinarstvo > Servis grijanja i ventilacije,Servis grijanja i ventilacije,0,0,0,0,70,6
+2658,2218,3,Servisi i usluge > Građevinarstvo > Izgradnja i održavanje bazena,Izgradnja i održavanje bazena,0,0,0,0,70,5
+2234,2218,3,Servisi i usluge > Građevinarstvo > Kamenoklesarski radovi,Kamenoklesarski radovi,0,0,0,0,70,5
+2559,2218,3,Servisi i usluge > Građevinarstvo > Krovopokrivački radovi,Krovopokrivački radovi,0,0,0,1,70,7
+2229,2218,3,"Servisi i usluge > Građevinarstvo > Liftovi, ugradnja i servis","Liftovi, ugradnja i servis",0,0,0,0,70,5
+2225,2218,3,Servisi i usluge > Građevinarstvo > Metalostrugarski radovi,Metalostrugarski radovi,0,0,0,0,70,6
+2237,2218,3,Servisi i usluge > Građevinarstvo > Obrada plastike,Obrada plastike,0,0,0,0,70,5
+2233,2218,3,"Servisi i usluge > Građevinarstvo > Podni, stropni i izolacioni radovi","Podni, stropni i izolacioni radovi",0,0,0,0,70,6
+2226,2218,3,"Servisi i usluge > Građevinarstvo > Projektovanje, nadzor i održavanje","Projektovanje, nadzor i održavanje",0,0,0,0,70,5
+2238,2218,3,Servisi i usluge > Građevinarstvo > Usluge reciklaže,Usluge reciklaže,0,0,0,0,70,5
+2221,2218,3,"Servisi i usluge > Građevinarstvo > Rušenja, iskopni i zemljani radovi","Rušenja, iskopni i zemljani radovi",0,0,0,0,70,6
+2236,2218,3,Servisi i usluge > Građevinarstvo > Servis mašina i alata,Servis mašina i alata,0,0,0,0,70,6
+2222,2218,3,Servisi i usluge > Građevinarstvo > Završni radovi,Završni radovi,0,0,0,0,70,7
+2228,2218,3,Servisi i usluge > Građevinarstvo > Zidarski i fasaderski radovi,Zidarski i fasaderski radovi,0,0,0,0,70,7
+2230,2218,3,Servisi i usluge > Građevinarstvo > Ostalo,Ostalo,0,0,0,0,70,5
+2268,2159,2,Servisi i usluge > Informatika i Telekomunikacije,Informatika i Telekomunikacije,0,0,0,0,45,5
+2269,2268,3,Servisi i usluge > Informatika i Telekomunikacije > Audio-video servis i montaža,Audio-video servis i montaža,0,0,0,0,63,5
+2663,2268,3,Servisi i usluge > Informatika i Telekomunikacije > IPTV,IPTV,0,0,0,0,600,38
+2276,2268,3,"Servisi i usluge > Informatika i Telekomunikacije > Mreže, serveri i telekomunikacije","Mreže, serveri i telekomunikacije",0,0,0,0,63,5
+2274,2268,3,"Servisi i usluge > Informatika i Telekomunikacije > Satelitska, kablovska, servis i instalacija","Satelitska, kablovska, servis i instalacija",0,0,0,0,63,5
+2364,2268,3,Servisi i usluge > Informatika i Telekomunikacije > Servis konzola,Servis konzola,0,0,0,0,42,7
+2273,2268,3,Servisi i usluge > Informatika i Telekomunikacije > Servis mobitela,Servis mobitela,0,0,0,0,63,7
+2272,2268,3,Servisi i usluge > Informatika i Telekomunikacije > Servis računara,Servis računara,0,0,0,0,63,6
+1677,2268,3,Servisi i usluge > Informatika i Telekomunikacije > Web hosting,Web hosting,0,0,0,0,63,5
+2275,2268,3,Servisi i usluge > Informatika i Telekomunikacije > Web i Software izrada,Web i Software izrada,0,0,0,0,63,7
+2333,2268,3,Servisi i usluge > Informatika i Telekomunikacije > Ostale IT usluge,Ostale IT usluge,0,0,0,0,42,5
+2239,2159,2,"Servisi i usluge > Ljepota, njega i medicinske usluge","Ljepota, njega i medicinske usluge",0,0,0,0,10,5
+2247,2239,3,"Servisi i usluge > Ljepota, njega i medicinske usluge > Briga o starijim osobama",Briga o starijim osobama,0,0,0,0,14,5
+2240,2239,3,"Servisi i usluge > Ljepota, njega i medicinske usluge > Čuvanje djece i dječiji vrtići",Čuvanje djece i dječiji vrtići,0,0,0,0,14,5
+2248,2239,3,"Servisi i usluge > Ljepota, njega i medicinske usluge > Frizerske i kozmetičke usluge",Frizerske i kozmetičke usluge,0,0,0,0,14,5
+2249,2239,3,"Servisi i usluge > Ljepota, njega i medicinske usluge > Kućne posjete i mobilna klinika",Kućne posjete i mobilna klinika,0,0,0,0,30,5
+2241,2239,3,"Servisi i usluge > Ljepota, njega i medicinske usluge > Masaže i fizikalne terapije",Masaže i fizikalne terapije,0,0,0,0,25,6
+2246,2239,3,"Servisi i usluge > Ljepota, njega i medicinske usluge > Ostale medicinske usluge",Ostale medicinske usluge,0,0,0,0,30,5
+2338,2159,2,Servisi i usluge > Marketing i posredovanje,Marketing i posredovanje,0,0,0,0,15,5
+2204,2338,3,Servisi i usluge > Marketing i posredovanje > Intelektualne usluge,Intelektualne usluge,0,0,0,0,55,5
+2212,2338,3,Servisi i usluge > Marketing i posredovanje > Marketinške usluge,Marketinške usluge,0,0,0,0,30,5
+2205,2338,3,Servisi i usluge > Marketing i posredovanje > Prevođenje i lektorisanje,Prevođenje i lektorisanje,0,0,0,0,55,5
+2217,2338,3,Servisi i usluge > Marketing i posredovanje > Usluge posredovanja,Usluge posredovanja,0,0,0,0,21,5
+2260,2159,2,Servisi i usluge > Ostale usluge i servisi,Ostale usluge i servisi,0,0,0,0,25,5
+2267,2260,3,Servisi i usluge > Ostale usluge i servisi > Poljoprivredni radovi,Poljoprivredni radovi,0,0,0,0,35,6
+2334,2260,3,Servisi i usluge > Ostale usluge i servisi > Servis bicikala,Servis bicikala,0,0,0,0,35,5
+2265,2260,3,"Servisi i usluge > Ostale usluge i servisi > Veterinar, njega i čuvanje životinja","Veterinar, njega i čuvanje životinja",0,0,0,0,35,5
+2266,2260,3,Servisi i usluge > Ostale usluge i servisi > Ostalo,Ostalo,0,0,0,0,35,5
+2209,2159,2,Servisi i usluge > Pravo i finansije,Pravo i finansije,0,0,0,0,15,5
+2213,2209,3,Servisi i usluge > Pravo i finansije > Pravne usluge,Pravne usluge,0,0,0,0,30,5
+2210,2209,3,Servisi i usluge > Pravo i finansije > Finansijske usluge,Finansijske usluge,0,0,0,0,30,5
+2214,2209,3,Servisi i usluge > Pravo i finansije > Usluge osiguranja,Usluge osiguranja,0,0,0,0,30,5
+2250,2159,2,Servisi i usluge > Transport i promet,Transport i promet,0,0,0,0,45,5
+2252,2250,3,Servisi i usluge > Transport i promet > Iznajmljivanje vozila,Iznajmljivanje vozila,0,0,0,0,63,13
+2253,2250,3,Servisi i usluge > Transport i promet > Prijevoz robe i seldibe,Prijevoz robe i seldibe,0,0,0,0,63,12
+2255,2250,3,Servisi i usluge > Transport i promet > Prijevoz putnika,Prijevoz putnika,0,0,0,0,63,7
+2259,2250,3,Servisi i usluge > Transport i promet > Pogrebni prijevoz i usluge,Pogrebni prijevoz i usluge,0,0,0,0,63,5
+2257,2250,3,Servisi i usluge > Transport i promet > Vučna služba,Vučna služba,0,0,0,0,63,8
+1773,2159,2,Servisi i usluge > Turističke usluge,Turističke usluge,0,0,0,0,35,5
+2286,,1,Poslovi,Poslovi,0,0,0,0,100,10
+2298,2286,2,Poslovi > Administracija,Administracija,0,0,0,0,100,10
+2344,2286,2,Poslovi > Arhitektura i projektovanje,Arhitektura i projektovanje,0,0,0,1,100,10
+2300,2286,2,Poslovi > Autoindustrija,Autoindustrija,0,0,0,0,100,12
+2301,2286,2,"Poslovi > Briga o djeci, starima i domaćinstvu","Briga o djeci, starima i domaćinstvu",0,0,0,0,100,10
+2303,2286,2,Poslovi > Ekonomija i finansije,Ekonomija i finansije,0,0,0,0,100,10
+2302,2286,2,Poslovi > Elektrotehnika i mašinstvo,Elektrotehnika i mašinstvo,0,0,0,0,100,10
+2299,2286,2,Poslovi > Građevinarstvo i geodezija,Građevinarstvo i geodezija,0,0,0,0,100,12
+2304,2286,2,Poslovi > IT i telekomunikacije,IT i telekomunikacije,0,0,0,0,100,10
+2305,2286,2,"Poslovi > Instalacije, održavanje i popravak","Instalacije, održavanje i popravak",0,0,0,0,100,10
+2306,2286,2,Poslovi > Ljepota i zdravlje,Ljepota i zdravlje,0,0,0,0,100,10
+2307,2286,2,"Poslovi > Ljudski resursi, pravo","Ljudski resursi, pravo",0,0,0,0,100,10
+2423,2286,2,Poslovi > Marketing/PR,Marketing/PR,0,0,0,1,100,10
+2317,2286,2,"Poslovi > Menadžment,upravljanje i savjetovanje","Menadžment,upravljanje i savjetovanje",0,0,0,0,100,10
+2346,2286,2,Poslovi > Moleraj i tapetarija,Moleraj i tapetarija,0,0,0,0,100,10
+2309,2286,2,Poslovi > Obrazovanje i nauka,Obrazovanje i nauka,0,0,0,0,100,10
+2308,2286,2,"Poslovi > Osiguranje, sigurnost i zaštita","Osiguranje, sigurnost i zaštita",0,0,0,0,100,10
+2311,2286,2,Poslovi > Poljoprivreda i šumarstvo,Poljoprivreda i šumarstvo,0,0,0,0,100,10
+2312,2286,2,Poslovi > Prodaja/Komercijala,Prodaja/Komercijala,0,0,0,0,100,10
+2345,2286,2,Poslovi > Stolarija i keramika,Stolarija i keramika,0,0,0,0,100,10
+2313,2286,2,Poslovi > Tekstilna industrija,Tekstilna industrija,0,0,0,0,100,10
+2314,2286,2,"Poslovi > Transport, logistika i špedicija","Transport, logistika i špedicija",0,0,0,0,100,12
+2315,2286,2,Poslovi > Turizam i ugostiteljstvo,Turizam i ugostiteljstvo,0,0,0,0,100,10
+2316,2286,2,"Poslovi > Umjetnost, kultura, mediji","Umjetnost, kultura, mediji",0,0,0,0,100,10
+2347,2286,2,"Poslovi > Veterina, stočarstvo i ribarstvo","Veterina, stočarstvo i ribarstvo",0,0,0,0,100,10
+2296,2286,2,Poslovi > Web development i dizajn,Web development i dizajn,0,0,0,0,100,10
+2297,2286,2,"Poslovi > Zdravstvo, farmacija i socijalna zaštita","Zdravstvo, farmacija i socijalna zaštita",0,0,0,0,100,10
+2310,2286,2,Poslovi > Ostali poslovi,Ostali poslovi,0,0,0,0,100,10
+928,,1,Dijelovi za vozila,Dijelovi za vozila,0,0,0,1,0,5
+929,928,2,Dijelovi za vozila > Za automobile,Za automobile,0,0,0,1,0,5
+1473,929,3,Dijelovi za vozila > Za automobile > ABS sistemi za automobile,ABS sistemi za automobile,0,0,0,1,0,6
+2607,929,3,Dijelovi za vozila > Za automobile > Aditivi za automobile,Aditivi za automobile,0,0,0,1,0,5
+1443,929,3,Dijelovi za vozila > Za automobile > Airbagovi za automobile,Airbagovi za automobile,0,0,0,1,0,6
+1446,929,3,Dijelovi za vozila > Za automobile > Akumulatori za automobile,Akumulatori za automobile,0,0,0,1,0,10
+1613,929,3,Dijelovi za vozila > Za automobile > Alarmi za automobile,Alarmi za automobile,0,0,0,1,0,5
+1615,929,3,Dijelovi za vozila > Za automobile > Alat i pribor za automobile,Alat i pribor za automobile,0,0,0,1,0,6
+1768,929,3,Dijelovi za vozila > Za automobile > Alternatori za automobile,Alternatori za automobile,0,0,0,1,0,6
+1462,929,3,Dijelovi za vozila > Za automobile > Amortizeri i opruge za automobile,Amortizeri i opruge za automobile,0,0,0,1,0,8
+1438,929,3,Dijelovi za vozila > Za automobile > Anlaseri za automobile,Anlaseri za automobile,0,0,0,1,0,7
+2435,929,3,Dijelovi za vozila > Za automobile > Antene za automobile,Antene za automobile,0,0,0,1,0,5
+2606,929,3,Dijelovi za vozila > Za automobile > Antifrizi i permanti za automobile,Antifrizi i permanti za automobile,0,0,0,1,0,5
+2350,929,3,Dijelovi za vozila > Za automobile > Auto kamere,Auto kamere,0,0,0,1,0,6
+1524,929,3,Dijelovi za vozila > Za automobile > Auto klime,Auto klime,0,0,0,1,0,5
+1603,929,3,Dijelovi za vozila > Za automobile > Autodijagnostika,Autodijagnostika,0,0,0,1,0,8
+2587,929,3,Dijelovi za vozila > Za automobile > Autofolije,Autofolije,0,0,0,1,0,6
+942,929,3,Dijelovi za vozila > Za automobile > Autokozmetika,Autokozmetika,0,0,0,1,0,5
+1523,929,3,Dijelovi za vozila > Za automobile > Automobili u dijelovima,Automobili u dijelovima,0,0,0,0,0,11
+2028,929,3,Dijelovi za vozila > Za automobile > Autopresvlake,Autopresvlake,0,0,0,1,0,7
+2483,929,3,Dijelovi za vozila > Za automobile > Baglame vrata za automobile,Baglame vrata za automobile,0,0,0,1,0,5
+2439,929,3,Dijelovi za vozila > Za automobile > Balans štange za automobile,Balans štange za automobile,0,0,0,1,0,5
+2501,929,3,Dijelovi za vozila > Za automobile > Balasti za automobile,Balasti za automobile,0,0,0,1,0,5
+1567,929,3,"Dijelovi za vozila > Za automobile > Bass, woofer i kutije za automobile","Bass, woofer i kutije za automobile",0,0,0,1,0,5
+2472,929,3,Dijelovi za vozila > Za automobile > Birači brzina za automobile,Birači brzina za automobile,0,0,0,1,0,5
+1456,929,3,Dijelovi za vozila > Za automobile > Blatobrani za automobile,Blatobrani za automobile,0,0,0,1,0,6
+2580,929,3,Dijelovi za vozila > Za automobile > Blende za radio automobila,Blende za radio automobila,0,0,0,1,0,6
+1790,929,3,Dijelovi za vozila > Za automobile > Board kompjuteri za automobile,Board kompjuteri za automobile,0,0,0,1,0,5
+1442,929,3,Dijelovi za vozila > Za automobile > Bobine za automobile,Bobine za automobile,0,0,0,1,0,5
+944,929,3,"Dijelovi za vozila > Za automobile > Branici, karambolke i spojleri za automobile","Branici, karambolke i spojleri za automobile",0,0,0,1,0,7
+1614,929,3,Dijelovi za vozila > Za automobile > Brave i ključevi za automobile,Brave i ključevi za automobile,0,0,0,1,0,6
+1811,929,3,Dijelovi za vozila > Za automobile > Bregaste osovine za automobile,Bregaste osovine za automobile,0,0,0,1,0,5
+1440,929,3,Dijelovi za vozila > Za automobile > Brisači za automobile,Brisači za automobile,0,0,0,1,0,6
+1565,929,3,Dijelovi za vozila > Za automobile > CD/DVD/MC/Radio player za automobile,CD/DVD/MC/Radio player za automobile,0,0,0,1,0,6
+2462,929,3,Dijelovi za vozila > Za automobile > Cerade za automobile,Cerade za automobile,0,0,0,1,0,5
+2034,929,3,Dijelovi za vozila > Za automobile > Čepovi felgi za automobile,Čepovi felgi za automobile,0,0,0,1,0,6
+946,929,3,Dijelovi za vozila > Za automobile > Cijelo ozvučenje za automobile,Cijelo ozvučenje za automobile,0,0,0,1,0,5
+2320,929,3,Dijelovi za vozila > Za automobile > Crijeva za automobile,Crijeva za automobile,0,0,0,1,0,6
+2485,929,3,Dijelovi za vozila > Za automobile > Dekla motora za automobile,Dekla motora za automobile,0,0,0,1,0,5
+2322,929,3,Dijelovi za vozila > Za automobile > Diferencijali za automobile,Diferencijali za automobile,0,0,0,1,0,5
+1789,929,3,Dijelovi za vozila > Za automobile > Dihtung za automobile,Dihtung za automobile,0,0,0,1,0,5
+1472,929,3,Dijelovi za vozila > Za automobile > Diskovi i pločice za automobile,Diskovi i pločice za automobile,0,0,0,1,0,5
+2451,929,3,Dijelovi za vozila > Za automobile > Display/Ekran za automobile,Display/Ekran za automobile,0,0,0,1,0,7
+2452,929,3,Dijelovi za vozila > Za automobile > Distanceri za automobile,Distanceri za automobile,0,0,0,1,0,6
+1486,929,3,Dijelovi za vozila > Za automobile > Dizalice za automobile,Dizalice za automobile,0,0,0,1,0,5
+1478,929,3,Dijelovi za vozila > Za automobile > Dizne za automobile,Dizne za automobile,0,0,0,1,0,5
+2142,929,3,Dijelovi za vozila > Za automobile > Doboši točka/kočioni za automobile,Doboši točka/kočioni za automobile,0,0,0,1,0,5
+2124,929,3,Dijelovi za vozila > Za automobile > Duple komande za automobile,Duple komande za automobile,0,0,0,1,0,5
+2491,929,3,"Dijelovi za vozila > Za automobile > ECU jedinice, procesori i kompjuteri za automobile","ECU jedinice, procesori i kompjuteri za automobile",0,0,0,1,0,6
+1080,929,3,Dijelovi za vozila > Za automobile > Elektronika i Akustika za automobile,Elektronika i Akustika za automobile,0,0,0,1,0,5
+1606,929,3,Dijelovi za vozila > Za automobile > Equalizer za automobile,Equalizer za automobile,0,0,0,1,0,5
+2401,929,3,Dijelovi za vozila > Za automobile > FM transmiteri za automobile,FM transmiteri za automobile,0,0,0,1,0,5
+939,929,3,Dijelovi za vozila > Za automobile > Farovi i Štopke za automobile,Farovi i Štopke za automobile,0,0,0,1,0,7
+937,929,3,Dijelovi za vozila > Za automobile > Felge za automobile,Felge za automobile,0,0,0,1,0,11
+1616,929,3,Dijelovi za vozila > Za automobile > Felge s gumama za automobile,Felge s gumama za automobile,0,0,0,1,0,12
+1434,929,3,Dijelovi za vozila > Za automobile > Filteri za automobile,Filteri za automobile,0,0,0,1,0,5
+2139,929,3,Dijelovi za vozila > Za automobile > Glave motora za automobile,Glave motora za automobile,0,0,0,1,0,6
+1624,929,3,Dijelovi za vozila > Za automobile > Glavčine za automobile,Glavčine za automobile,0,0,0,1,0,6
+2516,929,3,Dijelovi za vozila > Za automobile > Graničnici vrata za automobile,Graničnici vrata za automobile,0,0,0,1,0,5
+1749,929,3,Dijelovi za vozila > Za automobile > Grijači za automobile,Grijači za automobile,0,0,0,1,0,5
+940,929,3,Dijelovi za vozila > Za automobile > Gume za automobile,Gume za automobile,0,0,0,1,0,18
+1457,929,3,Dijelovi za vozila > Za automobile > Haube za automobile,Haube za automobile,0,0,0,1,0,6
+1469,929,3,Dijelovi za vozila > Za automobile > Hladnjaci za automobile,Hladnjaci za automobile,0,0,0,1,0,7
+1451,929,3,Dijelovi za vozila > Za automobile > Instrument table za automobile,Instrument table za automobile,0,0,0,1,0,5
+945,929,3,Dijelovi za vozila > Za automobile > Izduvni sistemi za automobile,Izduvni sistemi za automobile,0,0,0,1,0,6
+1599,929,3,Dijelovi za vozila > Za automobile > Kablovi i konektori za automobile,Kablovi i konektori za automobile,0,0,0,1,0,5
+1476,929,3,Dijelovi za vozila > Za automobile > Kapice za automobilske gume,Kapice za automobilske gume,0,0,0,1,0,5
+1444,929,3,Dijelovi za vozila > Za automobile > Karburatori za automobile,Karburatori za automobile,0,0,0,1,0,5
+1621,929,3,Dijelovi za vozila > Za automobile > Kardani za automobile,Kardani za automobile,0,0,0,1,0,5
+1766,929,3,Dijelovi za vozila > Za automobile > Karteri za automobile,Karteri za automobile,0,0,0,1,0,5
+1436,929,3,Dijelovi za vozila > Za automobile > Katalizatori za automobile,Katalizatori za automobile,0,0,0,1,0,5
+2393,929,3,Dijelovi za vozila > Za automobile > Kederi za automobile,Kederi za automobile,0,0,0,1,0,5
+1788,929,3,Dijelovi za vozila > Za automobile > Kilometar satovi za automobile,Kilometar satovi za automobile,0,0,0,1,0,5
+2105,929,3,Dijelovi za vozila > Za automobile > Kinetički zglobovi za automobile,Kinetički zglobovi za automobile,0,0,0,1,0,5
+2138,929,3,Dijelovi za vozila > Za automobile > Klipovi za automobile,Klipovi za automobile,0,0,0,1,0,5
+1622,929,3,Dijelovi za vozila > Za automobile > Kompresori za automobile,Kompresori za automobile,0,0,0,1,0,7
+1604,929,3,Dijelovi za vozila > Za automobile > Kondenzatori za automobile,Kondenzatori za automobile,0,0,0,1,0,5
+2445,929,3,"Dijelovi za vozila > Za automobile > Kopče, žabice i spojke za automobile","Kopče, žabice i spojke za automobile",0,0,0,1,0,5
+1487,929,3,Dijelovi za vozila > Za automobile > Kočioni cilindri za automobile,Kočioni cilindri za automobile,0,0,0,1,0,6
+2353,929,3,Dijelovi za vozila > Za automobile > Kožice mjenjača za automobile,Kožice mjenjača za automobile,0,0,0,1,0,5
+2107,929,3,Dijelovi za vozila > Za automobile > Krajnice za automobile,Krajnice za automobile,0,0,0,1,0,5
+1458,929,3,Dijelovi za vozila > Za automobile > Kuke za automobile,Kuke za automobile,0,0,0,1,0,6
+2523,929,3,Dijelovi za vozila > Za automobile > Kućišta osigurača i osigurači za automobile,Kućišta osigurača i osigurači za automobile,0,0,0,1,0,5
+1474,929,3,Dijelovi za vozila > Za automobile > Kvačila za automobile,Kvačila za automobile,0,0,0,1,0,6
+1618,929,3,Dijelovi za vozila > Za automobile > Lafete za automobile,Lafete za automobile,0,0,0,1,0,5
+1522,929,3,Dijelovi za vozila > Za automobile > Lajsne i pragovi za automobile,Lajsne i pragovi za automobile,0,0,0,1,0,6
+1452,929,3,Dijelovi za vozila > Za automobile > Lamele za automobile,Lamele za automobile,0,0,0,1,0,5
+1812,929,3,Dijelovi za vozila > Za automobile > Lanci za snijeg automobilskih guma,Lanci za snijeg automobilskih guma,0,0,0,1,0,5
+1471,929,3,Dijelovi za vozila > Za automobile > Letve volana za automobile,Letve volana za automobile,0,0,0,1,0,6
+1435,929,3,Dijelovi za vozila > Za automobile > Ležajevi za automobile,Ležajevi za automobile,0,0,0,1,0,5
+1079,929,3,Dijelovi za vozila > Za automobile > Limarija za automobile,Limarija za automobile,0,0,0,1,0,5
+2015,929,3,Dijelovi za vozila > Za automobile > Maglenke za automobile,Maglenke za automobile,0,0,0,1,0,6
+2463,929,3,Dijelovi za vozila > Za automobile > Makaze i držači haube za automobile,Makaze i držači haube za automobile,0,0,0,1,0,5
+2571,929,3,Dijelovi za vozila > Za automobile > Manžetne za automobile,Manžetne za automobile,0,0,0,1,0,5
+1439,929,3,Dijelovi za vozila > Za automobile > Maske za automobile,Maske za automobile,0,0,0,1,0,5
+2012,929,3,Dijelovi za vozila > Za automobile > Metlice brisača za automobile,Metlice brisača za automobile,0,0,0,1,0,5
+1433,929,3,Dijelovi za vozila > Za automobile > Mjenjači za automobile,Mjenjači za automobile,0,0,0,1,0,5
+2603,929,3,Dijelovi za vozila > Za automobile > Mjerači i šipke ulja za automobile,Mjerači i šipke ulja za automobile,0,0,0,1,0,5
+2644,929,3,Dijelovi za vozila > Za automobile > Moduli airbegova za automobile,Moduli airbegova za automobile,0,0,0,1,0,5
+1061,929,3,Dijelovi za vozila > Za automobile > Motori za automobile,Motori za automobile,0,0,0,1,0,7
+2589,929,3,Dijelovi za vozila > Za automobile > Motori šibera za automobile,Motori šibera za automobile,0,0,0,1,0,5
+2441,929,3,Dijelovi za vozila > Za automobile > Motorići i klapne grijanja za automobile,Motorići i klapne grijanja za automobile,0,0,0,1,0,6
+2455,929,3,Dijelovi za vozila > Za automobile > Naljepnice i stikeri za automobile,Naljepnice i stikeri za automobile,0,0,0,1,0,6
+1460,929,3,Dijelovi za vozila > Za automobile > Naslonjači za automobile,Naslonjači za automobile,0,0,0,1,0,5
+938,929,3,Dijelovi za vozila > Za automobile > Navigacija/GPS za automobile,Navigacija/GPS za automobile,0,0,0,1,0,5
+2489,929,3,Dijelovi za vozila > Za automobile > Nosači alternatora za automobile,Nosači alternatora za automobile,0,0,0,1,0,5
+2624,929,3,Dijelovi za vozila > Za automobile > Nosači auspuha za automobile,Nosači auspuha za automobile,0,0,0,1,0,5
+2623,929,3,Dijelovi za vozila > Za automobile > Nosači blatobrana za automobile,Nosači blatobrana za automobile,0,0,0,1,0,5
+2488,929,3,Dijelovi za vozila > Za automobile > Nosači farova za automobile,Nosači farova za automobile,0,0,0,1,0,5
+2569,929,3,Dijelovi za vozila > Za automobile > Nosači hladnjaka za automobile,Nosači hladnjaka za automobile,0,0,0,1,0,5
+1449,929,3,Dijelovi za vozila > Za automobile > Nosači i koferi za automobile,Nosači i koferi za automobile,0,0,0,1,0,10
+2520,929,3,Dijelovi za vozila > Za automobile > Nosači i plastike akumulatora za automobile,Nosači i plastike akumulatora za automobile,0,0,0,1,0,5
+2128,929,3,Dijelovi za vozila > Za automobile > Nosači motora i mjenjača za automobile,Nosači motora i mjenjača za automobile,0,0,0,1,0,6
+2576,929,3,Dijelovi za vozila > Za automobile > Nosači osovina za automobile,Nosači osovina za automobile,0,0,0,1,0,5
+2570,929,3,Dijelovi za vozila > Za automobile > Nosači ventilatora za automobile,Nosači ventilatora za automobile,0,0,0,1,0,5
+2459,929,3,Dijelovi za vozila > Za automobile > Nosači/Grede branika za automobile,Nosači/Grede branika za automobile,0,0,0,1,0,5
+2125,929,3,Dijelovi za vozila > Za automobile > Okviri tablica za automobile,Okviri tablica za automobile,0,0,0,1,0,6
+1490,929,3,Dijelovi za vozila > Za automobile > Osovine/Mostovi za automobile,Osovine/Mostovi za automobile,0,0,0,1,0,5
+1441,929,3,Dijelovi za vozila > Za automobile > Pakne za automobile,Pakne za automobile,0,0,0,1,0,5
+2425,929,3,Dijelovi za vozila > Za automobile > Papučice za automobile,Papučice za automobile,0,0,0,1,0,5
+1461,929,3,Dijelovi za vozila > Za automobile > Patosnice i podmetači za automobile,Patosnice i podmetači za automobile,0,0,0,1,0,11
+2473,929,3,Dijelovi za vozila > Za automobile > Pepeljare za automobile,Pepeljare za automobile,0,0,0,1,0,5
+1623,929,3,Dijelovi za vozila > Za automobile > Plastika za automobile,Plastika za automobile,0,0,0,1,0,5
+1759,929,3,Dijelovi za vozila > Za automobile > Plinski uređaji za automobile,Plinski uređaji za automobile,0,0,0,1,0,5
+2094,929,3,Dijelovi za vozila > Za automobile > Podizači stakala za automobile,Podizači stakala za automobile,0,0,0,1,0,5
+1570,929,3,Dijelovi za vozila > Za automobile > Pojačala za automobile,Pojačala za automobile,0,0,0,1,0,5
+2517,929,3,Dijelovi za vozila > Za automobile > Poklopci i čepovi rezervoara za automobile,Poklopci i čepovi rezervoara za automobile,0,0,0,1,0,5
+2456,929,3,Dijelovi za vozila > Za automobile > Poklopci/Zaštite motora za automobile,Poklopci/Zaštite motora za automobile,0,0,0,1,0,6
+2152,929,3,Dijelovi za vozila > Za automobile > Posude tečnosti za automobile,Posude tečnosti za automobile,0,0,0,1,0,6
+1450,929,3,Dijelovi za vozila > Za automobile > Prekidači za automobile,Prekidači za automobile,0,0,0,1,0,6
+1475,929,3,Dijelovi za vozila > Za automobile > Protokomjeri zraka za automobile,Protokomjeri zraka za automobile,0,0,0,1,0,5
+1448,929,3,Dijelovi za vozila > Za automobile > Pumpe za automobile,Pumpe za automobile,0,0,0,1,0,5
+2664,929,3,Dijelovi za vozila > Za automobile > Punjači za električna vozila,Punjači za električna vozila,0,0,0,1,0,5
+2141,929,3,Dijelovi za vozila > Za automobile > Radilice za automobile,Radilice za automobile,0,0,0,1,0,6
+2437,929,3,Dijelovi za vozila > Za automobile > Rampe goriva za automobile,Rampe goriva za automobile,0,0,0,1,0,5
+1454,929,3,Dijelovi za vozila > Za automobile > Ratkape za automobile,Ratkape za automobile,0,0,0,1,0,7
+2477,929,3,Dijelovi za vozila > Za automobile > Razvodnici paljenja za automobile,Razvodnici paljenja za automobile,0,0,0,1,0,5
+2157,929,3,Dijelovi za vozila > Za automobile > Reduktori za automobile,Reduktori za automobile,0,0,0,1,0,5
+2328,929,3,Dijelovi za vozila > Za automobile > Releji za automobile,Releji za automobile,0,0,0,1,0,5
+1760,929,3,Dijelovi za vozila > Za automobile > Remenovi za automobile,Remenovi za automobile,0,0,0,1,0,5
+943,929,3,Dijelovi za vozila > Za automobile > Retrovizori za automobile,Retrovizori za automobile,0,0,0,1,0,8
+2661,929,3,Dijelovi za vozila > Za automobile > Rezervni točkovi za automobile,Rezervni točkovi za automobile,0,0,0,1,0,11
+1479,929,3,Dijelovi za vozila > Za automobile > Rezervoari za automobile,Rezervoari za automobile,0,0,0,1,0,5
+2453,929,3,Dijelovi za vozila > Za automobile > Roletne/daske gepeka za automobile,Roletne/daske gepeka za automobile,0,0,0,1,0,5
+2605,929,3,Dijelovi za vozila > Za automobile > Rotacije za automobile,Rotacije za automobile,0,0,0,1,0,5
+2062,929,3,Dijelovi za vozila > Za automobile > Ručice mjenjača za automobile,Ručice mjenjača za automobile,0,0,0,1,0,5
+2450,929,3,Dijelovi za vozila > Za automobile > Ručne kočnice za automobile,Ručne kočnice za automobile,0,0,0,1,0,5
+2144,929,3,Dijelovi za vozila > Za automobile > Sajle za automobile,Sajle za automobile,0,0,0,1,0,5
+1470,929,3,Dijelovi za vozila > Za automobile > Senzori za automobile,Senzori za automobile,0,0,0,1,0,5
+2458,929,3,Dijelovi za vozila > Za automobile > Sigurnosni pojasevi za automobile,Sigurnosni pojasevi za automobile,0,0,0,1,0,5
+1453,929,3,Dijelovi za vozila > Za automobile > Sijalice za automobile,Sijalice za automobile,0,0,0,1,0,6
+2549,929,3,Dijelovi za vozila > Za automobile > Sirene i tasteri za automobile,Sirene i tasteri za automobile,0,0,0,1,0,5
+941,929,3,Dijelovi za vozila > Za automobile > Sjedišta za automobile,Sjedišta za automobile,0,0,0,1,0,8
+1605,929,3,Dijelovi za vozila > Za automobile > Skretnice za automobile,Skretnice za automobile,0,0,0,1,0,5
+2629,929,3,Dijelovi za vozila > Za automobile > Snorkel za automobile,Snorkel za automobile,0,0,0,1,0,5
+2321,929,3,Dijelovi za vozila > Za automobile > Stabilizatori za automobile,Stabilizatori za automobile,0,0,0,1,0,5
+2558,929,3,Dijelovi za vozila > Za automobile > Svjetla tablica za automobile,Svjetla tablica za automobile,0,0,0,1,0,5
+1726,929,3,Dijelovi za vozila > Za automobile > Svjećice za automobile,Svjećice za automobile,0,0,0,1,0,5
+1619,929,3,Dijelovi za vozila > Za automobile > Tapacirung za automobile,Tapacirung za automobile,0,0,0,1,0,6
+2069,929,3,Dijelovi za vozila > Za automobile > Termostati za automobile,Termostati za automobile,0,0,0,1,0,5
+948,929,3,Dijelovi za vozila > Za automobile > Tuning za automobile,Tuning za automobile,0,0,0,1,0,6
+1447,929,3,Dijelovi za vozila > Za automobile > Turbine za automobile,Turbine za automobile,0,0,0,1,0,5
+1455,929,3,Dijelovi za vozila > Za automobile > Ulja za automobile,Ulja za automobile,0,0,0,1,0,7
+2557,929,3,Dijelovi za vozila > Za automobile > Unutrašnje osvjetljenje za automobile,Unutrašnje osvjetljenje za automobile,0,0,0,1,0,6
+1463,929,3,Dijelovi za vozila > Za automobile > Unutrašnji izgled za automobile,Unutrašnji izgled za automobile,0,0,0,1,0,7
+2106,929,3,Dijelovi za vozila > Za automobile > Usisne grane za automobile,Usisne grane za automobile,0,0,0,1,0,5
+2639,929,3,Dijelovi za vozila > Za automobile > Vakum boca za automobile,Vakum boca za automobile,0,0,0,1,0,5
+2598,929,3,Dijelovi za vozila > Za automobile > Vakumi turbina za automobile,Vakumi turbina za automobile,0,0,0,1,0,5
+2583,929,3,Dijelovi za vozila > Za automobile > Vandleri za automobile,Vandleri za automobile,0,0,0,1,0,5
+1464,929,3,Dijelovi za vozila > Za automobile > Vanjski izgled za automobile,Vanjski izgled za automobile,0,0,0,1,0,5
+1480,929,3,Dijelovi za vozila > Za automobile > Ventilatori za automobile,Ventilatori za automobile,0,0,0,1,0,5
+1477,929,3,Dijelovi za vozila > Za automobile > Ventili za automobile,Ventili za automobile,0,0,0,1,0,5
+2530,929,3,Dijelovi za vozila > Za automobile > Vitla za automobile,Vitla za automobile,0,0,0,1,0,5
+1445,929,3,Dijelovi za vozila > Za automobile > Volani za automobile,Volani za automobile,0,0,0,1,0,7
+1459,929,3,Dijelovi za vozila > Za automobile > Vrata za automobile,Vrata za automobile,0,0,0,1,0,6
+1612,929,3,Dijelovi za vozila > Za automobile > Zaštite (sigurnosne) za automobile,Zaštite (sigurnosne) za automobile,0,0,0,1,0,5
+1751,929,3,Dijelovi za vozila > Za automobile > Zaštite haube za automobile,Zaštite haube za automobile,0,0,0,1,0,5
+1617,929,3,Dijelovi za vozila > Za automobile > Znakovi za automobile,Znakovi za automobile,0,0,0,1,0,5
+1566,929,3,Dijelovi za vozila > Za automobile > Zvučnici za automobile,Zvučnici za automobile,0,0,0,1,0,6
+1034,929,3,Dijelovi za vozila > Za automobile > Šajbe i prozori za automobile,Šajbe i prozori za automobile,0,0,0,1,0,6
+2095,929,3,Dijelovi za vozila > Za automobile > Šarafi felgi za automobile,Šarafi felgi za automobile,0,0,0,1,0,5
+1504,929,3,Dijelovi za vozila > Za automobile > Školjke automobila,Školjke automobila,0,0,0,1,0,5
+2101,929,3,Dijelovi za vozila > Za automobile > Španeri/Remenice za automobile,Španeri/Remenice za automobile,0,0,0,1,0,5
+2518,929,3,"Dijelovi za vozila > Za automobile > Šprice, brisači i motorići farova za automobile","Šprice, brisači i motorići farova za automobile",0,0,0,1,0,5
+2460,929,3,Dijelovi za vozila > Za automobile > Špule volana za automobile,Špule volana za automobile,0,0,0,1,0,6
+1541,929,3,Dijelovi za vozila > Za automobile > Žmigavci za automobile,Žmigavci za automobile,0,0,0,1,0,6
+947,929,3,Dijelovi za vozila > Za automobile > Ostali dijelovi za automobile,Ostali dijelovi za automobile,0,0,0,1,0,7
+931,928,2,Dijelovi za vozila > Za teretna vozila,Za teretna vozila,0,0,0,1,0,5
+1856,931,3,Dijelovi za vozila > Za teretna vozila > Alternatori za teretna vozila,Alternatori za teretna vozila,0,0,0,1,0,5
+1869,931,3,Dijelovi za vozila > Za teretna vozila > Anlaseri za teretna vozila,Anlaseri za teretna vozila,0,0,0,1,0,5
+969,931,3,Dijelovi za vozila > Za teretna vozila > Branici i Blatobrani za teretna vozila,Branici i Blatobrani za teretna vozila,0,0,0,1,0,5
+1872,931,3,Dijelovi za vozila > Za teretna vozila > Brisači i Metlice za teretna vozila,Brisači i Metlice za teretna vozila,0,0,0,1,0,5
+971,931,3,Dijelovi za vozila > Za teretna vozila > CD/DVD/MC/Radio player za teretna vozila,CD/DVD/MC/Radio player za teretna vozila,0,0,0,1,0,5
+1862,931,3,Dijelovi za vozila > Za teretna vozila > Cerade za teretna vozila,Cerade za teretna vozila,0,0,0,1,0,5
+1860,931,3,Dijelovi za vozila > Za teretna vozila > Diferencijali za teretna vozila,Diferencijali za teretna vozila,0,0,0,1,0,5
+1084,931,3,Dijelovi za vozila > Za teretna vozila > Elektronika za teretna vozila,Elektronika za teretna vozila,0,0,0,1,0,5
+964,931,3,Dijelovi za vozila > Za teretna vozila > Farovi i Štopke za teretna vozila,Farovi i Štopke za teretna vozila,0,0,0,1,0,5
+962,931,3,Dijelovi za vozila > Za teretna vozila > Felge za teretna vozila,Felge za teretna vozila,0,0,0,1,0,5
+1868,931,3,Dijelovi za vozila > Za teretna vozila > Filteri za teretna vozila,Filteri za teretna vozila,0,0,0,1,0,5
+965,931,3,Dijelovi za vozila > Za teretna vozila > Gume za teretna vozila,Gume za teretna vozila,0,0,0,1,0,5
+1859,931,3,Dijelovi za vozila > Za teretna vozila > Hladnjaci i grijači za teretna vozila,Hladnjaci i grijači za teretna vozila,0,0,0,1,0,5
+970,931,3,Dijelovi za vozila > Za teretna vozila > Izduvni sistemi za teretna vozila,Izduvni sistemi za teretna vozila,0,0,0,1,0,5
+1851,931,3,Dijelovi za vozila > Za teretna vozila > Kabine za teretna vozila,Kabine za teretna vozila,0,0,0,1,0,5
+1853,931,3,Dijelovi za vozila > Za teretna vozila > Kamionski španeri,Kamionski španeri,0,0,0,1,0,5
+1867,931,3,Dijelovi za vozila > Za teretna vozila > Kardani za teretna vozila,Kardani za teretna vozila,0,0,0,1,0,6
+1855,931,3,Dijelovi za vozila > Za teretna vozila > Kipe za teretna vozila,Kipe za teretna vozila,0,0,0,1,0,5
+1854,931,3,Dijelovi za vozila > Za teretna vozila > Kranovi za teretna vozila,Kranovi za teretna vozila,0,0,0,1,0,5
+1813,931,3,Dijelovi za vozila > Za teretna vozila > Lanci za snijeg za teretna vozila,Lanci za snijeg za teretna vozila,0,0,0,1,0,5
+1083,931,3,Dijelovi za vozila > Za teretna vozila > Limarija i plastika za teretna vozila,Limarija i plastika za teretna vozila,0,0,0,1,0,5
+1861,931,3,Dijelovi za vozila > Za teretna vozila > Mjenjači za teretna vozila,Mjenjači za teretna vozila,0,0,0,1,0,6
+1765,931,3,Dijelovi za vozila > Za teretna vozila > Motori za teretna vozila,Motori za teretna vozila,0,0,0,1,0,6
+2585,931,3,Dijelovi za vozila > Za teretna vozila > Naljepnice/Stikeri za teretna vozila,Naljepnice/Stikeri za teretna vozila,0,0,0,1,0,5
+963,931,3,Dijelovi za vozila > Za teretna vozila > Navigacija / GPS za teretna vozila,Navigacija / GPS za teretna vozila,0,0,0,1,0,5
+1769,931,3,Dijelovi za vozila > Za teretna vozila > Osovine/Mostovi za teretna vozila,Osovine/Mostovi za teretna vozila,0,0,0,1,0,5
+1852,931,3,Dijelovi za vozila > Za teretna vozila > Podmetači za točkove teretnih vozila,Podmetači za točkove teretnih vozila,0,0,0,1,0,5
+1857,931,3,Dijelovi za vozila > Za teretna vozila > Pumpe za teretna vozila,Pumpe za teretna vozila,0,0,0,1,0,5
+968,931,3,Dijelovi za vozila > Za teretna vozila > Retrovizori za teretna vozila,Retrovizori za teretna vozila,0,0,0,1,0,5
+2604,931,3,Dijelovi za vozila > Za teretna vozila > Rotacije za teretna vozila,Rotacije za teretna vozila,0,0,0,1,0,5
+1863,931,3,Dijelovi za vozila > Za teretna vozila > Sanduci i Hladnjače za teretna vozila,Sanduci i Hladnjače za teretna vozila,0,0,0,1,0,6
+966,931,3,Dijelovi za vozila > Za teretna vozila > Sjedišta za teretna vozila,Sjedišta za teretna vozila,0,0,0,1,0,5
+1850,931,3,Dijelovi za vozila > Za teretna vozila > Stakla i prozori za teretna vozila,Stakla i prozori za teretna vozila,0,0,0,1,0,5
+1864,931,3,Dijelovi za vozila > Za teretna vozila > Tahografi za teretna vozila,Tahografi za teretna vozila,0,0,0,1,0,5
+1873,931,3,Dijelovi za vozila > Za teretna vozila > Teretnjaci u dijelovima,Teretnjaci u dijelovima,0,0,0,0,0,5
+1865,931,3,Dijelovi za vozila > Za teretna vozila > Turbine za teretna vozila,Turbine za teretna vozila,0,0,0,1,0,5
+1858,931,3,Dijelovi za vozila > Za teretna vozila > Uključivači za teretna vozila,Uključivači za teretna vozila,0,0,0,1,0,5
+1866,931,3,Dijelovi za vozila > Za teretna vozila > Vitla za teretna vozila,Vitla za teretna vozila,0,0,0,1,0,5
+1037,931,3,Dijelovi za vozila > Za teretna vozila > Šajbe i Vjetrobrani za teretna vozila,Šajbe i Vjetrobrani za teretna vozila,0,0,0,1,0,5
+1779,931,3,Dijelovi za vozila > Za teretna vozila > Žmigavci za teretna vozila,Žmigavci za teretna vozila,0,0,0,1,0,5
+972,931,3,Dijelovi za vozila > Za teretna vozila > Ostalo za teretna vozila,Ostalo za teretna vozila,0,0,0,1,0,5
+930,928,2,Dijelovi za vozila > Za motocikle,Za motocikle,0,0,0,1,0,5
+1651,930,3,Dijelovi za vozila > Za motocikle > Akumulatori za motocikle,Akumulatori za motocikle,0,0,0,1,0,6
+1694,930,3,Dijelovi za vozila > Za motocikle > Alternatori za motocikle,Alternatori za motocikle,0,0,0,1,0,5
+1670,930,3,Dijelovi za vozila > Za motocikle > Anlaseri za motocikle,Anlaseri za motocikle,0,0,0,1,0,5
+1849,930,3,Dijelovi za vozila > Za motocikle > Bobine za motocikle,Bobine za motocikle,0,0,0,1,0,5
+1664,930,3,Dijelovi za vozila > Za motocikle > Cilindri za motocikle,Cilindri za motocikle,0,0,0,1,0,5
+1672,930,3,Dijelovi za vozila > Za motocikle > Dekla za motocikle,Dekla za motocikle,0,0,0,1,0,5
+1701,930,3,Dijelovi za vozila > Za motocikle > Dihtung za motocikle,Dihtung za motocikle,0,0,0,1,0,5
+1657,930,3,Dijelovi za vozila > Za motocikle > Diskovi i pločice za motocikle,Diskovi i pločice za motocikle,0,0,0,1,0,5
+1691,930,3,Dijelovi za vozila > Za motocikle > Dodaci i Pribor za motocikle,Dodaci i Pribor za motocikle,0,0,0,1,0,5
+1082,930,3,Dijelovi za vozila > Za motocikle > Elektronika za motocikle,Elektronika za motocikle,0,0,0,1,0,5
+950,930,3,Dijelovi za vozila > Za motocikle > Felge za motocikle,Felge za motocikle,0,0,0,1,0,5
+1646,930,3,Dijelovi za vozila > Za motocikle > Filteri za motocikle,Filteri za motocikle,0,0,0,1,0,5
+1654,930,3,Dijelovi za vozila > Za motocikle > Glave motora/cilindra za motocikle,Glave motora/cilindra za motocikle,0,0,0,1,0,5
+953,930,3,Dijelovi za vozila > Za motocikle > Gume za motocikle,Gume za motocikle,0,0,0,1,0,6
+1667,930,3,Dijelovi za vozila > Za motocikle > Hlače za motocikliste,Hlače za motocikliste,0,0,0,1,0,5
+1671,930,3,Dijelovi za vozila > Za motocikle > Hlađenje i usis za motocikle,Hlađenje i usis za motocikle,0,0,0,1,0,5
+958,930,3,Dijelovi za vozila > Za motocikle > Izduvni sistemi za motocikle,Izduvni sistemi za motocikle,0,0,0,1,0,6
+1511,930,3,Dijelovi za vozila > Za motocikle > Jakne za motocikliste,Jakne za motocikliste,0,0,0,1,0,6
+1041,930,3,Dijelovi za vozila > Za motocikle > Kacige za motocikliste,Kacige za motocikliste,0,0,0,1,0,6
+1666,930,3,Dijelovi za vozila > Za motocikle > Karburatori za motocikle,Karburatori za motocikle,0,0,0,1,0,5
+1509,930,3,Dijelovi za vozila > Za motocikle > Kilometar sat za motocikle,Kilometar sat za motocikle,0,0,0,1,0,5
+1655,930,3,Dijelovi za vozila > Za motocikle > Klipovi i karike za motocikle,Klipovi i karike za motocikle,0,0,0,1,0,5
+1697,930,3,Dijelovi za vozila > Za motocikle > Ključevi i Brave za motocikle,Ključevi i Brave za motocikle,0,0,0,1,0,5
+1609,930,3,Dijelovi za vozila > Za motocikle > Koferi i Torbe za motocikle,Koferi i Torbe za motocikle,0,0,0,1,0,6
+1656,930,3,Dijelovi za vozila > Za motocikle > Komplet točkovi za motocikle,Komplet točkovi za motocikle,0,0,0,1,0,5
+1696,930,3,Dijelovi za vozila > Za motocikle > Kočnice i kliješta za motocikle,Kočnice i kliješta za motocikle,0,0,0,1,0,5
+1675,930,3,Dijelovi za vozila > Za motocikle > Kvačila i Mjenjači za motocikle,Kvačila i Mjenjači za motocikle,0,0,0,1,0,5
+1699,930,3,Dijelovi za vozila > Za motocikle > Lamele za motocikle,Lamele za motocikle,0,0,0,1,0,5
+1847,930,3,Dijelovi za vozila > Za motocikle > Lančanici za motocikle,Lančanici za motocikle,0,0,0,1,0,5
+2153,930,3,Dijelovi za vozila > Za motocikle > Ležajevi za motocikle,Ležajevi za motocikle,0,0,0,1,0,5
+1081,930,3,Dijelovi za vozila > Za motocikle > Limarija i Plastika za motocikle,Limarija i Plastika za motocikle,0,0,0,1,0,5
+1693,930,3,Dijelovi za vozila > Za motocikle > Magneti za motocikle,Magneti za motocikle,0,0,0,1,0,5
+1512,930,3,Dijelovi za vozila > Za motocikle > Mašine za motocikle,Mašine za motocikle,0,0,0,1,0,5
+1542,930,3,Dijelovi za vozila > Za motocikle > Motocikli u dijelovima,Motocikli u dijelovima,0,0,0,0,0,6
+1846,930,3,Dijelovi za vozila > Za motocikle > Motodijagnostika,Motodijagnostika,0,0,0,1,0,5
+1848,930,3,Dijelovi za vozila > Za motocikle > Naočale za motocikliste,Naočale za motocikliste,0,0,0,1,0,5
+1653,930,3,Dijelovi za vozila > Za motocikle > Nogare i Papučice za motocikle,Nogare i Papučice za motocikle,0,0,0,1,0,5
+1647,930,3,Dijelovi za vozila > Za motocikle > Nosači za motocikle,Nosači za motocikle,0,0,0,1,0,5
+1540,930,3,Dijelovi za vozila > Za motocikle > Odijela i majice za motocikliste,Odijela i majice za motocikliste,0,0,0,1,0,6
+1698,930,3,Dijelovi za vozila > Za motocikle > Paljenje i Namotaji za motocikle,Paljenje i Namotaji za motocikle,0,0,0,1,0,5
+1649,930,3,Dijelovi za vozila > Za motocikle > Pogonski lanci za motocikle,Pogonski lanci za motocikle,0,0,0,1,0,5
+1507,930,3,Dijelovi za vozila > Za motocikle > Pojasevi za motocikle,Pojasevi za motocikle,0,0,0,1,0,5
+1703,930,3,Dijelovi za vozila > Za motocikle > Postolja/Stenderi za motocikle,Postolja/Stenderi za motocikle,0,0,0,1,0,5
+1700,930,3,Dijelovi za vozila > Za motocikle > Prenos i Zupčanici za motocikle,Prenos i Zupčanici za motocikle,0,0,0,1,0,5
+1669,930,3,Dijelovi za vozila > Za motocikle > Pumpe za motocikle,Pumpe za motocikle,0,0,0,1,0,5
+1652,930,3,Dijelovi za vozila > Za motocikle > Radilice i Blokovi za motocikle,Radilice i Blokovi za motocikle,0,0,0,1,0,5
+1638,930,3,Dijelovi za vozila > Za motocikle > Ramovi/Kosturi za motocikle,Ramovi/Kosturi za motocikle,0,0,0,1,0,5
+1674,930,3,Dijelovi za vozila > Za motocikle > Regleri za motocikle,Regleri za motocikle,0,0,0,1,0,5
+1668,930,3,Dijelovi za vozila > Za motocikle > Remenovi za motocikle,Remenovi za motocikle,0,0,0,1,0,5
+1659,930,3,Dijelovi za vozila > Za motocikle > Repovi za motocikle,Repovi za motocikle,0,0,0,1,0,5
+956,930,3,Dijelovi za vozila > Za motocikle > Retrovizori za motocikle,Retrovizori za motocikle,0,0,0,1,0,5
+1610,930,3,Dijelovi za vozila > Za motocikle > Rezervoari za motocikle,Rezervoari za motocikle,0,0,0,1,0,5
+1510,930,3,Dijelovi za vozila > Za motocikle > Rukavice za motocikliste,Rukavice za motocikliste,0,0,0,1,0,6
+1505,930,3,Dijelovi za vozila > Za motocikle > Ručke i tegovi za motocikle,Ručke i tegovi za motocikle,0,0,0,1,0,5
+1650,930,3,Dijelovi za vozila > Za motocikle > Sajle za motocikle,Sajle za motocikle,0,0,0,1,0,5
+954,930,3,Dijelovi za vozila > Za motocikle > Sjedišta za motocikle,Sjedišta za motocikle,0,0,0,1,0,5
+957,930,3,Dijelovi za vozila > Za motocikle > Spojleri i Branici za motocikle,Spojleri i Branici za motocikle,0,0,0,1,0,5
+952,930,3,Dijelovi za vozila > Za motocikle > Svjetla/Signalizacija za motocikle,Svjetla/Signalizacija za motocikle,0,0,0,1,0,5
+1690,930,3,Dijelovi za vozila > Za motocikle > Svjećice za motocikle,Svjećice za motocikle,0,0,0,1,0,5
+961,930,3,Dijelovi za vozila > Za motocikle > Tuning za motocikle,Tuning za motocikle,0,0,0,1,0,6
+1695,930,3,Dijelovi za vozila > Za motocikle > Ulje i maziva za motocikle,Ulje i maziva za motocikle,0,0,0,1,0,7
+1648,930,3,Dijelovi za vozila > Za motocikle > Upravljači/Guvernale za motocikle,Upravljači/Guvernale za motocikle,0,0,0,1,0,5
+1692,930,3,Dijelovi za vozila > Za motocikle > Variomati i rolnice za motocikle,Variomati i rolnice za motocikle,0,0,0,1,0,5
+1508,930,3,Dijelovi za vozila > Za motocikle > Viljuške i amortizeri za motocikle,Viljuške i amortizeri za motocikle,0,0,0,1,0,5
+1662,930,3,Dijelovi za vozila > Za motocikle > Viziri za motocikle,Viziri za motocikle,0,0,0,1,0,5
+1658,930,3,Dijelovi za vozila > Za motocikle > Zaštita i Sigurnost za motocikle,Zaštita i Sigurnost za motocikle,0,0,0,1,0,6
+1673,930,3,Dijelovi za vozila > Za motocikle > Zaštita za glavu za motocikliste,Zaštita za glavu za motocikliste,0,0,0,1,0,5
+1665,930,3,Dijelovi za vozila > Za motocikle > Čizme za motocikliste,Čizme za motocikliste,0,0,0,1,0,5
+1663,930,3,Dijelovi za vozila > Za motocikle > Žmigavci za motocikle,Žmigavci za motocikle,0,0,0,1,0,5
+960,930,3,Dijelovi za vozila > Za motocikle > Ostalo za motocikle,Ostalo za motocikle,0,0,0,1,0,5
+932,928,2,Dijelovi za vozila > Za bicikle,Za bicikle,0,0,0,1,0,5
+2613,932,3,Dijelovi za vozila > Za bicikle > Alati za bicikle,Alati za bicikle,0,0,0,1,0,5
+1640,932,3,Dijelovi za vozila > Za bicikle > Bicikli u dijelovima,Bicikli u dijelovima,0,0,0,0,0,5
+1877,932,3,Dijelovi za vozila > Za bicikle > Biciklističke naočale,Biciklističke naočale,0,0,0,1,0,5
+1634,932,3,Dijelovi za vozila > Za bicikle > Bisage/Torbe za bicikle,Bisage/Torbe za bicikle,0,0,0,1,0,5
+981,932,3,Dijelovi za vozila > Za bicikle > Blatobrani za bicikle,Blatobrani za bicikle,0,0,0,1,0,5
+1091,932,3,Dijelovi za vozila > Za bicikle > Brzinomjeri i Ciklokompjuteri za bicikle,Brzinomjeri i Ciklokompjuteri za bicikle,0,0,0,1,0,5
+1631,932,3,Dijelovi za vozila > Za bicikle > Diskovi i pakne za bicikle,Diskovi i pakne za bicikle,0,0,0,1,0,5
+974,932,3,Dijelovi za vozila > Za bicikle > Felge za bicikle,Felge za bicikle,0,0,0,1,0,5
+1625,932,3,Dijelovi za vozila > Za bicikle > Garderoba za bicikliste,Garderoba za bicikliste,0,0,0,1,0,5
+977,932,3,Dijelovi za vozila > Za bicikle > Gume za bicikle,Gume za bicikle,0,0,0,1,0,5
+1089,932,3,Dijelovi za vozila > Za bicikle > Kacige za bicikliste,Kacige za bicikliste,0,0,0,1,0,6
+1546,932,3,Dijelovi za vozila > Za bicikle > Komplet točkovi za bicikle,Komplet točkovi za bicikle,0,0,0,1,0,5
+1635,932,3,Dijelovi za vozila > Za bicikle > Korpe za bicikle,Korpe za bicikle,0,0,0,1,0,5
+1549,932,3,Dijelovi za vozila > Za bicikle > Kočnice za bicikle,Kočnice za bicikle,0,0,0,1,0,5
+1628,932,3,Dijelovi za vozila > Za bicikle > Lanci za bicikle,Lanci za bicikle,0,0,0,1,0,5
+1642,932,3,Dijelovi za vozila > Za bicikle > Lule za bicikle,Lule za bicikle,0,0,0,1,0,5
+1545,932,3,Dijelovi za vozila > Za bicikle > Mjenjači prednji/zadnji za bicikle,Mjenjači prednji/zadnji za bicikle,0,0,0,1,0,5
+1643,932,3,Dijelovi za vozila > Za bicikle > Nogare za bicikle,Nogare za bicikle,0,0,0,1,0,5
+2612,932,3,Dijelovi za vozila > Za bicikle > Nosači za bicikle,Nosači za bicikle,0,0,0,1,0,5
+1641,932,3,Dijelovi za vozila > Za bicikle > Osovine i nabe za bicikle,Osovine i nabe za bicikle,0,0,0,1,0,5
+1551,932,3,Dijelovi za vozila > Za bicikle > Pedale za bicikle,Pedale za bicikle,0,0,0,1,0,5
+1639,932,3,Dijelovi za vozila > Za bicikle > Pogon i zupčanici za bicikle,Pogon i zupčanici za bicikle,0,0,0,1,0,5
+2611,932,3,Dijelovi za vozila > Za bicikle > Pomoćni točkovi za bicikle,Pomoćni točkovi za bicikle,0,0,0,0,0,5
+1762,932,3,Dijelovi za vozila > Za bicikle > Prikolice za bicikle,Prikolice za bicikle,0,0,0,1,0,5
+1644,932,3,Dijelovi za vozila > Za bicikle > Pumpe za bicikle,Pumpe za bicikle,0,0,0,1,0,5
+1544,932,3,Dijelovi za vozila > Za bicikle > Ramovi/Kosturi za bicikle,Ramovi/Kosturi za bicikle,0,0,0,1,0,5
+980,932,3,Dijelovi za vozila > Za bicikle > Retrovizori za bicikle,Retrovizori za bicikle,0,0,0,1,0,5
+1090,932,3,Dijelovi za vozila > Za bicikle > Rukavice za bicikliste,Rukavice za bicikliste,0,0,0,1,0,5
+2110,932,3,Dijelovi za vozila > Za bicikle > Ruksaci/Torbe za bicikliste,Ruksaci/Torbe za bicikliste,0,0,0,1,0,5
+1547,932,3,Dijelovi za vozila > Za bicikle > Ručice mjenjača za bicikle,Ručice mjenjača za bicikle,0,0,0,1,0,5
+1661,932,3,Dijelovi za vozila > Za bicikle > Ručice/Gripovi za bicikle,Ručice/Gripovi za bicikle,0,0,0,1,0,5
+1879,932,3,Dijelovi za vozila > Za bicikle > Sajle za bicikle,Sajle za bicikle,0,0,0,1,0,5
+978,932,3,Dijelovi za vozila > Za bicikle > Sjedišta i sicevi za bicikle,Sjedišta i sicevi za bicikle,0,0,0,1,0,5
+976,932,3,Dijelovi za vozila > Za bicikle > Svjetla/Signalizacija za bicikle,Svjetla/Signalizacija za bicikle,0,0,0,1,0,5
+1632,932,3,Dijelovi za vozila > Za bicikle > Tene/Patike za bicikliste,Tene/Patike za bicikliste,0,0,0,1,0,6
+1602,932,3,Dijelovi za vozila > Za bicikle > Torbice i pribor za bicikle,Torbice i pribor za bicikle,0,0,0,1,0,5
+1626,932,3,Dijelovi za vozila > Za bicikle > Upravljači/Guvernale za bicikle,Upravljači/Guvernale za bicikle,0,0,0,1,0,5
+1548,932,3,Dijelovi za vozila > Za bicikle > Viljuške i amortizeri za bicikle,Viljuške i amortizeri za bicikle,0,0,0,1,0,5
+1627,932,3,Dijelovi za vozila > Za bicikle > Zaštita i Sigurnost za bicikle,Zaštita i Sigurnost za bicikle,0,0,0,1,0,5
+1878,932,3,Dijelovi za vozila > Za bicikle > Zvono/Zvonce za bicikle,Zvono/Zvonce za bicikle,0,0,0,1,0,5
+2111,932,3,Dijelovi za vozila > Za bicikle > Šticne za bicikle,Šticne za bicikle,0,0,0,1,0,5
+984,932,3,Dijelovi za vozila > Za bicikle > Ostalo za bicikle,Ostalo za bicikle,0,0,0,1,0,5
+934,928,2,Dijelovi za vozila > Za autobuse i minibuse,Za autobuse i minibuse,0,0,0,1,0,5
+1088,934,3,Dijelovi za vozila > Za autobuse i minibuse > Elektronika za autobuse,Elektronika za autobuse,0,0,0,1,0,5
+1000,934,3,Dijelovi za vozila > Za autobuse i minibuse > Farovi i Štopke za autobuse,Farovi i Štopke za autobuse,0,0,0,1,0,5
+998,934,3,Dijelovi za vozila > Za autobuse i minibuse > Felge za autobuse,Felge za autobuse,0,0,0,1,0,5
+1001,934,3,Dijelovi za vozila > Za autobuse i minibuse > Gume za autobuse,Gume za autobuse,0,0,0,1,0,5
+1006,934,3,Dijelovi za vozila > Za autobuse i minibuse > Izduvni sistemi za autobuse,Izduvni sistemi za autobuse,0,0,0,1,0,5
+1087,934,3,Dijelovi za vozila > Za autobuse i minibuse > Limarija za autobuse,Limarija za autobuse,0,0,0,1,0,5
+1007,934,3,Dijelovi za vozila > Za autobuse i minibuse > Radio / ozvučenje za autobuse,Radio / ozvučenje za autobuse,0,0,0,1,0,5
+1004,934,3,Dijelovi za vozila > Za autobuse i minibuse > Retrovizori za autobuse,Retrovizori za autobuse,0,0,0,1,0,5
+1002,934,3,Dijelovi za vozila > Za autobuse i minibuse > Sjedišta za autobuse,Sjedišta za autobuse,0,0,0,1,0,5
+1005,934,3,Dijelovi za vozila > Za autobuse i minibuse > Spojleri i  Branici za autobuse,Spojleri i  Branici za autobuse,0,0,0,1,0,5
+1036,934,3,Dijelovi za vozila > Za autobuse i minibuse > Šajbe i prozori za autobuse,Šajbe i prozori za autobuse,0,0,0,1,0,5
+1008,934,3,Dijelovi za vozila > Za autobuse i minibuse > Ostali dijelovi za autobuse,Ostali dijelovi za autobuse,0,0,0,1,0,5
+933,928,2,Dijelovi za vozila > Za građevinske mašine,Za građevinske mašine,0,0,0,1,0,5
+1086,933,3,Dijelovi za vozila > Za građevinske mašine > Elektronika za građevinske mašine,Elektronika za građevinske mašine,0,0,0,1,0,5
+988,933,3,Dijelovi za vozila > Za građevinske mašine > Farovi i Štopke za građevinske mašine,Farovi i Štopke za građevinske mašine,0,0,0,1,0,5
+986,933,3,Dijelovi za vozila > Za građevinske mašine > Felge za građevinske mašine,Felge za građevinske mašine,0,0,0,1,0,5
+1871,933,3,Dijelovi za vozila > Za građevinske mašine > Gume za građevinske mašine,Gume za građevinske mašine,0,0,0,1,0,5
+1804,933,3,Dijelovi za vozila > Za građevinske mašine > Gusjenice za građevinske mašine,Gusjenice za građevinske mašine,0,0,0,1,0,5
+994,933,3,Dijelovi za vozila > Za građevinske mašine > Izduvni sistemi za građevinske mašine,Izduvni sistemi za građevinske mašine,0,0,0,1,0,5
+1085,933,3,Dijelovi za vozila > Za građevinske mašine > Limarija za građevinske mašine,Limarija za građevinske mašine,0,0,0,1,0,5
+995,933,3,Dijelovi za vozila > Za građevinske mašine > Radio / ozvučenje za građevinske mašine,Radio / ozvučenje za građevinske mašine,0,0,0,1,0,5
+990,933,3,Dijelovi za vozila > Za građevinske mašine > Sjedišta za građevinske mašine,Sjedišta za građevinske mašine,0,0,0,1,0,5
+2579,933,3,Dijelovi za vozila > Za građevinske mašine > Turbine za građevinske mašine,Turbine za građevinske mašine,0,0,0,1,0,5
+1035,933,3,Dijelovi za vozila > Za građevinske mašine > Šajbe i prozori za građevinske mašine,Šajbe i prozori za građevinske mašine,0,0,0,1,0,5
+996,933,3,Dijelovi za vozila > Za građevinske mašine > Ostali dijelovi za građevinske mašine,Ostali dijelovi za građevinske mašine,0,0,0,1,0,5
+935,928,2,Dijelovi za vozila > Za plovila nautiku,Za plovila nautiku,0,0,0,1,0,5
+1880,935,3,Dijelovi za vozila > Za plovila nautiku > Motori za čamce i brodove,Motori za čamce i brodove,0,0,0,1,0,5
+2578,935,3,Dijelovi za vozila > Za plovila nautiku > Turbine za čamce i brodove,Turbine za čamce i brodove,0,0,0,1,0,5
+2132,935,3,Dijelovi za vozila > Za plovila nautiku > Ostali dijelovi za čamce i brodove,Ostali dijelovi za čamce i brodove,0,0,0,1,0,5
+949,928,2,Dijelovi za vozila > Za prikolice,Za prikolice,0,0,0,1,0,6
+936,928,2,Dijelovi za vozila > Za sve ostalo,Za sve ostalo,0,0,0,1,0,5
+3,,1,Mobilni uređaji,Mobilni uređaji,0,0,0,1,0,0
+31,3,2,Mobilni uređaji > Mobiteli,Mobiteli,0,0,0,1,0,18
+1495,3,2,Mobilni uređaji > Tablet PCs,Tablet PCs,0,0,0,1,0,10
+2076,3,2,Mobilni uređaji > Smartwatch (pametni satovi),Smartwatch (pametni satovi),0,0,0,1,0,16
+252,3,2,Mobilni uređaji > Dijelovi i oprema,Dijelovi i oprema,0,0,0,1,0,7
+253,252,3,Mobilni uređaji > Dijelovi i oprema > Baterije za mobitele,Baterije za mobitele,0,0,0,1,0,7
+2480,252,3,Mobilni uređaji > Dijelovi i oprema > Dijelovi i oprema za pametne satove/narukvice,Dijelovi i oprema za pametne satove/narukvice,0,0,0,1,0,6
+1525,252,3,Mobilni uređaji > Dijelovi i oprema > Display/ekran za mobitele,Display/ekran za mobitele,0,0,0,1,0,10
+1527,252,3,Mobilni uređaji > Dijelovi i oprema > Flat kablovi za mobitele,Flat kablovi za mobitele,0,0,0,1,0,7
+1045,252,3,Mobilni uređaji > Dijelovi i oprema > Kablovi za mobitele,Kablovi za mobitele,0,0,0,1,0,5
+2616,252,3,Mobilni uređaji > Dijelovi i oprema > Kamere za mobitele,Kamere za mobitele,0,0,0,1,0,5
+2615,252,3,Mobilni uređaji > Dijelovi i oprema > Konektori punjenja za mobitele,Konektori punjenja za mobitele,0,0,0,1,0,5
+2465,252,3,Mobilni uređaji > Dijelovi i oprema > Kutije za mobitele,Kutije za mobitele,0,0,0,0,0,5
+1092,252,3,Mobilni uređaji > Dijelovi i oprema > Maske za mobitele,Maske za mobitele,0,0,0,1,0,9
+2150,252,3,Mobilni uređaji > Dijelovi i oprema > Matične ploče za mobitele,Matične ploče za mobitele,0,0,0,1,0,5
+271,252,3,Mobilni uređaji > Dijelovi i oprema > Memorijske kartice,Memorijske kartice,0,0,0,1,0,10
+1977,252,3,Mobilni uređaji > Dijelovi i oprema > Mobiteli u dijelovima,Mobiteli u dijelovima,0,0,0,0,0,8
+2031,252,3,Mobilni uređaji > Dijelovi i oprema > Nosači/držači za mobitele,Nosači/držači za mobitele,0,0,0,1,0,6
+2482,252,3,Mobilni uređaji > Dijelovi i oprema > Olovke za mobitele i tablete,Olovke za mobitele i tablete,0,0,0,1,0,5
+2154,252,3,Mobilni uređaji > Dijelovi i oprema > Power Bank,Power Bank,0,0,0,1,0,5
+254,252,3,Mobilni uređaji > Dijelovi i oprema > Punjači za mobitele i tablete,Punjači za mobitele i tablete,0,0,0,1,0,8
+927,252,3,Mobilni uređaji > Dijelovi i oprema > SIM kartice,SIM kartice,0,0,0,1,0,8
+1044,252,3,Mobilni uređaji > Dijelovi i oprema > Slušalice za mobitele,Slušalice za mobitele,0,0,0,1,0,12
+2330,252,3,Mobilni uređaji > Dijelovi i oprema > Tableti u dijelovima,Tableti u dijelovima,0,0,0,0,0,7
+2331,252,3,Mobilni uređaji > Dijelovi i oprema > Tastature/futrole za tablete,Tastature/futrole za tablete,0,0,0,1,0,7
+2617,252,3,Mobilni uređaji > Dijelovi i oprema > Utori sim kartice,Utori sim kartice,0,0,0,1,0,5
+1526,252,3,Mobilni uređaji > Dijelovi i oprema > Zaštite za mobitele,Zaštite za mobitele,0,0,0,1,0,4
+256,252,3,Mobilni uređaji > Dijelovi i oprema > Ostalo,Ostalo,0,0,0,1,0,5
+34,3,2,Mobilni uređaji > Bluetooth uređaji,Bluetooth uređaji,0,0,0,1,0,6
+32,3,2,Mobilni uređaji > PDA i Pocket PCs,PDA i Pocket PCs,0,0,0,1,0,5
+2429,3,2,Mobilni uređaji > eBook readeri,eBook readeri,0,0,0,1,0,5
+37,3,2,Mobilni uređaji > Ostalo,Ostalo,0,0,0,1,0,5
+5,,1,Kompjuteri,Kompjuteri,0,0,0,1,0,0
+38,5,2,Kompjuteri > Desktop Računari,Desktop Računari,0,0,0,1,0,12
+39,5,2,Kompjuteri > Laptopi,Laptopi,0,0,0,1,0,8
+42,5,2,Kompjuteri > Kompjuterska oprema,Kompjuterska oprema,0,0,0,1,0,5
+151,42,3,Kompjuteri > Kompjuterska oprema > Adapteri,Adapteri,0,0,0,1,0,6
+2634,42,3,Kompjuteri > Kompjuterska oprema > Baglame laptopa,Baglame laptopa,0,0,0,1,0,5
+1191,42,3,Kompjuteri > Kompjuterska oprema > Baterije,Baterije,0,0,0,1,0,5
+2326,42,3,Kompjuteri > Kompjuterska oprema > Baterije za laptope,Baterije za laptope,0,0,0,1,0,5
+152,42,3,Kompjuteri > Kompjuterska oprema > Cooleri,Cooleri,0,0,0,1,0,7
+1192,42,3,Kompjuteri > Kompjuterska oprema > Display za laptope,Display za laptope,0,0,0,1,0,7
+2088,42,3,Kompjuteri > Kompjuterska oprema > Display/Paneli za monitore,Display/Paneli za monitore,0,0,0,1,0,5
+427,42,3,Kompjuteri > Kompjuterska oprema > Eksterna memorija,Eksterna memorija,0,0,0,1,0,7
+2649,42,3,Kompjuteri > Kompjuterska oprema > Floppy diskovi i diskete,Floppy diskovi i diskete,0,0,0,1,0,5
+154,42,3,Kompjuteri > Kompjuterska oprema > Grafičke kartice,Grafičke kartice,0,0,0,1,0,8
+1681,42,3,Kompjuteri > Kompjuterska oprema > Hard diskovi (HDD),Hard diskovi (HDD),0,0,0,1,0,7
+1497,42,3,Kompjuteri > Kompjuterska oprema > Inverteri za display/ekrane,Inverteri za display/ekrane,0,0,0,1,0,5
+156,42,3,Kompjuteri > Kompjuterska oprema > PC kablovi,PC kablovi,0,0,0,1,0,6
+2642,42,3,Kompjuteri > Kompjuterska oprema > Konektori laptopa,Konektori laptopa,0,0,0,1,0,5
+2618,42,3,Kompjuteri > Kompjuterska oprema > Konektori punjenja,Konektori punjenja,0,0,0,1,0,5
+159,42,3,Kompjuteri > Kompjuterska oprema > Kućišta,Kućišta,0,0,0,1,0,5
+2648,42,3,Kompjuteri > Kompjuterska oprema > Kućišta za HDD,Kućišta za HDD,0,0,0,1,0,5
+2327,42,3,Kompjuteri > Kompjuterska oprema > Kućišta za laptope,Kućišta za laptope,0,0,0,1,0,5
+1574,42,3,Kompjuteri > Kompjuterska oprema > Laptop u dijelovima,Laptop u dijelovima,0,0,0,1,0,5
+160,42,3,Kompjuteri > Kompjuterska oprema > Matične ploče,Matične ploče,0,0,0,1,0,5
+161,42,3,Kompjuteri > Kompjuterska oprema > Memorije (RAM),Memorije (RAM),0,0,0,1,0,7
+1875,42,3,Kompjuteri > Kompjuterska oprema > Gaming mikrofoni,Gaming mikrofoni,0,0,0,1,0,6
+162,42,3,Kompjuteri > Kompjuterska oprema > Miševi,Miševi,0,0,0,1,0,6
+892,42,3,Kompjuteri > Kompjuterska oprema > Modemi,Modemi,0,0,0,1,0,5
+163,42,3,Kompjuteri > Kompjuterska oprema > Monitori,Monitori,0,0,0,1,0,6
+1042,42,3,Kompjuteri > Kompjuterska oprema > Napojne jedinice,Napojne jedinice,0,0,0,1,0,7
+2635,42,3,Kompjuteri > Kompjuterska oprema > Nosači monitora,Nosači monitora,0,0,0,1,0,5
+923,42,3,Kompjuteri > Kompjuterska oprema > Oprema za gamere,Oprema za gamere,0,0,0,1,0,7
+1501,42,3,Kompjuteri > Kompjuterska oprema > Optički mediji/diskovi,Optički mediji/diskovi,0,0,0,1,0,5
+165,42,3,Kompjuteri > Kompjuterska oprema > Optički uređaji,Optički uređaji,0,0,0,1,0,5
+2148,42,3,Kompjuteri > Kompjuterska oprema > Podloge za miš,Podloge za miš,0,0,0,1,0,6
+166,42,3,"Kompjuteri > Kompjuterska oprema > Printer, skener i kopir aparati","Printer, skener i kopir aparati",0,0,0,1,0,6
+167,42,3,Kompjuteri > Kompjuterska oprema > Procesori,Procesori,0,0,0,1,0,5
+248,42,3,"Kompjuteri > Kompjuterska oprema > Projektori, prezenteri i platna","Projektori, prezenteri i platna",0,0,0,1,0,6
+1874,42,3,Kompjuteri > Kompjuterska oprema > Punjači za laptope,Punjači za laptope,0,0,0,1,0,7
+155,42,3,Kompjuteri > Kompjuterska oprema > SSD,SSD,0,0,0,1,0,7
+1499,42,3,Kompjuteri > Kompjuterska oprema > PC slušalice,PC slušalice,0,0,0,1,0,5
+2610,42,3,Kompjuteri > Kompjuterska oprema > Stalci/držači za laptope,Stalci/držači za laptope,0,0,0,1,0,5
+1494,42,3,Kompjuteri > Kompjuterska oprema > TV/SAT kartice,TV/SAT kartice,0,0,0,1,0,5
+1521,42,3,Kompjuteri > Kompjuterska oprema > Tastatura/Miš set,Tastatura/Miš set,0,0,0,1,0,7
+170,42,3,Kompjuteri > Kompjuterska oprema > Tastature,Tastature,0,0,0,1,0,6
+2325,42,3,Kompjuteri > Kompjuterska oprema > Tastature za laptope,Tastature za laptope,0,0,0,1,0,5
+2468,42,3,Kompjuteri > Kompjuterska oprema > Termalne paste,Termalne paste,0,0,0,0,0,5
+924,42,3,Kompjuteri > Kompjuterska oprema > Toneri,Toneri,0,0,0,1,0,6
+1493,42,3,Kompjuteri > Kompjuterska oprema > Torbe za laptope,Torbe za laptope,0,0,0,1,0,6
+1500,42,3,Kompjuteri > Kompjuterska oprema > UPS,UPS,0,0,0,1,0,5
+1063,42,3,Kompjuteri > Kompjuterska oprema > USB,USB,0,0,0,1,0,5
+1518,1063,4,Kompjuteri > Kompjuterska oprema > USB > Bluetooth adapteri,Bluetooth adapteri,0,0,0,1,0,5
+1065,1063,4,Kompjuteri > Kompjuterska oprema > USB > Gadget,Gadget,0,0,0,1,0,5
+1516,1063,4,Kompjuteri > Kompjuterska oprema > USB > HUB/Razdjelnici,HUB/Razdjelnici,0,0,0,1,0,5
+1064,1063,4,Kompjuteri > Kompjuterska oprema > USB > USB Memorija / stick,USB Memorija / stick,0,0,0,1,0,5
+1066,1063,4,Kompjuteri > Kompjuterska oprema > USB > Wireless adapteri,Wireless adapteri,0,0,0,1,0,5
+1517,1063,4,Kompjuteri > Kompjuterska oprema > USB > Čitači kartica,Čitači kartica,0,0,0,1,0,5
+1067,1063,4,Kompjuteri > Kompjuterska oprema > USB > Ostalo,Ostalo,0,0,0,1,0,5
+895,42,3,Kompjuteri > Kompjuterska oprema > Web kamere,Web kamere,0,0,0,1,0,6
+1498,42,3,Kompjuteri > Kompjuterska oprema > Zvučne kartice,Zvučne kartice,0,0,0,1,0,5
+1496,42,3,Kompjuteri > Kompjuterska oprema > Zvučnici,Zvučnici,0,0,0,1,0,5
+894,42,3,Kompjuteri > Kompjuterska oprema > Ostala kompjuterska oprema,Ostala kompjuterska oprema,0,0,0,1,0,5
+2595,5,2,Kompjuteri > Docking stations,Docking stations,0,0,0,1,0,5
+2602,5,2,Kompjuteri > Grafički tableti,Grafički tableti,0,0,0,1,0,5
+2407,5,2,Kompjuteri > Kriptovalute,Kriptovalute,0,0,0,1,0,7
+2411,5,2,Kompjuteri > Mining rigovi,Mining rigovi,0,0,0,1,50,10
+74,5,2,Kompjuteri > Mreže i Komunikacije,Mreže i Komunikacije,0,0,0,1,0,0
+190,74,3,Kompjuteri > Mreže i Komunikacije > Access point,Access point,0,0,0,1,0,5
+2114,74,3,Kompjuteri > Mreže i Komunikacije > Extenderi (pojačivači),Extenderi (pojačivači),0,0,0,1,0,6
+193,74,3,Kompjuteri > Mreže i Komunikacije > Mrežne kartice (Wi-Fi i LAN),Mrežne kartice (Wi-Fi i LAN),0,0,0,1,0,5
+196,74,3,Kompjuteri > Mreže i Komunikacije > Mrežni kablovi,Mrežni kablovi,0,0,0,1,0,5
+194,74,3,Kompjuteri > Mreže i Komunikacije > Router,Router,0,0,0,1,0,7
+1876,74,3,Kompjuteri > Mreže i Komunikacije > Switch,Switch,0,0,0,1,0,5
+197,74,3,Kompjuteri > Mreže i Komunikacije > Wireless antene,Wireless antene,0,0,0,1,0,5
+198,74,3,Kompjuteri > Mreže i Komunikacije > Ostalo,Ostalo,0,0,0,1,0,5
+2600,5,2,Kompjuteri > Oprema za mining rigove,Oprema za mining rigove,0,0,0,1,0,5
+75,5,2,Kompjuteri > Serveri,Serveri,0,0,0,1,0,5
+43,5,2,Kompjuteri > Softver,Softver,0,0,0,1,0,0
+187,43,3,Kompjuteri > Softver > Aplikativni softver,Aplikativni softver,0,0,0,1,0,6
+186,43,3,Kompjuteri > Softver > Sistemski softver,Sistemski softver,0,0,0,1,0,5
+299,43,3,Kompjuteri > Softver > Ostalo,Ostalo,0,0,0,1,0,5
+366,5,2,Kompjuteri > Ostalo,Ostalo,0,0,0,1,0,5
+14,,1,Tehnika,Tehnika,0,0,0,1,0,0
+46,14,2,Tehnika > Bijela tehnika,Bijela tehnika,0,0,0,1,0,4
+337,46,3,Tehnika > Bijela tehnika > Kuhinja,Kuhinja,0,0,0,1,0,4
+2454,337,4,Tehnika > Bijela tehnika > Kuhinja > Blenderi,Blenderi,0,0,0,1,0,7
+2135,337,4,Tehnika > Bijela tehnika > Kuhinja > Dijelovi za kuhinjske aparate,Dijelovi za kuhinjske aparate,0,0,0,1,0,4
+836,337,4,Tehnika > Bijela tehnika > Kuhinja > Električni rezači,Električni rezači,0,0,0,1,0,4
+1883,337,4,Tehnika > Bijela tehnika > Kuhinja > Električni šporeti,Električni šporeti,0,0,0,1,0,4
+1882,337,4,Tehnika > Bijela tehnika > Kuhinja > Frižideri i Zamrzivači,Frižideri i Zamrzivači,0,0,0,1,0,5
+831,337,4,Tehnika > Bijela tehnika > Kuhinja > Kafe aparati,Kafe aparati,0,0,0,1,0,5
+834,337,4,Tehnika > Bijela tehnika > Kuhinja > Kuhala za vodu i filteri,Kuhala za vodu i filteri,0,0,0,1,0,6
+1884,337,4,Tehnika > Bijela tehnika > Kuhinja > Kuhinjske nape,Kuhinjske nape,0,0,0,1,0,4
+2120,337,4,Tehnika > Bijela tehnika > Kuhinja > Kuhinjski bojleri,Kuhinjski bojleri,0,0,0,1,0,4
+832,337,4,Tehnika > Bijela tehnika > Kuhinja > Kuhinjski mikseri,Kuhinjski mikseri,0,0,0,1,0,6
+1885,337,4,Tehnika > Bijela tehnika > Kuhinja > Mašine za suđe,Mašine za suđe,0,0,0,1,0,6
+1886,337,4,Tehnika > Bijela tehnika > Kuhinja > Mikrovalne peći,Mikrovalne peći,0,0,0,1,0,4
+835,337,4,Tehnika > Bijela tehnika > Kuhinja > Pekač hljeba i peciva,Pekač hljeba i peciva,0,0,0,1,0,4
+837,337,4,Tehnika > Bijela tehnika > Kuhinja > Sokovnici/Cijedilice za voće,Sokovnici/Cijedilice za voće,0,0,0,1,0,4
+833,337,4,Tehnika > Bijela tehnika > Kuhinja > Tosteri,Tosteri,0,0,0,1,0,6
+2285,337,4,Tehnika > Bijela tehnika > Kuhinja > Ugradbene ploče i pećnice,Ugradbene ploče i pećnice,0,0,0,1,0,4
+338,46,3,Tehnika > Bijela tehnika > WC / Kupatilo,WC / Kupatilo,0,0,0,1,0,4
+2136,338,4,Tehnika > Bijela tehnika > WC / Kupatilo > Dijelovi za veš mašine i sušilice,Dijelovi za veš mašine i sušilice,0,0,0,1,0,5
+1887,338,4,Tehnika > Bijela tehnika > WC / Kupatilo > Veš mašine i Sušilice,Veš mašine i Sušilice,0,0,0,1,0,6
+339,46,3,Tehnika > Bijela tehnika > Ostala bijela tehnika,Ostala bijela tehnika,0,0,0,1,0,5
+45,14,2,"Tehnika > TV, oprema i dijelovi","TV, oprema i dijelovi",0,0,0,1,0,0
+2073,45,3,"Tehnika > TV, oprema i dijelovi > Antene za TV",Antene za TV,0,0,0,1,0,5
+1608,45,3,"Tehnika > TV, oprema i dijelovi > Daljinski upravljači za TV",Daljinski upravljači za TV,0,0,0,1,0,4
+1764,45,3,"Tehnika > TV, oprema i dijelovi > Dijelovi i oprema za TV",Dijelovi i oprema za TV,0,0,0,1,0,6
+2574,45,3,"Tehnika > TV, oprema i dijelovi > Kablovi za TV",Kablovi za TV,0,0,0,1,0,5
+1748,45,3,"Tehnika > TV, oprema i dijelovi > Televizori TV",Televizori TV,0,0,0,1,0,10
+2068,45,3,"Tehnika > TV, oprema i dijelovi > Nosači za TV",Nosači za TV,0,0,0,1,0,7
+2575,14,2,Tehnika > Baterije i punjači,Baterije i punjači,0,0,0,1,0,7
+2392,14,2,Tehnika > Bluetooth zvučnici,Bluetooth zvučnici,0,0,0,1,0,9
+2093,14,2,Tehnika > DVD/Blu-ray player,DVD/Blu-ray player,0,0,0,1,0,5
+1715,14,2,Tehnika > Digitroni/Kalkulatori,Digitroni/Kalkulatori,0,0,0,1,0,5
+1922,14,2,Tehnika > Diktafoni/Snimači,Diktafoni/Snimači,0,0,0,1,0,5
+2115,14,2,Tehnika > Dronovi (RC letjelice),Dronovi (RC letjelice),0,0,0,1,0,7
+2662,14,2,Tehnika > Dijelovi i oprema za dronove,Dijelovi i oprema za dronove,0,0,0,1,0,5
+2541,14,2,Tehnika > Električne cigarete,Električne cigarete,0,0,0,1,0,8
+1838,14,2,Tehnika > Elektromaterijal,Elektromaterijal,0,0,0,1,0,0
+2621,1838,3,Tehnika > Elektromaterijal > Bužiri i kanalice,Bužiri i kanalice,0,0,0,1,0,5
+1843,1838,3,Tehnika > Elektromaterijal > Električni osigurači,Električni osigurači,0,0,0,1,0,5
+2620,1838,3,Tehnika > Elektromaterijal > Grla za sijalice,Grla za sijalice,0,0,0,1,0,5
+1842,1838,3,Tehnika > Elektromaterijal > Ind. sklopke i prekidači,Ind. sklopke i prekidači,0,0,0,1,0,7
+2619,1838,3,Tehnika > Elektromaterijal > Instalacioni kablovi,Instalacioni kablovi,0,0,0,1,0,5
+2596,1838,3,Tehnika > Elektromaterijal > Integralna/IC kola,Integralna/IC kola,0,0,0,1,0,5
+2503,1838,3,"Tehnika > Elektromaterijal > Otpornici, diode i kondenzatori","Otpornici, diode i kondenzatori",0,0,0,1,0,5
+2643,1838,3,Tehnika > Elektromaterijal > PLC uređaji i oprema,PLC uređaji i oprema,0,0,0,1,0,5
+1839,1838,3,Tehnika > Elektromaterijal > Produžni strujni kablovi,Produžni strujni kablovi,0,0,0,1,0,7
+2640,1838,3,Tehnika > Elektromaterijal > Razvodne kutije,Razvodne kutije,0,0,0,1,0,5
+2641,1838,3,Tehnika > Elektromaterijal > Razvodni ormari,Razvodni ormari,0,0,0,1,0,5
+2637,1838,3,Tehnika > Elektromaterijal > Redne stezaljke i stopice,Redne stezaljke i stopice,0,0,0,1,0,5
+1982,1838,3,Tehnika > Elektromaterijal > Releji,Releji,0,0,0,1,0,5
+2508,1838,3,Tehnika > Elektromaterijal > Tranzistori i tiristori,Tranzistori i tiristori,0,0,0,1,0,5
+1841,1838,3,Tehnika > Elektromaterijal > Utikači i razdjelnici,Utikači i razdjelnici,0,0,0,1,0,5
+1840,1838,3,Tehnika > Elektromaterijal > Utičnice i prekidači,Utičnice i prekidači,0,0,0,1,0,5
+2149,14,2,Tehnika > Hoverboard,Hoverboard,0,0,0,1,0,5
+2332,14,2,Tehnika > IoT,IoT,0,0,0,1,0,3
+57,14,2,Tehnika > Kamere i foto aparati,Kamere i foto aparati,0,0,0,1,0,7
+2352,57,3,Tehnika > Kamere i foto aparati > Akcione kamere,Akcione kamere,0,0,0,1,0,5
+112,57,3,Tehnika > Kamere i foto aparati > Digitalni fotoaparati,Digitalni fotoaparati,0,0,0,1,0,7
+274,57,3,Tehnika > Kamere i foto aparati > Dijelovi i oprema,Dijelovi i oprema,0,0,0,1,0,7
+2156,274,4,Tehnika > Kamere i foto aparati > Dijelovi i oprema > Baterije za kamere i fotoaparate,Baterije za kamere i fotoaparate,0,0,0,1,0,5
+1069,274,4,Tehnika > Kamere i foto aparati > Dijelovi i oprema > Blicevi,Blicevi,0,0,0,1,0,7
+1070,274,4,Tehnika > Kamere i foto aparati > Dijelovi i oprema > Filteri za objektive,Filteri za objektive,0,0,0,1,0,7
+1076,274,4,Tehnika > Kamere i foto aparati > Dijelovi i oprema > Mikrofoni za aparat/kameru,Mikrofoni za aparat/kameru,0,0,0,1,0,7
+1072,274,4,Tehnika > Kamere i foto aparati > Dijelovi i oprema > Objektivi,Objektivi,0,0,0,1,0,8
+2143,274,4,Tehnika > Kamere i foto aparati > Dijelovi i oprema > Punjači za kamere i fotoaparate,Punjači za kamere i fotoaparate,0,0,0,1,0,5
+1075,274,4,Tehnika > Kamere i foto aparati > Dijelovi i oprema > Rasvjeta,Rasvjeta,0,0,0,1,0,7
+1073,274,4,Tehnika > Kamere i foto aparati > Dijelovi i oprema > Stativi,Stativi,0,0,0,1,0,10
+1071,274,4,Tehnika > Kamere i foto aparati > Dijelovi i oprema > Zonerice,Zonerice,0,0,0,1,0,7
+1077,274,4,Tehnika > Kamere i foto aparati > Dijelovi i oprema > Ostalo,Ostalo,0,0,0,1,0,7
+113,57,3,Tehnika > Kamere i foto aparati > Analogni fotoaparati,Analogni fotoaparati,0,0,0,1,0,8
+273,57,3,Tehnika > Kamere i foto aparati > Videokamere i kamkorderi,Videokamere i kamkorderi,0,0,0,1,0,7
+275,57,3,Tehnika > Kamere i foto aparati > Ostalo,Ostalo,0,0,0,1,0,7
+249,14,2,Tehnika > Kućna kina,Kućna kina,0,0,0,1,0,7
+2556,14,2,Tehnika > Lupe/povećala,Lupe/povećala,0,0,0,1,0,5
+433,14,2,Tehnika > Medicinska oprema,Medicinska oprema,0,0,0,1,0,0
+1201,433,3,Tehnika > Medicinska oprema > Invalidska/Ortopedska pomagala,Invalidska/Ortopedska pomagala,0,0,0,1,0,0
+1209,1201,4,Tehnika > Medicinska oprema > Invalidska/Ortopedska pomagala > Električni kreveti,Električni kreveti,0,0,0,1,0,5
+1206,1201,4,Tehnika > Medicinska oprema > Invalidska/Ortopedska pomagala > Invalidske hodalice,Invalidske hodalice,0,0,0,1,0,5
+1204,1201,4,Tehnika > Medicinska oprema > Invalidska/Ortopedska pomagala > Invalidska kolica,Invalidska kolica,0,0,0,1,0,6
+1207,1201,4,Tehnika > Medicinska oprema > Invalidska/Ortopedska pomagala > Proteze,Proteze,0,0,0,1,0,5
+1208,1201,4,Tehnika > Medicinska oprema > Invalidska/Ortopedska pomagala > Slušni aparati,Slušni aparati,0,0,0,1,0,6
+1205,1201,4,Tehnika > Medicinska oprema > Invalidska/Ortopedska pomagala > Štake / Štapovi,Štake / Štapovi,0,0,0,1,0,5
+1210,1201,4,Tehnika > Medicinska oprema > Invalidska/Ortopedska pomagala > Ostala ortopedska pomagala,Ostala ortopedska pomagala,0,0,0,1,0,6
+1203,433,3,Tehnika > Medicinska oprema > Laboratorijska oprema,Laboratorijska oprema,0,0,0,1,0,0
+1218,1203,4,Tehnika > Medicinska oprema > Laboratorijska oprema > Inhalatori,Inhalatori,0,0,0,1,0,6
+1216,1203,4,Tehnika > Medicinska oprema > Laboratorijska oprema > Mikroskopi,Mikroskopi,0,0,0,1,0,5
+1221,1203,4,Tehnika > Medicinska oprema > Laboratorijska oprema > Mjerači šećera,Mjerači šećera,0,0,0,1,0,5
+1219,1203,4,Tehnika > Medicinska oprema > Laboratorijska oprema > Sterilizatori,Sterilizatori,0,0,0,1,0,7
+1217,1203,4,Tehnika > Medicinska oprema > Laboratorijska oprema > Stetoskopi,Stetoskopi,0,0,0,1,0,5
+1220,1203,4,Tehnika > Medicinska oprema > Laboratorijska oprema > Tlakomjeri,Tlakomjeri,0,0,0,1,0,6
+1222,1203,4,Tehnika > Medicinska oprema > Laboratorijska oprema > Ultrazvučni aparati,Ultrazvučni aparati,0,0,0,1,0,5
+1223,1203,4,Tehnika > Medicinska oprema > Laboratorijska oprema > Vitafoni,Vitafoni,0,0,0,1,0,5
+1224,1203,4,Tehnika > Medicinska oprema > Laboratorijska oprema > Ostalo,Ostalo,0,0,0,1,0,5
+1225,433,3,Tehnika > Medicinska oprema > Oprema za masažu,Oprema za masažu,0,0,0,1,0,7
+1202,433,3,Tehnika > Medicinska oprema > Oprema za ordinacije,Oprema za ordinacije,0,0,0,1,0,0
+1213,1202,4,Tehnika > Medicinska oprema > Oprema za ordinacije > Ginekološka,Ginekološka,0,0,0,1,0,5
+1212,1202,4,Tehnika > Medicinska oprema > Oprema za ordinacije > Oftamološka,Oftamološka,0,0,0,1,0,5
+1214,1202,4,Tehnika > Medicinska oprema > Oprema za ordinacije > Onkološka,Onkološka,0,0,0,1,0,5
+1211,1202,4,Tehnika > Medicinska oprema > Oprema za ordinacije > Stomatološka,Stomatološka,0,0,0,1,0,6
+1215,1202,4,Tehnika > Medicinska oprema > Oprema za ordinacije > Ostalo,Ostalo,0,0,0,1,0,5
+1200,433,3,Tehnika > Medicinska oprema > Ostalo,Ostalo,0,0,0,1,0,5
+890,14,2,Tehnika > Mjerno-regulacioni instrumenti,Mjerno-regulacioni instrumenti,0,0,0,1,0,0
+1981,890,3,Tehnika > Mjerno-regulacioni instrumenti > Ampermetri,Ampermetri,0,0,0,1,0,5
+1987,890,3,Tehnika > Mjerno-regulacioni instrumenti > Brojila,Brojila,0,0,0,1,0,5
+2027,890,3,Tehnika > Mjerno-regulacioni instrumenti > Detektori,Detektori,0,0,0,1,0,5
+1986,890,3,Tehnika > Mjerno-regulacioni instrumenti > Ispravljači/Pretvarači,Ispravljači/Pretvarači,0,0,0,1,0,5
+1985,890,3,Tehnika > Mjerno-regulacioni instrumenti > Manometri,Manometri,0,0,0,1,0,6
+2448,890,3,Tehnika > Mjerno-regulacioni instrumenti > Mikrometri,Mikrometri,0,0,0,1,0,5
+1984,890,3,Tehnika > Mjerno-regulacioni instrumenti > Multimetri,Multimetri,0,0,0,1,0,5
+1988,890,3,Tehnika > Mjerno-regulacioni instrumenti > Pomična mjerila/Šubleri,Pomična mjerila/Šubleri,0,0,0,1,0,5
+1978,890,3,Tehnika > Mjerno-regulacioni instrumenti > Termometri (industrijski),Termometri (industrijski),0,0,0,1,0,5
+1983,890,3,Tehnika > Mjerno-regulacioni instrumenti > Termostati,Termostati,0,0,0,1,0,5
+1979,890,3,Tehnika > Mjerno-regulacioni instrumenti > Vage,Vage,0,0,0,1,0,6
+1980,890,3,Tehnika > Mjerno-regulacioni instrumenti > Voltmetri,Voltmetri,0,0,0,1,0,5
+1989,890,3,Tehnika > Mjerno-regulacioni instrumenti > Ostalo,Ostalo,0,0,0,1,0,5
+15,14,2,Tehnika > Multimedija,Multimedija,0,0,0,1,0,0
+50,15,3,Tehnika > Multimedija > Filmovi i serije,Filmovi i serije,0,0,0,1,0,3
+49,15,3,Tehnika > Multimedija > Muzika i spotovi,Muzika i spotovi,0,0,0,1,0,3
+300,15,3,Tehnika > Multimedija > Ostalo,Ostalo,0,0,0,1,0,3
+2050,14,2,Tehnika > Radio amaterski uređaji i oprema,Radio amaterski uređaji i oprema,0,0,0,1,0,5
+891,14,2,Tehnika > Radio i walkman uređaji,Radio i walkman uređaji,0,0,0,1,0,5
+1780,14,2,Tehnika > Satelitska oprema,Satelitska oprema,0,0,0,1,0,0
+1787,1780,3,Tehnika > Satelitska oprema > Daljinski upravljači,Daljinski upravljači,0,0,0,1,0,5
+1782,1780,3,Tehnika > Satelitska oprema > LNB (niskošumni konvertor),LNB (niskošumni konvertor),0,0,0,1,0,5
+1783,1780,3,Tehnika > Satelitska oprema > Motori,Motori,0,0,0,1,0,5
+1784,1780,3,Tehnika > Satelitska oprema > Nosači,Nosači,0,0,0,1,0,5
+893,1780,3,Tehnika > Satelitska oprema > Resiveri / Prijemnici,Resiveri / Prijemnici,0,0,0,1,0,5
+1785,1780,3,Tehnika > Satelitska oprema > Satelitska TV (komplet),Satelitska TV (komplet),0,0,0,1,0,5
+1781,1780,3,Tehnika > Satelitska oprema > Satelitski tanjiri/antene,Satelitski tanjiri/antene,0,0,0,1,0,5
+1786,1780,3,Tehnika > Satelitska oprema > Ostala satelitska oprema,Ostala satelitska oprema,0,0,0,1,0,5
+2543,14,2,Tehnika > Smart sistemi,Smart sistemi,0,0,0,1,0,7
+2348,14,2,Tehnika > Solarna oprema,Solarna oprema,0,0,0,1,0,7
+2096,14,2,Tehnika > TV boxovi,TV boxovi,0,0,0,1,0,10
+1046,14,2,Tehnika > Telekomunikacije,Telekomunikacije,0,0,0,1,0,0
+1049,1046,3,Tehnika > Telekomunikacije > Oprema za telekomunikacije,Oprema za telekomunikacije,0,0,0,1,0,5
+1047,1046,3,Tehnika > Telekomunikacije > Fiksna telefonija,Fiksna telefonija,0,0,0,1,0,5
+1048,1046,3,Tehnika > Telekomunikacije > Telefonske centrale,Telefonske centrale,0,0,0,1,0,5
+1050,1046,3,Tehnika > Telekomunikacije > Ostalo,Ostalo,0,0,0,1,0,5
+2593,14,2,Tehnika > Teleskopi i oprema,Teleskopi i oprema,0,0,0,1,0,6
+2011,14,2,Tehnika > Termometri,Termometri,0,0,0,1,0,10
+2502,14,2,Tehnika > Uređaji za zagrijavanje duhana,Uređaji za zagrijavanje duhana,0,0,0,1,0,7
+47,14,2,Tehnika > Video iPod i mp3 playeri,Video iPod i mp3 playeri,0,0,0,1,0,5
+2129,14,2,Tehnika > Virtuelna realnost (VR uređaji),Virtuelna realnost (VR uređaji),0,0,0,1,0,7
+250,14,2,Tehnika > Ostalo,Ostalo,0,0,0,1,0,10
+701,,1,Moj dom,Moj dom,0,0,0,1,0,0
+704,701,2,Moj dom > Namještaj,Namještaj,0,0,0,1,0,0
+737,704,3,Moj dom > Namještaj > Dječije sobe,Dječije sobe,0,0,0,1,0,7
+743,704,3,Moj dom > Namještaj > Garniture,Garniture,0,0,0,1,0,0
+857,743,4,Moj dom > Namještaj > Garniture > Dvosjedi,Dvosjedi,0,0,0,1,0,7
+859,743,4,Moj dom > Namještaj > Garniture > Fotelje,Fotelje,0,0,0,1,0,7
+860,743,4,Moj dom > Namještaj > Garniture > Komplet garnitura,Komplet garnitura,0,0,0,1,0,6
+858,743,4,Moj dom > Namještaj > Garniture > Trosjedi,Trosjedi,0,0,0,1,0,8
+856,743,4,Moj dom > Namještaj > Garniture > Ugaone garniture,Ugaone garniture,0,0,0,1,0,8
+861,743,4,Moj dom > Namještaj > Garniture > Ostalo,Ostalo,0,0,0,1,0,6
+739,704,3,Moj dom > Namještaj > Kreveti,Kreveti,0,0,0,1,0,0
+840,739,4,Moj dom > Namještaj > Kreveti > Bračni kreveti,Bračni kreveti,0,0,0,1,0,6
+839,739,4,Moj dom > Namještaj > Kreveti > Dječiji kreveti,Dječiji kreveti,0,0,0,1,0,7
+841,739,4,Moj dom > Namještaj > Kreveti > Dvospratni kreveti,Dvospratni kreveti,0,0,0,1,0,7
+842,739,4,Moj dom > Namještaj > Kreveti > Madraci,Madraci,0,0,0,1,0,8
+875,739,4,Moj dom > Namještaj > Kreveti > Krevet samac,Krevet samac,0,0,0,1,0,7
+2636,704,3,Moj dom > Namještaj > Ogledala,Ogledala,0,0,0,1,0,5
+741,704,3,Moj dom > Namještaj > Ormari komode i police,Ormari komode i police,0,0,0,1,0,0
+843,741,4,Moj dom > Namještaj > Ormari komode i police > Ormari/Plakari,Ormari/Plakari,0,0,0,1,0,8
+845,741,4,Moj dom > Namještaj > Ormari komode i police > Komode/Vitrine,Komode/Vitrine,0,0,0,1,0,7
+848,741,4,Moj dom > Namještaj > Ormari komode i police > Ormari za obuću,Ormari za obuću,0,0,0,1,0,8
+847,741,4,Moj dom > Namještaj > Ormari komode i police > Police,Police,0,0,0,1,0,8
+849,741,4,Moj dom > Namještaj > Ormari komode i police > Ostalo,Ostalo,0,0,0,1,0,6
+2565,704,3,Moj dom > Namještaj > Repromaterijal za namještaj,Repromaterijal za namještaj,0,0,0,1,0,8
+742,704,3,Moj dom > Namještaj > Stolovi i stolice,Stolovi i stolice,0,0,0,1,0,0
+851,742,4,Moj dom > Namještaj > Stolovi i stolice > Klub stolovi,Klub stolovi,0,0,0,1,0,7
+853,742,4,Moj dom > Namještaj > Stolovi i stolice > Noćni ormarići,Noćni ormarići,0,0,0,1,0,6
+852,742,4,Moj dom > Namještaj > Stolovi i stolice > Radni stolovi,Radni stolovi,0,0,0,1,0,7
+879,742,4,Moj dom > Namještaj > Stolovi i stolice > Stolice,Stolice,0,0,0,1,0,7
+2646,742,4,Moj dom > Namještaj > Stolovi i stolice > Stolovi za šminkanje,Stolovi za šminkanje,0,0,0,1,0,7
+2118,742,4,Moj dom > Namještaj > Stolovi i stolice > Tabure,Tabure,0,0,0,1,0,6
+850,742,4,Moj dom > Namještaj > Stolovi i stolice > Trpezarijski stolovi,Trpezarijski stolovi,0,0,0,1,0,7
+855,742,4,Moj dom > Namještaj > Stolovi i stolice > Ostalo,Ostalo,0,0,0,1,0,6
+2567,704,3,Moj dom > Namještaj > Vješalice,Vješalice,0,0,0,1,0,6
+2665,704,3,Moj dom > Namještaj > Lazy bag,Lazy bag,0,0,0,1,0,6
+872,704,3,Moj dom > Namještaj > Ostalo,Ostalo,0,0,0,1,0,6
+708,701,2,Moj dom > Grijanje i hlađenje,Grijanje i hlađenje,0,0,0,1,0,0
+2573,708,3,Moj dom > Grijanje i hlađenje > Dijelovi za klima uređaje,Dijelovi za klima uređaje,0,0,0,1,0,7
+782,708,3,Moj dom > Grijanje i hlađenje > Električne grijalice,Električne grijalice,0,0,0,1,0,10
+778,708,3,Moj dom > Grijanje i hlađenje > Fasadne peći,Fasadne peći,0,0,0,1,0,5
+777,708,3,Moj dom > Grijanje i hlađenje > Kamini,Kamini,0,0,0,1,0,8
+775,708,3,Moj dom > Grijanje i hlađenje > Klima uređaji,Klima uređaji,0,0,0,1,0,12
+1078,708,3,Moj dom > Grijanje i hlađenje > Kotlovi,Kotlovi,0,0,0,1,0,6
+1629,708,3,Moj dom > Grijanje i hlađenje > Ogrjev,Ogrjev,0,0,0,1,0,0
+2475,1629,4,Moj dom > Grijanje i hlađenje > Ogrjev > Briket,Briket,0,0,0,0,0,8
+2126,1629,4,Moj dom > Grijanje i hlađenje > Ogrjev > Pelet,Pelet,0,0,0,0,0,13
+1630,1629,4,Moj dom > Grijanje i hlađenje > Ogrjev > Ugalj i drva,Ugalj i drva,0,0,0,0,0,11
+2464,708,3,Moj dom > Grijanje i hlađenje > Oprema za grijanje i ventilaciju,Oprema za grijanje i ventilaciju,0,0,0,1,0,7
+780,708,3,Moj dom > Grijanje i hlađenje > Peći na drva,Peći na drva,0,0,0,1,0,8
+2358,708,3,Moj dom > Grijanje i hlađenje > Peći na pelet,Peći na pelet,0,0,0,1,0,10
+1746,708,3,Moj dom > Grijanje i hlađenje > Plinske boce,Plinske boce,0,0,0,1,0,8
+779,708,3,Moj dom > Grijanje i hlađenje > Plinske peći,Plinske peći,0,0,0,1,0,7
+1709,708,3,Moj dom > Grijanje i hlađenje > Plinski bojleri/kotlovi,Plinski bojleri/kotlovi,0,0,0,1,0,5
+781,708,3,Moj dom > Grijanje i hlađenje > Radijatori,Radijatori,0,0,0,1,0,7
+2461,708,3,Moj dom > Grijanje i hlađenje > Toplotne pumpe,Toplotne pumpe,0,0,0,0,50,6
+776,708,3,Moj dom > Grijanje i hlađenje > Ventilatori,Ventilatori,0,0,0,1,0,7
+783,708,3,Moj dom > Grijanje i hlađenje > Ostalo,Ostalo,0,0,0,1,0,6
+703,701,2,Moj dom > Kuhinja,Kuhinja,0,0,0,1,0,0
+823,703,3,Moj dom > Kuhinja > Čaše,Čaše,0,0,0,1,0,5
+2399,703,3,Moj dom > Kuhinja > Česme za kuhinju,Česme za kuhinju,0,0,0,1,0,6
+2469,703,3,Moj dom > Kuhinja > Džezve,Džezve,0,0,0,1,0,5
+1725,703,3,Moj dom > Kuhinja > Flaše/Boce/Tegle,Flaše/Boce/Tegle,0,0,0,1,0,7
+2563,703,3,"Moj dom > Kuhinja > Kašike, viljuške i noževi","Kašike, viljuške i noževi",0,0,0,1,0,7
+1807,703,3,Moj dom > Kuhinja > Kuhinjske daske,Kuhinjske daske,0,0,0,1,0,5
+878,703,3,Moj dom > Kuhinja > Kuhinjski elementi,Kuhinjski elementi,0,0,0,1,0,7
+734,703,3,Moj dom > Kuhinja > Mali kuhinjski uređaji,Mali kuhinjski uređaji,0,0,0,1,0,0
+2667,734,4,Moj dom > Kuhinja > Mali kuhinjski uređaji > Friteze,Friteze,0,0,0,1,0,6
+1277,734,4,Moj dom > Kuhinja > Mali kuhinjski uređaji > Kuhinjski rešoi,Kuhinjski rešoi,0,0,0,1,0,6
+838,734,4,Moj dom > Kuhinja > Mali kuhinjski uređaji > Ostali kuhinjski uređaji,Ostali kuhinjski uređaji,0,0,0,1,0,5
+731,703,3,Moj dom > Kuhinja > Kuhinjski pribor,Kuhinjski pribor,0,0,0,1,0,7
+2566,703,3,Moj dom > Kuhinja > Sudoperi,Sudoperi,0,0,0,1,0,5
+2693,703,3,Moj dom > Kuhinja > Tacne i poslužavnici,Tacne i poslužavnici,0,0,0,1,0,5
+726,703,3,Moj dom > Kuhinja > Tanjiri,Tanjiri,0,0,0,1,0,5
+2564,703,3,Moj dom > Kuhinja > Tave,Tave,0,0,0,1,0,5
+728,703,3,Moj dom > Kuhinja > Tepsije,Tepsije,0,0,0,1,0,5
+732,703,3,Moj dom > Kuhinja > Zdjele i posude,Zdjele i posude,0,0,0,1,0,7
+727,703,3,Moj dom > Kuhinja > Šerpe,Šerpe,0,0,0,1,0,5
+730,703,3,Moj dom > Kuhinja > Šolje i fildžani,Šolje i fildžani,0,0,0,1,0,5
+735,703,3,Moj dom > Kuhinja > Ostalo,Ostalo,0,0,0,1,0,5
+702,701,2,Moj dom > Kupatilo,Kupatilo,0,0,0,1,0,0
+2550,702,3,Moj dom > Kupatilo > Namještaj za kupatilo,Namještaj za kupatilo,0,0,0,1,0,5
+721,702,3,Moj dom > Kupatilo > Bojleri za kupatilo,Bojleri za kupatilo,0,0,0,1,0,6
+714,702,3,Moj dom > Kupatilo > Kade/Jacuzzi,Kade/Jacuzzi,0,0,0,1,0,7
+2582,702,3,Moj dom > Kupatilo > Korpe za veš,Korpe za veš,0,0,0,1,0,5
+722,702,3,Moj dom > Kupatilo > Ogledala za kupatilo,Ogledala za kupatilo,0,0,0,1,0,5
+787,702,3,Moj dom > Kupatilo > Prostirke za kupatilo,Prostirke za kupatilo,0,0,0,1,0,5
+724,702,3,Moj dom > Kupatilo > Oprema/pribor za kupatilo,Oprema/pribor za kupatilo,0,0,0,1,0,7
+715,702,3,Moj dom > Kupatilo > Tuš kabine,Tuš kabine,0,0,0,1,0,7
+720,702,3,Moj dom > Kupatilo > Umivaonici/Lavaboi,Umivaonici/Lavaboi,0,0,0,1,0,5
+717,702,3,Moj dom > Kupatilo > WC šolje i oprema,WC šolje i oprema,0,0,0,1,0,0
+822,717,4,Moj dom > Kupatilo > WC šolje i oprema > Bidei,Bidei,0,0,0,1,0,5
+821,717,4,Moj dom > Kupatilo > WC šolje i oprema > Daske za WC šolju,Daske za WC šolju,0,0,0,1,0,5
+820,717,4,Moj dom > Kupatilo > WC šolje i oprema > Vodokotlići,Vodokotlići,0,0,0,1,0,5
+2112,717,4,Moj dom > Kupatilo > WC šolje i oprema > WC šolje/školjke,WC šolje/školjke,0,0,0,1,0,5
+2397,702,3,Moj dom > Kupatilo > Česme za kupatilo,Česme za kupatilo,0,0,0,1,0,7
+725,702,3,Moj dom > Kupatilo > Ostalo,Ostalo,0,0,0,1,0,5
+867,701,2,Moj dom > Stolarija,Stolarija,0,0,0,1,0,0
+2329,867,3,Moj dom > Stolarija > Garažna vrata,Garažna vrata,0,0,0,1,0,6
+2577,867,3,Moj dom > Stolarija > Klupice za prozore,Klupice za prozore,0,0,0,1,0,6
+2597,867,3,"Moj dom > Stolarija > Kvake, štitovi, ručke","Kvake, štitovi, ručke",0,0,0,1,0,6
+1706,867,3,Moj dom > Stolarija > Podovi,Podovi,0,0,0,1,0,7
+871,867,3,Moj dom > Stolarija > Prozori,Prozori,0,0,0,1,0,5
+2155,867,3,Moj dom > Stolarija > Roletne i Žaluzine,Roletne i Žaluzine,0,0,0,1,0,7
+2513,867,3,Moj dom > Stolarija > Sobne pregrade,Sobne pregrade,0,0,0,1,0,5
+870,867,3,Moj dom > Stolarija > Vrata,Vrata,0,0,0,1,0,10
+876,867,3,Moj dom > Stolarija > Oprema/pribor za stolariju,Oprema/pribor za stolariju,0,0,0,1,0,5
+711,701,2,Moj dom > Vrt biljke i vrtlarstvo,Vrt biljke i vrtlarstvo,0,0,0,1,0,6
+880,711,3,Moj dom > Vrt biljke i vrtlarstvo > Biljke i cvijeće,Biljke i cvijeće,0,0,0,0,0,7
+2492,711,3,Moj dom > Vrt biljke i vrtlarstvo > Dijelovi i oprema za kosilice i trimere,Dijelovi i oprema za kosilice i trimere,0,0,0,1,0,6
+797,711,3,Moj dom > Vrt biljke i vrtlarstvo > Kosilice i Trimeri za vrt,Kosilice i Trimeri za vrt,0,0,0,1,0,13
+881,711,3,Moj dom > Vrt biljke i vrtlarstvo > Ograde,Ograde,0,0,0,1,0,11
+800,711,3,Moj dom > Vrt biljke i vrtlarstvo > Roštilji i ražnjevi,Roštilji i ražnjevi,0,0,0,1,0,7
+795,711,3,Moj dom > Vrt biljke i vrtlarstvo > Sadnice,Sadnice,0,0,0,0,0,6
+2509,711,3,"Moj dom > Vrt biljke i vrtlarstvo > Sačevi, peke i kotlići","Sačevi, peke i kotlići",0,0,0,1,0,6
+796,711,3,Moj dom > Vrt biljke i vrtlarstvo > Sjemena,Sjemena,0,0,0,0,0,3
+2591,711,3,Moj dom > Vrt biljke i vrtlarstvo > Suncobrani i oprema,Suncobrani i oprema,0,0,0,1,0,5
+802,711,3,Moj dom > Vrt biljke i vrtlarstvo > Sistemi za navodnjavanje,Sistemi za navodnjavanje,0,0,0,1,0,8
+2627,711,3,Moj dom > Vrt biljke i vrtlarstvo > Tende za vrt,Tende za vrt,0,0,0,1,0,6
+798,711,3,Moj dom > Vrt biljke i vrtlarstvo > Zemlja i gnojivo za vrt,Zemlja i gnojivo za vrt,0,0,0,0,0,7
+801,711,3,Moj dom > Vrt biljke i vrtlarstvo > Vrtne fontane,Vrtne fontane,0,0,0,1,0,6
+799,711,3,Moj dom > Vrt biljke i vrtlarstvo > Vrtni namještaj,Vrtni namještaj,0,0,0,1,0,8
+803,711,3,Moj dom > Vrt biljke i vrtlarstvo > Pribor i alat za vrt,Pribor i alat za vrt,0,0,0,1,0,7
+707,701,2,Moj dom > Lampe i rasvjeta,Lampe i rasvjeta,0,0,0,1,0,0
+769,707,3,Moj dom > Lampe i rasvjeta > LED rasvjeta,LED rasvjeta,0,0,0,1,0,12
+765,707,3,Moj dom > Lampe i rasvjeta > Lusteri i plafonjere,Lusteri i plafonjere,0,0,0,1,0,5
+772,707,3,Moj dom > Lampe i rasvjeta > Reflektori,Reflektori,0,0,0,1,0,5
+767,707,3,Moj dom > Lampe i rasvjeta > Sijalice,Sijalice,0,0,0,1,0,5
+773,707,3,Moj dom > Lampe i rasvjeta > Solarna rasvjeta,Solarna rasvjeta,0,0,0,1,0,7
+764,707,3,Moj dom > Lampe i rasvjeta > Lampe,Lampe,0,0,0,1,0,7
+768,707,3,Moj dom > Lampe i rasvjeta > Svijeće,Svijeće,0,0,0,1,0,5
+771,707,3,Moj dom > Lampe i rasvjeta > Vanjska/vrtna rasvjeta,Vanjska/vrtna rasvjeta,0,0,0,1,0,6
+774,707,3,Moj dom > Lampe i rasvjeta > Ostalo,Ostalo,0,0,0,1,0,5
+712,701,2,Moj dom > Bazeni i oprema,Bazeni i oprema,0,0,0,1,0,7
+804,712,3,Moj dom > Bazeni i oprema > Bazeni,Bazeni,0,0,0,1,0,11
+807,712,3,Moj dom > Bazeni i oprema > Bazenske kupole,Bazenske kupole,0,0,0,1,0,7
+809,712,3,Moj dom > Bazeni i oprema > Oprema i pribor za bazene,Oprema i pribor za bazene,0,0,0,1,0,8
+810,712,3,Moj dom > Bazeni i oprema > Rasvjeta za bazene,Rasvjeta za bazene,0,0,0,1,0,7
+808,712,3,Moj dom > Bazeni i oprema > Uređaji i oprema za bazen,Uređaji i oprema za bazen,0,0,0,1,0,9
+811,712,3,Moj dom > Bazeni i oprema > Ostala oprema za bezene,Ostala oprema za bezene,0,0,0,1,0,9
+709,701,2,"Moj dom > Ćilimi, tepisi, etisoni i ostalo","Ćilimi, tepisi, etisoni i ostalo",0,0,0,1,0,0
+784,709,3,"Moj dom > Ćilimi, tepisi, etisoni i ostalo > Ćilimi i Tepisi",Ćilimi i Tepisi,0,0,0,1,0,8
+2581,709,3,"Moj dom > Ćilimi, tepisi, etisoni i ostalo > Otirači za noge",Otirači za noge,0,0,0,1,0,5
+2673,709,3,"Moj dom > Ćilimi, tepisi, etisoni i ostalo > Serdžade",Serdžade,0,0,0,1,0,5
+2082,709,3,"Moj dom > Ćilimi, tepisi, etisoni i ostalo > Staze",Staze,0,0,0,1,0,5
+788,709,3,"Moj dom > Ćilimi, tepisi, etisoni i ostalo > Ostalo",Ostalo,0,0,0,1,0,5
+705,701,2,Moj dom > Dekoracije,Dekoracije,0,0,0,1,0,0
+2645,705,3,Moj dom > Dekoracije > Print na platnu,Print na platnu,0,0,0,1,0,5
+888,705,3,Moj dom > Dekoracije > Dekoracije za vjenčanja,Dekoracije za vjenčanja,0,0,0,1,0,3
+2470,705,3,Moj dom > Dekoracije > Garniže i šipke za zavjese,Garniže i šipke za zavjese,0,0,0,0,0,5
+748,705,3,Moj dom > Dekoracije > Ukrasni jastuci,Ukrasni jastuci,0,0,0,1,0,5
+751,705,3,"Moj dom > Dekoracije > Kutije, posude i pepeljare","Kutije, posude i pepeljare",0,0,0,1,0,7
+749,705,3,Moj dom > Dekoracije > Okviri za slike i fotografije,Okviri za slike i fotografije,0,0,0,1,0,5
+754,705,3,Moj dom > Dekoracije > Party dekoracije,Party dekoracije,0,0,0,1,0,6
+2586,705,3,"Moj dom > Dekoracije > Ploske, čuture i buklije","Ploske, čuture i buklije",0,0,0,1,0,5
+750,705,3,Moj dom > Dekoracije > Praznične dekoracije,Praznične dekoracije,0,0,0,1,0,6
+747,705,3,Moj dom > Dekoracije > Umjetno bilje i cvijeće,Umjetno bilje i cvijeće,0,0,0,1,0,5
+746,705,3,Moj dom > Dekoracije > Vazne i saksije,Vazne i saksije,0,0,0,1,0,7
+753,705,3,Moj dom > Dekoracije > Zavjese,Zavjese,0,0,0,1,0,6
+752,705,3,Moj dom > Dekoracije > Zidne dekoracije i tapete,Zidne dekoracije i tapete,0,0,0,1,0,6
+755,705,3,Moj dom > Dekoracije > Ostale dekoracije,Ostale dekoracije,0,0,0,1,0,6
+2655,701,2,Moj dom > Filteri za vodu,Filteri za vodu,0,0,0,1,0,5
+1805,701,2,Moj dom > Keramičke pločice,Keramičke pločice,0,0,0,1,0,7
+2594,701,2,Moj dom > Poštanska sandučad,Poštanska sandučad,0,0,0,1,0,5
+713,701,2,Moj dom > Sigurnosni uređaji,Sigurnosni uređaji,0,0,0,1,0,0
+812,713,3,Moj dom > Sigurnosni uređaji > Sigurnosni alarmi,Sigurnosni alarmi,0,0,0,1,0,5
+817,713,3,Moj dom > Sigurnosni uređaji > Senzori i detektori,Senzori i detektori,0,0,0,1,0,5
+2349,713,3,Moj dom > Sigurnosni uređaji > Interfoni,Interfoni,0,0,0,1,0,7
+2698,713,3,Moj dom > Sigurnosni uređaji > Parking rampe,Parking rampe,0,0,0,1,0,5
+1515,713,3,Moj dom > Sigurnosni uređaji > Protupožarni aparati,Protupožarni aparati,0,0,0,1,0,5
+814,713,3,Moj dom > Sigurnosni uređaji > Sefovi,Sefovi,0,0,0,1,0,6
+813,713,3,Moj dom > Sigurnosni uređaji > Sigurnosne brave,Sigurnosne brave,0,0,0,1,0,7
+818,713,3,Moj dom > Sigurnosni uređaji > Sigurnosni uređaji za djecu,Sigurnosni uređaji za djecu,0,0,0,1,0,6
+1747,713,3,Moj dom > Sigurnosni uređaji > Sredstva za samoodbranu,Sredstva za samoodbranu,0,0,0,1,0,5
+816,713,3,Moj dom > Sigurnosni uređaji > Video nadzor,Video nadzor,0,0,0,1,0,12
+819,713,3,Moj dom > Sigurnosni uređaji > Ostali sigurnosni uređaji,Ostali sigurnosni uređaji,0,0,0,1,0,5
+710,701,2,Moj dom > Sredstva i uređaji za čišćenje,Sredstva i uređaji za čišćenje,0,0,0,1,0,0
+793,710,3,Moj dom > Sredstva i uređaji za čišćenje > Deterdženti i sredstva za dezinfekciju,Deterdženti i sredstva za dezinfekciju,0,0,0,1,0,5
+790,710,3,Moj dom > Sredstva i uređaji za čišćenje > Kante i ostale posude,Kante i ostale posude,0,0,0,1,0,6
+789,710,3,Moj dom > Sredstva i uređaji za čišćenje > Krpe za čišćenje,Krpe za čišćenje,0,0,0,1,0,7
+791,710,3,Moj dom > Sredstva i uređaji za čišćenje > Metle,Metle,0,0,0,1,0,5
+792,710,3,Moj dom > Sredstva i uređaji za čišćenje > Osvježivači zraka,Osvježivači zraka,0,0,0,1,0,8
+2355,710,3,Moj dom > Sredstva i uređaji za čišćenje > Parni čistači,Parni čistači,0,0,0,1,0,5
+1744,710,3,Moj dom > Sredstva i uređaji za čišćenje > Pegle,Pegle,0,0,0,1,0,6
+1226,710,3,Moj dom > Sredstva i uređaji za čišćenje > Usisivači,Usisivači,0,0,0,1,0,5
+2449,710,3,Moj dom > Sredstva i uređaji za čišćenje > Vrećice i dijelovi za usisivače,Vrećice i dijelovi za usisivače,0,0,0,1,0,7
+794,710,3,Moj dom > Sredstva i uređaji za čišćenje > Ostali pribor za čišćenje,Ostali pribor za čišćenje,0,0,0,1,0,7
+706,701,2,Moj dom > Tekstilni proizvodi,Tekstilni proizvodi,0,0,0,1,0,0
+757,706,3,"Moj dom > Tekstilni proizvodi > Deke, jorgani i jastuci","Deke, jorgani i jastuci",0,0,0,1,0,6
+760,706,3,Moj dom > Tekstilni proizvodi > Kuhinjske krpe,Kuhinjske krpe,0,0,0,1,0,5
+756,706,3,Moj dom > Tekstilni proizvodi > Peškiri,Peškiri,0,0,0,1,0,5
+759,706,3,Moj dom > Tekstilni proizvodi > Posteljine,Posteljine,0,0,0,1,0,6
+805,706,3,Moj dom > Tekstilni proizvodi > Presvlake i prekrivači za namještaj,Presvlake i prekrivači za namještaj,0,0,0,1,0,6
+762,706,3,Moj dom > Tekstilni proizvodi > Stolnjaci,Stolnjaci,0,0,0,1,0,5
+806,706,3,Moj dom > Tekstilni proizvodi > Ostalo,Ostalo,0,0,0,1,0,5
+1717,701,2,Moj dom > Vodoinstalacije i oprema,Vodoinstalacije i oprema,0,0,0,1,0,7
+868,701,2,Moj dom > Ostalo,Ostalo,0,0,0,1,0,5
+224,,1,Biznis i Industrija,Biznis i Industrija,0,0,0,1,0,0
+225,224,2,Biznis i Industrija > Mašine i alati,Mašine i alati,0,0,0,1,0,0
+2568,225,3,Biznis i Industrija > Mašine i alati > 3D printeri i oprema,3D printeri i oprema,0,0,0,1,0,6
+2357,225,3,Biznis i Industrija > Mašine i alati > Aku baterije i punjači,Aku baterije i punjači,0,0,0,1,0,6
+2538,225,3,Biznis i Industrija > Mašine i alati > Alati na vruć zrak,Alati na vruć zrak,0,0,0,1,0,5
+1937,225,3,Biznis i Industrija > Mašine i alati > Amerikaneri (stezne glave),Amerikaneri (stezne glave),0,0,0,1,0,5
+1941,225,3,Biznis i Industrija > Mašine i alati > Bansek/Tračne pile za drvo,Bansek/Tračne pile za drvo,0,0,0,1,0,5
+1971,225,3,Biznis i Industrija > Mašine i alati > Blanjalice,Blanjalice,0,0,0,1,0,5
+1953,225,3,Biznis i Industrija > Mašine i alati > Boreri/Burgije,Boreri/Burgije,0,0,0,1,0,7
+1944,225,3,Biznis i Industrija > Mašine i alati > Bravarske stege/škripovi,Bravarske stege/škripovi,0,0,0,1,0,6
+1578,225,3,Biznis i Industrija > Mašine i alati > Brusilice,Brusilice,0,0,0,1,0,5
+1577,225,3,Biznis i Industrija > Mašine i alati > Bušilice,Bušilice,0,0,0,1,0,5
+1580,225,3,Biznis i Industrija > Mašine i alati > Cirkulari,Cirkulari,0,0,0,1,0,6
+1972,225,3,Biznis i Industrija > Mašine i alati > Cjepači drva,Cjepači drva,0,0,0,1,0,5
+1960,225,3,Biznis i Industrija > Mašine i alati > Diht i abrihter (komplet),Diht i abrihter (komplet),0,0,0,1,0,5
+2553,225,3,Biznis i Industrija > Mašine i alati > Dijelovi i oprema za motorne pile (Motorke),Dijelovi i oprema za motorne pile (Motorke),0,0,0,1,0,5
+2137,225,3,Biznis i Industrija > Mašine i alati > Dijelovi za mašine i alate,Dijelovi za mašine i alate,0,0,0,1,0,6
+1186,225,3,Biznis i Industrija > Mašine i alati > Elektromotori i agregati,Elektromotori i agregati,0,0,0,1,0,5
+2474,225,3,Biznis i Industrija > Mašine i alati > Freze za snijeg,Freze za snijeg,0,0,0,1,0,5
+1837,225,3,Biznis i Industrija > Mašine i alati > Gedore i ključevi,Gedore i ključevi,0,0,0,1,0,7
+1938,225,3,Biznis i Industrija > Mašine i alati > Hoblarice/Abrihteri,Hoblarice/Abrihteri,0,0,0,1,0,5
+2622,225,3,Biznis i Industrija > Mašine i alati > Industrijske klamerice,Industrijske klamerice,0,0,0,1,0,5
+1959,225,3,Biznis i Industrija > Mašine i alati > Industrijski usisivači,Industrijski usisivači,0,0,0,1,0,5
+1956,225,3,Biznis i Industrija > Mašine i alati > Kantarice,Kantarice,0,0,0,1,50,5
+2091,225,3,Biznis i Industrija > Mašine i alati > Kliješta,Kliješta,0,0,0,1,0,7
+1943,225,3,Biznis i Industrija > Mašine i alati > Kliješta/Makaze za lim,Kliješta/Makaze za lim,0,0,0,1,0,6
+1955,225,3,Biznis i Industrija > Mašine i alati > Kroneri/Glodala,Kroneri/Glodala,0,0,0,1,0,5
+1750,225,3,Biznis i Industrija > Mašine i alati > Lemilice,Lemilice,0,0,0,1,0,7
+2537,225,3,Biznis i Industrija > Mašine i alati > Magneti,Magneti,0,0,0,1,0,5
+2318,225,3,Biznis i Industrija > Mašine i alati > Mašine za balansiranje i montažu guma,Mašine za balansiranje i montažu guma,0,0,0,1,0,7
+2405,225,3,Biznis i Industrija > Mašine i alati > Mašine za poliranje,Mašine za poliranje,0,0,0,1,0,5
+2090,225,3,Biznis i Industrija > Mašine i alati > Metri za mjerenje,Metri za mjerenje,0,0,0,1,0,5
+1908,225,3,Biznis i Industrija > Mašine i alati > Motorne pile (Motorke),Motorne pile (Motorke),0,0,0,1,0,6
+1973,225,3,Biznis i Industrija > Mašine i alati > Pilane,Pilane,0,0,0,1,0,7
+2534,225,3,Biznis i Industrija > Mašine i alati > Pneumatski alati,Pneumatski alati,0,0,0,1,0,6
+1904,225,3,Biznis i Industrija > Mašine i alati > Prese,Prese,0,0,0,1,0,7
+2484,225,3,Biznis i Industrija > Mašine i alati > Puhači i usisivači lišća,Puhači i usisivači lišća,0,0,0,0,0,5
+1187,225,3,Biznis i Industrija > Mašine i alati > Pumpe i kompresori,Pumpe i kompresori,0,0,0,1,0,7
+2536,225,3,Biznis i Industrija > Mašine i alati > Radapcigeri / izvlakači,Radapcigeri / izvlakači,0,0,0,1,0,5
+1940,225,3,Biznis i Industrija > Mašine i alati > Raskrajači,Raskrajači,0,0,0,1,50,5
+1543,225,3,Biznis i Industrija > Mašine i alati > Razni alati,Razni alati,0,0,0,1,0,6
+1178,225,3,Biznis i Industrija > Mašine i alati > Rezači betona i kamena,Rezači betona i kamena,0,0,0,1,0,7
+1935,225,3,Biznis i Industrija > Mašine i alati > Rezači/Pile za metale,Rezači/Pile za metale,0,0,0,1,0,5
+2650,225,3,Biznis i Industrija > Mašine i alati > Rezne i brusne ploče,Rezne i brusne ploče,0,0,0,1,0,7
+1185,225,3,Biznis i Industrija > Mašine i alati > Sito štampa,Sito štampa,0,0,0,1,0,5
+2561,225,3,Biznis i Industrija > Mašine i alati > Skalpeli i oprema,Skalpeli i oprema,0,0,0,1,0,5
+1957,225,3,Biznis i Industrija > Mašine i alati > Stolarske kombinirke,Stolarske kombinirke,0,0,0,1,0,5
+1901,225,3,Biznis i Industrija > Mašine i alati > Strug/Glodalice/Frezeri,Strug/Glodalice/Frezeri,0,0,0,1,0,7
+1933,225,3,Biznis i Industrija > Mašine i alati > Sušare,Sušare,0,0,0,1,0,6
+1181,225,3,Biznis i Industrija > Mašine i alati > Tekstilna industrija,Tekstilna industrija,0,0,0,1,0,7
+2471,225,3,"Biznis i Industrija > Mašine i alati > Torbe, koferi i kolica za alat","Torbe, koferi i kolica za alat",0,0,0,1,0,5
+1934,225,3,Biznis i Industrija > Mašine i alati > Ubodne pile,Ubodne pile,0,0,0,1,0,5
+2535,225,3,Biznis i Industrija > Mašine i alati > Ureznice i nareznice,Ureznice i nareznice,0,0,0,1,0,5
+1958,225,3,Biznis i Industrija > Mašine i alati > Usisivači za piljevinu,Usisivači za piljevinu,0,0,0,1,0,5
+1177,225,3,Biznis i Industrija > Mašine i alati > Za obradu drveta,Za obradu drveta,0,0,0,1,0,6
+1180,225,3,Biznis i Industrija > Mašine i alati > Za obradu gume i plastike,Za obradu gume i plastike,0,0,0,1,0,5
+1179,225,3,Biznis i Industrija > Mašine i alati > Za obradu keramike i stakla,Za obradu keramike i stakla,0,0,0,1,0,6
+1176,225,3,Biznis i Industrija > Mašine i alati > Za obradu metala,Za obradu metala,0,0,0,1,0,5
+1183,225,3,Biznis i Industrija > Mašine i alati > Za pranje i čišćenje,Za pranje i čišćenje,0,0,0,1,0,8
+1948,225,3,Biznis i Industrija > Mašine i alati > Za varenje/zavarivanje,Za varenje/zavarivanje,0,0,0,1,0,0
+1903,1948,4,Biznis i Industrija > Mašine i alati > Za varenje/zavarivanje > Aparati za varenje,Aparati za varenje,0,0,0,1,0,6
+1950,1948,4,Biznis i Industrija > Mašine i alati > Za varenje/zavarivanje > Boce i manometri,Boce i manometri,0,0,0,1,0,6
+1951,1948,4,"Biznis i Industrija > Mašine i alati > Za varenje/zavarivanje > Breneri, ručke i pištolji","Breneri, ručke i pištolji",0,0,0,1,0,6
+1946,1948,4,Biznis i Industrija > Mašine i alati > Za varenje/zavarivanje > Elektrode,Elektrode,0,0,0,1,0,6
+1949,1948,4,Biznis i Industrija > Mašine i alati > Za varenje/zavarivanje > Maske i naočale za varenje,Maske i naočale za varenje,0,0,0,1,0,6
+2533,225,3,Biznis i Industrija > Mašine i alati > Šarafcigeri/Odvijači,Šarafcigeri/Odvijači,0,0,0,1,0,7
+1945,225,3,Biznis i Industrija > Mašine i alati > Šivaće mašine i dijelovi,Šivaće mašine i dijelovi,0,0,0,1,0,6
+1961,225,3,Biznis i Industrija > Mašine i alati > Šlajfarice,Šlajfarice,0,0,0,1,0,5
+2081,225,3,Biznis i Industrija > Mašine i alati > Šprice za farbanje,Šprice za farbanje,0,0,0,1,0,6
+1184,225,3,Biznis i Industrija > Mašine i alati > Štamparske mašine,Štamparske mašine,0,0,0,1,50,6
+1942,225,3,Biznis i Industrija > Mašine i alati > Štuceri (Potezni cirkulari),Štuceri (Potezni cirkulari),0,0,0,1,0,6
+2695,225,3,Biznis i Industrija > Mašine i alati > Alati i dijelovi za štamparske mašine,Alati i dijelovi za štamparske mašine,0,0,0,1,0,5
+1188,225,3,Biznis i Industrija > Mašine i alati > Ostalo,Ostalo,0,0,0,1,0,5
+226,224,2,Biznis i Industrija > Poljoprivreda,Poljoprivreda,0,0,0,1,0,0
+1094,226,3,Biznis i Industrija > Poljoprivreda > Dijelovi za traktore i motokultivatore,Dijelovi za traktore i motokultivatore,0,0,0,1,0,0
+2116,1094,4,Biznis i Industrija > Poljoprivreda > Dijelovi za traktore i motokultivatore > Balirke,Balirke,0,0,0,1,50,6
+2079,1094,4,Biznis i Industrija > Poljoprivreda > Dijelovi za traktore i motokultivatore > Berači,Berači,0,0,0,1,50,5
+1925,1094,4,Biznis i Industrija > Poljoprivreda > Dijelovi za traktore i motokultivatore > Ostali dijelovi za traktore/motokultivatore,Ostali dijelovi za traktore/motokultivatore,0,0,0,1,0,6
+2083,1094,4,Biznis i Industrija > Poljoprivreda > Dijelovi za traktore i motokultivatore > Grablje (mašine),Grablje (mašine),0,0,0,1,0,6
+2158,1094,4,Biznis i Industrija > Poljoprivreda > Dijelovi za traktore i motokultivatore > Gume i felge za traktore,Gume i felge za traktore,0,0,0,1,0,7
+2647,1094,4,Biznis i Industrija > Poljoprivreda > Dijelovi za traktore i motokultivatore > Lanci za traktor,Lanci za traktor,0,0,0,0,0,5
+2131,1094,4,Biznis i Industrija > Poljoprivreda > Dijelovi za traktore i motokultivatore > Motori (za motokultivatore),Motori (za motokultivatore),0,0,0,1,0,6
+2078,1094,4,Biznis i Industrija > Poljoprivreda > Dijelovi za traktore i motokultivatore > Plugovi,Plugovi,0,0,0,1,0,6
+1926,1094,4,Biznis i Industrija > Poljoprivreda > Dijelovi za traktore i motokultivatore > Priključci i oprema,Priključci i oprema,0,0,0,1,0,6
+2117,1094,4,Biznis i Industrija > Poljoprivreda > Dijelovi za traktore i motokultivatore > Sijačice,Sijačice,0,0,0,1,0,6
+2080,1094,4,Biznis i Industrija > Poljoprivreda > Dijelovi za traktore i motokultivatore > Tanjirače,Tanjirače,0,0,0,1,0,5
+2481,1094,4,Biznis i Industrija > Poljoprivreda > Dijelovi za traktore i motokultivatore > Tarupi/Malčeri,Tarupi/Malčeri,0,0,0,1,0,6
+2098,1094,4,Biznis i Industrija > Poljoprivreda > Dijelovi za traktore i motokultivatore > Traktorske freze,Traktorske freze,0,0,0,1,0,7
+1096,226,3,Biznis i Industrija > Poljoprivreda > Kombajn,Kombajn,0,0,0,1,0,7
+2670,226,3,Biznis i Industrija > Poljoprivreda > Dijelovi za kombajne,Dijelovi za kombajne,0,0,0,1,0,5
+1190,226,3,Biznis i Industrija > Poljoprivreda > Kosilice i kopačice za poljoprivredu,Kosilice i kopačice za poljoprivredu,0,0,0,1,0,10
+2417,226,3,Biznis i Industrija > Poljoprivreda > Laktofrizi i oprema za mljekarstvo,Laktofrizi i oprema za mljekarstvo,0,0,0,1,0,5
+2071,226,3,"Biznis i Industrija > Poljoprivreda > Mlinovi, Krunjači i Prekrupači","Mlinovi, Krunjači i Prekrupači",0,0,0,1,0,6
+1189,226,3,Biznis i Industrija > Poljoprivreda > Motokultivatori,Motokultivatori,0,0,0,1,0,7
+2074,226,3,Biznis i Industrija > Poljoprivreda > Muzilice,Muzilice,0,0,0,1,0,5
+1095,226,3,Biznis i Industrija > Poljoprivreda > Oprema i alati,Oprema i alati,0,0,0,1,0,0
+2588,1095,4,Biznis i Industrija > Poljoprivreda > Oprema i alati > Alati za bušenje zemlje,Alati za bušenje zemlje,0,0,0,1,0,6
+1719,1095,4,"Biznis i Industrija > Poljoprivreda > Oprema i alati > Burad, kace i ostale posude","Burad, kace i ostale posude",0,0,0,1,0,6
+1104,1095,4,Biznis i Industrija > Poljoprivreda > Oprema i alati > Elektronski aparati,Elektronski aparati,0,0,0,1,0,6
+2130,1095,4,Biznis i Industrija > Poljoprivreda > Oprema i alati > Kanisteri,Kanisteri,0,0,0,1,0,5
+2092,1095,4,Biznis i Industrija > Poljoprivreda > Oprema i alati > Kazani,Kazani,0,0,0,1,0,5
+1102,1095,4,Biznis i Industrija > Poljoprivreda > Oprema i alati > Mjerni uređaji,Mjerni uređaji,0,0,0,1,0,5
+1100,1095,4,Biznis i Industrija > Poljoprivreda > Oprema i alati > Oprema/alati za obradu zemlje,Oprema/alati za obradu zemlje,0,0,0,1,0,5
+1101,1095,4,Biznis i Industrija > Poljoprivreda > Oprema i alati > Oprema za šumarstvo,Oprema za šumarstvo,0,0,0,1,0,6
+2496,1095,4,Biznis i Industrija > Poljoprivreda > Oprema i alati > Perutaljke i oprema,Perutaljke i oprema,0,0,0,1,0,5
+1103,1095,4,Biznis i Industrija > Poljoprivreda > Oprema i alati > Ručni alati za poljoprivredu,Ručni alati za poljoprivredu,0,0,0,1,0,7
+2540,1095,4,"Biznis i Industrija > Poljoprivreda > Oprema i alati > Silosi, koševi i hambari","Silosi, koševi i hambari",0,0,0,1,0,5
+1099,1095,4,"Biznis i Industrija > Poljoprivreda > Oprema i alati > Oprema/alati za sjetvu, žetvu i berbu","Oprema/alati za sjetvu, žetvu i berbu",0,0,0,1,0,5
+2539,1095,4,Biznis i Industrija > Poljoprivreda > Oprema i alati > Sječke/Drobilice,Sječke/Drobilice,0,0,0,1,0,5
+1105,1095,4,Biznis i Industrija > Poljoprivreda > Oprema i alati > Transport i pretovar tereta,Transport i pretovar tereta,0,0,0,1,0,6
+1098,1095,4,Biznis i Industrija > Poljoprivreda > Oprema i alati > Oprema za đubrenje i navodnjavanje,Oprema za đubrenje i navodnjavanje,0,0,0,1,0,8
+2066,226,3,Biznis i Industrija > Poljoprivreda > Plastenici i staklenici,Plastenici i staklenici,0,0,0,1,0,7
+1093,226,3,Biznis i Industrija > Poljoprivreda > Traktori,Traktori,0,0,0,1,50,8
+2065,226,3,Biznis i Industrija > Poljoprivreda > Traktorske prikolice,Traktorske prikolice,0,0,0,1,0,6
+2638,226,3,Biznis i Industrija > Poljoprivreda > Šumska mehanizacija,Šumska mehanizacija,0,0,0,1,0,5
+2134,226,3,Biznis i Industrija > Poljoprivreda > Žitarice,Žitarice,0,0,0,1,0,6
+1097,226,3,Biznis i Industrija > Poljoprivreda > Ostalo,Ostalo,0,0,0,1,0,5
+228,224,2,Biznis i Industrija > Građevinarstvo,Građevinarstvo,0,0,0,1,0,8
+1800,228,3,Biznis i Industrija > Građevinarstvo > Betonska galanterija,Betonska galanterija,0,0,0,1,0,9
+1121,228,3,Biznis i Industrija > Građevinarstvo > Dijelovi i oprema,Dijelovi i oprema,0,0,0,1,0,8
+2626,1121,4,Biznis i Industrija > Građevinarstvo > Dijelovi i oprema > Alati za silikon,Alati za silikon,0,0,0,1,0,8
+1794,1121,4,Biznis i Industrija > Građevinarstvo > Dijelovi i oprema > Cement i malter,Cement i malter,0,0,0,1,0,8
+1743,1121,4,Biznis i Industrija > Građevinarstvo > Dijelovi i oprema > Cigla/Opeka,Cigla/Opeka,0,0,0,1,0,10
+1974,1121,4,Biznis i Industrija > Građevinarstvo > Dijelovi i oprema > Crijep,Crijep,0,0,0,1,0,8
+1797,1121,4,"Biznis i Industrija > Građevinarstvo > Dijelovi i oprema > Ekseri, šarafi i matice","Ekseri, šarafi i matice",0,0,0,1,0,11
+1127,1121,4,Biznis i Industrija > Građevinarstvo > Dijelovi i oprema > Elektronski uređaji,Elektronski uređaji,0,0,0,1,0,8
+1793,1121,4,Biznis i Industrija > Građevinarstvo > Dijelovi i oprema > Estrih mašine i oprema,Estrih mašine i oprema,0,0,0,1,0,8
+1803,1121,4,Biznis i Industrija > Građevinarstvo > Dijelovi i oprema > Gips ploče i profili,Gips ploče i profili,0,0,0,1,0,8
+1124,1121,4,Biznis i Industrija > Građevinarstvo > Dijelovi i oprema > Građevinska stolarija,Građevinska stolarija,0,0,0,1,0,8
+2070,1121,4,Biznis i Industrija > Građevinarstvo > Dijelovi i oprema > Građevinski laseri,Građevinski laseri,0,0,0,1,0,10
+1798,1121,4,Biznis i Industrija > Građevinarstvo > Dijelovi i oprema > Kreč,Kreč,0,0,0,1,0,8
+1799,1121,4,Biznis i Industrija > Građevinarstvo > Dijelovi i oprema > Ljepenka/Lepenka,Ljepenka/Lepenka,0,0,0,1,0,8
+1125,1121,4,Biznis i Industrija > Građevinarstvo > Dijelovi i oprema > Mjerni instrumenti,Mjerni instrumenti,0,0,0,1,0,11
+1801,1121,4,Biznis i Industrija > Građevinarstvo > Dijelovi i oprema > Oprema za fasade i izolacije,Oprema za fasade i izolacije,0,0,0,1,0,10
+1122,1121,4,Biznis i Industrija > Građevinarstvo > Dijelovi i oprema > Radni priključci i oprema,Radni priključci i oprema,0,0,0,1,0,10
+1123,1121,4,Biznis i Industrija > Građevinarstvo > Dijelovi i oprema > Rezervni dijelovi,Rezervni dijelovi,0,0,0,1,0,8
+1126,1121,4,Biznis i Industrija > Građevinarstvo > Dijelovi i oprema > Građevinski ručni alati,Građevinski ručni alati,0,0,0,1,0,8
+2625,1121,4,Biznis i Industrija > Građevinarstvo > Dijelovi i oprema > Silikoni,Silikoni,0,0,0,1,0,8
+1802,1121,4,Biznis i Industrija > Građevinarstvo > Dijelovi i oprema > Siporex blokovi,Siporex blokovi,0,0,0,1,0,8
+1128,1121,4,Biznis i Industrija > Građevinarstvo > Dijelovi i oprema > Ostala građevinska oprema,Ostala građevinska oprema,0,0,0,1,0,8
+1711,228,3,Biznis i Industrija > Građevinarstvo > Drvene palete,Drvene palete,0,0,0,1,0,10
+2651,228,3,Biznis i Industrija > Građevinarstvo > Fug mase,Fug mase,0,0,0,1,0,5
+1791,228,3,Biznis i Industrija > Građevinarstvo > Građevinska vozila i mašine,Građevinska vozila i mašine,0,0,0,1,0,8
+1106,1791,4,Biznis i Industrija > Građevinarstvo > Građevinska vozila i mašine > Bageri,Bageri,0,0,0,1,50,10
+1107,1791,4,Biznis i Industrija > Građevinarstvo > Građevinska vozila i mašine > Buldožeri,Buldožeri,0,0,0,1,50,10
+1113,1791,4,Biznis i Industrija > Građevinarstvo > Građevinska vozila i mašine > Demperi,Demperi,0,0,0,1,50,10
+1114,1791,4,Biznis i Industrija > Građevinarstvo > Građevinska vozila i mašine > Drobilice i separacije,Drobilice i separacije,0,0,0,1,50,8
+2601,1791,4,Biznis i Industrija > Građevinarstvo > Građevinska vozila i mašine > Električne dizalice,Električne dizalice,0,0,0,1,50,10
+1112,1791,4,Biznis i Industrija > Građevinarstvo > Građevinska vozila i mašine > Grederi,Grederi,0,0,0,1,50,8
+1110,1791,4,Biznis i Industrija > Građevinarstvo > Građevinska vozila i mašine > Kombinirke,Kombinirke,0,0,0,1,50,10
+1115,1791,4,Biznis i Industrija > Građevinarstvo > Građevinska vozila i mašine > Kranovi i dizalice,Kranovi i dizalice,0,0,0,1,50,10
+1836,1791,4,Biznis i Industrija > Građevinarstvo > Građevinska vozila i mašine > Mikseri i beton pumpe,Mikseri i beton pumpe,0,0,0,1,50,10
+2694,1791,4,Biznis i Industrija > Građevinarstvo > Građevinska vozila i mašine > Ručni paletari,Ručni paletari,0,0,0,1,0,10
+1111,1791,4,Biznis i Industrija > Građevinarstvo > Građevinska vozila i mašine > Utovarivači,Utovarivači,0,0,0,1,50,8
+1108,1791,4,Biznis i Industrija > Građevinarstvo > Građevinska vozila i mašine > Valjci,Valjci,0,0,0,1,50,10
+1109,1791,4,Biznis i Industrija > Građevinarstvo > Građevinska vozila i mašine > Viljuškari,Viljuškari,0,0,0,1,50,10
+1936,228,3,Biznis i Industrija > Građevinarstvo > Kamen i ploče za zidanje,Kamen i ploče za zidanje,0,0,0,1,0,10
+1119,228,3,Biznis i Industrija > Građevinarstvo > Kompresori,Kompresori,0,0,0,1,0,8
+2590,228,3,Biznis i Industrija > Građevinarstvo > Ljestve,Ljestve,0,0,0,1,0,6
+2479,228,3,"Biznis i Industrija > Građevinarstvo > Mikseri za ljepilo, beton i boje","Mikseri za ljepilo, beton i boje",0,0,0,0,0,6
+1939,228,3,Biznis i Industrija > Građevinarstvo > Mješalice za beton,Mješalice za beton,0,0,0,1,0,10
+2499,228,3,Biznis i Industrija > Građevinarstvo > Pulcevi i oplate,Pulcevi i oplate,0,0,0,0,0,10
+1116,228,3,Biznis i Industrija > Građevinarstvo > Skele i oprema za visinske radove,Skele i oprema za visinske radove,0,0,0,1,0,12
+1722,228,3,Biznis i Industrija > Građevinarstvo > Statični spremnici/cisterne,Statični spremnici/cisterne,0,0,0,1,0,8
+1117,228,3,Biznis i Industrija > Građevinarstvo > Vibro ploče i vibro nabijači,Vibro ploče i vibro nabijači,0,0,0,1,0,10
+1120,228,3,Biznis i Industrija > Građevinarstvo > Ostalo,Ostalo,0,0,0,1,0,8
+227,224,2,Biznis i Industrija > Biznis,Biznis,0,0,0,1,0,0
+1682,227,3,Biznis i Industrija > Biznis > Firme/kompanije,Firme/kompanije,0,0,0,0,0,7
+2343,227,3,Biznis i Industrija > Biznis > Web stranice,Web stranice,0,0,0,1,0,5
+1678,227,3,Biznis i Industrija > Biznis > Ostalo,Ostalo,0,0,0,1,0,5
+2675,224,2,"Biznis i Industrija > Ulja, maziva i boje","Ulja, maziva i boje",0,0,0,0,0,0
+2674,2675,3,"Biznis i Industrija > Ulja, maziva i boje > Epoxy smole i pigmenti",Epoxy smole i pigmenti,0,0,0,0,0,6
+2572,2675,3,"Biznis i Industrija > Ulja, maziva i boje > Boje i lakovi",Boje i lakovi,0,0,0,1,0,7
+2633,224,2,Biznis i Industrija > Aparati / Varilice za pakovanja,Aparati / Varilice za pakovanja,0,0,0,1,0,5
+1157,224,2,Biznis i Industrija > Rashladne i toplotne vitrine,Rashladne i toplotne vitrine,0,0,0,1,0,8
+2592,224,2,Biznis i Industrija > Industrijske grijalice/Topovi,Industrijske grijalice/Topovi,0,0,0,1,0,7
+368,224,2,Biznis i Industrija > Kancelarijski materijal/namještaj,Kancelarijski materijal/namještaj,0,0,0,1,0,0
+864,368,3,Biznis i Industrija > Kancelarijski materijal/namještaj > Kancelarijski namještaj,Kancelarijski namještaj,0,0,0,1,0,5
+1963,368,3,Biznis i Industrija > Kancelarijski materijal/namještaj > Kancelarijski materijal i oprema,Kancelarijski materijal i oprema,0,0,0,1,0,6
+1947,224,2,"Biznis i Industrija > Materijali, dijelovi i oprema","Materijali, dijelovi i oprema",0,0,0,1,0,0
+1806,1947,3,"Biznis i Industrija > Materijali, dijelovi i oprema > Trupci i rezana građa",Trupci i rezana građa,0,0,0,1,0,6
+1952,1947,3,"Biznis i Industrija > Materijali, dijelovi i oprema > Limovi",Limovi,0,0,0,1,0,6
+1992,1947,3,"Biznis i Industrija > Materijali, dijelovi i oprema > Piljevina/Pilota",Piljevina/Pilota,0,0,0,1,0,5
+2652,1947,3,"Biznis i Industrija > Materijali, dijelovi i oprema > Vezice",Vezice,0,0,0,1,0,5
+1954,1947,3,"Biznis i Industrija > Materijali, dijelovi i oprema > Ostali materijali i oprema",Ostali materijali i oprema,0,0,0,1,0,7
+2560,224,2,Biznis i Industrija > Oprema za pakovanje,Oprema za pakovanje,0,0,0,1,0,6
+1913,224,2,Biznis i Industrija > Oprema za zaštitu na radu,Oprema za zaštitu na radu,0,0,0,1,0,0
+1917,1913,3,Biznis i Industrija > Oprema za zaštitu na radu > Oprema za zaštitu disajnih organa,Oprema za zaštitu disajnih organa,0,0,0,1,0,5
+1914,1913,3,Biznis i Industrija > Oprema za zaštitu na radu > Oprema za zaštitu glave,Oprema za zaštitu glave,0,0,0,1,0,5
+1920,1913,3,Biznis i Industrija > Oprema za zaštitu na radu > Oprema za zaštitu nogu,Oprema za zaštitu nogu,0,0,0,1,0,7
+1919,1913,3,Biznis i Industrija > Oprema za zaštitu na radu > Oprema za zaštitu ruku,Oprema za zaštitu ruku,0,0,0,1,0,6
+1916,1913,3,Biznis i Industrija > Oprema za zaštitu na radu > Oprema za zaštitu sluha,Oprema za zaštitu sluha,0,0,0,1,0,5
+1918,1913,3,Biznis i Industrija > Oprema za zaštitu na radu > Oprema za zaštitu tijela,Oprema za zaštitu tijela,0,0,0,1,0,6
+1915,1913,3,Biznis i Industrija > Oprema za zaštitu na radu > Oprema za zaštitu vida,Oprema za zaštitu vida,0,0,0,1,0,5
+1921,1913,3,Biznis i Industrija > Oprema za zaštitu na radu > Ostalo,Ostalo,0,0,0,1,0,5
+2632,224,2,Biznis i Industrija > Selotejp i trake,Selotejp i trake,0,0,0,1,0,7
+1194,224,2,Biznis i Industrija > Trgovačka oprema,Trgovačka oprema,0,0,0,1,0,0
+1198,1194,3,Biznis i Industrija > Trgovačka oprema > Lutke za butik,Lutke za butik,0,0,0,1,0,5
+1196,1194,3,Biznis i Industrija > Trgovačka oprema > Trgovački pultovi,Trgovački pultovi,0,0,0,1,0,6
+1195,1194,3,Biznis i Industrija > Trgovačka oprema > Stalaže / Police,Stalaže / Police,0,0,0,1,0,6
+1199,1194,3,Biznis i Industrija > Trgovačka oprema > Ostala trgovačka oprema,Ostala trgovačka oprema,0,0,0,1,0,5
+1143,224,2,Biznis i Industrija > Ugostiteljska oprema,Ugostiteljska oprema,0,0,0,1,0,0
+1145,1143,3,Biznis i Industrija > Ugostiteljska oprema > Inventar,Inventar,0,0,0,1,0,0
+1720,1145,4,Biznis i Industrija > Ugostiteljska oprema > Inventar > Ambalaža za ugostiteljstvo,Ambalaža za ugostiteljstvo,0,0,0,1,0,7
+1153,1145,4,Biznis i Industrija > Ugostiteljska oprema > Inventar > Aparati za zabavu,Aparati za zabavu,0,0,0,1,0,8
+1154,1145,4,Biznis i Industrija > Ugostiteljska oprema > Inventar > Kase i POS oprema,Kase i POS oprema,0,0,0,1,0,8
+1808,1145,4,Biznis i Industrija > Ugostiteljska oprema > Inventar > Reklame i dekoracije za ugostiteljstvo,Reklame i dekoracije za ugostiteljstvo,0,0,0,1,0,7
+1155,1145,4,Biznis i Industrija > Ugostiteljska oprema > Inventar > Namještaj za ugostiteljstvo,Namještaj za ugostiteljstvo,0,0,0,1,0,7
+1159,1145,4,Biznis i Industrija > Ugostiteljska oprema > Inventar > Ugostiteljska rasvjeta i oprema,Ugostiteljska rasvjeta i oprema,0,0,0,1,0,6
+1160,1145,4,Biznis i Industrija > Ugostiteljska oprema > Inventar > Ventilacija i grijanje,Ventilacija i grijanje,0,0,0,1,0,8
+1161,1145,4,Biznis i Industrija > Ugostiteljska oprema > Inventar > Ostali ugostiteljski inventar,Ostali ugostiteljski inventar,0,0,0,1,0,6
+1146,1143,3,Biznis i Industrija > Ugostiteljska oprema > Kuhinja,Kuhinja,0,0,0,1,0,0
+1164,1146,4,Biznis i Industrija > Ugostiteljska oprema > Kuhinja > Profesionalne mašine za suđe,Profesionalne mašine za suđe,0,0,0,1,0,7
+1166,1146,4,Biznis i Industrija > Ugostiteljska oprema > Kuhinja > Mesoreznice i uređaji za meso,Mesoreznice i uređaji za meso,0,0,0,1,0,7
+1168,1146,4,Biznis i Industrija > Ugostiteljska oprema > Kuhinja > Pekarska oprema i mašine,Pekarska oprema i mašine,0,0,0,1,0,7
+1167,1146,4,Biznis i Industrija > Ugostiteljska oprema > Kuhinja > Ugostiteljske peći i roštilji,Ugostiteljske peći i roštilji,0,0,0,1,0,6
+1163,1146,4,Biznis i Industrija > Ugostiteljska oprema > Kuhinja > Ugostiteljski radni stolovi i oprema,Ugostiteljski radni stolovi i oprema,0,0,0,1,0,6
+1162,1146,4,Biznis i Industrija > Ugostiteljska oprema > Kuhinja > Ugostiteljsko posuđe i pribor,Ugostiteljsko posuđe i pribor,0,0,0,1,0,6
+1169,1146,4,Biznis i Industrija > Ugostiteljska oprema > Kuhinja > Ostali ugostiteljski pribor i oprema,Ostali ugostiteljski pribor i oprema,0,0,0,1,0,7
+1147,1143,3,Biznis i Industrija > Ugostiteljska oprema > Vanjsko ugostiteljstvo,Vanjsko ugostiteljstvo,0,0,0,1,0,0
+1174,1147,4,Biznis i Industrija > Ugostiteljska oprema > Vanjsko ugostiteljstvo > Aparati za palačinke,Aparati za palačinke,0,0,0,1,0,6
+1173,1147,4,Biznis i Industrija > Ugostiteljska oprema > Vanjsko ugostiteljstvo > Aparati za sladoled,Aparati za sladoled,0,0,0,1,0,7
+1170,1147,4,Biznis i Industrija > Ugostiteljska oprema > Vanjsko ugostiteljstvo > Kiosci štandovi prikolice i oprema,Kiosci štandovi prikolice i oprema,0,0,0,1,0,6
+1172,1147,4,Biznis i Industrija > Ugostiteljska oprema > Vanjsko ugostiteljstvo > Samouslužni aparati,Samouslužni aparati,0,0,0,1,0,7
+1171,1147,4,Biznis i Industrija > Ugostiteljska oprema > Vanjsko ugostiteljstvo > Tende terase i šatori,Tende terase i šatori,0,0,0,1,0,7
+1175,1147,4,Biznis i Industrija > Ugostiteljska oprema > Vanjsko ugostiteljstvo > Ostalo,Ostalo,0,0,0,1,0,6
+1144,1143,3,Biznis i Industrija > Ugostiteljska oprema > Šank,Šank,0,0,0,1,0,0
+1150,1144,4,Biznis i Industrija > Ugostiteljska oprema > Šank > Profesionalni aparati za kafu,Profesionalni aparati za kafu,0,0,0,1,0,8
+1151,1144,4,Biznis i Industrija > Ugostiteljska oprema > Šank > Ledomati,Ledomati,0,0,0,1,0,6
+1149,1144,4,Biznis i Industrija > Ugostiteljska oprema > Šank > Točionici,Točionici,0,0,0,1,0,6
+1148,1144,4,Biznis i Industrija > Ugostiteljska oprema > Šank > Ugostiteljski šankovi,Ugostiteljski šankovi,0,0,0,1,0,6
+1152,1144,4,Biznis i Industrija > Ugostiteljska oprema > Šank > Ostalo,Ostalo,0,0,0,1,0,6
+370,224,2,Biznis i Industrija > Ostalo,Ostalo,0,0,0,1,0,5
+465,,1,Odjeća i obuća,Odjeća i obuća,0,0,0,1,0,4
+466,465,2,Odjeća i obuća > Žene,Žene,0,0,0,1,0,3
+476,466,3,Odjeća i obuća > Žene > Ženski veš,Ženski veš,0,0,0,1,0,3
+1906,476,4,Odjeća i obuća > Žene > Ženski veš > Body za žene,Body za žene,0,0,0,1,0,3
+1896,476,4,Odjeća i obuća > Žene > Ženski veš > Donji veš za žene,Donji veš za žene,0,0,0,1,0,3
+1894,476,4,Odjeća i obuća > Žene > Ženski veš > Grudnjaci,Grudnjaci,0,0,0,1,0,3
+1898,476,4,Odjeća i obuća > Žene > Ženski veš > Halteri,Halteri,0,0,0,1,0,3
+1897,476,4,Odjeća i obuća > Žene > Ženski veš > Setovi ženskog veša,Setovi ženskog veša,0,0,0,1,0,3
+1905,476,4,Odjeća i obuća > Žene > Ženski veš > Mrežasto rublje,Mrežasto rublje,0,0,0,1,0,3
+1895,476,4,Odjeća i obuća > Žene > Ženski veš > Potkošulje,Potkošulje,0,0,0,1,0,3
+1899,476,4,Odjeća i obuća > Žene > Ženski veš > Top majice,Top majice,0,0,0,1,0,3
+1910,476,4,Odjeća i obuća > Žene > Ženski veš > Ostalo,Ostalo,0,0,0,1,0,3
+479,466,3,Odjeća i obuća > Žene > Džemperi i dukserice za žene,Džemperi i dukserice za žene,0,0,0,1,0,4
+491,466,3,Odjeća i obuća > Žene > Haljine za žene,Haljine za žene,0,0,0,1,0,4
+474,466,3,Odjeća i obuća > Žene > Jakne kaputi i mantili za žene,Jakne kaputi i mantili za žene,0,0,0,1,0,6
+2555,466,3,Odjeća i obuća > Žene > Kombinezoni za žene,Kombinezoni za žene,0,0,0,1,0,5
+1911,466,3,Odjeća i obuća > Žene > Korzeti za žene,Korzeti za žene,0,0,0,1,0,3
+889,466,3,Odjeća i obuća > Žene > Kupaći kostimi i asesoari za plažu za žene,Kupaći kostimi i asesoari za plažu za žene,0,0,0,1,0,3
+473,466,3,Odjeća i obuća > Žene > Majice i košulje za žene,Majice i košulje za žene,0,0,0,1,0,5
+475,466,3,Odjeća i obuća > Žene > Obuća,Obuća,0,0,0,1,0,3
+486,475,4,Odjeća i obuća > Žene > Obuća > Cipele i Gležnjače za žene,Cipele i Gležnjače za žene,0,0,0,1,0,4
+489,475,4,Odjeća i obuća > Žene > Obuća > Papuče za žene,Papuče za žene,0,0,0,1,0,3
+487,475,4,Odjeća i obuća > Žene > Obuća > Sandale za žene,Sandale za žene,0,0,0,1,0,3
+490,475,4,Odjeća i obuća > Žene > Obuća > Tene/Patike za žene,Tene/Patike za žene,0,0,0,1,0,5
+488,475,4,Odjeća i obuća > Žene > Obuća > Čizme za žene,Čizme za žene,0,0,0,1,0,4
+1892,475,4,Odjeća i obuća > Žene > Obuća > Štikle za žene,Štikle za žene,0,0,0,1,0,3
+482,466,3,Odjeća i obuća > Žene > Odjela i uniforme za žene,Odjela i uniforme za žene,0,0,0,1,0,3
+481,466,3,Odjeća i obuća > Žene > Pantalone šorcevi i suknje,Pantalone šorcevi i suknje,0,0,0,1,0,3
+492,481,4,Odjeća i obuća > Žene > Pantalone šorcevi i suknje > Pantalone/hlače za žene,Pantalone/hlače za žene,0,0,0,1,0,4
+494,481,4,Odjeća i obuća > Žene > Pantalone šorcevi i suknje > Suknje za žene,Suknje za žene,0,0,0,1,0,2
+493,481,4,Odjeća i obuća > Žene > Pantalone šorcevi i suknje > Šorcevi za žene,Šorcevi za žene,0,0,0,1,0,3
+483,466,3,Odjeća i obuća > Žene > Pidžame i spavaćice za žene,Pidžame i spavaćice za žene,0,0,0,1,0,3
+2544,466,3,Odjeća i obuća > Žene > Prsluci za žene,Prsluci za žene,0,0,0,1,0,5
+480,466,3,Odjeća i obuća > Žene > Sportska odjeća za žene,Sportska odjeća za žene,0,0,0,1,0,5
+1907,466,3,Odjeća i obuća > Žene > Steznici za žene,Steznici za žene,0,0,0,1,0,3
+542,466,3,Odjeća i obuća > Žene > Torbe i ruksaci za žene,Torbe i ruksaci za žene,0,0,0,1,0,3
+477,466,3,Odjeća i obuća > Žene > Odjeća za trudnice,Odjeća za trudnice,0,0,0,1,0,3
+509,466,3,Odjeća i obuća > Žene > Vjenčanice,Vjenčanice,0,0,0,1,0,4
+496,466,3,Odjeća i obuća > Žene > Ostalo,Ostalo,0,0,0,1,0,3
+467,465,2,Odjeća i obuća > Muškarci,Muškarci,0,0,0,1,0,3
+513,467,3,Odjeća i obuća > Muškarci > Muški veš,Muški veš,0,0,0,1,0,3
+515,467,3,Odjeća i obuća > Muškarci > Džemperi i dukserice za muškarce,Džemperi i dukserice za muškarce,0,0,0,1,0,7
+511,467,3,Odjeća i obuća > Muškarci > Jakne kaputi i mantili za muškarce,Jakne kaputi i mantili za muškarce,0,0,0,1,0,6
+510,467,3,Odjeća i obuća > Muškarci > Majice i košulje za muškarce,Majice i košulje za muškarce,0,0,0,1,0,4
+512,467,3,Odjeća i obuća > Muškarci > Obuća,Obuća,0,0,0,1,0,3
+523,512,4,Odjeća i obuća > Muškarci > Obuća > Cipele za muškarce,Cipele za muškarce,0,0,0,1,0,3
+525,512,4,Odjeća i obuća > Muškarci > Obuća > Papuče za muškarce,Papuče za muškarce,0,0,0,1,0,3
+526,512,4,Odjeća i obuća > Muškarci > Obuća > Tene/Patike za muškarce,Tene/Patike za muškarce,0,0,0,1,0,10
+524,512,4,Odjeća i obuća > Muškarci > Obuća > Čizme za muškarce,Čizme za muškarce,0,0,0,1,0,6
+597,512,4,Odjeća i obuća > Muškarci > Obuća > Muške sandale,Muške sandale,0,0,0,1,0,3
+519,467,3,Odjeća i obuća > Muškarci > Odjela i uniforme za muškarce,Odjela i uniforme za muškarce,0,0,0,1,0,4
+517,467,3,Odjeća i obuća > Muškarci > Pantalone i hlače,Pantalone i hlače,0,0,0,1,0,3
+514,517,4,Odjeća i obuća > Muškarci > Pantalone i hlače > Pantalone/hlače za muškarce,Pantalone/hlače za muškarce,0,0,0,1,0,4
+529,517,4,Odjeća i obuća > Muškarci > Pantalone i hlače > Šorcevi za muškarce,Šorcevi za muškarce,0,0,0,1,0,3
+530,517,4,Odjeća i obuća > Muškarci > Pantalone i hlače > Ostalo,Ostalo,0,0,0,1,0,3
+520,467,3,Odjeća i obuća > Muškarci > Pidžame za muškarce,Pidžame za muškarce,0,0,0,1,0,3
+2545,467,3,Odjeća i obuća > Muškarci > Prsluci za muškarce,Prsluci za muškarce,0,0,0,1,0,7
+516,467,3,Odjeća i obuća > Muškarci > Sportska odjeća za muškarce,Sportska odjeća za muškarce,0,0,0,1,0,4
+621,467,3,Odjeća i obuća > Muškarci > Muške torbe i torbice,Muške torbe i torbice,0,0,0,1,0,5
+522,467,3,Odjeća i obuća > Muškarci > Ostalo,Ostalo,0,0,0,1,0,3
+468,465,2,Odjeća i obuća > Djevojčice,Djevojčice,0,0,0,1,0,4
+548,468,3,Odjeća i obuća > Djevojčice > Veš za djevojčice,Veš za djevojčice,0,0,0,1,0,4
+551,468,3,Odjeća i obuća > Djevojčice > Džemperi i dukserice za djevojčice,Džemperi i dukserice za djevojčice,0,0,0,1,0,4
+558,468,3,Odjeća i obuća > Djevojčice > Haljine za djevojčice,Haljine za djevojčice,0,0,0,1,0,2
+546,468,3,Odjeća i obuća > Djevojčice > Jakne kaputi i mantili za djevojčice,Jakne kaputi i mantili za djevojčice,0,0,0,1,0,2
+2109,468,3,Odjeća i obuća > Djevojčice > Kupaći kostimi za djevojčice,Kupaći kostimi za djevojčice,0,0,0,1,0,4
+545,468,3,Odjeća i obuća > Djevojčice > Majice za djevojčice,Majice za djevojčice,0,0,0,1,0,2
+547,468,3,Odjeća i obuća > Djevojčice > Obuća,Obuća,0,0,0,1,0,4
+573,547,4,Odjeća i obuća > Djevojčice > Obuća > Cipele za djevojčice,Cipele za djevojčice,0,0,0,1,0,4
+576,547,4,Odjeća i obuća > Djevojčice > Obuća > Papuče za djevojčice,Papuče za djevojčice,0,0,0,1,0,4
+574,547,4,Odjeća i obuća > Djevojčice > Obuća > Sandale za djevojčice,Sandale za djevojčice,0,0,0,1,0,4
+577,547,4,Odjeća i obuća > Djevojčice > Obuća > Tene/Patike za djevojčice,Tene/Patike za djevojčice,0,0,0,1,0,5
+575,547,4,Odjeća i obuća > Djevojčice > Obuća > Čizme za djevojčice,Čizme za djevojčice,0,0,0,1,0,4
+554,468,3,Odjeća i obuća > Djevojčice > Odjela i uniforme za djevojčice,Odjela i uniforme za djevojčice,0,0,0,1,0,4
+553,468,3,Odjeća i obuća > Djevojčice > Pantalone šorcevi i suknje,Pantalone šorcevi i suknje,0,0,0,1,0,4
+578,553,4,Odjeća i obuća > Djevojčice > Pantalone šorcevi i suknje > Pantalone/hlače za djevojčice,Pantalone/hlače za djevojčice,0,0,0,1,0,4
+580,553,4,Odjeća i obuća > Djevojčice > Pantalone šorcevi i suknje > Suknje za djevojčice,Suknje za djevojčice,0,0,0,1,0,4
+579,553,4,Odjeća i obuća > Djevojčice > Pantalone šorcevi i suknje > Šorcevi za djevojčice,Šorcevi za djevojčice,0,0,0,1,0,4
+581,553,4,Odjeća i obuća > Djevojčice > Pantalone šorcevi i suknje > Ostalo,Ostalo,0,0,0,1,0,4
+555,468,3,Odjeća i obuća > Djevojčice > Pidžame i spavaćice za djevojčice,Pidžame i spavaćice za djevojčice,0,0,0,1,0,4
+2546,468,3,Odjeća i obuća > Djevojčice > Prsluci za djevojčice,Prsluci za djevojčice,0,0,0,1,0,5
+552,468,3,Odjeća i obuća > Djevojčice > Sportska odjeća za djevojčice,Sportska odjeća za djevojčice,0,0,0,1,0,4
+556,468,3,Odjeća i obuća > Djevojčice > Torbe i ruksaci za djevojčice,Torbe i ruksaci za djevojčice,0,0,0,1,0,4
+559,468,3,Odjeća i obuća > Djevojčice > Ostalo,Ostalo,0,0,0,1,0,4
+469,465,2,Odjeća i obuća > Dječaci,Dječaci,0,0,0,1,0,4
+564,469,3,Odjeća i obuća > Dječaci > Veš za dječake,Veš za dječake,0,0,0,1,0,4
+566,469,3,Odjeća i obuća > Dječaci > Džemperi i dukserice za dječake,Džemperi i dukserice za dječake,0,0,0,1,0,4
+562,469,3,Odjeća i obuća > Dječaci > Jakne kaputi i mantili za dječake,Jakne kaputi i mantili za dječake,0,0,0,1,0,2
+561,469,3,Odjeća i obuća > Dječaci > Majice i košulje za dječake,Majice i košulje za dječake,0,0,0,1,0,4
+563,469,3,Odjeća i obuća > Dječaci > Obuća,Obuća,0,0,0,1,0,4
+600,563,4,Odjeća i obuća > Dječaci > Obuća > Cipele za dječake,Cipele za dječake,0,0,0,1,0,4
+602,563,4,Odjeća i obuća > Dječaci > Obuća > Papuče i japanke za dječake,Papuče i japanke za dječake,0,0,0,1,0,4
+2064,563,4,Odjeća i obuća > Dječaci > Obuća > Sandale za dječake,Sandale za dječake,0,0,0,1,0,4
+603,563,4,Odjeća i obuća > Dječaci > Obuća > Tene/Patike za dječake,Tene/Patike za dječake,0,0,0,1,0,5
+601,563,4,Odjeća i obuća > Dječaci > Obuća > Čizme za dječake,Čizme za dječake,0,0,0,1,0,4
+604,563,4,Odjeća i obuća > Dječaci > Obuća > Ostalo,Ostalo,0,0,0,1,0,4
+569,469,3,Odjeća i obuća > Dječaci > Odjela za dječake,Odjela za dječake,0,0,0,1,0,4
+568,469,3,Odjeća i obuća > Dječaci > Pantalone i hlače,Pantalone i hlače,0,0,0,1,0,4
+605,568,4,Odjeća i obuća > Dječaci > Pantalone i hlače > Pantalone/hlače za dječake,Pantalone/hlače za dječake,0,0,0,1,0,4
+607,568,4,Odjeća i obuća > Dječaci > Pantalone i hlače > Šorcevi za dječake,Šorcevi za dječake,0,0,0,1,0,4
+570,469,3,Odjeća i obuća > Dječaci > Pidžame za dječake,Pidžame za dječake,0,0,0,1,0,4
+2547,469,3,Odjeća i obuća > Dječaci > Prsluci za dječake,Prsluci za dječake,0,0,0,1,0,5
+567,469,3,Odjeća i obuća > Dječaci > Sportska odjeća za dječake,Sportska odjeća za dječake,0,0,0,1,0,4
+572,469,3,Odjeća i obuća > Dječaci > Ostala odjeća za dječake,Ostala odjeća za dječake,0,0,0,1,0,4
+470,465,2,Odjeća i obuća > Unisex,Unisex,0,0,0,1,0,4
+629,470,3,Odjeća i obuća > Unisex > Obuća,Obuća,0,0,0,1,0,5
+628,470,3,Odjeća i obuća > Unisex > Odjeća,Odjeća,0,0,0,1,0,4
+472,465,2,Odjeća i obuća > Dodaci,Dodaci,0,0,0,1,0,4
+624,472,3,Odjeća i obuća > Dodaci > Čarape,Čarape,0,0,0,1,0,3
+499,472,3,Odjeća i obuća > Dodaci > Dodaci za kosu,Dodaci za kosu,0,0,0,1,0,3
+497,472,3,Odjeća i obuća > Dodaci > Kaiševi,Kaiševi,0,0,0,1,0,4
+500,472,3,"Odjeća i obuća > Dodaci > Kape, šeširi, kačketi","Kape, šeširi, kačketi",0,0,0,1,0,4
+504,472,3,Odjeća i obuća > Dodaci > Kišobrani,Kišobrani,0,0,0,1,0,3
+506,472,3,Odjeća i obuća > Dodaci > Kravate,Kravate,0,0,0,1,0,3
+539,472,3,Odjeća i obuća > Dodaci > Manžetne,Manžetne,0,0,0,1,0,3
+505,472,3,Odjeća i obuća > Dodaci > Novčanici,Novčanici,0,0,0,1,0,4
+2614,472,3,Odjeća i obuća > Dodaci > Priglavci/Vunene čarape,Priglavci/Vunene čarape,0,0,0,1,0,5
+502,472,3,Odjeća i obuća > Dodaci > Privjesci za ključeve,Privjesci za ključeve,0,0,0,1,0,3
+531,472,3,Odjeća i obuća > Dodaci > Putne torbe i koferi,Putne torbe i koferi,0,0,0,1,0,4
+498,472,3,Odjeća i obuća > Dodaci > Rukavice,Rukavice,0,0,0,1,0,3
+501,472,3,Odjeća i obuća > Dodaci > Šalovi i marame,Šalovi i marame,0,0,0,1,0,3
+1975,472,3,Odjeća i obuća > Dodaci > Tregeri,Tregeri,0,0,0,1,0,3
+508,472,3,Odjeća i obuća > Dodaci > Ostali dodaci,Ostali dodaci,0,0,0,1,0,3
+171,,1,Sportska oprema,Sportska oprema,0,0,0,1,0,5
+1761,171,2,Sportska oprema > Borilački sportovi,Borilački sportovi,0,0,0,1,0,5
+1752,1761,3,Sportska oprema > Borilački sportovi > Borilačka oprema,Borilačka oprema,0,0,0,1,0,5
+1758,1752,4,Sportska oprema > Borilački sportovi > Borilačka oprema > Borilačka odjeća i obuća,Borilačka odjeća i obuća,0,0,0,1,0,6
+2324,1752,4,Sportska oprema > Borilački sportovi > Borilačka oprema > Fokuseri,Fokuseri,0,0,0,1,0,5
+1753,1752,4,Sportska oprema > Borilački sportovi > Borilačka oprema > Kimono,Kimono,0,0,0,1,0,5
+1756,1752,4,Sportska oprema > Borilački sportovi > Borilačka oprema > Borilačka pomagala,Borilačka pomagala,0,0,0,1,0,5
+1755,1752,4,Sportska oprema > Borilački sportovi > Borilačka oprema > Borilačke rukavice,Borilačke rukavice,0,0,0,1,0,6
+1754,1752,4,Sportska oprema > Borilački sportovi > Borilačka oprema > Suspenzori/Štitnici,Suspenzori/Štitnici,0,0,0,1,0,5
+1757,1752,4,Sportska oprema > Borilački sportovi > Borilačka oprema > Tehnika,Tehnika,0,0,0,1,0,5
+1055,171,2,Sportska oprema > Ekstremni sportovi,Ekstremni sportovi,0,0,0,1,0,5
+1831,1055,3,Sportska oprema > Ekstremni sportovi > Airsoft,Airsoft,0,0,0,1,0,5
+1834,1831,4,Sportska oprema > Ekstremni sportovi > Airsoft > Airsoft odjeća/zaštita,Airsoft odjeća/zaštita,0,0,0,1,0,6
+2103,1831,4,Sportska oprema > Ekstremni sportovi > Airsoft > Airsoft oprema,Airsoft oprema,0,0,0,1,0,6
+1833,1831,4,Sportska oprema > Ekstremni sportovi > Airsoft > Airsoft puške/pištolji,Airsoft puške/pištolji,0,0,0,1,0,5
+2102,1831,4,Sportska oprema > Ekstremni sportovi > Airsoft > Airsoft rezervni dijelovi,Airsoft rezervni dijelovi,0,0,0,1,0,5
+1832,1831,4,Sportska oprema > Ekstremni sportovi > Airsoft > Airsoft kuglice i streljivo,Airsoft kuglice i streljivo,0,0,0,1,0,5
+1835,1831,4,Sportska oprema > Ekstremni sportovi > Airsoft > Ostalo,Ostalo,0,0,0,1,0,5
+1058,1055,3,Sportska oprema > Ekstremni sportovi > Bungee jumping,Bungee jumping,0,0,0,1,0,5
+1057,1055,3,Sportska oprema > Ekstremni sportovi > Padobranstvo,Padobranstvo,0,0,0,1,0,5
+347,1055,3,Sportska oprema > Ekstremni sportovi > Paintball pribor i oprema,Paintball pribor i oprema,0,0,0,1,0,5
+1056,1055,3,Sportska oprema > Ekstremni sportovi > Paraglajding,Paraglajding,0,0,0,1,0,5
+1060,1055,3,Sportska oprema > Ekstremni sportovi > Ostalo,Ostalo,0,0,0,1,0,5
+172,171,2,Sportska oprema > Fitness i trening,Fitness i trening,0,0,0,1,0,5
+1290,172,3,Sportska oprema > Fitness i trening > Sprave,Sprave,0,0,0,1,0,5
+1299,1290,4,Sportska oprema > Fitness i trening > Sprave > Benč klupe,Benč klupe,0,0,0,1,0,5
+1300,1290,4,Sportska oprema > Fitness i trening > Sprave > Sprave za trbušnjake,Sprave za trbušnjake,0,0,0,1,0,5
+1297,1290,4,Sportska oprema > Fitness i trening > Sprave > Statična bicikla,Statična bicikla,0,0,0,1,0,5
+1296,1290,4,Sportska oprema > Fitness i trening > Sprave > Steperi,Steperi,0,0,0,1,0,5
+1298,1290,4,Sportska oprema > Fitness i trening > Sprave > Trake za trčanje,Trake za trčanje,0,0,0,1,0,5
+2067,1290,4,Sportska oprema > Fitness i trening > Sprave > Trenažeri,Trenažeri,0,0,0,1,0,5
+1301,1290,4,Sportska oprema > Fitness i trening > Sprave > Ostale sprave za trening,Ostale sprave za trening,0,0,0,1,0,5
+1294,172,3,Sportska oprema > Fitness i trening > DVD programi,DVD programi,0,0,0,1,0,5
+2528,172,3,Sportska oprema > Fitness i trening > Pilates trake i lopte,Pilates trake i lopte,0,0,0,1,0,5
+2514,172,3,Sportska oprema > Fitness i trening > Podloge za trening,Podloge za trening,0,0,0,1,0,5
+2017,172,3,Sportska oprema > Fitness i trening > Shaker boce i posude,Shaker boce i posude,0,0,0,1,0,5
+2525,172,3,Sportska oprema > Fitness i trening > Steznici za trening,Steznici za trening,0,0,0,1,0,5
+1292,172,3,Sportska oprema > Fitness i trening > Suplementi/preparati,Suplementi/preparati,0,0,0,1,0,6
+1291,172,3,Sportska oprema > Fitness i trening > Tegovi i bučice,Tegovi i bučice,0,0,0,1,0,6
+1293,172,3,Sportska oprema > Fitness i trening > Vreće za boks,Vreće za boks,0,0,0,1,0,5
+1295,172,3,Sportska oprema > Fitness i trening > Ostala oprema za trening,Ostala oprema za trening,0,0,0,1,0,5
+1815,171,2,Sportska oprema > Planinarenje i alpinizam,Planinarenje i alpinizam,0,0,0,1,0,5
+1826,1815,3,Sportska oprema > Planinarenje i alpinizam > Astro folija,Astro folija,0,0,0,1,0,5
+1821,1815,3,Sportska oprema > Planinarenje i alpinizam > Cepini i bajle (čekići),Cepini i bajle (čekići),0,0,0,1,0,5
+1819,1815,3,Sportska oprema > Planinarenje i alpinizam > Obuća za planinarenje,Obuća za planinarenje,0,0,0,1,0,7
+1820,1815,3,Sportska oprema > Planinarenje i alpinizam > Dereze,Dereze,0,0,0,1,0,5
+1829,1815,3,Sportska oprema > Planinarenje i alpinizam > Planinarske hlače,Planinarske hlače,0,0,0,1,0,6
+1830,1815,3,Sportska oprema > Planinarenje i alpinizam > Jakne za planinu,Jakne za planinu,0,0,0,1,0,7
+1822,1815,3,Sportska oprema > Planinarenje i alpinizam > Karabineri i zakačke,Karabineri i zakačke,0,0,0,1,0,5
+1825,1815,3,Sportska oprema > Planinarenje i alpinizam > Penjački pojasevi,Penjački pojasevi,0,0,0,1,0,5
+1816,1815,3,Sportska oprema > Planinarenje i alpinizam > Planinarski ruksaci,Planinarski ruksaci,0,0,0,1,0,6
+1817,1815,3,Sportska oprema > Planinarenje i alpinizam > Užad za penjače,Užad za penjače,0,0,0,1,0,5
+1824,1815,3,Sportska oprema > Planinarenje i alpinizam > Vreće za spavanje,Vreće za spavanje,0,0,0,1,0,5
+1823,1815,3,Sportska oprema > Planinarenje i alpinizam > Šljemovi/Kacige,Šljemovi/Kacige,0,0,0,1,0,5
+1818,1815,3,Sportska oprema > Planinarenje i alpinizam > Štapovi za planinarenje,Štapovi za planinarenje,0,0,0,1,0,5
+1827,1815,3,Sportska oprema > Planinarenje i alpinizam > Ostalo,Ostalo,0,0,0,1,0,5
+217,171,2,Sportska oprema > Tenis,Tenis,0,0,0,1,0,5
+1334,217,3,Sportska oprema > Tenis > Stoni tenis,Stoni tenis,0,0,0,1,0,5
+1340,1334,4,Sportska oprema > Tenis > Stoni tenis > Loptice za stoni tenis,Loptice za stoni tenis,0,0,0,1,0,5
+1343,1334,4,Sportska oprema > Tenis > Stoni tenis > Mreže za stoni tenis,Mreže za stoni tenis,0,0,0,1,0,5
+1341,1334,4,Sportska oprema > Tenis > Stoni tenis > Reketi za stoni tenis,Reketi za stoni tenis,0,0,0,1,0,5
+1344,1334,4,Sportska oprema > Tenis > Stoni tenis > Stolovi za stoni tenis,Stolovi za stoni tenis,0,0,0,1,0,5
+1342,1334,4,Sportska oprema > Tenis > Stoni tenis > Torbe za stoni tenis,Torbe za stoni tenis,0,0,0,1,0,5
+1345,1334,4,Sportska oprema > Tenis > Stoni tenis > Ostala oprema za stoni tenis,Ostala oprema za stoni tenis,0,0,0,1,0,5
+1333,217,3,Sportska oprema > Tenis > Tenis,Tenis,0,0,0,1,0,5
+1335,1333,4,Sportska oprema > Tenis > Tenis > Loptice za tenis,Loptice za tenis,0,0,0,1,0,5
+1338,1333,4,Sportska oprema > Tenis > Tenis > Mreže za tenis,Mreže za tenis,0,0,0,1,0,5
+1336,1333,4,Sportska oprema > Tenis > Tenis > Teniski reketi,Teniski reketi,0,0,0,1,0,5
+1337,1333,4,Sportska oprema > Tenis > Tenis > Torbe,Torbe,0,0,0,1,0,5
+1339,1333,4,Sportska oprema > Tenis > Tenis > Ostalo,Ostalo,0,0,0,1,0,5
+1346,217,3,Sportska oprema > Tenis > Ostalo,Ostalo,0,0,0,1,0,5
+340,171,2,Sportska oprema > Timski sportovi,Timski sportovi,0,0,0,1,0,5
+349,340,3,Sportska oprema > Timski sportovi > Fudbal,Fudbal,0,0,0,1,0,5
+1347,349,4,Sportska oprema > Timski sportovi > Fudbal > Fudbalski dresovi,Fudbalski dresovi,0,0,0,1,0,3
+1814,349,4,Sportska oprema > Timski sportovi > Fudbal > Golmanske rukavice,Golmanske rukavice,0,0,0,1,0,5
+1349,349,4,Sportska oprema > Timski sportovi > Fudbal > Kopačke,Kopačke,0,0,0,1,0,6
+1350,349,4,Sportska oprema > Timski sportovi > Fudbal > Kostobrani,Kostobrani,0,0,0,1,0,5
+1351,349,4,Sportska oprema > Timski sportovi > Fudbal > Fudbalske lopte,Fudbalske lopte,0,0,0,1,0,5
+1763,349,4,Sportska oprema > Timski sportovi > Fudbal > Tene/patike za fudbal,Tene/patike za fudbal,0,0,0,1,0,7
+1348,349,4,Sportska oprema > Timski sportovi > Fudbal > Fudbalski šalovi,Fudbalski šalovi,0,0,0,1,0,3
+1352,349,4,Sportska oprema > Timski sportovi > Fudbal > Ostala oprema za fudbal,Ostala oprema za fudbal,0,0,0,1,0,6
+350,340,3,Sportska oprema > Timski sportovi > Košarka,Košarka,0,0,0,1,0,5
+1368,350,4,Sportska oprema > Timski sportovi > Košarka > Košarkaški dresovi,Košarkaški dresovi,0,0,0,1,0,5
+1353,350,4,Sportska oprema > Timski sportovi > Košarka > Košarkaške lopte,Košarkaške lopte,0,0,0,1,0,5
+1357,350,4,Sportska oprema > Timski sportovi > Košarka > Obruči/mreže za košarku,Obruči/mreže za košarku,0,0,0,1,0,6
+1354,350,4,Sportska oprema > Timski sportovi > Košarka > Tene/patike za košarku,Tene/patike za košarku,0,0,0,1,0,5
+1369,350,4,Sportska oprema > Timski sportovi > Košarka > Šuterski rukavi,Šuterski rukavi,0,0,0,1,0,5
+1358,350,4,Sportska oprema > Timski sportovi > Košarka > Ostala oprema za košarku,Ostala oprema za košarku,0,0,0,1,0,5
+351,340,3,Sportska oprema > Timski sportovi > Odbojka,Odbojka,0,0,0,1,0,5
+1359,351,4,Sportska oprema > Timski sportovi > Odbojka > Odbojkaške lopte,Odbojkaške lopte,0,0,0,1,0,5
+1360,351,4,Sportska oprema > Timski sportovi > Odbojka > Mreže za odbojku,Mreže za odbojku,0,0,0,1,0,5
+1361,351,4,Sportska oprema > Timski sportovi > Odbojka > Tene/patike za odbojku,Tene/patike za odbojku,0,0,0,1,0,5
+1362,351,4,Sportska oprema > Timski sportovi > Odbojka > Ostala oprema za odbojku,Ostala oprema za odbojku,0,0,0,1,0,5
+428,340,3,Sportska oprema > Timski sportovi > Rukomet,Rukomet,0,0,0,1,0,5
+1363,428,4,Sportska oprema > Timski sportovi > Rukomet > Rukometne lopte,Rukometne lopte,0,0,0,1,0,5
+1366,428,4,Sportska oprema > Timski sportovi > Rukomet > Mreže za rukomet,Mreže za rukomet,0,0,0,1,0,5
+1364,428,4,Sportska oprema > Timski sportovi > Rukomet > Tene/patike za rukomet,Tene/patike za rukomet,0,0,0,1,0,5
+1365,428,4,Sportska oprema > Timski sportovi > Rukomet > Štitnici za rukomet,Štitnici za rukomet,0,0,0,1,0,5
+1367,428,4,Sportska oprema > Timski sportovi > Rukomet > Ostala rukometna oprema,Ostala rukometna oprema,0,0,0,1,0,5
+352,340,3,Sportska oprema > Timski sportovi > Oprema za gimnastiku,Oprema za gimnastiku,0,0,0,1,0,5
+353,340,3,Sportska oprema > Timski sportovi > Oprema za kuglanje,Oprema za kuglanje,0,0,0,1,0,5
+354,340,3,Sportska oprema > Timski sportovi > Oprema za ostale timske sportove,Oprema za ostale timske sportove,0,0,0,1,0,5
+174,171,2,Sportska oprema > Vanjski sportovi,Vanjski sportovi,0,0,0,1,0,5
+344,174,3,Sportska oprema > Vanjski sportovi > Kamp oprema,Kamp oprema,0,0,0,1,0,5
+1276,344,4,Sportska oprema > Vanjski sportovi > Kamp oprema > Ašovi/Lopate,Ašovi/Lopate,0,0,0,1,0,5
+1270,344,4,Sportska oprema > Vanjski sportovi > Kamp oprema > Kamp prikolice,Kamp prikolice,0,0,0,1,0,5
+1274,344,4,Sportska oprema > Vanjski sportovi > Kamp oprema > Kompasi za kompovanje,Kompasi za kompovanje,0,0,0,1,0,5
+1272,344,4,Sportska oprema > Vanjski sportovi > Kamp oprema > Lampe za kampovanje,Lampe za kampovanje,0,0,0,1,0,5
+1273,344,4,Sportska oprema > Vanjski sportovi > Kamp oprema > Ruksaci za kampovanje,Ruksaci za kampovanje,0,0,0,1,0,5
+1271,344,4,Sportska oprema > Vanjski sportovi > Kamp oprema > Vreće za spavanje,Vreće za spavanje,0,0,0,1,0,5
+1269,344,4,Sportska oprema > Vanjski sportovi > Kamp oprema > Šatori za kampovanje,Šatori za kampovanje,0,0,0,1,0,5
+1278,344,4,Sportska oprema > Vanjski sportovi > Kamp oprema > Ostala kamp oprema,Ostala kamp oprema,0,0,0,1,0,7
+343,174,3,Sportska oprema > Vanjski sportovi > Lov,Lov,0,0,0,1,0,5
+2354,343,4,Sportska oprema > Vanjski sportovi > Lov > Dijelovi za lovačko oružje,Dijelovi za lovačko oružje,0,0,0,1,0,5
+1243,343,4,Sportska oprema > Vanjski sportovi > Lov > Dvogledi,Dvogledi,0,0,0,1,0,6
+2085,343,4,Sportska oprema > Vanjski sportovi > Lov > Futrole za oružje,Futrole za oružje,0,0,0,1,0,6
+1240,343,4,Sportska oprema > Vanjski sportovi > Lov > Kompasi/Busole za lov,Kompasi/Busole za lov,0,0,0,1,0,5
+1237,343,4,Sportska oprema > Vanjski sportovi > Lov > Lampe za lov,Lampe za lov,0,0,0,1,0,6
+1245,343,4,Sportska oprema > Vanjski sportovi > Lov > Lovačka odjeća,Lovačka odjeća,0,0,0,1,0,5
+2033,343,4,Sportska oprema > Vanjski sportovi > Lov > Multifunkcionalni alat,Multifunkcionalni alat,0,0,0,1,0,5
+1238,343,4,Sportska oprema > Vanjski sportovi > Lov > Lovački noževi,Lovački noževi,0,0,0,1,0,6
+1242,343,4,Sportska oprema > Vanjski sportovi > Lov > Optika za lovačko oružje,Optika za lovačko oružje,0,0,0,1,0,7
+2145,343,4,Sportska oprema > Vanjski sportovi > Lov > Pribor za čišćenje oružja,Pribor za čišćenje oružja,0,0,0,1,0,5
+1244,343,4,Sportska oprema > Vanjski sportovi > Lov > Torbe/ruksaci za lov,Torbe/ruksaci za lov,0,0,0,1,0,5
+1241,343,4,Sportska oprema > Vanjski sportovi > Lov > Lovački trofeji,Lovački trofeji,0,0,0,1,0,5
+1246,343,4,Sportska oprema > Vanjski sportovi > Lov > Ostala oprema za lov,Ostala oprema za lov,0,0,0,1,0,5
+926,174,3,Sportska oprema > Vanjski sportovi > Praktično streljaštvo,Praktično streljaštvo,0,0,0,1,0,5
+1282,926,4,Sportska oprema > Vanjski sportovi > Praktično streljaštvo > Antifoni za uši,Antifoni za uši,0,0,0,1,0,5
+2395,926,4,Sportska oprema > Vanjski sportovi > Praktično streljaštvo > Dijabole,Dijabole,0,0,0,1,0,5
+1281,926,4,Sportska oprema > Vanjski sportovi > Praktično streljaštvo > Startna municija,Startna municija,0,0,0,1,0,5
+1279,926,4,Sportska oprema > Vanjski sportovi > Praktično streljaštvo > Vazdušne puške,Vazdušne puške,0,0,0,1,0,6
+1280,926,4,Sportska oprema > Vanjski sportovi > Praktično streljaštvo > Vazdušni pištolji,Vazdušni pištolji,0,0,0,1,0,7
+1283,926,4,Sportska oprema > Vanjski sportovi > Praktično streljaštvo > Ostala oprema za streljaštvo,Ostala oprema za streljaštvo,0,0,0,1,0,5
+342,174,3,Sportska oprema > Vanjski sportovi > Ribolov / pecanje,Ribolov / pecanje,0,0,0,1,0,5
+2526,342,4,Sportska oprema > Vanjski sportovi > Ribolov / pecanje > Signalizatori za ribolov,Signalizatori za ribolov,0,0,0,1,0,5
+2505,342,4,Sportska oprema > Vanjski sportovi > Ribolov / pecanje > Hranilice za ribu,Hranilice za ribu,0,0,0,1,0,5
+2521,342,4,Sportska oprema > Vanjski sportovi > Ribolov / pecanje > Kutije za ribolovni pribor,Kutije za ribolovni pribor,0,0,0,1,0,5
+1257,342,4,Sportska oprema > Vanjski sportovi > Ribolov / pecanje > Lampe za ribolov,Lampe za ribolov,0,0,0,1,0,5
+1252,342,4,Sportska oprema > Vanjski sportovi > Ribolov / pecanje > Mamci za ribolov,Mamci za ribolov,0,0,0,1,0,4
+1253,342,4,Sportska oprema > Vanjski sportovi > Ribolov / pecanje > Mašinice za ribolov,Mašinice za ribolov,0,0,0,1,0,7
+1256,342,4,Sportska oprema > Vanjski sportovi > Ribolov / pecanje > Mreže za ribolov,Mreže za ribolov,0,0,0,1,0,5
+1254,342,4,Sportska oprema > Vanjski sportovi > Ribolov / pecanje > Najloni za ribolov,Najloni za ribolov,0,0,0,1,0,5
+2522,342,4,Sportska oprema > Vanjski sportovi > Ribolov / pecanje > Nosači za ribolovne štapove,Nosači za ribolovne štapove,0,0,0,1,0,5
+2506,342,4,Sportska oprema > Vanjski sportovi > Ribolov / pecanje > Olovo za ribolov,Olovo za ribolov,0,0,0,1,0,5
+1255,342,4,Sportska oprema > Vanjski sportovi > Ribolov / pecanje > Plovci za ribolov,Plovci za ribolov,0,0,0,1,0,5
+2361,342,4,Sportska oprema > Vanjski sportovi > Ribolov / pecanje > Ribolovna obuća,Ribolovna obuća,0,0,0,1,0,5
+1259,342,4,Sportska oprema > Vanjski sportovi > Ribolov / pecanje > Ribolovna odjeća,Ribolovna odjeća,0,0,0,1,0,5
+2519,342,4,Sportska oprema > Vanjski sportovi > Ribolov / pecanje > Ribolovne sajle,Ribolovne sajle,0,0,0,1,0,5
+2510,342,4,Sportska oprema > Vanjski sportovi > Ribolov / pecanje > Stolice za ribolovce,Stolice za ribolovce,0,0,0,1,0,5
+1258,342,4,Sportska oprema > Vanjski sportovi > Ribolov / pecanje > Torbe/ruksaci za ribolov,Torbe/ruksaci za ribolov,0,0,0,1,0,5
+2504,342,4,Sportska oprema > Vanjski sportovi > Ribolov / pecanje > Udice za ribolov,Udice za ribolov,0,0,0,1,0,3
+2515,342,4,Sportska oprema > Vanjski sportovi > Ribolov / pecanje > Virble/Kopče,Virble/Kopče,0,0,0,1,0,5
+2507,342,4,Sportska oprema > Vanjski sportovi > Ribolov / pecanje > Špule za ribolovne mašinice,Špule za ribolovne mašinice,0,0,0,1,0,5
+1251,342,4,Sportska oprema > Vanjski sportovi > Ribolov / pecanje > Štapovi za ribolov,Štapovi za ribolov,0,0,0,1,0,8
+1260,342,4,Sportska oprema > Vanjski sportovi > Ribolov / pecanje > Ostali ribolovni pribor,Ostali ribolovni pribor,0,0,0,1,0,3
+346,174,3,Sportska oprema > Vanjski sportovi > Rolanje,Rolanje,0,0,0,1,0,5
+2529,346,4,Sportska oprema > Vanjski sportovi > Rolanje > Električni romobili,Električni romobili,0,0,0,1,0,12
+1265,346,4,Sportska oprema > Vanjski sportovi > Rolanje > Roleri,Roleri,0,0,0,1,0,5
+1645,346,4,Sportska oprema > Vanjski sportovi > Rolanje > Romobili,Romobili,0,0,0,1,0,7
+1266,346,4,Sportska oprema > Vanjski sportovi > Rolanje > Skateboard,Skateboard,0,0,0,1,0,5
+1267,346,4,Sportska oprema > Vanjski sportovi > Rolanje > Štitnici za rolanje,Štitnici za rolanje,0,0,0,1,0,5
+1268,346,4,Sportska oprema > Vanjski sportovi > Rolanje > Dijelovi i oprema za romobile,Dijelovi i oprema za romobile,0,0,0,1,0,6
+1710,174,3,Sportska oprema > Vanjski sportovi > Oprema za karting,Oprema za karting,0,0,0,1,0,5
+2133,174,3,Sportska oprema > Vanjski sportovi > Oprema za jahanje,Oprema za jahanje,0,0,0,1,0,5
+348,174,3,Sportska oprema > Vanjski sportovi > Oprema za ostale vanjske sportove,Oprema za ostale vanjske sportove,0,0,0,1,0,5
+177,171,2,Sportska oprema > Vodeni sportovi,Vodeni sportovi,0,0,0,1,0,5
+361,177,3,Sportska oprema > Vodeni sportovi > Oprema za kajak i rafting,Oprema za kajak i rafting,0,0,0,1,0,7
+360,177,3,Sportska oprema > Vodeni sportovi > Oprema za plivanje,Oprema za plivanje,0,0,0,1,0,5
+362,177,3,Sportska oprema > Vodeni sportovi > Ronilačka oprema,Ronilačka oprema,0,0,0,1,0,5
+363,177,3,Sportska oprema > Vodeni sportovi > Ostala oprema za vodene sportove,Ostala oprema za vodene sportove,0,0,0,1,0,5
+178,171,2,Sportska oprema > Zimski sportovi,Zimski sportovi,0,0,0,1,0,5
+1928,178,3,Sportska oprema > Zimski sportovi > Čizme/buce za snowboard,Čizme/buce za snowboard,0,0,0,1,0,5
+355,178,3,Sportska oprema > Zimski sportovi > Klizaljke,Klizaljke,0,0,0,1,0,5
+358,178,3,Sportska oprema > Zimski sportovi > Sanke,Sanke,0,0,0,1,0,5
+2061,178,3,Sportska oprema > Zimski sportovi > Skafanderi,Skafanderi,0,0,0,1,0,5
+1929,178,3,Sportska oprema > Zimski sportovi > Ski brile/naočale,Ski brile/naočale,0,0,0,1,0,5
+2699,178,3,Sportska oprema > Zimski sportovi > Ski hlače,Ski hlače,0,0,0,1,0,5
+2487,178,3,Sportska oprema > Zimski sportovi > Ski jakne,Ski jakne,0,0,0,1,0,7
+1931,178,3,Sportska oprema > Zimski sportovi > Ski kacige,Ski kacige,0,0,0,1,0,7
+2433,178,3,Sportska oprema > Zimski sportovi > Ski kape,Ski kape,0,0,0,1,0,5
+1927,178,3,Sportska oprema > Zimski sportovi > Ski pancerice,Ski pancerice,0,0,0,1,0,5
+2431,178,3,Sportska oprema > Zimski sportovi > Ski rukavice,Ski rukavice,0,0,0,1,0,5
+1932,178,3,Sportska oprema > Zimski sportovi > Ski vezovi,Ski vezovi,0,0,0,1,0,5
+1810,178,3,Sportska oprema > Zimski sportovi > Skije,Skije,0,0,0,1,0,7
+356,178,3,Sportska oprema > Zimski sportovi > Snowboard,Snowboard,0,0,0,1,0,5
+1930,178,3,Sportska oprema > Zimski sportovi > Štapovi za skijanje,Štapovi za skijanje,0,0,0,1,0,5
+359,178,3,Sportska oprema > Zimski sportovi > Ostala ski oprema,Ostala ski oprema,0,0,0,1,0,5
+341,171,2,Sportska oprema > Oprema za ostale sportove,Oprema za ostale sportove,0,0,0,1,0,5
+896,,1,Hrana i piće,Hrana i piće,0,0,0,1,0,0
+900,896,2,Hrana i piće > Biljni proizvodi,Biljni proizvodi,0,0,0,1,0,0
+916,900,3,Hrana i piće > Biljni proizvodi > Brašna,Brašna,0,0,0,0,0,5
+915,900,3,Hrana i piće > Biljni proizvodi > Povrće,Povrće,0,0,0,0,0,7
+914,900,3,Hrana i piće > Biljni proizvodi > Voće,Voće,0,0,0,0,0,5
+917,900,3,Hrana i piće > Biljni proizvodi > Ostali biljni proizvodi,Ostali biljni proizvodi,0,0,0,1,0,5
+901,896,2,Hrana i piće > Dezerti i slastice,Dezerti i slastice,0,0,0,1,0,0
+919,901,3,Hrana i piće > Dezerti i slastice > Džem i pekmez,Džem i pekmez,0,0,0,0,0,5
+921,901,3,Hrana i piće > Dezerti i slastice > Grickalice,Grickalice,0,0,0,0,0,5
+918,901,3,Hrana i piće > Dezerti i slastice > Kolači i torte,Kolači i torte,0,0,0,0,0,5
+922,901,3,Hrana i piće > Dezerti i slastice > Ostali slatkiši,Ostali slatkiši,0,0,0,1,0,5
+897,896,2,Hrana i piće > Pića,Pića,0,0,0,1,0,0
+903,897,3,Hrana i piće > Pića > Sokovi,Sokovi,0,0,0,0,0,5
+905,897,3,Hrana i piće > Pića > Kafa,Kafa,0,0,0,0,0,7
+904,897,3,Hrana i piće > Pića > Ostala alkoholna pića,Ostala alkoholna pića,0,0,0,0,0,5
+2493,897,3,Hrana i piće > Pića > Piva,Piva,0,0,0,1,0,5
+2494,897,3,Hrana i piće > Pića > Rakije,Rakije,0,0,0,1,0,5
+920,897,3,Hrana i piće > Pića > Vina,Vina,0,0,0,0,0,6
+906,897,3,Hrana i piće > Pića > Čajevi,Čajevi,0,0,0,0,0,6
+907,897,3,Hrana i piće > Pića > Ostalo,Ostalo,0,0,0,1,0,5
+899,896,2,Hrana i piće > Životinjski proizvodi,Životinjski proizvodi,0,0,0,1,0,0
+909,899,3,Hrana i piće > Životinjski proizvodi > Jaja,Jaja,0,0,0,0,0,6
+2511,899,3,Hrana i piće > Životinjski proizvodi > Masti,Masti,0,0,0,1,0,5
+910,899,3,Hrana i piće > Životinjski proizvodi > Med i proizvodi od meda,Med i proizvodi od meda,0,0,0,0,0,5
+911,899,3,Hrana i piće > Životinjski proizvodi > Meso i mesni proizvodi,Meso i mesni proizvodi,0,0,0,0,0,5
+912,899,3,Hrana i piće > Životinjski proizvodi > Ribe i morska hrana,Ribe i morska hrana,0,0,0,0,0,5
+913,899,3,Hrana i piće > Životinjski proizvodi > Ostalo,Ostalo,0,0,0,1,0,5
+908,896,2,Hrana i piće > Mliječni proizvodi,Mliječni proizvodi,0,0,0,0,0,5
+2497,896,2,Hrana i piće > Paketi proizvoda,Paketi proizvoda,0,0,0,1,0,5
+1714,896,2,Hrana i piće > Prerada hrane,Prerada hrane,0,0,0,1,0,5
+902,896,2,Hrana i piće > Ulja i začini,Ulja i začini,0,0,0,1,0,7
+68,,1,Nakit i Satovi,Nakit i Satovi,0,0,0,1,0,0
+244,68,2,Nakit i Satovi > Ručni Satovi,Ručni Satovi,0,0,0,1,0,9
+745,68,2,Nakit i Satovi > Zidni i Stoni Satovi,Zidni i Stoni Satovi,0,0,0,1,0,7
+200,68,2,Nakit i Satovi > Lančići i Ogrlice,Lančići i Ogrlice,0,0,0,1,0,6
+203,68,2,Nakit i Satovi > Narukvice,Narukvice,0,0,0,1,0,5
+882,68,2,Nakit i Satovi > Naušnice,Naušnice,0,0,0,1,0,4
+202,68,2,Nakit i Satovi > Prstenje,Prstenje,0,0,0,1,0,2
+204,68,2,Nakit i Satovi > Privjesci za nakit,Privjesci za nakit,0,0,0,1,0,5
+2467,68,2,Nakit i Satovi > Broševi i bedževi,Broševi i bedževi,0,0,0,0,0,5
+2146,68,2,Nakit i Satovi > Dijelovi za satove,Dijelovi za satove,0,0,0,1,0,5
+2035,68,2,Nakit i Satovi > Džepni satovi,Džepni satovi,0,0,0,1,0,5
+2524,68,2,"Nakit i Satovi > Kristali, drago i poludrago kamenje","Kristali, drago i poludrago kamenje",0,0,0,1,0,5
+2466,68,2,Nakit i Satovi > Kutije za satove i nakit,Kutije za satove i nakit,0,0,0,1,0,7
+1062,68,2,Nakit i Satovi > Piercing nakit,Piercing nakit,0,0,0,1,0,5
+1636,68,2,Nakit i Satovi > Poluge i dukati,Poluge i dukati,0,0,0,1,0,5
+1633,68,2,Nakit i Satovi > Repromaterijal za nakit,Repromaterijal za nakit,0,0,0,1,0,5
+205,68,2,Nakit i Satovi > Pribor/alat za nakit i satove,Pribor/alat za nakit i satove,0,0,0,1,0,5
+208,,1,Životinje,Životinje,0,0,0,0,0,0
+210,208,2,Životinje > Domaće životinje,Domaće životinje,0,0,0,0,0,0
+647,210,3,Životinje > Domaće životinje > Domaća perad,Domaća perad,0,0,0,0,0,0
+662,647,4,Životinje > Domaće životinje > Domaća perad > Biserke,Biserke,0,0,0,0,0,5
+663,647,4,Životinje > Domaće životinje > Domaća perad > Golubovi,Golubovi,0,0,0,0,0,5
+661,647,4,Životinje > Domaće životinje > Domaća perad > Guske,Guske,0,0,0,0,0,7
+2403,647,4,Životinje > Domaće životinje > Domaća perad > Jaja za nasad,Jaja za nasad,0,0,0,0,0,7
+658,647,4,Životinje > Domaće životinje > Domaća perad > Kokoške,Kokoške,0,0,0,0,0,4
+660,647,4,Životinje > Domaće životinje > Domaća perad > Patke,Patke,0,0,0,0,0,5
+1740,647,4,Životinje > Domaće životinje > Domaća perad > Prepelice,Prepelice,0,0,0,0,0,5
+659,647,4,Životinje > Domaće životinje > Domaća perad > Ćurke,Ćurke,0,0,0,0,0,5
+664,647,4,Životinje > Domaće životinje > Domaća perad > Ostalo,Ostalo,0,0,0,1,0,5
+648,210,3,Životinje > Domaće životinje > Ribe,Ribe,0,0,0,0,0,0
+667,648,4,Životinje > Domaće životinje > Ribe > Pastrmke,Pastrmke,0,0,0,0,0,5
+665,648,4,Životinje > Domaće životinje > Ribe > Smuđevi,Smuđevi,0,0,0,0,0,5
+666,648,4,Životinje > Domaće životinje > Ribe > Šarani,Šarani,0,0,0,0,0,5
+668,648,4,Životinje > Domaće životinje > Ribe > Ostalo,Ostalo,0,0,0,0,0,5
+646,210,3,Životinje > Domaće životinje > Stoka,Stoka,0,0,0,0,0,0
+656,646,4,Životinje > Domaće životinje > Stoka > Hrana i oprema,Hrana i oprema,0,0,0,1,0,7
+650,646,4,Životinje > Domaće životinje > Stoka > Konji,Konji,0,0,0,0,0,6
+653,646,4,Životinje > Domaće životinje > Stoka > Koze,Koze,0,0,0,0,0,6
+651,646,4,Životinje > Domaće životinje > Stoka > Krave,Krave,0,0,0,0,0,8
+655,646,4,Životinje > Domaće životinje > Stoka > Magarci,Magarci,0,0,0,0,0,5
+654,646,4,Životinje > Domaće životinje > Stoka > Ovce,Ovce,0,0,0,0,0,7
+652,646,4,Životinje > Domaće životinje > Stoka > Svinje,Svinje,0,0,0,0,0,8
+657,646,4,Životinje > Domaće životinje > Stoka > Ostalo,Ostalo,0,0,0,1,0,5
+1506,210,3,Životinje > Domaće životinje > Pčele,Pčele,0,0,0,0,0,6
+649,210,3,Životinje > Domaće životinje > Ostalo,Ostalo,0,0,0,1,0,5
+209,208,2,Životinje > Kućni ljubimci,Kućni ljubimci,0,0,0,0,0,0
+639,209,3,Životinje > Kućni ljubimci > Mačke,Mačke,0,0,0,0,0,0
+677,639,4,Životinje > Kućni ljubimci > Mačke > Hrana za mačke,Hrana za mačke,0,0,0,0,0,5
+681,639,4,Životinje > Kućni ljubimci > Mačke > Igračke za mačke,Igračke za mačke,0,0,0,1,0,5
+678,639,4,Životinje > Kućni ljubimci > Mačke > Korpe/kreveti za mačke,Korpe/kreveti za mačke,0,0,0,1,0,5
+676,639,4,Životinje > Kućni ljubimci > Mačke > Mačke,Mačke,0,0,0,0,0,7
+679,639,4,Životinje > Kućni ljubimci > Mačke > Oprema i pribor za mačke,Oprema i pribor za mačke,0,0,0,1,0,7
+682,639,4,Životinje > Kućni ljubimci > Mačke > Ostalo,Ostalo,0,0,0,1,0,5
+642,209,3,Životinje > Kućni ljubimci > Miševi i glodari,Miševi i glodari,0,0,0,0,0,0
+695,642,4,Životinje > Kućni ljubimci > Miševi i glodari > Kavezi/oprema za miševe i glodare,Kavezi/oprema za miševe i glodare,0,0,0,1,0,5
+694,642,4,Životinje > Kućni ljubimci > Miševi i glodari > Miševi i glodari,Miševi i glodari,0,0,0,0,0,5
+696,642,4,Životinje > Kućni ljubimci > Miševi i glodari > Ostalo,Ostalo,0,0,0,1,0,5
+638,209,3,Životinje > Kućni ljubimci > Psi,Psi,0,0,0,0,0,0
+670,638,4,Životinje > Kućni ljubimci > Psi > Hrana za pse,Hrana za pse,0,0,0,0,0,6
+674,638,4,Životinje > Kućni ljubimci > Psi > Igračke za pse,Igračke za pse,0,0,0,1,0,5
+671,638,4,Životinje > Kućni ljubimci > Psi > Kućice za pse,Kućice za pse,0,0,0,1,0,5
+672,638,4,Životinje > Kućni ljubimci > Psi > Odjeća za pse,Odjeća za pse,0,0,0,1,0,5
+673,638,4,Životinje > Kućni ljubimci > Psi > Oprema/pribor za pse,Oprema/pribor za pse,0,0,0,1,0,7
+885,638,4,Životinje > Kućni ljubimci > Psi > Psi za parenje,Psi za parenje,0,0,0,0,0,5
+669,638,4,Životinje > Kućni ljubimci > Psi > Psi i Štenad,Psi i Štenad,0,0,0,0,0,7
+675,638,4,Životinje > Kućni ljubimci > Psi > Ostalo,Ostalo,0,0,0,1,0,5
+640,209,3,Životinje > Kućni ljubimci > Ptice,Ptice,0,0,0,0,0,0
+2512,640,4,Životinje > Kućni ljubimci > Ptice > Hrana za ptice,Hrana za ptice,0,0,0,1,0,5
+684,640,4,Životinje > Kućni ljubimci > Ptice > Kavezi/pribor za ptice,Kavezi/pribor za ptice,0,0,0,1,0,7
+683,640,4,Životinje > Kućni ljubimci > Ptice > Ptice,Ptice,0,0,0,0,0,5
+685,640,4,Životinje > Kućni ljubimci > Ptice > Ostalo,Ostalo,0,0,0,1,0,5
+641,209,3,Životinje > Kućni ljubimci > Ribice,Ribice,0,0,0,0,0,0
+688,641,4,Životinje > Kućni ljubimci > Ribice > Akvarijumi,Akvarijumi,0,0,0,1,0,5
+687,641,4,Životinje > Kućni ljubimci > Ribice > Hrana za ribice,Hrana za ribice,0,0,0,0,0,5
+692,641,4,Životinje > Kućni ljubimci > Ribice > Oprema za akvarijume,Oprema za akvarijume,0,0,0,1,0,5
+689,641,4,Životinje > Kućni ljubimci > Ribice > Pumpe/filteri za akvarijum,Pumpe/filteri za akvarijum,0,0,0,1,0,5
+686,641,4,Životinje > Kućni ljubimci > Ribice > Ribice,Ribice,0,0,0,0,0,5
+691,641,4,Životinje > Kućni ljubimci > Ribice > Biljke za akvarijume,Biljke za akvarijume,0,0,0,1,0,6
+693,641,4,Životinje > Kućni ljubimci > Ribice > Ostalo,Ostalo,0,0,0,1,0,5
+643,209,3,Životinje > Kućni ljubimci > Zečevi i kunići,Zečevi i kunići,0,0,0,0,0,0
+699,643,4,Životinje > Kućni ljubimci > Zečevi i kunići > Kavezi za zečeve i kuniće,Kavezi za zečeve i kuniće,0,0,0,1,0,5
+698,643,4,Životinje > Kućni ljubimci > Zečevi i kunići > Kunići,Kunići,0,0,0,0,0,3
+697,643,4,Životinje > Kućni ljubimci > Zečevi i kunići > Zečevi,Zečevi,0,0,0,0,0,5
+700,643,4,Životinje > Kućni ljubimci > Zečevi i kunići > Hrana/oprema za zečeve i kuniće,Hrana/oprema za zečeve i kuniće,0,0,0,1,0,5
+645,209,3,Životinje > Kućni ljubimci > Ostalo,Ostalo,0,0,0,1,0,5
+212,208,2,Životinje > Oprema za životinje,Oprema za životinje,0,0,0,1,0,0
+1738,212,3,Životinje > Oprema za životinje > Inkubatori,Inkubatori,0,0,0,1,0,6
+1739,212,3,Životinje > Oprema za životinje > Kavezi za kokoške,Kavezi za kokoške,0,0,0,1,0,5
+2359,212,3,Životinje > Oprema za životinje > Košnice i oprema za pčelarstvo,Košnice i oprema za pčelarstvo,0,0,0,1,0,6
+1727,212,3,Životinje > Oprema za životinje > Zaštite od životinja,Zaštite od životinja,0,0,0,1,0,6
+388,208,2,Životinje > Ostalo,Ostalo,0,0,0,1,0,5
+276,,1,Ljepota i Zdravlje,Ljepota i Zdravlje,0,0,0,1,0,0
+277,276,2,Ljepota i Zdravlje > Koža i tijelo,Koža i tijelo,0,0,0,1,0,0
+1379,277,3,Ljepota i Zdravlje > Koža i tijelo > Preparati za njegu lica,Preparati za njegu lica,0,0,0,1,0,6
+1378,277,3,Ljepota i Zdravlje > Koža i tijelo > Preparati za njegu tijela,Preparati za njegu tijela,0,0,0,1,0,6
+2660,277,3,Ljepota i Zdravlje > Koža i tijelo > Kozmetička oprema,Kozmetička oprema,0,0,0,1,0,5
+1377,277,3,Ljepota i Zdravlje > Koža i tijelo > Depilatori / Epilatori,Depilatori / Epilatori,0,0,0,1,0,6
+2413,277,3,Ljepota i Zdravlje > Koža i tijelo > Solarijumi i oprema,Solarijumi i oprema,0,0,0,1,0,10
+2697,277,3,Ljepota i Zdravlje > Koža i tijelo > Saune i oprema,Saune i oprema,0,0,0,1,0,7
+1380,277,3,Ljepota i Zdravlje > Koža i tijelo > Ostalo,Ostalo,0,0,0,1,0,5
+431,276,2,Ljepota i Zdravlje > Naočale,Naočale,0,0,0,1,0,0
+1388,431,3,Ljepota i Zdravlje > Naočale > Dioptrijske naočale,Dioptrijske naočale,0,0,0,1,0,8
+2552,431,3,Ljepota i Zdravlje > Naočale > Kontaktna sočiva i leće,Kontaktna sočiva i leće,0,0,0,1,0,7
+1387,431,3,Ljepota i Zdravlje > Naočale > Sunčane naočale,Sunčane naočale,0,0,0,1,0,9
+1389,431,3,Ljepota i Zdravlje > Naočale > Kutije i pribor za naočale,Kutije i pribor za naočale,0,0,0,1,0,7
+278,276,2,Ljepota i Zdravlje > Njega kose i brade,Njega kose i brade,0,0,0,1,0,0
+1404,278,3,Ljepota i Zdravlje > Njega kose i brade > Farbe za kosu i bradu,Farbe za kosu i bradu,0,0,0,1,0,5
+1401,278,3,Ljepota i Zdravlje > Njega kose i brade > Fenovi za kosu,Fenovi za kosu,0,0,0,1,0,6
+1406,278,3,Ljepota i Zdravlje > Njega kose i brade > Frizerska oprema,Frizerska oprema,0,0,0,1,0,7
+1405,278,3,Ljepota i Zdravlje > Njega kose i brade > Kozmetika za kosu i bradu,Kozmetika za kosu i bradu,0,0,0,1,0,7
+1403,278,3,Ljepota i Zdravlje > Njega kose i brade > Mašinice / Trimeri,Mašinice / Trimeri,0,0,0,1,0,7
+1399,278,3,Ljepota i Zdravlje > Njega kose i brade > Nadogradnje / Ekstenzije,Nadogradnje / Ekstenzije,0,0,0,1,0,5
+1400,278,3,Ljepota i Zdravlje > Njega kose i brade > Pegle za kosu,Pegle za kosu,0,0,0,1,0,7
+1402,278,3,Ljepota i Zdravlje > Njega kose i brade > Četke za kosu i bradu,Četke za kosu i bradu,0,0,0,1,0,5
+2669,278,3,Ljepota i Zdravlje > Njega kose i brade > Uvijači za kosu / Figaro,Uvijači za kosu / Figaro,0,0,0,1,0,5
+1407,278,3,Ljepota i Zdravlje > Njega kose i brade > Pribor za kosu i bradu,Pribor za kosu i bradu,0,0,0,1,0,5
+1054,276,2,Ljepota i Zdravlje > Njega noktiju,Njega noktiju,0,0,0,1,0,4
+1383,1054,3,Ljepota i Zdravlje > Njega noktiju > Gelovi za nokte,Gelovi za nokte,0,0,0,1,0,4
+1385,1054,3,Ljepota i Zdravlje > Njega noktiju > Lakovi za nokte,Lakovi za nokte,0,0,0,1,0,4
+1382,1054,3,Ljepota i Zdravlje > Njega noktiju > Tipse,Tipse,0,0,0,1,0,4
+1381,1054,3,Ljepota i Zdravlje > Njega noktiju > UV/LED lampe za nokte,UV/LED lampe za nokte,0,0,0,1,0,5
+1384,1054,3,Ljepota i Zdravlje > Njega noktiju > Ukrasi,Ukrasi,0,0,0,1,0,4
+1386,1054,3,Ljepota i Zdravlje > Njega noktiju > Ostalo,Ostalo,0,0,0,1,0,4
+281,276,2,Ljepota i Zdravlje > Oralna higijena,Oralna higijena,0,0,0,1,0,0
+1410,281,3,Ljepota i Zdravlje > Oralna higijena > Uređaji i preparati za izbjeljivanje zuba,Uređaji i preparati za izbjeljivanje zuba,0,0,0,1,0,5
+1408,281,3,Ljepota i Zdravlje > Oralna higijena > Paste za zube,Paste za zube,0,0,0,1,0,5
+1411,281,3,Ljepota i Zdravlje > Oralna higijena > Zubne proteze,Zubne proteze,0,0,0,0,0,5
+1409,281,3,Ljepota i Zdravlje > Oralna higijena > Četkice za zube,Četkice za zube,0,0,0,1,0,5
+1412,281,3,Ljepota i Zdravlje > Oralna higijena > Ostali uređaji i pribor za zube,Ostali uređaji i pribor za zube,0,0,0,1,0,7
+430,276,2,Ljepota i Zdravlje > Parfemi,Parfemi,0,0,0,1,0,4
+1370,430,3,Ljepota i Zdravlje > Parfemi > Muški parfemi,Muški parfemi,0,0,0,1,0,8
+1372,430,3,Ljepota i Zdravlje > Parfemi > Unisex parfemi,Unisex parfemi,0,0,0,1,0,5
+1371,430,3,Ljepota i Zdravlje > Parfemi > Ženski parfemi,Ženski parfemi,0,0,0,1,0,7
+279,276,2,Ljepota i Zdravlje > Zdravlje,Zdravlje,0,0,0,1,0,4
+1373,279,3,Ljepota i Zdravlje > Zdravlje > Biljni preparati,Biljni preparati,0,0,0,1,0,7
+1375,279,3,Ljepota i Zdravlje > Zdravlje > Preparati za mršavljenje,Preparati za mršavljenje,0,0,0,1,0,4
+1374,279,3,Ljepota i Zdravlje > Zdravlje > Ulja i kreme,Ulja i kreme,0,0,0,1,0,5
+2689,279,3,Ljepota i Zdravlje > Zdravlje > Flasteri,Flasteri,0,0,0,1,0,4
+1376,279,3,Ljepota i Zdravlje > Zdravlje > Ostalo,Ostalo,0,0,0,1,0,4
+280,276,2,Ljepota i Zdravlje > Šminka,Šminka,0,0,0,1,0,4
+1396,280,3,Ljepota i Zdravlje > Šminka > Kistovi / Četke,Kistovi / Četke,0,0,0,1,0,4
+1391,280,3,Ljepota i Zdravlje > Šminka > Maskare,Maskare,0,0,0,1,0,5
+1395,280,3,Ljepota i Zdravlje > Šminka > Olovke / Tuševi,Olovke / Tuševi,0,0,0,1,0,4
+2365,280,3,Ljepota i Zdravlje > Šminka > Permanent make up,Permanent make up,0,0,0,1,0,4
+1390,280,3,Ljepota i Zdravlje > Šminka > Puderi,Puderi,0,0,0,1,0,5
+1392,280,3,Ljepota i Zdravlje > Šminka > Ruževi/Karmini,Ruževi/Karmini,0,0,0,1,0,4
+1393,280,3,Ljepota i Zdravlje > Šminka > Setovi šminke,Setovi šminke,0,0,0,1,0,4
+1394,280,3,Ljepota i Zdravlje > Šminka > Sjene za oči,Sjene za oči,0,0,0,1,0,4
+2659,280,3,Ljepota i Zdravlje > Šminka > Bronzeri,Bronzeri,0,0,0,1,0,4
+1398,280,3,Ljepota i Zdravlje > Šminka > Ostali pribor i šminka,Ostali pribor i šminka,0,0,0,1,0,5
+2548,276,2,Ljepota i Zdravlje > Umjetne trepavice,Umjetne trepavice,0,0,0,1,0,5
+2551,276,2,Ljepota i Zdravlje > Zaštitne maske i rukavice,Zaštitne maske i rukavice,0,0,0,1,0,5
+282,276,2,Ljepota i Zdravlje > Ostalo,Ostalo,0,0,0,1,0,6
+371,,1,Bebe,Bebe,0,0,0,1,0,4
+372,371,2,Bebe > Garderoba,Garderoba,0,0,0,1,0,4
+1598,372,3,Bebe > Garderoba > Body za bebe,Body za bebe,0,0,0,1,0,4
+1587,372,3,Bebe > Garderoba > Cipele/Čizme,Cipele/Čizme,0,0,0,1,0,4
+1593,372,3,Bebe > Garderoba > Džemperi za bebe,Džemperi za bebe,0,0,0,1,0,4
+1594,372,3,Bebe > Garderoba > Gegice,Gegice,0,0,0,1,0,4
+1588,372,3,Bebe > Garderoba > Haljine za bebe,Haljine za bebe,0,0,0,1,0,4
+1601,372,3,Bebe > Garderoba > Hlače za bebe,Hlače za bebe,0,0,0,1,0,4
+1595,372,3,Bebe > Garderoba > Jakne za bebe,Jakne za bebe,0,0,0,1,0,4
+1597,372,3,Bebe > Garderoba > Kape za bebe,Kape za bebe,0,0,0,1,0,4
+1607,372,3,Bebe > Garderoba > Kompleti za bebe,Kompleti za bebe,0,0,0,1,0,4
+1589,372,3,Bebe > Garderoba > Košulje i majice,Košulje i majice,0,0,0,1,0,4
+1596,372,3,Bebe > Garderoba > Pape,Pape,0,0,0,1,0,4
+1586,372,3,Bebe > Garderoba > Patike/Tene,Patike/Tene,0,0,0,1,0,4
+1620,372,3,Bebe > Garderoba > Pidžame za bebe,Pidžame za bebe,0,0,0,1,0,4
+1592,372,3,Bebe > Garderoba > Skafanderi za bebe,Skafanderi za bebe,0,0,0,1,0,4
+1590,372,3,Bebe > Garderoba > Trenerke,Trenerke,0,0,0,1,0,4
+1584,372,3,Bebe > Garderoba > Ostala odjeća za bebe,Ostala odjeća za bebe,0,0,0,1,0,4
+1043,371,2,Bebe > Autosjedalice,Autosjedalice,0,0,0,1,0,7
+2687,371,2,Bebe > Flašice/cucle,Flašice/cucle,0,0,0,1,0,4
+2678,371,2,Bebe > Gnijezda za bebe,Gnijezda za bebe,0,0,0,1,0,4
+1571,371,2,Bebe > Hodalice za bebe,Hodalice za bebe,0,0,0,1,0,4
+2679,371,2,Bebe > Hranilice za bebe,Hranilice za bebe,0,0,0,1,0,4
+377,371,2,Bebe > Igračke za bebe,Igračke za bebe,0,0,0,1,0,4
+2691,371,2,Bebe > Igraonice za bebe,Igraonice za bebe,0,0,0,1,0,4
+2682,371,2,Bebe > Izdajalice za mlijeko,Izdajalice za mlijeko,0,0,0,1,0,4
+2690,371,2,Bebe > Dekice za bebe,Dekice za bebe,0,0,0,1,0,4
+2686,371,2,Bebe > Kadice za bebe,Kadice za bebe,0,0,0,1,0,4
+375,371,2,Bebe > Kolica za bebe,Kolica za bebe,0,0,0,1,0,5
+376,371,2,Bebe > Krevetići za bebe,Krevetići za bebe,0,0,0,1,0,5
+1572,371,2,Bebe > Ležaljke/Sjedalice za bebe,Ležaljke/Sjedalice za bebe,0,0,0,1,0,4
+2680,371,2,Bebe > Ljulje za bebe,Ljulje za bebe,0,0,0,1,0,4
+2685,371,2,Bebe > Monitori za bebe,Monitori za bebe,0,0,0,1,0,4
+1569,371,2,Bebe > Nosiljke za bebe,Nosiljke za bebe,0,0,0,1,0,4
+2684,371,2,Bebe > Noše za bebe,Noše za bebe,0,0,0,1,0,4
+2688,371,2,Bebe > Njega za bebe,Njega za bebe,0,0,0,1,0,4
+374,371,2,Bebe > Pelene za bebe,Pelene za bebe,0,0,0,0,0,4
+2681,371,2,Bebe > Podloge za bebe,Podloge za bebe,0,0,0,1,0,4
+2147,371,2,Bebe > Posteljina/ogradica za krevet,Posteljina/ogradica za krevet,0,0,0,1,0,5
+2692,371,2,Bebe > Siperak za bebe,Siperak za bebe,0,0,0,1,0,4
+2683,371,2,Bebe > Torbe za mame,Torbe za mame,0,0,0,1,0,4
+373,371,2,Bebe > Uređaji i pribor za bebe,Uređaji i pribor za bebe,0,0,0,1,0,6
+378,371,2,Bebe > Ostala oprema za bebe,Ostala oprema za bebe,0,0,0,1,0,5
+283,,1,Igre i igračke,Igre i igračke,0,0,0,1,0,0
+288,283,2,Igre i igračke > Društvene igre,Društvene igre,0,0,0,1,0,0
+1558,288,3,Igre i igračke > Društvene igre > Bilijar,Bilijar,0,0,0,1,0,7
+1562,288,3,Igre i igračke > Društvene igre > Karte za igru,Karte za igru,0,0,0,1,0,5
+1559,288,3,Igre i igračke > Društvene igre > Pikado,Pikado,0,0,0,1,0,6
+1560,288,3,Igre i igračke > Društvene igre > Poker,Poker,0,0,0,1,0,5
+1563,288,3,Igre i igračke > Društvene igre > Puzzle,Puzzle,0,0,0,1,0,5
+2419,288,3,Igre i igračke > Društvene igre > Šahovi,Šahovi,0,0,0,1,0,5
+2677,288,3,Igre i igračke > Društvene igre > Rubikove kocke,Rubikove kocke,0,0,0,1,0,5
+1557,288,3,Igre i igračke > Društvene igre > Ostale društvene igre,Ostale društvene igre,0,0,0,1,0,6
+284,283,2,Igre i igračke > Akcione figure,Akcione figure,0,0,0,1,0,5
+286,283,2,Igre i igračke > Kockice za djecu,Kockice za djecu,0,0,0,1,0,7
+287,283,2,Igre i igračke > Igračke na baterije,Igračke na baterije,0,0,0,1,0,6
+2562,283,2,Igre i igračke > Montesori za djecu,Montesori za djecu,0,0,0,1,0,7
+285,283,2,Igre i igračke > Plišane igračke,Plišane igračke,0,0,0,1,0,5
+1991,283,2,Igre i igračke > Tobogani i igraonice,Tobogani i igraonice,0,0,0,1,0,7
+1520,283,2,Igre i igračke > Igračke za djevojčice,Igračke za djevojčice,0,0,0,1,0,7
+1519,283,2,Igre i igračke > Igračke za dječake,Igračke za dječake,0,0,0,1,0,5
+295,283,2,Igre i igračke > Ostale igračke,Ostale igračke,0,0,0,1,0,7
+289,,1,Video igre,Video igre,0,0,0,1,0,2
+293,289,2,Video igre > Dijelovi i oprema,Dijelovi i oprema,0,0,0,1,0,2
+2056,293,3,Video igre > Dijelovi i oprema > Adapteri za konzole,Adapteri za konzole,0,0,0,1,0,2
+2058,293,3,Video igre > Dijelovi i oprema > Display za konzole,Display za konzole,0,0,0,1,0,2
+2051,293,3,Video igre > Dijelovi i oprema > Džojstik/Gamepad kontroleri,Džojstik/Gamepad kontroleri,0,0,0,1,0,2
+2054,293,3,Video igre > Dijelovi i oprema > Kablovi za konzole,Kablovi za konzole,0,0,0,1,0,2
+2055,293,3,Video igre > Dijelovi i oprema > Laseri za konzole,Laseri za konzole,0,0,0,1,0,2
+2060,293,3,Video igre > Dijelovi i oprema > Memory kartice za konzole,Memory kartice za konzole,0,0,0,1,0,2
+2057,293,3,Video igre > Dijelovi i oprema > Punjači za konzole i kontrolere,Punjači za konzole i kontrolere,0,0,0,1,0,2
+2151,293,3,Video igre > Dijelovi i oprema > Slušalice za konzole,Slušalice za konzole,0,0,0,1,0,6
+2059,293,3,Video igre > Dijelovi i oprema > Torbe i torbice za konzole,Torbe i torbice za konzole,0,0,0,1,0,2
+2053,293,3,Video igre > Dijelovi i oprema > Volani za PC i konzole,Volani za PC i konzole,0,0,0,1,0,2
+2052,293,3,Video igre > Dijelovi i oprema > Ostali dijelovi i oprema za konzole,Ostali dijelovi i oprema za konzole,0,0,0,1,0,2
+290,289,2,Video igre > Igre za PC i konzole,Igre za PC i konzole,0,0,0,1,0,6
+291,289,2,Video igre > Internet/browser igre,Internet/browser igre,0,0,0,1,0,2
+292,289,2,Video igre > Konzole,Konzole,0,0,0,1,0,8
+294,289,2,Video igre > Ostalo,Ostalo,0,0,0,1,0,2
+67,,1,Muzička oprema,Muzička oprema,0,0,0,1,0,0
+1990,67,2,Muzička oprema > Muzički instrumenti,Muzički instrumenti,0,0,0,1,0,0
+213,1990,3,Muzička oprema > Muzički instrumenti > Duvački instrumenti,Duvački instrumenti,0,0,0,1,0,0
+390,213,4,Muzička oprema > Muzički instrumenti > Duvački instrumenti > Aulos,Aulos,0,0,0,1,0,5
+391,213,4,Muzička oprema > Muzički instrumenti > Duvački instrumenti > Fagot,Fagot,0,0,0,1,0,5
+392,213,4,Muzička oprema > Muzički instrumenti > Duvački instrumenti > Flauta,Flauta,0,0,0,1,0,5
+2014,213,4,Muzička oprema > Muzički instrumenti > Duvački instrumenti > Frule,Frule,0,0,0,1,0,5
+393,213,4,Muzička oprema > Muzički instrumenti > Duvački instrumenti > Klarinet,Klarinet,0,0,0,1,0,5
+394,213,4,Muzička oprema > Muzički instrumenti > Duvački instrumenti > Oboa,Oboa,0,0,0,1,0,5
+395,213,4,Muzička oprema > Muzički instrumenti > Duvački instrumenti > Rog,Rog,0,0,0,1,0,5
+1705,213,4,Muzička oprema > Muzički instrumenti > Duvački instrumenti > Saksofoni,Saksofoni,0,0,0,1,0,5
+396,213,4,Muzička oprema > Muzički instrumenti > Duvački instrumenti > Truba,Truba,0,0,0,1,0,5
+397,213,4,Muzička oprema > Muzički instrumenti > Duvački instrumenti > Tuba,Tuba,0,0,0,1,0,5
+2119,213,4,Muzička oprema > Muzički instrumenti > Duvački instrumenti > Usne harmonike,Usne harmonike,0,0,0,1,0,5
+214,1990,3,Muzička oprema > Muzički instrumenti > Instrumenti sa tipkama,Instrumenti sa tipkama,0,0,0,1,0,0
+399,214,4,Muzička oprema > Muzički instrumenti > Instrumenti sa tipkama > Harmonika,Harmonika,0,0,0,1,0,6
+400,214,4,Muzička oprema > Muzički instrumenti > Instrumenti sa tipkama > Klavir,Klavir,0,0,0,1,0,5
+401,214,4,Muzička oprema > Muzički instrumenti > Instrumenti sa tipkama > Orgulje,Orgulje,0,0,0,1,0,5
+402,214,4,Muzička oprema > Muzički instrumenti > Instrumenti sa tipkama > Klavijature,Klavijature,0,0,0,1,0,6
+215,1990,3,Muzička oprema > Muzički instrumenti > Udarački instrumenti,Udarački instrumenti,0,0,0,1,0,0
+405,215,4,Muzička oprema > Muzički instrumenti > Udarački instrumenti > Bas bubanj,Bas bubanj,0,0,0,1,0,5
+404,215,4,Muzička oprema > Muzički instrumenti > Udarački instrumenti > Bubnjevi (komplet),Bubnjevi (komplet),0,0,0,1,0,5
+406,215,4,Muzička oprema > Muzički instrumenti > Udarački instrumenti > Doboš,Doboš,0,0,0,1,0,5
+407,215,4,Muzička oprema > Muzički instrumenti > Udarački instrumenti > Fus,Fus,0,0,0,1,0,5
+408,215,4,Muzička oprema > Muzički instrumenti > Udarački instrumenti > Indianer,Indianer,0,0,0,1,0,5
+2063,215,4,Muzička oprema > Muzički instrumenti > Udarački instrumenti > Tarabuke,Tarabuke,0,0,0,1,0,5
+410,215,4,Muzička oprema > Muzički instrumenti > Udarački instrumenti > Timpan,Timpan,0,0,0,1,0,5
+411,215,4,Muzička oprema > Muzički instrumenti > Udarački instrumenti > Triangl,Triangl,0,0,0,1,0,5
+409,215,4,Muzička oprema > Muzički instrumenti > Udarački instrumenti > Činele,Činele,0,0,0,1,0,5
+216,1990,3,Muzička oprema > Muzički instrumenti > Žičani instrumenti,Žičani instrumenti,0,0,0,1,0,0
+413,216,4,Muzička oprema > Muzički instrumenti > Žičani instrumenti > Gudački instrumenti,Gudački instrumenti,0,0,0,1,0,0
+2099,413,5,Muzička oprema > Muzički instrumenti > Žičani instrumenti > Gudački instrumenti > Gusle,Gusle,0,0,0,1,0,5
+414,413,5,Muzička oprema > Muzički instrumenti > Žičani instrumenti > Gudački instrumenti > Viola,Viola,0,0,0,1,0,5
+415,413,5,Muzička oprema > Muzički instrumenti > Žičani instrumenti > Gudački instrumenti > Violina,Violina,0,0,0,1,0,5
+416,413,5,Muzička oprema > Muzički instrumenti > Žičani instrumenti > Gudački instrumenti > Violončelo,Violončelo,0,0,0,1,0,5
+417,216,4,Muzička oprema > Muzički instrumenti > Žičani instrumenti > Bas gitara,Bas gitara,0,0,0,1,0,5
+418,216,4,Muzička oprema > Muzički instrumenti > Žičani instrumenti > Električna gitara,Električna gitara,0,0,0,1,0,5
+419,216,4,Muzička oprema > Muzički instrumenti > Žičani instrumenti > Gitara,Gitara,0,0,0,1,0,6
+420,216,4,Muzička oprema > Muzički instrumenti > Žičani instrumenti > Harfa,Harfa,0,0,0,1,0,5
+421,216,4,Muzička oprema > Muzički instrumenti > Žičani instrumenti > Lira,Lira,0,0,0,1,0,5
+422,216,4,Muzička oprema > Muzički instrumenti > Žičani instrumenti > Saz,Saz,0,0,0,1,0,5
+423,216,4,Muzička oprema > Muzički instrumenti > Žičani instrumenti > Tamburica,Tamburica,0,0,0,1,0,5
+2100,216,4,Muzička oprema > Muzički instrumenti > Žičani instrumenti > Šargije,Šargije,0,0,0,1,0,5
+229,67,2,Muzička oprema > Hi-Fi komponente,Hi-Fi komponente,0,0,0,1,0,0
+1997,229,3,Muzička oprema > Hi-Fi komponente > A/V i Stereo prijemnici,A/V i Stereo prijemnici,0,0,0,1,0,5
+1999,229,3,"Muzička oprema > Hi-Fi komponente > CD Player, Recorder i tuner","CD Player, Recorder i tuner",0,0,0,1,0,5
+2000,229,3,Muzička oprema > Hi-Fi komponente > Daljinski za Hi-Fi uređaje,Daljinski za Hi-Fi uređaje,0,0,0,1,0,5
+2005,229,3,Muzička oprema > Hi-Fi komponente > Dijelovi za komponente,Dijelovi za komponente,0,0,0,1,0,5
+1998,229,3,Muzička oprema > Hi-Fi komponente > Gramofoni (Hi-Fi),Gramofoni (Hi-Fi),0,0,0,1,0,6
+2007,229,3,Muzička oprema > Hi-Fi komponente > Hi-Fi sistem (komplet),Hi-Fi sistem (komplet),0,0,0,1,0,5
+2010,229,3,Muzička oprema > Hi-Fi komponente > Hi-Fi slušalice,Hi-Fi slušalice,0,0,0,1,0,5
+1993,229,3,Muzička oprema > Hi-Fi komponente > Integrirana pojačala,Integrirana pojačala,0,0,0,1,0,6
+1996,229,3,Muzička oprema > Hi-Fi komponente > Izlazna pojačala (snage),Izlazna pojačala (snage),0,0,0,1,0,5
+2009,229,3,Muzička oprema > Hi-Fi komponente > Kablovi za Hi-Fi,Kablovi za Hi-Fi,0,0,0,1,0,5
+2001,229,3,Muzička oprema > Hi-Fi komponente > Kasetni dekovi (Hi-Fi),Kasetni dekovi (Hi-Fi),0,0,0,1,0,5
+2002,229,3,Muzička oprema > Hi-Fi komponente > Magnetofoni i trake,Magnetofoni i trake,0,0,0,1,0,5
+2004,229,3,Muzička oprema > Hi-Fi komponente > Police i stalci za Hi-Fi,Police i stalci za Hi-Fi,0,0,0,1,0,5
+1995,229,3,Muzička oprema > Hi-Fi komponente > Pretpojačala,Pretpojačala,0,0,0,1,0,5
+1994,229,3,Muzička oprema > Hi-Fi komponente > Zvučnici/Woofer/Kutije (Hi-Fi),Zvučnici/Woofer/Kutije (Hi-Fi),0,0,0,1,0,5
+2008,229,3,Muzička oprema > Hi-Fi komponente > Ostalo,Ostalo,0,0,0,1,0,5
+51,67,2,Muzička oprema > Muzička oprema i dijelovi,Muzička oprema i dijelovi,0,0,0,1,0,0
+1236,51,3,Muzička oprema > Muzička oprema i dijelovi > DJ Oprema,DJ Oprema,0,0,0,1,0,7
+1731,51,3,Muzička oprema > Muzička oprema i dijelovi > Equalizer,Equalizer,0,0,0,1,0,6
+1732,51,3,Muzička oprema > Muzička oprema i dijelovi > Horne,Horne,0,0,0,1,0,6
+1735,51,3,Muzička oprema > Muzička oprema i dijelovi > Kablovi/konektori za muzičku opremu,Kablovi/konektori za muzičku opremu,0,0,0,1,0,6
+1737,51,3,Muzička oprema > Muzička oprema i dijelovi > Koferi/torbe za muzičke instrumente i opremu,Koferi/torbe za muzičke instrumente i opremu,0,0,0,1,0,6
+1229,51,3,Muzička oprema > Muzička oprema i dijelovi > Profesionalni mikrofoni,Profesionalni mikrofoni,0,0,0,1,0,7
+1228,51,3,Muzička oprema > Muzička oprema i dijelovi > Miksete,Miksete,0,0,0,1,0,7
+1845,51,3,Muzička oprema > Muzička oprema i dijelovi > Moduli i sempleri,Moduli i sempleri,0,0,0,1,0,6
+1734,51,3,Muzička oprema > Muzička oprema i dijelovi > Pedale,Pedale,0,0,0,1,0,6
+1232,51,3,Muzička oprema > Muzička oprema i dijelovi > Pojačala i wooferi,Pojačala i wooferi,0,0,0,1,0,6
+2086,51,3,Muzička oprema > Muzička oprema i dijelovi > Pojačala za gitaru,Pojačala za gitaru,0,0,0,1,0,6
+1729,51,3,Muzička oprema > Muzička oprema i dijelovi > Muzički procesori,Muzički procesori,0,0,0,1,0,6
+1233,51,3,Muzička oprema > Muzička oprema i dijelovi > Muzička rasvjeta,Muzička rasvjeta,0,0,0,1,0,7
+1728,51,3,Muzička oprema > Muzička oprema i dijelovi > Razglasi,Razglasi,0,0,0,1,0,6
+1730,51,3,Muzička oprema > Muzička oprema i dijelovi > Set/Ritam i boje,Set/Ritam i boje,0,0,0,1,0,6
+1235,51,3,Muzička oprema > Muzička oprema i dijelovi > Slušalice za muzičku opremu,Slušalice za muzičku opremu,0,0,0,1,0,6
+2409,51,3,Muzička oprema > Muzička oprema i dijelovi > Soundbarovi,Soundbarovi,0,0,0,1,0,6
+1564,51,3,Muzička oprema > Muzička oprema i dijelovi > Muzički stalci,Muzički stalci,0,0,0,1,0,6
+1689,51,3,Muzička oprema > Muzička oprema i dijelovi > Muzičke zvučne karte,Muzičke zvučne karte,0,0,0,1,0,6
+1230,51,3,Muzička oprema > Muzička oprema i dijelovi > Zvučnici i zvučne kutije,Zvučnici i zvučne kutije,0,0,0,1,0,7
+1741,51,3,Muzička oprema > Muzička oprema i dijelovi > Štimeri,Štimeri,0,0,0,1,0,6
+1733,51,3,Muzička oprema > Muzička oprema i dijelovi > Žice za muzičke instrumente,Žice za muzičke instrumente,0,0,0,1,0,6
+1234,51,3,Muzička oprema > Muzička oprema i dijelovi > Ostala muzička oprema i dijelovi,Ostala muzička oprema i dijelovi,0,0,0,1,0,7
+1881,67,2,Muzička oprema > Muzičke linije,Muzičke linije,0,0,0,1,0,5
+389,67,2,Muzička oprema > Ostalo,Ostalo,0,0,0,1,0,5
+16,,1,Literatura,Literatura,0,0,0,1,0,2
+307,16,2,Literatura > Knjige,Knjige,0,0,0,1,0,2
+1535,307,3,Literatura > Knjige > Atlasi,Atlasi,0,0,0,1,0,2
+1767,307,3,Literatura > Knjige > Beletristika,Beletristika,0,0,0,1,0,1
+1534,307,3,Literatura > Knjige > Enciklopedije,Enciklopedije,0,0,0,1,0,2
+1530,307,3,Literatura > Knjige > Fakultet,Fakultet,0,0,0,1,0,1
+1536,307,3,Literatura > Knjige > Medicina i liječenje,Medicina i liječenje,0,0,0,1,0,2
+2097,307,3,Literatura > Knjige > Muzička literatura,Muzička literatura,0,0,0,1,0,2
+1528,307,3,Literatura > Knjige > Osnovna škola,Osnovna škola,0,0,0,1,0,1
+1531,307,3,Literatura > Knjige > Priručnici,Priručnici,0,0,0,1,0,2
+1532,307,3,Literatura > Knjige > Religijske,Religijske,0,0,0,1,0,2
+1533,307,3,Literatura > Knjige > Rječnici stranih riječi,Rječnici stranih riječi,0,0,0,1,0,2
+1529,307,3,Literatura > Knjige > Srednja škola,Srednja škola,0,0,0,1,0,1
+1561,307,3,Literatura > Knjige > Stručne,Stručne,0,0,0,1,0,2
+1538,307,3,Literatura > Knjige > Zbirke,Zbirke,0,0,0,1,0,2
+1537,307,3,Literatura > Knjige > Ostale knjige,Ostale knjige,0,0,0,1,0,2
+1432,16,2,Literatura > Školski pribor,Školski pribor,0,0,0,1,0,2
+2049,1432,3,Literatura > Školski pribor > Blokovi za crtanje,Blokovi za crtanje,0,0,0,1,0,2
+2046,1432,3,Literatura > Školski pribor > Bojice,Bojice,0,0,0,1,0,2
+2048,1432,3,Literatura > Školski pribor > Fascikle,Fascikle,0,0,0,1,0,2
+2039,1432,3,Literatura > Školski pribor > Geometrijski pribor,Geometrijski pribor,0,0,0,1,0,2
+2044,1432,3,Literatura > Školski pribor > Globusi,Globusi,0,0,0,1,0,2
+2040,1432,3,Literatura > Školski pribor > Grafitne olovke,Grafitne olovke,0,0,0,1,0,2
+2047,1432,3,Literatura > Školski pribor > Gumice za brisanje,Gumice za brisanje,0,0,0,1,0,2
+2041,1432,3,Literatura > Školski pribor > Hemijske olovke,Hemijske olovke,0,0,0,1,0,2
+2043,1432,3,Literatura > Školski pribor > Herbari,Herbari,0,0,0,1,0,2
+2045,1432,3,Literatura > Školski pribor > Pernice,Pernice,0,0,0,1,0,2
+2037,1432,3,Literatura > Školski pribor > Sveske,Sveske,0,0,0,1,0,2
+2042,1432,3,Literatura > Školski pribor > Table/Ploče za crtanje,Table/Ploče za crtanje,0,0,0,1,0,2
+2038,1432,3,Literatura > Školski pribor > Školske torbe (ruksaci),Školske torbe (ruksaci),0,0,0,1,0,2
+2036,1432,3,Literatura > Školski pribor > Ostalo,Ostalo,0,0,0,1,0,2
+305,16,2,Literatura > Audioknjige,Audioknjige,0,0,0,1,0,2
+925,16,2,Literatura > E-knjige,E-knjige,0,0,0,1,0,1
+306,16,2,Literatura > Katalozi,Katalozi,0,0,0,1,0,2
+312,16,2,Literatura > Magazini,Magazini,0,0,0,1,0,1
+434,16,2,Literatura > Stripovi,Stripovi,0,0,0,1,0,2
+313,16,2,Literatura > Ostala literatura,Ostala literatura,0,0,0,1,0,1
+69,,1,Umjetnost,Umjetnost,0,0,0,1,0,0
+331,69,2,Umjetnost > Umjetničke slike,Umjetničke slike,0,0,0,1,0,5
+243,69,2,Umjetnost > Fotografije,Fotografije,0,0,0,1,0,5
+2531,69,2,Umjetnost > Ikone i levhe,Ikone i levhe,0,0,0,1,0,5
+332,69,2,Umjetnost > Posteri i plakati,Posteri i plakati,0,0,0,1,0,5
+333,69,2,Umjetnost > Skulpture,Skulpture,0,0,0,1,0,5
+631,69,2,Umjetnost > Tattoo,Tattoo,0,0,0,1,0,0
+334,69,2,Umjetnost > Ostalo,Ostalo,0,0,0,1,0,5
+435,,1,Kolekcionarstvo,Kolekcionarstvo,0,0,0,1,0,4
+449,435,2,Kolekcionarstvo > Filatelija,Filatelija,0,0,0,1,0,4
+450,449,3,Kolekcionarstvo > Filatelija > Markice,Markice,0,0,0,1,0,2
+451,449,3,Kolekcionarstvo > Filatelija > Pisma dokumenti i ostalo,Pisma dokumenti i ostalo,0,0,0,1,0,4
+1792,435,2,Kolekcionarstvo > Maketarstvo/Modelarstvo,Maketarstvo/Modelarstvo,0,0,0,1,0,4
+2016,1792,3,Kolekcionarstvo > Maketarstvo/Modelarstvo > Autići (makete automobila),Autići (makete automobila),0,0,0,1,0,6
+2029,1792,3,Kolekcionarstvo > Maketarstvo/Modelarstvo > Makete brodova,Makete brodova,0,0,0,1,0,4
+2030,1792,3,Kolekcionarstvo > Maketarstvo/Modelarstvo > Ostale makete,Ostale makete,0,0,0,1,0,4
+2032,1792,3,Kolekcionarstvo > Maketarstvo/Modelarstvo > Tenkovi i vojna artiljerija,Tenkovi i vojna artiljerija,0,0,0,1,0,4
+2024,1792,3,Kolekcionarstvo > Maketarstvo/Modelarstvo > Vazduhoplovstvo (makete),Vazduhoplovstvo (makete),0,0,0,1,0,4
+437,435,2,Kolekcionarstvo > Militarija,Militarija,0,0,0,1,0,4
+1745,437,3,Kolekcionarstvo > Militarija > Gas maske,Gas maske,0,0,0,1,0,4
+436,437,3,Kolekcionarstvo > Militarija > Medalje i ordeni,Medalje i ordeni,0,0,0,1,0,4
+2532,437,3,Kolekcionarstvo > Militarija > Oprema za vojnike,Oprema za vojnike,0,0,0,1,0,6
+2427,437,3,Kolekcionarstvo > Militarija > Vojne i policijske oznake,Vojne i policijske oznake,0,0,0,1,0,1
+2486,437,3,Kolekcionarstvo > Militarija > Vojni noževi i bajoneti,Vojni noževi i bajoneti,0,0,0,1,0,5
+1051,437,3,Kolekcionarstvo > Militarija > Ostalo,Ostalo,0,0,0,1,0,4
+444,435,2,Kolekcionarstvo > Numizmatika,Numizmatika,0,0,0,1,0,4
+1053,444,3,Kolekcionarstvo > Numizmatika > Bonovi,Bonovi,0,0,0,1,0,4
+445,444,3,Kolekcionarstvo > Numizmatika > Kovanice,Kovanice,0,0,0,1,0,4
+447,444,3,Kolekcionarstvo > Numizmatika > Literatura i ostalo,Literatura i ostalo,0,0,0,1,0,4
+446,444,3,Kolekcionarstvo > Numizmatika > Novčanice,Novčanice,0,0,0,1,0,2
+1712,435,2,Kolekcionarstvo > Figurice,Figurice,0,0,0,1,0,3
+464,435,2,Kolekcionarstvo > Gramofoni i ploče,Gramofoni i ploče,0,0,0,0,0,4
+2554,435,2,Kolekcionarstvo > Plakete,Plakete,0,0,0,1,0,5
+443,435,2,Kolekcionarstvo > Razglednice i čestitke,Razglednice i čestitke,0,0,0,1,0,2
+438,435,2,Kolekcionarstvo > Religija,Religija,0,0,0,1,0,4
+1742,435,2,Kolekcionarstvo > Salvete,Salvete,0,0,0,1,0,4
+1052,435,2,Kolekcionarstvo > Sličice i albumi,Sličice i albumi,0,0,0,1,0,4
+2121,435,2,Kolekcionarstvo > Sportski pehari i oznake,Sportski pehari i oznake,0,0,0,1,0,4
+442,435,2,Kolekcionarstvo > Stare ulaznice,Stare ulaznice,0,0,0,0,0,2
+440,435,2,Kolekcionarstvo > Suveniri,Suveniri,0,0,0,1,0,5
+2478,435,2,Kolekcionarstvo > Tablice za vozila,Tablice za vozila,0,0,0,1,0,5
+441,435,2,Kolekcionarstvo > Telefonske kartice,Telefonske kartice,0,0,0,1,0,4
+453,435,2,Kolekcionarstvo > Zastave,Zastave,0,0,0,1,0,2
+439,435,2,Kolekcionarstvo > Značke,Značke,0,0,0,1,0,4
+2500,435,2,Kolekcionarstvo > Žetoni,Žetoni,0,0,0,1,0,2
+454,435,2,Kolekcionarstvo > Ostalo kolekcionarstvo,Ostalo kolekcionarstvo,0,0,0,1,0,3
+455,,1,Antikviteti,Antikviteti,0,0,0,1,0,4
+458,455,2,Antikviteti > Antik keramika i staklo,Antik keramika i staklo,0,0,0,0,0,5
+1552,455,2,Antikviteti > Knjige i dokumenti,Knjige i dokumenti,0,0,0,0,0,4
+459,455,2,"Antikviteti > Antik predmeti, pribor i oprema","Antik predmeti, pribor i oprema",0,0,0,0,0,5
+461,455,2,Antikviteti > Antik nakit i satovi,Antik nakit i satovi,0,0,0,0,0,4
+456,455,2,Antikviteti > Antik namještaj,Antik namještaj,0,0,0,0,0,4
+1968,455,2,Antikviteti > Pisaće mašine,Pisaće mašine,0,0,0,1,0,5
+460,455,2,Antikviteti > Narodna nošnja,Narodna nošnja,0,0,0,0,0,4
+785,455,2,Antikviteti > Ponjave,Ponjave,0,0,0,1,0,5
+1573,455,2,Antikviteti > Antik predmeti od metala,Antik predmeti od metala,0,0,0,0,0,5
+1553,455,2,Antikviteti > Antik slike i gobleni,Antik slike i gobleni,0,0,0,1,0,4
+457,455,2,Antikviteti > Antik uređaji i aparati,Antik uređaji i aparati,0,0,0,0,0,4
+463,455,2,Antikviteti > Ostali antikviteti,Ostali antikviteti,0,0,0,0,0,4
+179,,1,Karte - Tickets,Karte - Tickets,0,0,0,1,0,0
+181,179,2,Karte - Tickets > Kina,Kina,0,0,0,0,0,5
+180,179,2,Karte - Tickets > Koncerti,Koncerti,0,0,0,0,0,5
+182,179,2,Karte - Tickets > Pozorišta,Pozorišta,0,0,0,0,0,5
+183,179,2,Karte - Tickets > Sportski događaji,Sportski događaji,0,0,0,0,0,5
+184,179,2,Karte - Tickets > Ostale karte i ulaznice,Ostale karte i ulaznice,0,0,0,0,0,5
+328,,1,Sve ostalo,Sve ostalo,0,0,0,1,0,0
+1418,328,2,Sve ostalo > Oprema za pušače,Oprema za pušače,0,0,0,1,0,5
+2608,1418,3,Sve ostalo > Oprema za pušače > Arome za nargile,Arome za nargile,0,0,0,1,0,7
+1713,1418,3,Sve ostalo > Oprema za pušače > Filteri za cigarete,Filteri za cigarete,0,0,0,1,0,5
+1414,1418,3,Sve ostalo > Oprema za pušače > Mašinice za duhan,Mašinice za duhan,0,0,0,1,0,6
+1417,1418,3,Sve ostalo > Oprema za pušače > Nargile,Nargile,0,0,0,1,0,5
+2351,1418,3,Sve ostalo > Oprema za pušače > Oprema za električne cigarete,Oprema za električne cigarete,0,0,0,1,0,5
+2671,1418,3,Sve ostalo > Oprema za pušače > Tečnosti za električne cigare,Tečnosti za električne cigare,0,0,0,1,0,6
+2609,1418,3,Sve ostalo > Oprema za pušače > Oprema za nargile,Oprema za nargile,0,0,0,1,0,5
+2415,1418,3,Sve ostalo > Oprema za pušače > Tabakere,Tabakere,0,0,0,1,0,5
+1415,1418,3,Sve ostalo > Oprema za pušače > Upaljači,Upaljači,0,0,0,1,0,5
+1419,1418,3,Sve ostalo > Oprema za pušače > Ostalo,Ostalo,0,0,0,1,0,5
+1425,328,2,Sve ostalo > Seksualna pomagala,Seksualna pomagala,0,0,0,1,0,0
+2371,1425,3,Sve ostalo > Seksualna pomagala > Lubrikanti i dodaci,Lubrikanti i dodaci,0,0,0,1,0,0
+2387,2371,4,Sve ostalo > Seksualna pomagala > Lubrikanti i dodaci > Kondomi,Kondomi,0,0,0,1,0,7
+2385,2371,4,Sve ostalo > Seksualna pomagala > Lubrikanti i dodaci > Kreme,Kreme,0,0,0,1,0,8
+2383,2371,4,Sve ostalo > Seksualna pomagala > Lubrikanti i dodaci > Lubrikanti,Lubrikanti,0,0,0,1,0,7
+2389,2371,4,Sve ostalo > Seksualna pomagala > Lubrikanti i dodaci > Ostalo,Ostalo,0,0,0,1,0,7
+2367,1425,3,Sve ostalo > Seksualna pomagala > Seksualne igračke,Seksualne igračke,0,0,0,1,0,0
+2377,2367,4,Sve ostalo > Seksualna pomagala > Seksualne igračke > Analni stimulatori,Analni stimulatori,0,0,0,1,0,7
+2375,2367,4,Sve ostalo > Seksualna pomagala > Seksualne igračke > Dildoi,Dildoi,0,0,0,1,0,8
+2379,2367,4,Sve ostalo > Seksualna pomagala > Seksualne igračke > Strap-on,Strap-on,0,0,0,1,0,7
+2373,2367,4,Sve ostalo > Seksualna pomagala > Seksualne igračke > Vibratori,Vibratori,0,0,0,1,0,8
+2381,2367,4,Sve ostalo > Seksualna pomagala > Seksualne igračke > Ostalo,Ostalo,0,0,0,1,0,7
+2369,1425,3,Sve ostalo > Seksualna pomagala > Sexy rublje,Sexy rublje,0,0,0,1,0,5
+1420,328,2,Sve ostalo > Špijunska oprema,Špijunska oprema,0,0,0,1,0,0
+1422,1420,3,Sve ostalo > Špijunska oprema > Bubice,Bubice,0,0,0,1,0,5
+1421,1420,3,Sve ostalo > Špijunska oprema > Špijunske kamere,Špijunske kamere,0,0,0,1,0,7
+1423,1420,3,Sve ostalo > Špijunska oprema > Olovke,Olovke,0,0,0,1,0,5
+1424,1420,3,Sve ostalo > Špijunska oprema > Ostalo,Ostalo,0,0,0,1,0,5
+1736,328,2,Sve ostalo > Maske i maskiranje,Maske i maskiranje,0,0,0,1,0,5
+1428,328,2,Sve ostalo > Pirotehnika,Pirotehnika,0,0,0,1,0,6
+1427,328,2,Sve ostalo > Razni pokloni,Razni pokloni,0,0,0,1,0,3
+2656,328,2,Sve ostalo > Potražnja,Potražnja,0,0,0,0,200,18
+2657,328,2,Sve ostalo > Poklanjam (darujem),Poklanjam (darujem),0,0,0,0,0,5
+369,328,2,Sve ostalo > Ostalo,Ostalo,0,0,0,1,0,5
