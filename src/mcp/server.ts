@@ -9,6 +9,14 @@ import { OlxClient, OlxSpendError } from "../core/index.js";
 import { resolveConfig, listProfileNames } from "../core/config.js";
 import type { SponsorOptions, SponsorType, SponsorDays, RefreshEvery } from "../core/types.js";
 
+// Ucitaj .env iz radnog direktorija ako postoji (Node 20.12+), da tokeni (OLX_TOKEN_<IME>) i
+// OLX_PROFILE budu dostupni i kad server pokrene MCP klijent. Tokeni ostaju u gitignore .env fajlu.
+try {
+  (process as unknown as { loadEnvFile?: (p?: string) => void }).loadEnvFile?.(".env");
+} catch {
+  // .env nije obavezan
+}
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const KB_PATH = resolve(__dirname, "../../olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md");
 const CATEGORIES_PATH = resolve(__dirname, "../../olx-dokumentacija/categories.json");
@@ -16,8 +24,9 @@ const LOCATIONS_PATH = resolve(__dirname, "../../olx-dokumentacija/locations.jso
 
 // Jedan server radi na jednom nalogu (profilu), biranom kroz OLX_PROFILE. Za vise klijenata
 // registruj vise MCP servera (svaki sa svojim OLX_PROFILE / OLX_TOKEN), da se nalozi ne mijesaju.
-const { config, profile: activeProfile } = resolveConfig(process.env.OLX_PROFILE);
-const client = new OlxClient(config);
+// Aktivni nalog moze se mijenjati u toku rada kroz olx_switch_account (jedan server, vise klijenata).
+let { config, profile: activeProfile } = resolveConfig(process.env.OLX_PROFILE);
+let client = new OlxClient(config);
 
 type ToolResult = {
   content: { type: "text"; text: string }[];
@@ -147,8 +156,33 @@ server.registerTool(
     ok({
       active: activeProfile ?? "(jedan OLX_TOKEN, bez profila)",
       profiles: listProfileNames(),
-      napomena: "Jedan server = jedan nalog. Profil se bira kroz OLX_PROFILE pri pokretanju servera.",
+      napomena: "Promijeni nalog sa olx_switch_account, ili pokreni server sa drugim OLX_PROFILE.",
     }),
+);
+
+server.registerTool(
+  "olx_switch_account",
+  {
+    title: "Promijeni nalog",
+    description:
+      "Mijenja aktivni OLX nalog (profil) za SVE naredne pozive na ovom serveru. Koristi kad korisnik kaze da radi za drugog klijenta. Obavezno potvrdi korisniku na koji si nalog presao PRIJE bilo kakvog upisa ili troska kredita, da se radnja ne izvrsi na pogresnom klijentu. Imena profila vidi kroz olx_list_accounts.",
+    inputSchema: { profile: z.string().min(1).describe("ime profila iz olx_list_accounts") },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
+  (args) => {
+    try {
+      const resolved = resolveConfig(args.profile);
+      config = resolved.config;
+      client = new OlxClient(config);
+      activeProfile = resolved.profile;
+      return ok({
+        switched_to: activeProfile ?? args.profile,
+        napomena: "Svi naredni pozivi idu na ovaj nalog. Potvrdi korisniku prije upisa ili troska kredita.",
+      });
+    } catch (e) {
+      return errResult(String(e instanceof Error ? e.message : e));
+    }
+  },
 );
 
 server.registerTool(
