@@ -53,6 +53,55 @@ node --env-file=.env dist/cli/index.js location dump      # -> olx-dokumentacija
 
 Zatim commitaj ta dva fajla. Poslije toga AI/MCP čita kategorije i lokacije iz resursa bez ijednog API poziva. Pojedinačni live upiti su i dalje dostupni (`category list/children/get/brands/models`, `location countries/cities/city`).
 
+## Vise klijenata (profili, vise tokena)
+
+Za vise OLX naloga (razliciti klijenti) koristi profile. Token nikad ne ide u git.
+
+Konfiguracija (bilo koji od tri nacina):
+
+- Fajl `.olx-profiles.json` u korijenu (kopiraj iz `.olx-profiles.example.json`):
+  ```json
+  {
+    "default": "klijent_a",
+    "profiles": {
+      "klijent_a": { "token": "...", "base_url": "https://api.olx.ba" },
+      "klijent_b": { "token": "..." }
+    }
+  }
+  ```
+- Ili env varijable `OLX_TOKEN_<IME>` (npr. `OLX_TOKEN_KLIJENTA=...`).
+- Ili `OLX_PROFILES_FILE` za drugu putanju do fajla.
+
+CLI: biraj profil po pozivu sa `--profile`:
+```bash
+node dist/cli/index.js --profile klijent_a listings ls --all
+node dist/cli/index.js --profile klijent_b refresh all --limit 200 --yes
+node dist/cli/index.js auth profiles            # lista konfigurisanih profila
+```
+Bez `--profile` koristi se `OLX_PROFILE`, pa `default` iz fajla, pa obican `OLX_TOKEN`.
+
+MCP: jedan server radi na jednom nalogu (radi sigurnosti, da se nalozi ne mijesaju). Za vise
+klijenata registruj vise servera u `.mcp.json`, svaki sa svojim `OLX_PROFILE`:
+```json
+{
+  "mcpServers": {
+    "olx-klijent-a": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["dist/mcp/server.js"],
+      "env": { "OLX_PROFILE": "klijent_a", "OLX_PROFILES_FILE": ".olx-profiles.json" }
+    },
+    "olx-klijent-b": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["dist/mcp/server.js"],
+      "env": { "OLX_PROFILE": "klijent_b", "OLX_PROFILES_FILE": ".olx-profiles.json" }
+    }
+  }
+}
+```
+Alat `olx_list_accounts` pokazuje aktivni nalog i sve profile.
+
 ## MCP server
 
 ```bash

@@ -57,6 +57,16 @@ Token je tajna. Ide kroz env varijablu ili `claude mcp add -s user`, nikad u `.m
 commita ni u `.env` koji se commita. `.env` i `*.json` snapshoti tokena su u `.gitignore`. Ako
 korisnik zalijepi token u chat, ne upisuj ga u fajl koji ide na GitHub.
 
+## Vise klijenata (profili)
+
+Za vise OLX naloga koristi profile (token nikad u git):
+- Fajl `.olx-profiles.json` (kopija iz `.olx-profiles.example.json`) sa `default` i mapom `profiles` (ime -> token, opciono base_url).
+- Ili env `OLX_TOKEN_<IME>`. Aktivni profil bira `OLX_PROFILE` ili CLI `--profile <ime>`.
+
+CLI: `node dist/cli/index.js --profile klijent_a listings ls --all`. Lista profila: `olx auth profiles`.
+MCP: jedan server = jedan nalog (da se ne mijesaju). Za vise klijenata registruj vise servera u
+`.mcp.json`, svaki sa svojim `OLX_PROFILE`. Alat `olx_list_accounts` pokazuje aktivni nalog. Detalji u README.
+
 ## Snapshot kategorija i lokacija
 
 Kategorije i lokacije se rijetko mijenjaju, pa se jednom povuku u JSON i koriste kao staticki MCP

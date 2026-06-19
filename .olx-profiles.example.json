@@ -1,0 +1,13 @@
+{
+  "_napomena": "Kopiraj u .olx-profiles.json i upisi prave tokene. Taj fajl je u .gitignore i NE ide u git.",
+  "default": "klijent_a",
+  "profiles": {
+    "klijent_a": {
+      "token": "BEARER_TOKEN_KLIJENTA_A",
+      "base_url": "https://api.olx.ba"
+    },
+    "klijent_b": {
+      "token": "BEARER_TOKEN_KLIJENTA_B"
+    }
+  }
+}

@@ -3,7 +3,7 @@ import { Command } from "commander";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { OlxClient, OlxApiError, OlxAuthError, OlxSpendError } from "../core/index.js";
-import { loadConfig } from "../core/config.js";
+import { resolveConfig, listProfileNames } from "../core/config.js";
 import type { CreateListingInput, SponsorOptions, SponsorType, SponsorDays, RefreshEvery } from "../core/types.js";
 
 // Ucitaj .env ako postoji (Node 20.12+/22). Bez vanjske zavisnosti.
@@ -33,7 +33,8 @@ function fail(err: unknown): never {
 }
 
 function client(): OlxClient {
-  return new OlxClient(loadConfig());
+  const profile = (program.opts() as { profile?: string }).profile;
+  return new OlxClient(resolveConfig(profile).config);
 }
 
 async function withAuth(): Promise<OlxClient> {
@@ -55,10 +56,24 @@ const program = new Command();
 program
   .name("olx")
   .description("Interni CLI za OLX.ba / PIK.ba shopove")
-  .version("0.1.0");
+  .version("0.1.0")
+  .option("-p, --profile <name>", "OLX profil (za vise klijenata/tokena); vidi: olx auth profiles");
 
 // ---- Auth ----
 const auth = program.command("auth").description("Autentifikacija");
+
+auth
+  .command("profiles")
+  .description("Lista konfigurisanih profila (imena, bez tokena)")
+  .action(() => {
+    const names = listProfileNames();
+    if (!names.length) {
+      console.error("Nema konfigurisanih profila. Koristi se jedan OLX_TOKEN.");
+      console.error("Dodaj profile u .olx-profiles.json ili env OLX_TOKEN_<IME>.");
+      return;
+    }
+    out({ profiles: names, napomena: "Aktiviraj profil sa --profile <ime> ili env OLX_PROFILE." });
+  });
 auth
   .command("login")
   .description("Login kredencijalima iz env, ispisuje token")

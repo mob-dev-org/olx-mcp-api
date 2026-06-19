@@ -6,7 +6,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { OlxClient, OlxSpendError } from "../core/index.js";
-import { loadConfig } from "../core/config.js";
+import { resolveConfig, listProfileNames } from "../core/config.js";
 import type { SponsorOptions, SponsorType, SponsorDays, RefreshEvery } from "../core/types.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -14,7 +14,9 @@ const KB_PATH = resolve(__dirname, "../../olx-dokumentacija/OLX_PIK_AI_Knowledge
 const CATEGORIES_PATH = resolve(__dirname, "../../olx-dokumentacija/categories.json");
 const LOCATIONS_PATH = resolve(__dirname, "../../olx-dokumentacija/locations.json");
 
-const config = loadConfig();
+// Jedan server radi na jednom nalogu (profilu), biranom kroz OLX_PROFILE. Za vise klijenata
+// registruj vise MCP servera (svaki sa svojim OLX_PROFILE / OLX_TOKEN), da se nalozi ne mijesaju.
+const { config, profile: activeProfile } = resolveConfig(process.env.OLX_PROFILE);
 const client = new OlxClient(config);
 
 type ToolResult = {
@@ -130,6 +132,23 @@ server.registerTool(
   "olx_whoami",
   { title: "Ko sam", description: "Vraca trenutni nalog. Koristi za test pristupa API-ju.", inputSchema: {}, annotations: readOnly },
   () => run((c) => c.me()),
+);
+
+server.registerTool(
+  "olx_list_accounts",
+  {
+    title: "Nalozi (profili)",
+    description:
+      "Prikazuje aktivni nalog ovog servera i sve konfigurisane profile (bez tokena). Ovaj server radi iskljucivo na aktivnom nalogu. Za drugi nalog koristi MCP server registrovan sa tim profilom.",
+    inputSchema: {},
+    annotations: readOnly,
+  },
+  () =>
+    ok({
+      active: activeProfile ?? "(jedan OLX_TOKEN, bez profila)",
+      profiles: listProfileNames(),
+      napomena: "Jedan server = jedan nalog. Profil se bira kroz OLX_PROFILE pri pokretanju servera.",
+    }),
 );
 
 server.registerTool(
@@ -505,7 +524,8 @@ server.registerTool(
 async function main(): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("olx-pik-mcp-server radi preko stdio.");
+  const acc = activeProfile ? `nalog: ${activeProfile}` : "nalog: default (OLX_TOKEN)";
+  console.error(`olx-pik-mcp-server radi preko stdio. ${acc}`);
 }
 
 main().catch((e) => {
