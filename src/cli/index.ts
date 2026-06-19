@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { OlxClient, OlxApiError, OlxAuthError, OlxSpendError } from "../core/index.js";
 import { resolveConfig, listProfileNames } from "../core/config.js";
-import type { CreateListingInput, SponsorOptions, SponsorType, SponsorDays, RefreshEvery, CategoryNode } from "../core/types.js";
+import type { CreateListingInput, SponsorOptions, SponsorType, SponsorDays, RefreshEvery, CategoryNode, Country, City } from "../core/types.js";
 
 // Ucitaj .env ako postoji (Node 20.12+/22). Bez vanjske zavisnosti.
 try {
@@ -101,6 +101,44 @@ function toCsv(rows: CategoryCsvRow[]): string {
   };
   const lines = [CATEGORY_CSV_HEADERS.join(",")];
   for (const row of rows) lines.push(CATEGORY_CSV_HEADERS.map((h) => esc(row[h])).join(","));
+  return lines.join("\n") + "\n";
+}
+
+// Lagani CSV index lokacija: drzave (country_id) i gradovi (city_id, canton_id) za izbor pri kreiranju.
+const LOCATION_CSV_HEADERS = ["type", "id", "name", "code", "canton_id"] as const;
+
+interface LocationCsvRow {
+  type: "country" | "city";
+  id: number;
+  name: string;
+  code: string;
+  canton_id: number | "";
+}
+
+function flattenLocations(snap: { countries?: Country[]; cities?: City[] }): LocationCsvRow[] {
+  const rows: LocationCsvRow[] = [];
+  for (const country of snap.countries ?? []) {
+    rows.push({ type: "country", id: country.id, name: country.name, code: country.code ?? "", canton_id: "" });
+  }
+  for (const city of snap.cities ?? []) {
+    rows.push({
+      type: "city",
+      id: city.id,
+      name: city.name,
+      code: "",
+      canton_id: typeof city.canton_id === "number" ? city.canton_id : "",
+    });
+  }
+  return rows;
+}
+
+function locationsToCsv(rows: LocationCsvRow[]): string {
+  const esc = (v: unknown): string => {
+    const s = v === null || v === undefined ? "" : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = [LOCATION_CSV_HEADERS.join(",")];
+  for (const row of rows) lines.push(LOCATION_CSV_HEADERS.map((h) => esc(row[h])).join(","));
   return lines.join("\n") + "\n";
 }
 
@@ -627,10 +665,31 @@ location
       const payload = { generated_at: new Date().toISOString(), base_url: c.baseUrl, ...snap };
       mkdirSync(dirname(opts.out), { recursive: true });
       writeFileSync(opts.out, JSON.stringify(payload, null, 2));
+      const csvOut = opts.out.replace(/\.json$/i, ".csv");
+      const rows = flattenLocations(snap);
+      writeFileSync(csvOut, locationsToCsv(rows));
       console.error(
         `Snimljeno: ${snap.countries.length} drzava, ${snap.entities.length} entiteta, ${snap.cities.length} gradova u ${opts.out}.`,
       );
-      console.error("Savjet: commitaj ovaj fajl da MCP resource olx://locations radi bez API poziva.");
+      console.error(`Lagani CSV index: ${csvOut}.`);
+      console.error("Savjet: commitaj oba fajla (JSON + CSV) za MCP resurse olx://locations i olx://locations-index.");
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+location
+  .command("index")
+  .description("Generise lagani CSV index lokacija iz postojeceg locations.json (bez API poziva)")
+  .option("--from <path>", "ulazni JSON", "olx-dokumentacija/locations.json")
+  .option("--out <path>", "izlazni CSV", "olx-dokumentacija/locations.csv")
+  .action((opts: { from: string; out: string }) => {
+    try {
+      const parsed = JSON.parse(readFileSync(opts.from, "utf8")) as { countries?: Country[]; cities?: City[] };
+      const rows = flattenLocations(parsed);
+      mkdirSync(dirname(opts.out), { recursive: true });
+      writeFileSync(opts.out, locationsToCsv(rows));
+      console.error(`Lagani CSV index: ${rows.length} lokacija u ${opts.out}.`);
     } catch (e) {
       fail(e);
     }

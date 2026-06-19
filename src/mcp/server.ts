@@ -22,6 +22,7 @@ const KB_PATH = resolve(__dirname, "../../olx-dokumentacija/OLX_PIK_AI_Knowledge
 const CATEGORIES_PATH = resolve(__dirname, "../../olx-dokumentacija/categories.json");
 const CATEGORIES_CSV_PATH = resolve(__dirname, "../../olx-dokumentacija/categories.csv");
 const LOCATIONS_PATH = resolve(__dirname, "../../olx-dokumentacija/locations.json");
+const LOCATIONS_CSV_PATH = resolve(__dirname, "../../olx-dokumentacija/locations.csv");
 
 // Jedan server radi na jednom nalogu (profilu), biranom kroz OLX_PROFILE. Za vise klijenata
 // registruj vise MCP servera (svaki sa svojim OLX_PROFILE / OLX_TOKEN), da se nalozi ne mijesaju.
@@ -132,14 +133,41 @@ server.registerResource(
   },
 );
 
-// ---- Lokacije kao staticki resource (snapshot, bez API poziva) ----
+// ---- Lagani CSV index lokacija (preferirano za pretragu) ----
+server.registerResource(
+  "locations-index",
+  "olx://locations-index",
+  {
+    title: "OLX/PIK index lokacija (CSV)",
+    description:
+      "Lagani CSV za PRONALAZAK lokacije: kolone type (country|city), id, name, code, canton_id. Koristi OVO da nadjes country_id (BiH = 49) i city_id po imenu. Puni JSON (olx://locations) citaj samo za detalje (lat/lon, zip, state).",
+    mimeType: "text/csv",
+  },
+  async (uri) => {
+    if (!existsSync(LOCATIONS_CSV_PATH)) {
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: "text/plain",
+            text: "CSV index lokacija jos nije generisan. Pokreni: node dist/cli/index.js location dump (ili location index).",
+          },
+        ],
+      };
+    }
+    const text = readFileSync(LOCATIONS_CSV_PATH, "utf8");
+    return { contents: [{ uri: uri.href, mimeType: "text/csv", text }] };
+  },
+);
+
+// ---- Puni JSON lokacija (detaljni snapshot; koristi tek kad CSV index nije dovoljan) ----
 server.registerResource(
   "locations",
   "olx://locations",
   {
-    title: "OLX/PIK lokacije",
+    title: "OLX/PIK lokacije (puni JSON)",
     description:
-      "Keширани snapshot lokacija (olx-dokumentacija/locations.json): drzave, entiteti, gradovi. Citaj odavde za country_id/city_id umjesto iz API-ja. Ako fajl ne postoji, generisi ga sa CLI: location dump.",
+      "Detaljni snapshot lokacija (olx-dokumentacija/locations.json): drzave, entiteti, gradovi sa lat/lon/zip/state. Za obican pronalazak country_id/city_id koristi olx://locations-index (CSV). Ovaj JSON citaj samo za dodatne detalje.",
     mimeType: "application/json",
   },
   async (uri) => {

@@ -73,17 +73,18 @@ Kategorije i lokacije se rijetko mijenjaju, pa se jednom povuku u fajl i koriste
 resource bez stalnog dohvatanja. Pokreni jednom kad token radi:
 ```bash
 node --env-file=.env dist/cli/index.js category dump      # -> categories.json + categories.csv (lagani index)
-node --env-file=.env dist/cli/index.js location dump      # -> locations.json
+node --env-file=.env dist/cli/index.js location dump      # -> locations.json + locations.csv (lagani index)
 ```
-`category dump` pravi i puni `categories.json` i lagani `categories.csv`. CSV se moze regenerisati iz
-JSON-a bez API poziva: `node dist/cli/index.js category index`. Commitaj sve fajlove.
+`category dump` i `location dump` prave i puni JSON i lagani CSV. CSV se moze regenerisati iz JSON-a
+bez API poziva: `category index` i `location index`. Commitaj sve fajlove.
 
 ## MCP resursi (citaj prije nego pozoves API)
 
 - `olx://categories-index` (CSV, lagano) — koristi PRVO za pronalazak kategorije po imenu/path i id.
   Sadrzi i zastavice brand_required, model_required, has_models, show_condition, listing_fee.
 - `olx://categories` (puni JSON, velik) — samo kad trebas polja kojih nema u CSV indexu.
-- `olx://locations` — drzave i gradovi, za `country_id` / `city_id`.
+- `olx://locations-index` (CSV, lagano) — koristi PRVO za `country_id` (BiH = 49) i `city_id` po imenu.
+- `olx://locations` (puni JSON) — samo za detalje (lat/lon, zip, state).
 - `olx://knowledgebase` — API referenca, pravila vidljivosti, dijagnostika (strategija).
 
 Vazno: forme i opcije pojedine kategorije NISU u snapshotima. Za njih pozovi live alat

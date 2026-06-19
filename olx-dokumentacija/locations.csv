@@ -1,0 +1,179 @@
+type,id,name,code,canton_id
+country,24,Albanija,AL,
+country,59,Australija,AU,
+country,28,Austrija,AT,
+country,32,Belgija,BE,
+country,49,Bosna i Hercegovina,BA,
+country,40,Bugarska,BG,
+country,33,Češka Republika,CZ,
+country,26,Crna Gora,ME,
+country,34,Danska,DK,
+country,31,Finska,FI,
+country,38,Francuska,FR,
+country,41,Grčka,GR,
+country,53,Holandija,NL,
+country,22,Hrvatska,HR,
+country,56,Irska,IE,
+country,55,Island,IS,
+country,29,Italija,IT,
+country,58,Kanada,CA,
+country,43,Lihtenštajn,LI,
+country,44,Litvanija,LT,
+country,45,Luksemburg,LU,
+country,42,Mađarska,HU,
+country,27,Njemačka,DE,
+country,35,Norveška,NO,
+country,60,Novi zeland,NZ,
+country,46,Poljska,PL,
+country,52,Portugal,PT,
+country,47,Rumunija,RO,
+country,54,Rusija,RU,
+country,57,Sjedinjene Američke Države,US,
+country,25,Sjeverna Makedonija,MK,
+country,48,Slovačka,SK,
+country,23,Slovenija,SI,
+country,39,Španija,ES,
+country,21,Srbija,RS,
+country,30,Švedska,SE,
+country,37,Švicarska,CH,
+country,50,Turska,TR,
+country,51,Ukrajina,UA,
+country,36,Velika Britanija,GB,
+city,3,Bihać,,1
+city,82,Bosanska Krupa,,1
+city,4,Bosanski Petrovac,,1
+city,7,Bužim,,1
+city,8,Cazin,,1
+city,93,Ključ,,1
+city,32,Sanski Most,,1
+city,104,Velika Kladuša,,1
+city,86,Domaljevac-Šamac,,2
+city,28,Odžak,,2
+city,98,Orašje,,2
+city,2,Banovići,,3
+city,106,Čelić,,3
+city,85,Doboj Istok,,3
+city,15,Gračanica,,3
+city,89,Gradačac,,3
+city,92,Kalesija,,3
+city,21,Kladanj,,3
+city,25,Lukavac,,3
+city,100,Sapna,,3
+city,33,Srebrenik,,3
+city,34,Teočak,,3
+city,37,Tuzla,,3
+city,44,Živinice,,3
+city,83,Breza,,4
+city,9,Doboj Jug,,4
+city,19,Kakanj,,4
+city,96,Maglaj,,4
+city,29,Olovo,,4
+city,35,Tešanj,,4
+city,103,Usora,,4
+city,38,Vareš,,4
+city,39,Visoko,,4
+city,41,Zavidovići,,4
+city,42,Zenica,,4
+city,107,Žepče,,4
+city,88,Goražde,,5
+city,81,Ustikolina,,5
+city,6,Bugojno,,6
+city,84,Busovača,,6
+city,10,Dobretići,,6
+city,11,Donji Vakuf,,6
+city,12,Fojnica,,6
+city,14,Gornji Vakuf-Uskoplje,,6
+city,91,Jajce,,6
+city,20,Kiseljak,,6
+city,94,Kreševo,,6
+city,97,Novi Travnik,,6
+city,36,Travnik,,6
+city,40,Vitez,,6
+city,48,Čapljina,,7
+city,43,Čitluk,,7
+city,18,Jablanica,,7
+city,22,Konjic,,7
+city,26,Mostar,,7
+city,27,Neum,,7
+city,99,Prozor,,7
+city,31,Ravno,,7
+city,101,Stolac,,7
+city,16,Grude,,8
+city,95,Ljubuški,,8
+city,30,Posušje,,8
+city,136,Široki Brijeg,,8
+city,90,Hadžići,,9
+city,80,Ilidža,,9
+city,17,Ilijaš,,9
+city,133,Sarajevo - Centar,,9
+city,132,Sarajevo - Novi Grad,,9
+city,131,Sarajevo - Novo Sarajevo,,9
+city,130,Sarajevo - Stari Grad,,9
+city,139,Trnovo,,9
+city,105,Vogošća,,9
+city,5,Bosansko Grahovo,,10
+city,87,Drvar,,10
+city,13,Glamoč,,10
+city,23,Kupres,,10
+city,24,Livno,,10
+city,102,Tomislavgrad,,10
+city,66,Kostajnica,,16
+city,65,Kozarska Dubica,,16
+city,64,Krupa na Uni,,16
+city,128,Novi Grad,,16
+city,129,Oštra Luka,,16
+city,56,Prijedor,,16
+city,77,Bijeljina,,17
+city,126,Bratunac,,17
+city,117,Lopare,,17
+city,62,Milići,,17
+city,59,Osmaci,,17
+city,46,Šekovići,,17
+city,112,Srebrenica,,17
+city,51,Ugljevik,,17
+city,50,Vlasenica,,17
+city,49,Zvornik,,17
+city,127,Berkovići,,14
+city,78,Bileća,,14
+city,109,Čajniče,,14
+city,124,Foča,,14
+city,73,Gacko,,14
+city,70,Istočni Mostar,,14
+city,120,Kalinovik,,14
+city,63,Ljubinje,,14
+city,60,Nevesinje,,14
+city,115,Novo Goražde,,14
+city,111,Trebinje,,14
+city,76,Brod,,12
+city,125,Derventa,,12
+city,134,Doboj,,12
+city,74,Donji Žabar,,12
+city,116,Modriča,,12
+city,57,Pelagićevo,,12
+city,135,Petrovo,,12
+city,47,Šamac,,12
+city,138,Stanari,,12
+city,52,Teslić,,12
+city,137,Vukosavlje,,12
+city,79,Banja Luka,,11
+city,108,Čelinac,,11
+city,72,Gradiška,,11
+city,68,Jezero,,11
+city,67,Kneževo,,11
+city,119,Kotor Varoš,,11
+city,118,Laktaši,,11
+city,61,Mrkonjić Grad,,11
+city,114,Prnjavor,,11
+city,122,Ribnik,,11
+city,45,Šipovo,,11
+city,53,Srbac,,11
+city,123,Han Pijesak,,13
+city,71,Istočna Ilidža,,13
+city,69,Istočni Stari Grad,,13
+city,121,Istočno Sarajevo,,13
+city,58,Pale,,13
+city,55,Rogatica,,13
+city,54,Rudo,,13
+city,113,Sokolac,,13
+city,110,Višegrad,,13
+city,75,Brčko,,15

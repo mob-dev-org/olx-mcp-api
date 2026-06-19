@@ -48,7 +48,7 @@ Kategorije i lokacije se rijetko mijenjaju, pa se jednom povuku u JSON i koriste
 
 ```bash
 node --env-file=.env dist/cli/index.js category dump      # -> olx-dokumentacija/categories.json
-node --env-file=.env dist/cli/index.js location dump      # -> olx-dokumentacija/locations.json
+node --env-file=.env dist/cli/index.js location dump      # -> locations.json + locations.csv (lagani index)
 ```
 
 `category dump` uz puni `categories.json` pravi i lagani `categories.csv` (index: id, parent_id, level, path, name + zastavice brand/model/has_models/show_condition/fee). CSV se regenerise iz JSON-a i bez API poziva: `node dist/cli/index.js category index`.
@@ -57,7 +57,8 @@ Zatim commitaj te fajlove. Poslije toga AI/MCP cita kategorije i lokacije iz res
 
 - `olx://categories-index` (CSV) za PRONALAZAK kategorije po imenu/path. Lagano, koristi prvo.
 - `olx://categories` (puni JSON) samo kad trebas polja kojih nema u CSV-u.
-- `olx://locations` za drzave/gradove.
+- `olx://locations-index` (CSV) za `country_id` (BiH = 49) i `city_id` po imenu. Lagano, koristi prvo.
+- `olx://locations` (puni JSON) samo za detalje (lat/lon, zip, state).
 
 Za forme i opcije izabrane kategorije koristi live alat `olx_category_attributes <id>` (opcije nisu u snapshotu, dolaze iz API-ja). Pojedinacni live upiti su i dalje dostupni (`category list/children/get/brands/models`, `location countries/cities/city`).
 
