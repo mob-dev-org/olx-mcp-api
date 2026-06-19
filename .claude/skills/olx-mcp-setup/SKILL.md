@@ -69,13 +69,25 @@ MCP: jedan server = jedan nalog (da se ne mijesaju). Za vise klijenata registruj
 
 ## Snapshot kategorija i lokacija
 
-Kategorije i lokacije se rijetko mijenjaju, pa se jednom povuku u JSON i koriste kao staticki MCP
-resource (`olx://categories`, `olx://locations`) bez stalnog dohvatanja. Pokreni jednom kad token radi:
+Kategorije i lokacije se rijetko mijenjaju, pa se jednom povuku u fajl i koriste kao staticki MCP
+resource bez stalnog dohvatanja. Pokreni jednom kad token radi:
 ```bash
-node --env-file=.env dist/cli/index.js category dump      # -> olx-dokumentacija/categories.json
-node --env-file=.env dist/cli/index.js location dump      # -> olx-dokumentacija/locations.json
+node --env-file=.env dist/cli/index.js category dump      # -> categories.json + categories.csv (lagani index)
+node --env-file=.env dist/cli/index.js location dump      # -> locations.json
 ```
-Zatim commitaj ta dva fajla.
+`category dump` pravi i puni `categories.json` i lagani `categories.csv`. CSV se moze regenerisati iz
+JSON-a bez API poziva: `node dist/cli/index.js category index`. Commitaj sve fajlove.
+
+## MCP resursi (citaj prije nego pozoves API)
+
+- `olx://categories-index` (CSV, lagano) — koristi PRVO za pronalazak kategorije po imenu/path i id.
+  Sadrzi i zastavice brand_required, model_required, has_models, show_condition, listing_fee.
+- `olx://categories` (puni JSON, velik) — samo kad trebas polja kojih nema u CSV indexu.
+- `olx://locations` — drzave i gradovi, za `country_id` / `city_id`.
+- `olx://knowledgebase` — API referenca, pravila vidljivosti, dijagnostika (strategija).
+
+Vazno: forme i opcije pojedine kategorije NISU u snapshotima. Za njih pozovi live alat
+`olx_category_attributes <id>`. Tok: nadji kategoriju u CSV indexu -> uzmi opcije preko atributa.
 
 ## Brzi izbor alata (sta za sta)
 
@@ -83,9 +95,12 @@ Sigurno (citanje, bez troska):
 - `whoami` / `olx_whoami` — test pristupa i ko je ulogovan.
 - `listings ls` / `olx_list_listings` — oglasi po stanju (active, finished, inactive, expired, hidden).
 - `listings get` / `olx_get_listing` — detalji jednog oglasa.
-- `category suggest|find|list|children|get|brands|models` / `olx_suggest_category`, `olx_find_category`,
-  `olx_categories`, `olx_category`, `olx_category_brands`, `olx_category_models` — kategorije i atributi.
+- `category suggest|find|list|children|get|brands|models|attributes` / `olx_suggest_category`,
+  `olx_find_category`, `olx_categories`, `olx_category`, `olx_category_brands`, `olx_category_models`,
+  `olx_category_attributes` — kategorije, brendovi/modeli i forme/opcije. Za samo pronalazak kategorije
+  radije citaj resource `olx://categories-index` nego da listas preko API-ja.
 - `location countries|cities|city` / `olx_countries`, `olx_cities`, `olx_city` — `country_id` i `city_id` za create.
+- Nalozi: `auth profiles` / `olx_list_accounts`, prebacivanje naloga `olx_switch_account` (jedan server).
 - `refresh limits` / `olx_refresh_limits` i `listings limits` / `olx_listing_limits` — limiti.
 - `sponsor price` / `olx_sponsor_price` — cijena izdvajanja u kreditima (ne trosi).
 

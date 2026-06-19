@@ -36,7 +36,9 @@ i izdvajanje odlucuju KOLIKO si visoko. Bez toga savjeti su nagadjanje.
    - `olx_refresh_limits` — koliko besplatnih obnova je ostalo ovaj mjesec.
    - `olx_sponsor_price` SAMO ako razmatras izdvajanje (vraca cijenu, ne trosi).
 3. Dijagnostikuj svaki problematican oglas po pravilima iz `olx://knowledgebase` (sekcija dijagnostika).
-4. Napravi izvjestaj po sablonu nize i predlozi konkretne, prioritetne akcije.
+4. Za sumnju na pogresnu kategoriju provjeri kroz resource `olx://categories-index` (CSV: path, id, zastavice);
+   za obavezne forme tacne kategorije pozovi `olx_category_attributes <id>`. Ne ucitavaj cijeli categories JSON.
+5. Napravi izvjestaj po sablonu nize i predlozi konkretne, prioritetne akcije.
 
 Detaljan recept (kako citati naslove, cijene, kako rasporediti obnove, sablon izvjestaja) je u
 `references/analiza-recept.md`. Procitaj ga kad radis punu analizu profila.
