@@ -1,0 +1,2976 @@
+{
+  "generated_at": "2026-06-19T09:38:42.835Z",
+  "base_url": "https://api.olx.ba",
+  "countries": [
+    {
+      "id": 24,
+      "name": "Albanija",
+      "code": "AL"
+    },
+    {
+      "id": 59,
+      "name": "Australija",
+      "code": "AU"
+    },
+    {
+      "id": 28,
+      "name": "Austrija",
+      "code": "AT"
+    },
+    {
+      "id": 32,
+      "name": "Belgija",
+      "code": "BE"
+    },
+    {
+      "id": 49,
+      "name": "Bosna i Hercegovina",
+      "code": "BA"
+    },
+    {
+      "id": 40,
+      "name": "Bugarska",
+      "code": "BG"
+    },
+    {
+      "id": 33,
+      "name": "Češka Republika",
+      "code": "CZ"
+    },
+    {
+      "id": 26,
+      "name": "Crna Gora",
+      "code": "ME"
+    },
+    {
+      "id": 34,
+      "name": "Danska",
+      "code": "DK"
+    },
+    {
+      "id": 31,
+      "name": "Finska",
+      "code": "FI"
+    },
+    {
+      "id": 38,
+      "name": "Francuska",
+      "code": "FR"
+    },
+    {
+      "id": 41,
+      "name": "Grčka",
+      "code": "GR"
+    },
+    {
+      "id": 53,
+      "name": "Holandija",
+      "code": "NL"
+    },
+    {
+      "id": 22,
+      "name": "Hrvatska",
+      "code": "HR"
+    },
+    {
+      "id": 56,
+      "name": "Irska",
+      "code": "IE"
+    },
+    {
+      "id": 55,
+      "name": "Island",
+      "code": "IS"
+    },
+    {
+      "id": 29,
+      "name": "Italija",
+      "code": "IT"
+    },
+    {
+      "id": 58,
+      "name": "Kanada",
+      "code": "CA"
+    },
+    {
+      "id": 43,
+      "name": "Lihtenštajn",
+      "code": "LI"
+    },
+    {
+      "id": 44,
+      "name": "Litvanija",
+      "code": "LT"
+    },
+    {
+      "id": 45,
+      "name": "Luksemburg",
+      "code": "LU"
+    },
+    {
+      "id": 42,
+      "name": "Mađarska",
+      "code": "HU"
+    },
+    {
+      "id": 27,
+      "name": "Njemačka",
+      "code": "DE"
+    },
+    {
+      "id": 35,
+      "name": "Norveška",
+      "code": "NO"
+    },
+    {
+      "id": 60,
+      "name": "Novi zeland",
+      "code": "NZ"
+    },
+    {
+      "id": 46,
+      "name": "Poljska",
+      "code": "PL"
+    },
+    {
+      "id": 52,
+      "name": "Portugal",
+      "code": "PT"
+    },
+    {
+      "id": 47,
+      "name": "Rumunija",
+      "code": "RO"
+    },
+    {
+      "id": 54,
+      "name": "Rusija",
+      "code": "RU"
+    },
+    {
+      "id": 57,
+      "name": "Sjedinjene Američke Države",
+      "code": "US"
+    },
+    {
+      "id": 25,
+      "name": "Sjeverna Makedonija",
+      "code": "MK"
+    },
+    {
+      "id": 48,
+      "name": "Slovačka",
+      "code": "SK"
+    },
+    {
+      "id": 23,
+      "name": "Slovenija",
+      "code": "SI"
+    },
+    {
+      "id": 39,
+      "name": "Španija",
+      "code": "ES"
+    },
+    {
+      "id": 21,
+      "name": "Srbija",
+      "code": "RS"
+    },
+    {
+      "id": 30,
+      "name": "Švedska",
+      "code": "SE"
+    },
+    {
+      "id": 37,
+      "name": "Švicarska",
+      "code": "CH"
+    },
+    {
+      "id": 50,
+      "name": "Turska",
+      "code": "TR"
+    },
+    {
+      "id": 51,
+      "name": "Ukrajina",
+      "code": "UA"
+    },
+    {
+      "id": 36,
+      "name": "Velika Britanija",
+      "code": "GB"
+    }
+  ],
+  "entities": [
+    {
+      "id": 1,
+      "name": "Federacija BiH",
+      "code": "FBiH",
+      "cantons": [
+        {
+          "id": 1,
+          "name": "Unsko-sanski kanton",
+          "cities": [
+            {
+              "id": 3,
+              "name": "Bihać",
+              "location": {
+                "lat": "44.8146563",
+                "lon": "15.86896"
+              },
+              "canton_id": 1
+            },
+            {
+              "id": 82,
+              "name": "Bosanska Krupa",
+              "location": {
+                "lat": "44.8824428",
+                "lon": "16.1577"
+              },
+              "canton_id": 1
+            },
+            {
+              "id": 4,
+              "name": "Bosanski Petrovac",
+              "location": {
+                "lat": "44.5543706",
+                "lon": "16.3686978"
+              },
+              "canton_id": 1
+            },
+            {
+              "id": 7,
+              "name": "Bužim",
+              "location": {
+                "lat": "45.062136",
+                "lon": "16.03115"
+              },
+              "canton_id": 1
+            },
+            {
+              "id": 8,
+              "name": "Cazin",
+              "location": {
+                "lat": "44.9665331",
+                "lon": "15.9422967"
+              },
+              "canton_id": 1
+            },
+            {
+              "id": 93,
+              "name": "Ključ",
+              "location": {
+                "lat": "44.533341",
+                "lon": "16.7761951"
+              },
+              "canton_id": 1
+            },
+            {
+              "id": 32,
+              "name": "Sanski Most",
+              "location": {
+                "lat": "44.7651882",
+                "lon": "16.6656827"
+              },
+              "canton_id": 1
+            },
+            {
+              "id": 104,
+              "name": "Velika Kladuša",
+              "location": {
+                "lat": "45.1843299",
+                "lon": "15.8069257"
+              },
+              "canton_id": 1
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "name": "Posavski kanton",
+          "cities": [
+            {
+              "id": 86,
+              "name": "Domaljevac-Šamac",
+              "location": {
+                "lat": "45.059479",
+                "lon": "18.583741"
+              },
+              "canton_id": 2
+            },
+            {
+              "id": 28,
+              "name": "Odžak",
+              "location": {
+                "lat": "45.0120765",
+                "lon": "18.3261246"
+              },
+              "canton_id": 2
+            },
+            {
+              "id": 98,
+              "name": "Orašje",
+              "location": {
+                "lat": "45.0342753",
+                "lon": "18.6943254"
+              },
+              "canton_id": 2
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "name": "Tuzlanski kanton",
+          "cities": [
+            {
+              "id": 2,
+              "name": "Banovići",
+              "location": {
+                "lat": "44.4088812",
+                "lon": "18.5292365"
+              },
+              "canton_id": 3
+            },
+            {
+              "id": 106,
+              "name": "Čelić",
+              "location": {
+                "lat": "44.722508",
+                "lon": "18.8200011"
+              },
+              "canton_id": 3
+            },
+            {
+              "id": 85,
+              "name": "Doboj Istok",
+              "location": {
+                "lat": "44.727564",
+                "lon": "18.185772"
+              },
+              "canton_id": 3
+            },
+            {
+              "id": 15,
+              "name": "Gračanica",
+              "location": {
+                "lat": "44.7043396",
+                "lon": "18.310107"
+              },
+              "canton_id": 3
+            },
+            {
+              "id": 89,
+              "name": "Gradačac",
+              "location": {
+                "lat": "44.8781486",
+                "lon": "18.4254813"
+              },
+              "canton_id": 3
+            },
+            {
+              "id": 92,
+              "name": "Kalesija",
+              "location": {
+                "lat": "44.4429857",
+                "lon": "18.8756758"
+              },
+              "canton_id": 3
+            },
+            {
+              "id": 21,
+              "name": "Kladanj",
+              "location": {
+                "lat": "44.2252216",
+                "lon": "18.6940672"
+              },
+              "canton_id": 3
+            },
+            {
+              "id": 25,
+              "name": "Lukavac",
+              "location": {
+                "lat": "44.5344136",
+                "lon": "18.5325309"
+              },
+              "canton_id": 3
+            },
+            {
+              "id": 100,
+              "name": "Sapna",
+              "location": {
+                "lat": "44.4916604",
+                "lon": "19.0027278"
+              },
+              "canton_id": 3
+            },
+            {
+              "id": 33,
+              "name": "Srebrenik",
+              "location": {
+                "lat": "44.7048957",
+                "lon": "18.4912709"
+              },
+              "canton_id": 3
+            },
+            {
+              "id": 34,
+              "name": "Teočak",
+              "location": {
+                "lat": "44.60171045",
+                "lon": "18.980790362486463"
+              },
+              "canton_id": 3
+            },
+            {
+              "id": 37,
+              "name": "Tuzla",
+              "location": {
+                "lat": "44.5391105",
+                "lon": "18.675193"
+              },
+              "canton_id": 3
+            },
+            {
+              "id": 44,
+              "name": "Živinice",
+              "location": {
+                "lat": "44.451574",
+                "lon": "18.6501306"
+              },
+              "canton_id": 3
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "name": "Zeničko-dobojski kanton",
+          "cities": [
+            {
+              "id": 83,
+              "name": "Breza",
+              "location": {
+                "lat": "44.0182913",
+                "lon": "18.2608652"
+              },
+              "canton_id": 4
+            },
+            {
+              "id": 9,
+              "name": "Doboj Jug",
+              "location": {
+                "lat": "44.695693",
+                "lon": "18.051527"
+              },
+              "canton_id": 4
+            },
+            {
+              "id": 19,
+              "name": "Kakanj",
+              "location": {
+                "lat": "44.128571",
+                "lon": "18.1184071"
+              },
+              "canton_id": 4
+            },
+            {
+              "id": 96,
+              "name": "Maglaj",
+              "location": {
+                "lat": "44.5468344",
+                "lon": "18.1011571"
+              },
+              "canton_id": 4
+            },
+            {
+              "id": 29,
+              "name": "Olovo",
+              "location": {
+                "lat": "44.1269033",
+                "lon": "18.580233"
+              },
+              "canton_id": 4
+            },
+            {
+              "id": 35,
+              "name": "Tešanj",
+              "location": {
+                "lat": "44.6133803",
+                "lon": "17.9862488"
+              },
+              "canton_id": 4
+            },
+            {
+              "id": 103,
+              "name": "Usora",
+              "location": {
+                "lat": "44.670247",
+                "lon": "18.000855"
+              },
+              "canton_id": 4
+            },
+            {
+              "id": 38,
+              "name": "Vareš",
+              "location": {
+                "lat": "44.1633731",
+                "lon": "18.3285369"
+              },
+              "canton_id": 4
+            },
+            {
+              "id": 39,
+              "name": "Visoko",
+              "location": {
+                "lat": "43.9894986",
+                "lon": "18.1816434"
+              },
+              "canton_id": 4
+            },
+            {
+              "id": 41,
+              "name": "Zavidovići",
+              "location": {
+                "lat": "44.4388706",
+                "lon": "18.1458239"
+              },
+              "canton_id": 4
+            },
+            {
+              "id": 42,
+              "name": "Zenica",
+              "location": {
+                "lat": "44.199828",
+                "lon": "17.9093012"
+              },
+              "canton_id": 4
+            },
+            {
+              "id": 107,
+              "name": "Žepče",
+              "location": {
+                "lat": "44.4239617",
+                "lon": "18.037904"
+              },
+              "canton_id": 4
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "name": "Bosansko-podrinjski kanton",
+          "cities": [
+            {
+              "id": 88,
+              "name": "Goražde",
+              "location": {
+                "lat": "43.6684375",
+                "lon": "18.9759265"
+              },
+              "canton_id": 5
+            },
+            {
+              "id": 81,
+              "name": "Ustikolina",
+              "location": {
+                "lat": "43.5821274",
+                "lon": "18.791767"
+              },
+              "canton_id": 5
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "name": "Srednjobosanski kanton",
+          "cities": [
+            {
+              "id": 6,
+              "name": "Bugojno",
+              "location": {
+                "lat": "44.0558542",
+                "lon": "17.4509043"
+              },
+              "canton_id": 6
+            },
+            {
+              "id": 84,
+              "name": "Busovača",
+              "location": {
+                "lat": "44.0984764",
+                "lon": "17.8791295"
+              },
+              "canton_id": 6
+            },
+            {
+              "id": 10,
+              "name": "Dobretići",
+              "location": {
+                "lat": "44.3742746",
+                "lon": "17.4162028"
+              },
+              "canton_id": 6
+            },
+            {
+              "id": 11,
+              "name": "Donji Vakuf",
+              "location": {
+                "lat": "44.144488",
+                "lon": "17.3949964"
+              },
+              "canton_id": 6
+            },
+            {
+              "id": 12,
+              "name": "Fojnica",
+              "location": {
+                "lat": "43.9634432",
+                "lon": "17.8990217"
+              },
+              "canton_id": 6
+            },
+            {
+              "id": 14,
+              "name": "Gornji Vakuf-Uskoplje",
+              "location": {
+                "lat": "43.9385698",
+                "lon": "17.5853035"
+              },
+              "canton_id": 6
+            },
+            {
+              "id": 91,
+              "name": "Jajce",
+              "location": {
+                "lat": "44.3393339",
+                "lon": "17.271046"
+              },
+              "canton_id": 6
+            },
+            {
+              "id": 20,
+              "name": "Kiseljak",
+              "location": {
+                "lat": "43.9431668",
+                "lon": "18.0774711"
+              },
+              "canton_id": 6
+            },
+            {
+              "id": 94,
+              "name": "Kreševo",
+              "location": {
+                "lat": "43.8657424",
+                "lon": "18.0421665"
+              },
+              "canton_id": 6
+            },
+            {
+              "id": 97,
+              "name": "Novi Travnik",
+              "location": {
+                "lat": "44.1707502",
+                "lon": "17.6576521"
+              },
+              "canton_id": 6
+            },
+            {
+              "id": 36,
+              "name": "Travnik",
+              "location": {
+                "lat": "44.2259454",
+                "lon": "17.6661738"
+              },
+              "canton_id": 6
+            },
+            {
+              "id": 40,
+              "name": "Vitez",
+              "location": {
+                "lat": "44.150409",
+                "lon": "17.791462"
+              },
+              "canton_id": 6
+            }
+          ]
+        },
+        {
+          "id": 7,
+          "name": "Hercegovačko-neretvanski kanton",
+          "cities": [
+            {
+              "id": 48,
+              "name": "Čapljina",
+              "location": {
+                "lat": "43.1133536",
+                "lon": "17.705039"
+              },
+              "canton_id": 7
+            },
+            {
+              "id": 43,
+              "name": "Čitluk",
+              "location": {
+                "lat": "43.2267192",
+                "lon": "17.6963313"
+              },
+              "canton_id": 7
+            },
+            {
+              "id": 18,
+              "name": "Jablanica",
+              "location": {
+                "lat": "43.6617485",
+                "lon": "17.7618471"
+              },
+              "canton_id": 7
+            },
+            {
+              "id": 22,
+              "name": "Konjic",
+              "location": {
+                "lat": "43.65467",
+                "lon": "17.962732"
+              },
+              "canton_id": 7
+            },
+            {
+              "id": 26,
+              "name": "Mostar",
+              "location": {
+                "lat": "43.344996",
+                "lon": "17.809362"
+              },
+              "canton_id": 7
+            },
+            {
+              "id": 27,
+              "name": "Neum",
+              "location": {
+                "lat": "42.926122856179916",
+                "lon": "17.61581487618788"
+              },
+              "canton_id": 7
+            },
+            {
+              "id": 99,
+              "name": "Prozor",
+              "location": {
+                "lat": "43.82214869504322",
+                "lon": "17.609107486819166"
+              },
+              "canton_id": 7
+            },
+            {
+              "id": 31,
+              "name": "Ravno",
+              "location": {
+                "lat": "42.8873119",
+                "lon": "17.9645863"
+              },
+              "canton_id": 7
+            },
+            {
+              "id": 101,
+              "name": "Stolac",
+              "location": {
+                "lat": "43.08218720555419",
+                "lon": "17.956549391485947"
+              },
+              "canton_id": 7
+            }
+          ]
+        },
+        {
+          "id": 8,
+          "name": "Zapadnohercegovački kanton",
+          "cities": [
+            {
+              "id": 16,
+              "name": "Grude",
+              "location": {
+                "lat": "43.371199029053",
+                "lon": "17.415147474053445"
+              },
+              "canton_id": 8
+            },
+            {
+              "id": 95,
+              "name": "Ljubuški",
+              "location": {
+                "lat": "43.1963022",
+                "lon": "17.5447857"
+              },
+              "canton_id": 8
+            },
+            {
+              "id": 30,
+              "name": "Posušje",
+              "location": {
+                "lat": "43.4712288",
+                "lon": "17.3271281"
+              },
+              "canton_id": 8
+            },
+            {
+              "id": 136,
+              "name": "Široki Brijeg",
+              "location": {
+                "lat": "43.38258878780839",
+                "lon": "17.59412644511597"
+              },
+              "canton_id": 8
+            }
+          ]
+        },
+        {
+          "id": 9,
+          "name": "Kanton Sarajevo",
+          "cities": [
+            {
+              "id": 90,
+              "name": "Hadžići",
+              "location": {
+                "lat": "43.8223256",
+                "lon": "18.2031453"
+              },
+              "canton_id": 9
+            },
+            {
+              "id": 80,
+              "name": "Ilidža",
+              "location": {
+                "lat": "43.8306182",
+                "lon": "18.3077357"
+              },
+              "canton_id": 9
+            },
+            {
+              "id": 17,
+              "name": "Ilijaš",
+              "location": {
+                "lat": "43.95645",
+                "lon": "18.2661553"
+              },
+              "canton_id": 9
+            },
+            {
+              "id": 133,
+              "name": "Sarajevo - Centar",
+              "location": {
+                "lat": "43.85547203690044",
+                "lon": "18.408615515357727"
+              },
+              "canton_id": 9
+            },
+            {
+              "id": 132,
+              "name": "Sarajevo - Novi Grad",
+              "location": {
+                "lat": "43.8463828000579",
+                "lon": "18.356379276201494"
+              },
+              "canton_id": 9
+            },
+            {
+              "id": 131,
+              "name": "Sarajevo - Novo Sarajevo",
+              "location": {
+                "lat": "43.8588926",
+                "lon": "18.3995832"
+              },
+              "canton_id": 9
+            },
+            {
+              "id": 130,
+              "name": "Sarajevo - Stari Grad",
+              "location": {
+                "lat": "43.85921662712411",
+                "lon": "18.433317979576664"
+              },
+              "canton_id": 9
+            },
+            {
+              "id": 139,
+              "name": "Trnovo",
+              "location": {
+                "lat": "43.6654827",
+                "lon": "18.4465122"
+              },
+              "canton_id": 9
+            },
+            {
+              "id": 105,
+              "name": "Vogošća",
+              "location": {
+                "lat": "43.901488",
+                "lon": "18.3433749"
+              },
+              "canton_id": 9
+            }
+          ]
+        },
+        {
+          "id": 10,
+          "name": "Kanton 10",
+          "cities": [
+            {
+              "id": 5,
+              "name": "Bosansko Grahovo",
+              "location": {
+                "lat": "44.1794878",
+                "lon": "16.3639977"
+              },
+              "canton_id": 10
+            },
+            {
+              "id": 87,
+              "name": "Drvar",
+              "location": {
+                "lat": "44.374201922788366",
+                "lon": "16.383675800236453"
+              },
+              "canton_id": 10
+            },
+            {
+              "id": 13,
+              "name": "Glamoč",
+              "location": {
+                "lat": "44.04703506072085",
+                "lon": "16.849359012341665"
+              },
+              "canton_id": 10
+            },
+            {
+              "id": 23,
+              "name": "Kupres",
+              "location": {
+                "lat": "43.9927632",
+                "lon": "17.2774677"
+              },
+              "canton_id": 10
+            },
+            {
+              "id": 24,
+              "name": "Livno",
+              "location": {
+                "lat": "43.8259136",
+                "lon": "17.0042416"
+              },
+              "canton_id": 10
+            },
+            {
+              "id": 102,
+              "name": "Tomislavgrad",
+              "location": {
+                "lat": "43.7169169",
+                "lon": "17.2278277"
+              },
+              "canton_id": 10
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Republika Srpska",
+      "code": "RS",
+      "cantons": [
+        {
+          "id": 16,
+          "name": "Regija Prijedor",
+          "cities": [
+            {
+              "id": 66,
+              "name": "Kostajnica",
+              "location": {
+                "lat": "45.2187079",
+                "lon": "16.5463194"
+              },
+              "canton_id": 16
+            },
+            {
+              "id": 65,
+              "name": "Kozarska Dubica",
+              "location": {
+                "lat": "45.18133026049634",
+                "lon": "16.808731056766167"
+              },
+              "canton_id": 16
+            },
+            {
+              "id": 64,
+              "name": "Krupa na Uni",
+              "location": {
+                "lat": "44.90384355",
+                "lon": "16.295729438499272"
+              },
+              "canton_id": 16
+            },
+            {
+              "id": 128,
+              "name": "Novi Grad",
+              "location": {
+                "lat": "45.0489865",
+                "lon": "16.3776502"
+              },
+              "canton_id": 16
+            },
+            {
+              "id": 129,
+              "name": "Oštra Luka",
+              "location": {
+                "lat": "44.99934806160073",
+                "lon": "18.585839978629398"
+              },
+              "canton_id": 16
+            },
+            {
+              "id": 56,
+              "name": "Prijedor",
+              "location": {
+                "lat": "44.9805039",
+                "lon": "16.7131197"
+              },
+              "canton_id": 16
+            }
+          ]
+        },
+        {
+          "id": 17,
+          "name": "Regija Bijeljina",
+          "cities": [
+            {
+              "id": 77,
+              "name": "Bijeljina",
+              "location": {
+                "lat": "44.7568464",
+                "lon": "19.2156628"
+              },
+              "canton_id": 17
+            },
+            {
+              "id": 126,
+              "name": "Bratunac",
+              "location": {
+                "lat": "44.1849993",
+                "lon": "19.3321845"
+              },
+              "canton_id": 17
+            },
+            {
+              "id": 117,
+              "name": "Lopare",
+              "location": {
+                "lat": "44.6356497",
+                "lon": "18.8441138"
+              },
+              "canton_id": 17
+            },
+            {
+              "id": 62,
+              "name": "Milići",
+              "location": {
+                "lat": "44.1679392",
+                "lon": "19.0800629"
+              },
+              "canton_id": 17
+            },
+            {
+              "id": 59,
+              "name": "Osmaci",
+              "location": {
+                "lat": "44.39068682095979",
+                "lon": "18.898914631004768"
+              },
+              "canton_id": 17
+            },
+            {
+              "id": 46,
+              "name": "Šekovići",
+              "location": {
+                "lat": "44.2978089",
+                "lon": "18.8523779"
+              },
+              "canton_id": 17
+            },
+            {
+              "id": 112,
+              "name": "Srebrenica",
+              "location": {
+                "lat": "44.10378251419867",
+                "lon": "19.298846765784223"
+              },
+              "canton_id": 17
+            },
+            {
+              "id": 51,
+              "name": "Ugljevik",
+              "location": {
+                "lat": "44.6930533",
+                "lon": "18.9945989"
+              },
+              "canton_id": 17
+            },
+            {
+              "id": 50,
+              "name": "Vlasenica",
+              "location": {
+                "lat": "44.18247526902583",
+                "lon": "18.94125453640801"
+              },
+              "canton_id": 17
+            },
+            {
+              "id": 49,
+              "name": "Zvornik",
+              "location": {
+                "lat": "44.3854067",
+                "lon": "19.1027717"
+              },
+              "canton_id": 17
+            }
+          ]
+        },
+        {
+          "id": 14,
+          "name": "Regija Trebinje",
+          "cities": [
+            {
+              "id": 127,
+              "name": "Berkovići",
+              "location": {
+                "lat": "43.0945271",
+                "lon": "18.1691429"
+              },
+              "canton_id": 14
+            },
+            {
+              "id": 78,
+              "name": "Bileća",
+              "location": {
+                "lat": "42.8748513",
+                "lon": "18.4279766"
+              },
+              "canton_id": 14
+            },
+            {
+              "id": 109,
+              "name": "Čajniče",
+              "location": {
+                "lat": "43.5568196",
+                "lon": "19.0715447"
+              },
+              "canton_id": 14
+            },
+            {
+              "id": 124,
+              "name": "Foča",
+              "location": {
+                "lat": "43.5058554",
+                "lon": "18.774393"
+              },
+              "canton_id": 14
+            },
+            {
+              "id": 73,
+              "name": "Gacko",
+              "location": {
+                "lat": "43.1664068",
+                "lon": "18.5357977"
+              },
+              "canton_id": 14
+            },
+            {
+              "id": 70,
+              "name": "Istočni Mostar",
+              "location": {
+                "lat": "43.40879036279628",
+                "lon": "17.9999889114234"
+              },
+              "canton_id": 14
+            },
+            {
+              "id": 120,
+              "name": "Kalinovik",
+              "location": {
+                "lat": "43.5043116",
+                "lon": "18.4467193"
+              },
+              "canton_id": 14
+            },
+            {
+              "id": 63,
+              "name": "Ljubinje",
+              "location": {
+                "lat": "42.9515429",
+                "lon": "18.08992"
+              },
+              "canton_id": 14
+            },
+            {
+              "id": 60,
+              "name": "Nevesinje",
+              "location": {
+                "lat": "43.258225784685756",
+                "lon": "18.113277212708578"
+              },
+              "canton_id": 14
+            },
+            {
+              "id": 115,
+              "name": "Novo Goražde",
+              "location": {
+                "lat": "43.6781801726924",
+                "lon": "19.022793451228367"
+              },
+              "canton_id": 14
+            },
+            {
+              "id": 111,
+              "name": "Trebinje",
+              "location": {
+                "lat": "42.709990373868806",
+                "lon": "18.344569539703592"
+              },
+              "canton_id": 14
+            }
+          ]
+        },
+        {
+          "id": 12,
+          "name": "Regija Doboj",
+          "cities": [
+            {
+              "id": 76,
+              "name": "Brod",
+              "location": {
+                "lat": "45.1464044",
+                "lon": "17.9991557"
+              },
+              "canton_id": 12
+            },
+            {
+              "id": 125,
+              "name": "Derventa",
+              "location": {
+                "lat": "44.9767094",
+                "lon": "17.906959"
+              },
+              "canton_id": 12
+            },
+            {
+              "id": 134,
+              "name": "Doboj",
+              "location": {
+                "lat": "44.720103025334964",
+                "lon": "18.08329736524907"
+              },
+              "canton_id": 12
+            },
+            {
+              "id": 74,
+              "name": "Donji Žabar",
+              "location": {
+                "lat": "44.9481245",
+                "lon": "18.6422235"
+              },
+              "canton_id": 12
+            },
+            {
+              "id": 116,
+              "name": "Modriča",
+              "location": {
+                "lat": "44.9565236",
+                "lon": "18.3011351"
+              },
+              "canton_id": 12
+            },
+            {
+              "id": 57,
+              "name": "Pelagićevo",
+              "location": {
+                "lat": "44.9064243",
+                "lon": "18.6119121"
+              },
+              "canton_id": 12
+            },
+            {
+              "id": 135,
+              "name": "Petrovo",
+              "location": {
+                "lat": "44.632599",
+                "lon": "18.3609814"
+              },
+              "canton_id": 12
+            },
+            {
+              "id": 47,
+              "name": "Šamac",
+              "location": {
+                "lat": "45.0606892",
+                "lon": "18.4693465"
+              },
+              "canton_id": 12
+            },
+            {
+              "id": 138,
+              "name": "Stanari",
+              "location": {
+                "lat": "44.7517257",
+                "lon": "17.8379451"
+              },
+              "canton_id": 12
+            },
+            {
+              "id": 52,
+              "name": "Teslić",
+              "location": {
+                "lat": "44.60695944610461",
+                "lon": "17.85924933726051"
+              },
+              "canton_id": 12
+            },
+            {
+              "id": 137,
+              "name": "Vukosavlje",
+              "location": {
+                "lat": "44.9777367",
+                "lon": "18.2884882"
+              },
+              "canton_id": 12
+            }
+          ]
+        },
+        {
+          "id": 11,
+          "name": "Regija Banja Luka",
+          "cities": [
+            {
+              "id": 79,
+              "name": "Banja Luka",
+              "location": {
+                "lat": "44.76995369956578",
+                "lon": "17.189762566017492"
+              },
+              "canton_id": 11
+            },
+            {
+              "id": 108,
+              "name": "Čelinac",
+              "location": {
+                "lat": "44.7241731",
+                "lon": "17.319359"
+              },
+              "canton_id": 11
+            },
+            {
+              "id": 72,
+              "name": "Gradiška",
+              "location": {
+                "lat": "45.14216993525991",
+                "lon": "17.253407265755108"
+              },
+              "canton_id": 11
+            },
+            {
+              "id": 68,
+              "name": "Jezero",
+              "location": {
+                "lat": "44.3500103",
+                "lon": "17.170955"
+              },
+              "canton_id": 11
+            },
+            {
+              "id": 67,
+              "name": "Kneževo",
+              "location": {
+                "lat": "44.4899319",
+                "lon": "17.3800905"
+              },
+              "canton_id": 11
+            },
+            {
+              "id": 119,
+              "name": "Kotor Varoš",
+              "location": {
+                "lat": "44.6204796",
+                "lon": "17.3698016"
+              },
+              "canton_id": 11
+            },
+            {
+              "id": 118,
+              "name": "Laktaši",
+              "location": {
+                "lat": "44.90739612959434",
+                "lon": "17.303026125229117"
+              },
+              "canton_id": 11
+            },
+            {
+              "id": 61,
+              "name": "Mrkonjić Grad",
+              "location": {
+                "lat": "44.4166023",
+                "lon": "17.0842585"
+              },
+              "canton_id": 11
+            },
+            {
+              "id": 114,
+              "name": "Prnjavor",
+              "location": {
+                "lat": "44.8686369",
+                "lon": "17.6631777"
+              },
+              "canton_id": 11
+            },
+            {
+              "id": 122,
+              "name": "Ribnik",
+              "location": {
+                "lat": "44.41778120051053",
+                "lon": "16.81832698600447"
+              },
+              "canton_id": 11
+            },
+            {
+              "id": 45,
+              "name": "Šipovo",
+              "location": {
+                "lat": "44.2809431",
+                "lon": "17.0853048"
+              },
+              "canton_id": 11
+            },
+            {
+              "id": 53,
+              "name": "Srbac",
+              "location": {
+                "lat": "45.0961495389618",
+                "lon": "17.51913465755644"
+              },
+              "canton_id": 11
+            }
+          ]
+        },
+        {
+          "id": 13,
+          "name": "Regija Istočno Sarajevo",
+          "cities": [
+            {
+              "id": 123,
+              "name": "Han Pijesak",
+              "location": {
+                "lat": "44.0812895",
+                "lon": "18.9530643"
+              },
+              "canton_id": 13
+            },
+            {
+              "id": 71,
+              "name": "Istočna Ilidža",
+              "location": {
+                "lat": "43.816091021745585",
+                "lon": "18.355185446981974"
+              },
+              "canton_id": 13
+            },
+            {
+              "id": 69,
+              "name": "Istočni Stari Grad",
+              "location": {
+                "lat": "43.878382761734535",
+                "lon": "18.49472535630348"
+              },
+              "canton_id": 13
+            },
+            {
+              "id": 121,
+              "name": "Istočno Sarajevo",
+              "location": {
+                "lat": "43.81557669169702",
+                "lon": "18.35676992836145"
+              },
+              "canton_id": 13
+            },
+            {
+              "id": 58,
+              "name": "Pale",
+              "location": {
+                "lat": "43.814105",
+                "lon": "18.5692689"
+              },
+              "canton_id": 13
+            },
+            {
+              "id": 55,
+              "name": "Rogatica",
+              "location": {
+                "lat": "43.7997371",
+                "lon": "19.002206"
+              },
+              "canton_id": 13
+            },
+            {
+              "id": 54,
+              "name": "Rudo",
+              "location": {
+                "lat": "43.6174112",
+                "lon": "19.3666509"
+              },
+              "canton_id": 13
+            },
+            {
+              "id": 113,
+              "name": "Sokolac",
+              "location": {
+                "lat": "43.93721445",
+                "lon": "18.799367454210184"
+              },
+              "canton_id": 13
+            },
+            {
+              "id": 110,
+              "name": "Višegrad",
+              "location": {
+                "lat": "43.780807195939865",
+                "lon": "19.291156355937243"
+              },
+              "canton_id": 13
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Brčko Distrikt",
+      "code": "BD",
+      "cantons": [
+        {
+          "id": 15,
+          "name": "Brčko distrikt",
+          "cities": [
+            {
+              "id": 75,
+              "name": "Brčko",
+              "location": {
+                "lat": "44.87114777402382",
+                "lon": "18.80923474522402"
+              },
+              "canton_id": 15
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "states": [
+    {
+      "id": 1,
+      "name": "Federacija BiH",
+      "code": "FBiH",
+      "cantons": [
+        {
+          "id": 1,
+          "name": "Unsko-sanski kanton",
+          "location": {
+            "lat": "44.8146563",
+            "lon": "15.86896"
+          }
+        },
+        {
+          "id": 2,
+          "name": "Posavski kanton",
+          "location": {
+            "lat": "45.059479",
+            "lon": "18.583741"
+          }
+        },
+        {
+          "id": 3,
+          "name": "Tuzlanski kanton",
+          "location": {
+            "lat": "44.4088812",
+            "lon": "18.5292365"
+          }
+        },
+        {
+          "id": 4,
+          "name": "Zeničko-dobojski kanton",
+          "location": {
+            "lat": "44.0182913",
+            "lon": "18.2608652"
+          }
+        },
+        {
+          "id": 5,
+          "name": "Bosansko-podrinjski kanton",
+          "location": {
+            "lat": "43.6684375",
+            "lon": "18.9759265"
+          }
+        },
+        {
+          "id": 6,
+          "name": "Srednjobosanski kanton",
+          "location": {
+            "lat": "44.0558542",
+            "lon": "17.4509043"
+          }
+        },
+        {
+          "id": 7,
+          "name": "Hercegovačko-neretvanski kanton",
+          "location": {
+            "lat": "43.1133536",
+            "lon": "17.705039"
+          }
+        },
+        {
+          "id": 8,
+          "name": "Zapadnohercegovački kanton",
+          "location": {
+            "lat": "43.371199029053",
+            "lon": "17.415147474053445"
+          }
+        },
+        {
+          "id": 9,
+          "name": "Kanton Sarajevo",
+          "location": {
+            "lat": "43.8223256",
+            "lon": "18.2031453"
+          }
+        },
+        {
+          "id": 10,
+          "name": "Kanton 10",
+          "location": {
+            "lat": "44.1794878",
+            "lon": "16.3639977"
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Republika Srpska",
+      "code": "RS",
+      "cantons": [
+        {
+          "id": 16,
+          "name": "Regija Prijedor",
+          "location": {
+            "lat": "45.0489865",
+            "lon": "16.3776502"
+          }
+        },
+        {
+          "id": 17,
+          "name": "Regija Bijeljina",
+          "location": {
+            "lat": "44.6356497",
+            "lon": "18.8441138"
+          }
+        },
+        {
+          "id": 14,
+          "name": "Regija Trebinje",
+          "location": {
+            "lat": "43.0945271",
+            "lon": "18.1691429"
+          }
+        },
+        {
+          "id": 12,
+          "name": "Regija Doboj",
+          "location": {
+            "lat": "45.1464044",
+            "lon": "17.9991557"
+          }
+        },
+        {
+          "id": 11,
+          "name": "Regija Banja Luka",
+          "location": {
+            "lat": "44.76995369956578",
+            "lon": "17.189762566017492"
+          }
+        },
+        {
+          "id": 13,
+          "name": "Regija Istočno Sarajevo",
+          "location": {
+            "lat": "44.0812895",
+            "lon": "18.9530643"
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Brčko Distrikt",
+      "code": "BD",
+      "cantons": [
+        {
+          "id": 15,
+          "name": "Brčko distrikt",
+          "location": {
+            "lat": "44.87114777402382",
+            "lon": "18.80923474522402"
+          }
+        }
+      ]
+    }
+  ],
+  "cities": [
+    {
+      "id": 3,
+      "name": "Bihać",
+      "location": {
+        "lat": "44.8146563",
+        "lon": "15.86896"
+      },
+      "canton_id": 1
+    },
+    {
+      "id": 82,
+      "name": "Bosanska Krupa",
+      "location": {
+        "lat": "44.8824428",
+        "lon": "16.1577"
+      },
+      "canton_id": 1
+    },
+    {
+      "id": 4,
+      "name": "Bosanski Petrovac",
+      "location": {
+        "lat": "44.5543706",
+        "lon": "16.3686978"
+      },
+      "canton_id": 1
+    },
+    {
+      "id": 7,
+      "name": "Bužim",
+      "location": {
+        "lat": "45.062136",
+        "lon": "16.03115"
+      },
+      "canton_id": 1
+    },
+    {
+      "id": 8,
+      "name": "Cazin",
+      "location": {
+        "lat": "44.9665331",
+        "lon": "15.9422967"
+      },
+      "canton_id": 1
+    },
+    {
+      "id": 93,
+      "name": "Ključ",
+      "location": {
+        "lat": "44.533341",
+        "lon": "16.7761951"
+      },
+      "canton_id": 1
+    },
+    {
+      "id": 32,
+      "name": "Sanski Most",
+      "location": {
+        "lat": "44.7651882",
+        "lon": "16.6656827"
+      },
+      "canton_id": 1
+    },
+    {
+      "id": 104,
+      "name": "Velika Kladuša",
+      "location": {
+        "lat": "45.1843299",
+        "lon": "15.8069257"
+      },
+      "canton_id": 1
+    },
+    {
+      "id": 86,
+      "name": "Domaljevac-Šamac",
+      "location": {
+        "lat": "45.059479",
+        "lon": "18.583741"
+      },
+      "canton_id": 2
+    },
+    {
+      "id": 28,
+      "name": "Odžak",
+      "location": {
+        "lat": "45.0120765",
+        "lon": "18.3261246"
+      },
+      "canton_id": 2
+    },
+    {
+      "id": 98,
+      "name": "Orašje",
+      "location": {
+        "lat": "45.0342753",
+        "lon": "18.6943254"
+      },
+      "canton_id": 2
+    },
+    {
+      "id": 2,
+      "name": "Banovići",
+      "location": {
+        "lat": "44.4088812",
+        "lon": "18.5292365"
+      },
+      "canton_id": 3
+    },
+    {
+      "id": 106,
+      "name": "Čelić",
+      "location": {
+        "lat": "44.722508",
+        "lon": "18.8200011"
+      },
+      "canton_id": 3
+    },
+    {
+      "id": 85,
+      "name": "Doboj Istok",
+      "location": {
+        "lat": "44.727564",
+        "lon": "18.185772"
+      },
+      "canton_id": 3
+    },
+    {
+      "id": 15,
+      "name": "Gračanica",
+      "location": {
+        "lat": "44.7043396",
+        "lon": "18.310107"
+      },
+      "canton_id": 3
+    },
+    {
+      "id": 89,
+      "name": "Gradačac",
+      "location": {
+        "lat": "44.8781486",
+        "lon": "18.4254813"
+      },
+      "canton_id": 3
+    },
+    {
+      "id": 92,
+      "name": "Kalesija",
+      "location": {
+        "lat": "44.4429857",
+        "lon": "18.8756758"
+      },
+      "canton_id": 3
+    },
+    {
+      "id": 21,
+      "name": "Kladanj",
+      "location": {
+        "lat": "44.2252216",
+        "lon": "18.6940672"
+      },
+      "canton_id": 3
+    },
+    {
+      "id": 25,
+      "name": "Lukavac",
+      "location": {
+        "lat": "44.5344136",
+        "lon": "18.5325309"
+      },
+      "canton_id": 3
+    },
+    {
+      "id": 100,
+      "name": "Sapna",
+      "location": {
+        "lat": "44.4916604",
+        "lon": "19.0027278"
+      },
+      "canton_id": 3
+    },
+    {
+      "id": 33,
+      "name": "Srebrenik",
+      "location": {
+        "lat": "44.7048957",
+        "lon": "18.4912709"
+      },
+      "canton_id": 3
+    },
+    {
+      "id": 34,
+      "name": "Teočak",
+      "location": {
+        "lat": "44.60171045",
+        "lon": "18.980790362486463"
+      },
+      "canton_id": 3
+    },
+    {
+      "id": 37,
+      "name": "Tuzla",
+      "location": {
+        "lat": "44.5391105",
+        "lon": "18.675193"
+      },
+      "canton_id": 3
+    },
+    {
+      "id": 44,
+      "name": "Živinice",
+      "location": {
+        "lat": "44.451574",
+        "lon": "18.6501306"
+      },
+      "canton_id": 3
+    },
+    {
+      "id": 83,
+      "name": "Breza",
+      "location": {
+        "lat": "44.0182913",
+        "lon": "18.2608652"
+      },
+      "canton_id": 4
+    },
+    {
+      "id": 9,
+      "name": "Doboj Jug",
+      "location": {
+        "lat": "44.695693",
+        "lon": "18.051527"
+      },
+      "canton_id": 4
+    },
+    {
+      "id": 19,
+      "name": "Kakanj",
+      "location": {
+        "lat": "44.128571",
+        "lon": "18.1184071"
+      },
+      "canton_id": 4
+    },
+    {
+      "id": 96,
+      "name": "Maglaj",
+      "location": {
+        "lat": "44.5468344",
+        "lon": "18.1011571"
+      },
+      "canton_id": 4
+    },
+    {
+      "id": 29,
+      "name": "Olovo",
+      "location": {
+        "lat": "44.1269033",
+        "lon": "18.580233"
+      },
+      "canton_id": 4
+    },
+    {
+      "id": 35,
+      "name": "Tešanj",
+      "location": {
+        "lat": "44.6133803",
+        "lon": "17.9862488"
+      },
+      "canton_id": 4
+    },
+    {
+      "id": 103,
+      "name": "Usora",
+      "location": {
+        "lat": "44.670247",
+        "lon": "18.000855"
+      },
+      "canton_id": 4
+    },
+    {
+      "id": 38,
+      "name": "Vareš",
+      "location": {
+        "lat": "44.1633731",
+        "lon": "18.3285369"
+      },
+      "canton_id": 4
+    },
+    {
+      "id": 39,
+      "name": "Visoko",
+      "location": {
+        "lat": "43.9894986",
+        "lon": "18.1816434"
+      },
+      "canton_id": 4
+    },
+    {
+      "id": 41,
+      "name": "Zavidovići",
+      "location": {
+        "lat": "44.4388706",
+        "lon": "18.1458239"
+      },
+      "canton_id": 4
+    },
+    {
+      "id": 42,
+      "name": "Zenica",
+      "location": {
+        "lat": "44.199828",
+        "lon": "17.9093012"
+      },
+      "canton_id": 4
+    },
+    {
+      "id": 107,
+      "name": "Žepče",
+      "location": {
+        "lat": "44.4239617",
+        "lon": "18.037904"
+      },
+      "canton_id": 4
+    },
+    {
+      "id": 88,
+      "name": "Goražde",
+      "location": {
+        "lat": "43.6684375",
+        "lon": "18.9759265"
+      },
+      "canton_id": 5
+    },
+    {
+      "id": 81,
+      "name": "Ustikolina",
+      "location": {
+        "lat": "43.5821274",
+        "lon": "18.791767"
+      },
+      "canton_id": 5
+    },
+    {
+      "id": 6,
+      "name": "Bugojno",
+      "location": {
+        "lat": "44.0558542",
+        "lon": "17.4509043"
+      },
+      "canton_id": 6
+    },
+    {
+      "id": 84,
+      "name": "Busovača",
+      "location": {
+        "lat": "44.0984764",
+        "lon": "17.8791295"
+      },
+      "canton_id": 6
+    },
+    {
+      "id": 10,
+      "name": "Dobretići",
+      "location": {
+        "lat": "44.3742746",
+        "lon": "17.4162028"
+      },
+      "canton_id": 6
+    },
+    {
+      "id": 11,
+      "name": "Donji Vakuf",
+      "location": {
+        "lat": "44.144488",
+        "lon": "17.3949964"
+      },
+      "canton_id": 6
+    },
+    {
+      "id": 12,
+      "name": "Fojnica",
+      "location": {
+        "lat": "43.9634432",
+        "lon": "17.8990217"
+      },
+      "canton_id": 6
+    },
+    {
+      "id": 14,
+      "name": "Gornji Vakuf-Uskoplje",
+      "location": {
+        "lat": "43.9385698",
+        "lon": "17.5853035"
+      },
+      "canton_id": 6
+    },
+    {
+      "id": 91,
+      "name": "Jajce",
+      "location": {
+        "lat": "44.3393339",
+        "lon": "17.271046"
+      },
+      "canton_id": 6
+    },
+    {
+      "id": 20,
+      "name": "Kiseljak",
+      "location": {
+        "lat": "43.9431668",
+        "lon": "18.0774711"
+      },
+      "canton_id": 6
+    },
+    {
+      "id": 94,
+      "name": "Kreševo",
+      "location": {
+        "lat": "43.8657424",
+        "lon": "18.0421665"
+      },
+      "canton_id": 6
+    },
+    {
+      "id": 97,
+      "name": "Novi Travnik",
+      "location": {
+        "lat": "44.1707502",
+        "lon": "17.6576521"
+      },
+      "canton_id": 6
+    },
+    {
+      "id": 36,
+      "name": "Travnik",
+      "location": {
+        "lat": "44.2259454",
+        "lon": "17.6661738"
+      },
+      "canton_id": 6
+    },
+    {
+      "id": 40,
+      "name": "Vitez",
+      "location": {
+        "lat": "44.150409",
+        "lon": "17.791462"
+      },
+      "canton_id": 6
+    },
+    {
+      "id": 48,
+      "name": "Čapljina",
+      "location": {
+        "lat": "43.1133536",
+        "lon": "17.705039"
+      },
+      "canton_id": 7
+    },
+    {
+      "id": 43,
+      "name": "Čitluk",
+      "location": {
+        "lat": "43.2267192",
+        "lon": "17.6963313"
+      },
+      "canton_id": 7
+    },
+    {
+      "id": 18,
+      "name": "Jablanica",
+      "location": {
+        "lat": "43.6617485",
+        "lon": "17.7618471"
+      },
+      "canton_id": 7
+    },
+    {
+      "id": 22,
+      "name": "Konjic",
+      "location": {
+        "lat": "43.65467",
+        "lon": "17.962732"
+      },
+      "canton_id": 7
+    },
+    {
+      "id": 26,
+      "name": "Mostar",
+      "location": {
+        "lat": "43.344996",
+        "lon": "17.809362"
+      },
+      "canton_id": 7
+    },
+    {
+      "id": 27,
+      "name": "Neum",
+      "location": {
+        "lat": "42.926122856179916",
+        "lon": "17.61581487618788"
+      },
+      "canton_id": 7
+    },
+    {
+      "id": 99,
+      "name": "Prozor",
+      "location": {
+        "lat": "43.82214869504322",
+        "lon": "17.609107486819166"
+      },
+      "canton_id": 7
+    },
+    {
+      "id": 31,
+      "name": "Ravno",
+      "location": {
+        "lat": "42.8873119",
+        "lon": "17.9645863"
+      },
+      "canton_id": 7
+    },
+    {
+      "id": 101,
+      "name": "Stolac",
+      "location": {
+        "lat": "43.08218720555419",
+        "lon": "17.956549391485947"
+      },
+      "canton_id": 7
+    },
+    {
+      "id": 16,
+      "name": "Grude",
+      "location": {
+        "lat": "43.371199029053",
+        "lon": "17.415147474053445"
+      },
+      "canton_id": 8
+    },
+    {
+      "id": 95,
+      "name": "Ljubuški",
+      "location": {
+        "lat": "43.1963022",
+        "lon": "17.5447857"
+      },
+      "canton_id": 8
+    },
+    {
+      "id": 30,
+      "name": "Posušje",
+      "location": {
+        "lat": "43.4712288",
+        "lon": "17.3271281"
+      },
+      "canton_id": 8
+    },
+    {
+      "id": 136,
+      "name": "Široki Brijeg",
+      "location": {
+        "lat": "43.38258878780839",
+        "lon": "17.59412644511597"
+      },
+      "canton_id": 8
+    },
+    {
+      "id": 90,
+      "name": "Hadžići",
+      "location": {
+        "lat": "43.8223256",
+        "lon": "18.2031453"
+      },
+      "canton_id": 9
+    },
+    {
+      "id": 80,
+      "name": "Ilidža",
+      "location": {
+        "lat": "43.8306182",
+        "lon": "18.3077357"
+      },
+      "canton_id": 9
+    },
+    {
+      "id": 17,
+      "name": "Ilijaš",
+      "location": {
+        "lat": "43.95645",
+        "lon": "18.2661553"
+      },
+      "canton_id": 9
+    },
+    {
+      "id": 133,
+      "name": "Sarajevo - Centar",
+      "location": {
+        "lat": "43.85547203690044",
+        "lon": "18.408615515357727"
+      },
+      "canton_id": 9
+    },
+    {
+      "id": 132,
+      "name": "Sarajevo - Novi Grad",
+      "location": {
+        "lat": "43.8463828000579",
+        "lon": "18.356379276201494"
+      },
+      "canton_id": 9
+    },
+    {
+      "id": 131,
+      "name": "Sarajevo - Novo Sarajevo",
+      "location": {
+        "lat": "43.8588926",
+        "lon": "18.3995832"
+      },
+      "canton_id": 9
+    },
+    {
+      "id": 130,
+      "name": "Sarajevo - Stari Grad",
+      "location": {
+        "lat": "43.85921662712411",
+        "lon": "18.433317979576664"
+      },
+      "canton_id": 9
+    },
+    {
+      "id": 139,
+      "name": "Trnovo",
+      "location": {
+        "lat": "43.6654827",
+        "lon": "18.4465122"
+      },
+      "canton_id": 9
+    },
+    {
+      "id": 105,
+      "name": "Vogošća",
+      "location": {
+        "lat": "43.901488",
+        "lon": "18.3433749"
+      },
+      "canton_id": 9
+    },
+    {
+      "id": 5,
+      "name": "Bosansko Grahovo",
+      "location": {
+        "lat": "44.1794878",
+        "lon": "16.3639977"
+      },
+      "canton_id": 10
+    },
+    {
+      "id": 87,
+      "name": "Drvar",
+      "location": {
+        "lat": "44.374201922788366",
+        "lon": "16.383675800236453"
+      },
+      "canton_id": 10
+    },
+    {
+      "id": 13,
+      "name": "Glamoč",
+      "location": {
+        "lat": "44.04703506072085",
+        "lon": "16.849359012341665"
+      },
+      "canton_id": 10
+    },
+    {
+      "id": 23,
+      "name": "Kupres",
+      "location": {
+        "lat": "43.9927632",
+        "lon": "17.2774677"
+      },
+      "canton_id": 10
+    },
+    {
+      "id": 24,
+      "name": "Livno",
+      "location": {
+        "lat": "43.8259136",
+        "lon": "17.0042416"
+      },
+      "canton_id": 10
+    },
+    {
+      "id": 102,
+      "name": "Tomislavgrad",
+      "location": {
+        "lat": "43.7169169",
+        "lon": "17.2278277"
+      },
+      "canton_id": 10
+    },
+    {
+      "id": 66,
+      "name": "Kostajnica",
+      "location": {
+        "lat": "45.2187079",
+        "lon": "16.5463194"
+      },
+      "canton_id": 16
+    },
+    {
+      "id": 65,
+      "name": "Kozarska Dubica",
+      "location": {
+        "lat": "45.18133026049634",
+        "lon": "16.808731056766167"
+      },
+      "canton_id": 16
+    },
+    {
+      "id": 64,
+      "name": "Krupa na Uni",
+      "location": {
+        "lat": "44.90384355",
+        "lon": "16.295729438499272"
+      },
+      "canton_id": 16
+    },
+    {
+      "id": 128,
+      "name": "Novi Grad",
+      "location": {
+        "lat": "45.0489865",
+        "lon": "16.3776502"
+      },
+      "canton_id": 16
+    },
+    {
+      "id": 129,
+      "name": "Oštra Luka",
+      "location": {
+        "lat": "44.99934806160073",
+        "lon": "18.585839978629398"
+      },
+      "canton_id": 16
+    },
+    {
+      "id": 56,
+      "name": "Prijedor",
+      "location": {
+        "lat": "44.9805039",
+        "lon": "16.7131197"
+      },
+      "canton_id": 16
+    },
+    {
+      "id": 77,
+      "name": "Bijeljina",
+      "location": {
+        "lat": "44.7568464",
+        "lon": "19.2156628"
+      },
+      "canton_id": 17
+    },
+    {
+      "id": 126,
+      "name": "Bratunac",
+      "location": {
+        "lat": "44.1849993",
+        "lon": "19.3321845"
+      },
+      "canton_id": 17
+    },
+    {
+      "id": 117,
+      "name": "Lopare",
+      "location": {
+        "lat": "44.6356497",
+        "lon": "18.8441138"
+      },
+      "canton_id": 17
+    },
+    {
+      "id": 62,
+      "name": "Milići",
+      "location": {
+        "lat": "44.1679392",
+        "lon": "19.0800629"
+      },
+      "canton_id": 17
+    },
+    {
+      "id": 59,
+      "name": "Osmaci",
+      "location": {
+        "lat": "44.39068682095979",
+        "lon": "18.898914631004768"
+      },
+      "canton_id": 17
+    },
+    {
+      "id": 46,
+      "name": "Šekovići",
+      "location": {
+        "lat": "44.2978089",
+        "lon": "18.8523779"
+      },
+      "canton_id": 17
+    },
+    {
+      "id": 112,
+      "name": "Srebrenica",
+      "location": {
+        "lat": "44.10378251419867",
+        "lon": "19.298846765784223"
+      },
+      "canton_id": 17
+    },
+    {
+      "id": 51,
+      "name": "Ugljevik",
+      "location": {
+        "lat": "44.6930533",
+        "lon": "18.9945989"
+      },
+      "canton_id": 17
+    },
+    {
+      "id": 50,
+      "name": "Vlasenica",
+      "location": {
+        "lat": "44.18247526902583",
+        "lon": "18.94125453640801"
+      },
+      "canton_id": 17
+    },
+    {
+      "id": 49,
+      "name": "Zvornik",
+      "location": {
+        "lat": "44.3854067",
+        "lon": "19.1027717"
+      },
+      "canton_id": 17
+    },
+    {
+      "id": 127,
+      "name": "Berkovići",
+      "location": {
+        "lat": "43.0945271",
+        "lon": "18.1691429"
+      },
+      "canton_id": 14
+    },
+    {
+      "id": 78,
+      "name": "Bileća",
+      "location": {
+        "lat": "42.8748513",
+        "lon": "18.4279766"
+      },
+      "canton_id": 14
+    },
+    {
+      "id": 109,
+      "name": "Čajniče",
+      "location": {
+        "lat": "43.5568196",
+        "lon": "19.0715447"
+      },
+      "canton_id": 14
+    },
+    {
+      "id": 124,
+      "name": "Foča",
+      "location": {
+        "lat": "43.5058554",
+        "lon": "18.774393"
+      },
+      "canton_id": 14
+    },
+    {
+      "id": 73,
+      "name": "Gacko",
+      "location": {
+        "lat": "43.1664068",
+        "lon": "18.5357977"
+      },
+      "canton_id": 14
+    },
+    {
+      "id": 70,
+      "name": "Istočni Mostar",
+      "location": {
+        "lat": "43.40879036279628",
+        "lon": "17.9999889114234"
+      },
+      "canton_id": 14
+    },
+    {
+      "id": 120,
+      "name": "Kalinovik",
+      "location": {
+        "lat": "43.5043116",
+        "lon": "18.4467193"
+      },
+      "canton_id": 14
+    },
+    {
+      "id": 63,
+      "name": "Ljubinje",
+      "location": {
+        "lat": "42.9515429",
+        "lon": "18.08992"
+      },
+      "canton_id": 14
+    },
+    {
+      "id": 60,
+      "name": "Nevesinje",
+      "location": {
+        "lat": "43.258225784685756",
+        "lon": "18.113277212708578"
+      },
+      "canton_id": 14
+    },
+    {
+      "id": 115,
+      "name": "Novo Goražde",
+      "location": {
+        "lat": "43.6781801726924",
+        "lon": "19.022793451228367"
+      },
+      "canton_id": 14
+    },
+    {
+      "id": 111,
+      "name": "Trebinje",
+      "location": {
+        "lat": "42.709990373868806",
+        "lon": "18.344569539703592"
+      },
+      "canton_id": 14
+    },
+    {
+      "id": 76,
+      "name": "Brod",
+      "location": {
+        "lat": "45.1464044",
+        "lon": "17.9991557"
+      },
+      "canton_id": 12
+    },
+    {
+      "id": 125,
+      "name": "Derventa",
+      "location": {
+        "lat": "44.9767094",
+        "lon": "17.906959"
+      },
+      "canton_id": 12
+    },
+    {
+      "id": 134,
+      "name": "Doboj",
+      "location": {
+        "lat": "44.720103025334964",
+        "lon": "18.08329736524907"
+      },
+      "canton_id": 12
+    },
+    {
+      "id": 74,
+      "name": "Donji Žabar",
+      "location": {
+        "lat": "44.9481245",
+        "lon": "18.6422235"
+      },
+      "canton_id": 12
+    },
+    {
+      "id": 116,
+      "name": "Modriča",
+      "location": {
+        "lat": "44.9565236",
+        "lon": "18.3011351"
+      },
+      "canton_id": 12
+    },
+    {
+      "id": 57,
+      "name": "Pelagićevo",
+      "location": {
+        "lat": "44.9064243",
+        "lon": "18.6119121"
+      },
+      "canton_id": 12
+    },
+    {
+      "id": 135,
+      "name": "Petrovo",
+      "location": {
+        "lat": "44.632599",
+        "lon": "18.3609814"
+      },
+      "canton_id": 12
+    },
+    {
+      "id": 47,
+      "name": "Šamac",
+      "location": {
+        "lat": "45.0606892",
+        "lon": "18.4693465"
+      },
+      "canton_id": 12
+    },
+    {
+      "id": 138,
+      "name": "Stanari",
+      "location": {
+        "lat": "44.7517257",
+        "lon": "17.8379451"
+      },
+      "canton_id": 12
+    },
+    {
+      "id": 52,
+      "name": "Teslić",
+      "location": {
+        "lat": "44.60695944610461",
+        "lon": "17.85924933726051"
+      },
+      "canton_id": 12
+    },
+    {
+      "id": 137,
+      "name": "Vukosavlje",
+      "location": {
+        "lat": "44.9777367",
+        "lon": "18.2884882"
+      },
+      "canton_id": 12
+    },
+    {
+      "id": 79,
+      "name": "Banja Luka",
+      "location": {
+        "lat": "44.76995369956578",
+        "lon": "17.189762566017492"
+      },
+      "canton_id": 11
+    },
+    {
+      "id": 108,
+      "name": "Čelinac",
+      "location": {
+        "lat": "44.7241731",
+        "lon": "17.319359"
+      },
+      "canton_id": 11
+    },
+    {
+      "id": 72,
+      "name": "Gradiška",
+      "location": {
+        "lat": "45.14216993525991",
+        "lon": "17.253407265755108"
+      },
+      "canton_id": 11
+    },
+    {
+      "id": 68,
+      "name": "Jezero",
+      "location": {
+        "lat": "44.3500103",
+        "lon": "17.170955"
+      },
+      "canton_id": 11
+    },
+    {
+      "id": 67,
+      "name": "Kneževo",
+      "location": {
+        "lat": "44.4899319",
+        "lon": "17.3800905"
+      },
+      "canton_id": 11
+    },
+    {
+      "id": 119,
+      "name": "Kotor Varoš",
+      "location": {
+        "lat": "44.6204796",
+        "lon": "17.3698016"
+      },
+      "canton_id": 11
+    },
+    {
+      "id": 118,
+      "name": "Laktaši",
+      "location": {
+        "lat": "44.90739612959434",
+        "lon": "17.303026125229117"
+      },
+      "canton_id": 11
+    },
+    {
+      "id": 61,
+      "name": "Mrkonjić Grad",
+      "location": {
+        "lat": "44.4166023",
+        "lon": "17.0842585"
+      },
+      "canton_id": 11
+    },
+    {
+      "id": 114,
+      "name": "Prnjavor",
+      "location": {
+        "lat": "44.8686369",
+        "lon": "17.6631777"
+      },
+      "canton_id": 11
+    },
+    {
+      "id": 122,
+      "name": "Ribnik",
+      "location": {
+        "lat": "44.41778120051053",
+        "lon": "16.81832698600447"
+      },
+      "canton_id": 11
+    },
+    {
+      "id": 45,
+      "name": "Šipovo",
+      "location": {
+        "lat": "44.2809431",
+        "lon": "17.0853048"
+      },
+      "canton_id": 11
+    },
+    {
+      "id": 53,
+      "name": "Srbac",
+      "location": {
+        "lat": "45.0961495389618",
+        "lon": "17.51913465755644"
+      },
+      "canton_id": 11
+    },
+    {
+      "id": 123,
+      "name": "Han Pijesak",
+      "location": {
+        "lat": "44.0812895",
+        "lon": "18.9530643"
+      },
+      "canton_id": 13
+    },
+    {
+      "id": 71,
+      "name": "Istočna Ilidža",
+      "location": {
+        "lat": "43.816091021745585",
+        "lon": "18.355185446981974"
+      },
+      "canton_id": 13
+    },
+    {
+      "id": 69,
+      "name": "Istočni Stari Grad",
+      "location": {
+        "lat": "43.878382761734535",
+        "lon": "18.49472535630348"
+      },
+      "canton_id": 13
+    },
+    {
+      "id": 121,
+      "name": "Istočno Sarajevo",
+      "location": {
+        "lat": "43.81557669169702",
+        "lon": "18.35676992836145"
+      },
+      "canton_id": 13
+    },
+    {
+      "id": 58,
+      "name": "Pale",
+      "location": {
+        "lat": "43.814105",
+        "lon": "18.5692689"
+      },
+      "canton_id": 13
+    },
+    {
+      "id": 55,
+      "name": "Rogatica",
+      "location": {
+        "lat": "43.7997371",
+        "lon": "19.002206"
+      },
+      "canton_id": 13
+    },
+    {
+      "id": 54,
+      "name": "Rudo",
+      "location": {
+        "lat": "43.6174112",
+        "lon": "19.3666509"
+      },
+      "canton_id": 13
+    },
+    {
+      "id": 113,
+      "name": "Sokolac",
+      "location": {
+        "lat": "43.93721445",
+        "lon": "18.799367454210184"
+      },
+      "canton_id": 13
+    },
+    {
+      "id": 110,
+      "name": "Višegrad",
+      "location": {
+        "lat": "43.780807195939865",
+        "lon": "19.291156355937243"
+      },
+      "canton_id": 13
+    },
+    {
+      "id": 75,
+      "name": "Brčko",
+      "location": {
+        "lat": "44.87114777402382",
+        "lon": "18.80923474522402"
+      },
+      "canton_id": 15
+    }
+  ]
+}

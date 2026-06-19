@@ -369,7 +369,9 @@ export class OlxClient {
   async categoryTree(maxDepth = 6): Promise<CategoryNode[]> {
     const build = async (cat: Category, depth: number): Promise<CategoryNode> => {
       if (depth >= maxDepth) return { ...cat, children: [] };
-      const kids = (await this.childrenCategories(cat.id)).data;
+      // Za list-kategoriju API vraca {data: <objekat kategorije>} umjesto niza djece; tad nema podkategorija.
+      const raw = (await this.childrenCategories(cat.id)).data as unknown;
+      const kids = Array.isArray(raw) ? (raw as Category[]) : [];
       const children: CategoryNode[] = [];
       for (const kid of kids) children.push(await build(kid, depth + 1));
       return { ...cat, children };
