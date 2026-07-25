@@ -92,7 +92,7 @@ Model koji koristi iskusan operater sličnog shopa:
   izdvajanjem. Ne trošiti sve kredite na izdvajanje; ostaviti rezervu za obnavljanje.
 - **Na početku ne žuriti** sa velikim brojem izdvajanja.
 - **Prioritet obnove:** artikli na stanju na ciklusu od oko 8 dana; ostatak kataloga na oko 15
-  dana, koliko besplatna kvota od 750 pokrije.
+  dana, koliko besplatna kvota pokrije (provjeri stvarni `free_limit`, nije fiksno 750).
 
 ## Faze za nov shop
 

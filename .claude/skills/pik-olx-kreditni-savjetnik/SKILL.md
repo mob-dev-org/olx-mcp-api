@@ -22,7 +22,8 @@ budžeta.
 
 Najčešća greška je miješanje dvije stvari koje rade različit posao:
 
-- **Besplatne obnove** (kod Gold/Platinum shopa: 750 mjesečno, svakih 7 dana po oglasu). Troše
+- **Besplatne obnove** (kvota zavisi od naloga, provjeri `refresh/limits`; mjereno 1.800 mjesečno
+  na Gold shopu, svakih 7 dana po oglasu). Troše
   KVOTU obnova, ne kredite. Daju oglasu svjež datum i dižu ga na vrh među standardnim oglasima.
 - **Krediti** (npr. Gold paket nosi 1.800 bonus kredita). Troše se na IZDVAJANJE (promociju) i na
   akcijsku cijenu. Izdvajanje diže oglas IZNAD svih standardnih, u vrh kategorije i pretrage.
@@ -49,7 +50,7 @@ besplatno; krediti su za uzak izbor prioritetnih artikala.
 
 ## Ključne činjenice (kompaktno; detalji u reference fajlovima)
 
-- **Obnova po tipu naloga:** Shop svakih 7 dana (do 750/mjesec). OLX PRO svakih 21 dan. Klasični
+- **Obnova po tipu naloga:** Shop svakih 7 dana (kvota po nalogu, mjereno 1.800/mjesec). OLX PRO svakih 21 dan. Klasični
   profil svakih 30 dana. Ako korisnik citira "30 dana", to je pravilo za klasični profil, ne za
   shop. Provjeri o kom nalogu je riječ prije nego potvrdiš prag.
 - **Izdvajanje ima tri nivoa autoobnove:** bez obnavljanja (najjeftinije), svaki dan / 24h

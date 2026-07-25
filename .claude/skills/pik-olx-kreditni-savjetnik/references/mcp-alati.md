@@ -70,7 +70,8 @@ device_name), pa `GET /me` za provjeru pristupa (403 znači da treba odobrenje s
 
 - Oglasi: `GET /listings/:id`, `POST /listings` (kreira DRAFT), `PUT /listings/:id`,
   `POST /listings/:id/publish`, `DELETE /listings/:id`.
-- Obnova: `GET /listing/refresh/limits` (vraća `free_limit: 750`, `free_count`, `paid_count`),
+- Obnova: `GET /listing/refresh/limits` (vraća `free_limit`, `free_count`, `paid_count`; `free_limit`
+  NIJE fiksno 750, na Gold shopu izmjereno 1.800, a `free_count` je ISKORISTENO a ne preostalo),
   `PUT /listings/:id/refresh`.
 - Slike: `POST /listings/:id/image-upload`, `image-delete`, `image-main`.
 - Status: `POST /listings/:id/finish`, `hide`, `unhide`.
@@ -89,10 +90,45 @@ device_name), pa `GET /me` za provjeru pristupa (403 znači da treba odobrenje s
 ### Parametri izdvajanja (sponsore)
 
 - `type`: 0 bez izdvajanja, 1 klasično, 2 premium.
-- `days`: 1, 2, 3, 5, 7, 14, 21, 30.
-- `refresh_every`: 0, 3, 8, 24 (sati). API ponegdje navodi i 3/6/8/24; interval od 6 sati je
-  NEPOTVRĐEN na zvaničnom izvoru. Cjenovnik u skillu pokriva 8h, 24h (svaki dan) i bez obnove.
+- `days`: 1, 2, 3, 5, 7, 14, 21, 30. Provjereno na živom API-ju: 15 vraća 422
+  `"Broj dana nije validan"`, a 14 i 21 rade normalno.
+- `refresh_every`: 0, 3, 6, 8, 24 (sati). Provjereno: interval od 6 sati RADI, a 12 vraća 422
+  `"Razmak obnavljanja nije validan"`.
+- **`refresh_every` je OBAVEZAN.** Bez njega svaki poziv na `sponsore/price` vraća 422
+  `"Polje obnavljanje svakih je obavezno."` Za izdvajanje bez autoobnove pošalji 0.
 - `locations`: `["homepage"]` za prikaz i na naslovnici.
+
+### Izmjereni cjenovnik (MixBox, 25.07.2026, type 1)
+
+Cijena je dinamična i razlikuje se po kategoriji, pa je ovo samo polazna tačka. Za oglas
+`70073750` (kategorija 1918) i `77556842` (kategorija 1920):
+
+| Kategorija | 7 dana bez obnove | 7 dana + 24h | 14 dana + 24h | 30 dana bez obnove | 30 dana + 24h |
+|---|---|---|---|---|---|
+| Pernice (2045) | 12 | 18 | | 42 | 63 |
+| Zaštita tijela (1918) | 36 | 54 | 99 | 126 | 189 |
+| Party (754) | 36 | 54 | | 126 | 189 |
+| Zaštita nogu (1920) | 42 | 63 | | 147 | 220 |
+
+Obnova na 24h dodaje pola osnovne cijene, obnova na 8h dodaje 150 posto. Duži period je
+jeftiniji po danu: 30 dana izlazi 4,2 kredita dnevno naprema 5,14 za 7 dana. Premium (type 2)
+je oko 2,7 puta skuplji od klasičnog.
+
+### Polja koja se lako pogrešno protumače
+
+- **`available` NE znači zalihu.** Na PIK-u stoji `false` na oglasima čiji artikli imaju
+  stotine komada u Shopify-u, a i tuđi oglasi po platformi masovno imaju `false`. Zvanična
+  dokumentacija ga ne definiše. Ne koristi ga kao signal o stanju robe.
+- **`free_count` je iskorišteno, ne preostalo.** Provjereno: nakon jedne obnove otišlo je sa
+  300 na 301. Preostalo se računa kao `free_limit - free_count`.
+- **Obnova isteklog oglasa ne vraća vidljivost.** Status pređe sa `expired` na `active` i
+  datum se osvježi, ali `visible` ostaje `false` i oglas se ne pojavi u katalogu.
+- **`sku_number` postoji samo na pojedinačnom oglasu** (`GET /listings/:id`), nijedna lista ga
+  ne vraća. Na MixBox nalogu ga ima manjina oglasa, u tri oblika: `H6412`, `B0714`,
+  `CA-B0537-BWA`.
+- **Aktivni katalog je `/users/:username/listings` bez sufiksa.** Varijanta sa `/active` vraća
+  prazan niz, a `/users/:id/listings` sa numeričkim id-em vraća 404. Za ostala stanja
+  (finished, inactive, expired, hidden) prolaze i username i id.
 
 ### Životni ciklus oglasa (DRAFT zamka)
 

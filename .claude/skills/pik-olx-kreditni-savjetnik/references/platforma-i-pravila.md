@@ -8,7 +8,7 @@ OLX/PIK izvora (juni 2026.), uz oznaku gdje nešto nije potvrđeno.
 - Bonus krediti: Gold 1.800, Platinum 4.600.
 - Popust na dopunu dodatnih kredita: Gold do 56%, Platinum do 60%.
 - Naslovnica: Gold ima logo shopa na naslovnici; Platinum ima ekskluzivnu (istaknutu) poziciju.
-- Sve ostalo (neograničen broj oglasa, 750 obnova/mjesec, 20 fotografija, API, grupno uređivanje,
+- Sve ostalo (neograničen broj oglasa, kvota obnova po nalogu (mjereno 1.800/mjesec), 20 fotografija, API, grupno uređivanje,
   ručna obnova svakih 7 dana, izdvajanje na 1 dan, interna šifra oglasa) navedeno je kao
   zajedničko za sve shopove. Razlika u tim limitima po paketu nije dokumentovana (provjeriti u
   sučelju ako je bitno).
