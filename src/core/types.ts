@@ -202,6 +202,10 @@ export interface SponsorPrice {
   locations: number;
   extras: number;
   total: number;
+  total_without_discount?: number;
+  discount?: number;
+  discount_percentage?: number;
+  [key: string]: unknown;
 }
 
 export interface DiscountInput {

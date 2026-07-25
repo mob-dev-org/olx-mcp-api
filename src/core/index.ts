@@ -71,6 +71,7 @@ const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms
 export class OlxClient {
   private token?: string;
   private lastRequestAt = 0;
+  private cachedUsername?: string;
 
   constructor(private readonly config: OlxConfig = loadConfig()) {
     this.token = config.token;
@@ -206,8 +207,26 @@ export class OlxClient {
     return res;
   }
 
+  // API vraca /me u envelope obliku { data: {...} }; odvijamo ga da .username i .id ne budu undefined.
   async me(): Promise<OlxUser> {
-    return this.request<OlxUser>("/me");
+    const res = await this.request<OlxUser | { data: OlxUser }>("/me");
+    if (res && typeof res === "object" && "data" in res) {
+      return (res as { data: OlxUser }).data;
+    }
+    return res as OlxUser;
+  }
+
+  // Username je jedini identifikator koji svi katalog endpointi prihvataju
+  // (/users/:id/listings vraca 404, /users/:username/listings radi), pa nikad ne vracamo id.
+  async resolveUsername(): Promise<string> {
+    if (this.cachedUsername) return this.cachedUsername;
+    const user = await this.me();
+    const username = typeof user?.username === "string" ? user.username.trim() : "";
+    if (!username) {
+      throw new OlxAuthError("Ne mogu odrediti korisnika iz tokena. Zadaj korisnika eksplicitno.");
+    }
+    this.cachedUsername = username;
+    return username;
   }
 
   // Osigurava da postoji token: koristi postojeci ili radi login ako ima kredencijale.
@@ -303,24 +322,38 @@ export class OlxClient {
 
   // ---- Users (enumeracija kataloga) ----
 
+  // Cuva od tihe greske: prazan ili literal "undefined" korisnik je davao 404 ili praznu listu.
+  private assertUser(user: number | string): string {
+    const value = String(user).trim();
+    if (!value || value === "undefined" || value === "null") {
+      throw new OlxAuthError("Nedostaje korisnik za listanje oglasa (dobijeno: " + JSON.stringify(user) + ").");
+    }
+    return value;
+  }
+
   listActive(username: string, page = 1): Promise<Paginated<ListingSummary>> {
-    return this.request<Paginated<ListingSummary>>(`/users/${username}/listings`, { query: { page } });
+    const user = this.assertUser(username);
+    return this.request<Paginated<ListingSummary>>(`/users/${user}/listings`, { query: { page } });
   }
 
-  listFinished(userId: number | string, page = 1): Promise<Paginated<ListingSummary>> {
-    return this.request<Paginated<ListingSummary>>(`/users/${userId}/listings/finished`, { query: { page } });
+  listFinished(user: number | string, page = 1): Promise<Paginated<ListingSummary>> {
+    const id = this.assertUser(user);
+    return this.request<Paginated<ListingSummary>>(`/users/${id}/listings/finished`, { query: { page } });
   }
 
-  listInactive(userId: number | string, page = 1): Promise<Paginated<ListingSummary>> {
-    return this.request<Paginated<ListingSummary>>(`/users/${userId}/listings/inactive`, { query: { page } });
+  listInactive(user: number | string, page = 1): Promise<Paginated<ListingSummary>> {
+    const id = this.assertUser(user);
+    return this.request<Paginated<ListingSummary>>(`/users/${id}/listings/inactive`, { query: { page } });
   }
 
-  listExpired(userId: number | string, page = 1): Promise<Paginated<ListingSummary>> {
-    return this.request<Paginated<ListingSummary>>(`/users/${userId}/listings/expired`, { query: { page } });
+  listExpired(user: number | string, page = 1): Promise<Paginated<ListingSummary>> {
+    const id = this.assertUser(user);
+    return this.request<Paginated<ListingSummary>>(`/users/${id}/listings/expired`, { query: { page } });
   }
 
-  listHidden(userId: number | string, page = 1): Promise<Paginated<ListingSummary>> {
-    return this.request<Paginated<ListingSummary>>(`/users/${userId}/listings/hidden`, { query: { page } });
+  listHidden(user: number | string, page = 1): Promise<Paginated<ListingSummary>> {
+    const id = this.assertUser(user);
+    return this.request<Paginated<ListingSummary>>(`/users/${id}/listings/hidden`, { query: { page } });
   }
 
   // Prelistava sve stranice aktivnih oglasa i vraca spojeni niz.
@@ -443,12 +476,13 @@ export class OlxClient {
   // ---- Sponsored (trosak kredita) ----
 
   // Dohvata cijenu izdvajanja. GET ne smije imati body, pa se parametri salju kao query.
+  // refresh_every je na API-ju obavezan (bez njega 422), pa nedostatak tretiramo kao 0 (bez autoobnove).
   sponsorPrice(id: number | string, options: SponsorOptions): Promise<SponsorPrice> {
     return this.request<SponsorPrice>(`/listings/${id}/sponsore/price`, {
       query: {
         type: options.type,
         days: options.days,
-        refresh_every: options.refresh_every,
+        refresh_every: options.refresh_every ?? 0,
         locations: options.locations,
       },
     });
@@ -467,7 +501,10 @@ export class OlxClient {
         price,
       );
     }
-    return this.request(`/listings/${id}/sponsore`, { method: "POST", body: options });
+    return this.request(`/listings/${id}/sponsore`, {
+      method: "POST",
+      body: { ...options, refresh_every: options.refresh_every ?? 0 },
+    });
   }
 
   async setDiscount(id: number | string, input: DiscountInput, confirm: boolean): Promise<unknown> {

@@ -194,6 +194,16 @@ server.registerResource(
 
 const readOnly = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true } as const;
 const writeOp = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true } as const;
+
+// API prihvata samo ove vrijednosti; sve ostalo vraca 422 pa ih odbijamo lokalno.
+// refresh_every je na API-ju OBAVEZAN, zato ima default 0 (izdvajanje bez autoobnove).
+const SPONSOR_DAYS_SCHEMA = z
+  .union([z.literal(1), z.literal(2), z.literal(3), z.literal(5), z.literal(7), z.literal(14), z.literal(21), z.literal(30)])
+  .describe("broj dana: 1,2,3,5,7,14,21,30 (15 nije validan)");
+const REFRESH_EVERY_SCHEMA = z
+  .union([z.literal(0), z.literal(3), z.literal(6), z.literal(8), z.literal(24)])
+  .default(0)
+  .describe("autoobnova u satima: 0 bez, ili 3,6,8,24 (obavezno na API-ju, 12 nije validan)");
 const destructiveOp = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true } as const;
 
 // ===== SIGURNI ALATI =====
@@ -262,7 +272,7 @@ server.registerTool(
   },
   (args) =>
     run(async (c) => {
-      const user = args.user ?? (await c.me()).username ?? String((await c.me()).id);
+      const user = args.user ?? (await c.resolveUsername());
       if (args.state === "active") return args.all ? c.listAllActive(user) : c.listActive(user, args.page);
       if (args.state === "finished") return c.listFinished(user, args.page);
       if (args.state === "inactive") return c.listInactive(user, args.page);
@@ -309,8 +319,8 @@ server.registerTool(
     inputSchema: {
       id: z.union([z.number(), z.string()]),
       type: z.number().int().min(0).max(2).describe("0 bez, 1 klasicno, 2 premium"),
-      days: z.number().int().describe("1,2,3,5,7,14,21,30"),
-      refresh_every: z.number().int().optional().describe("0,3,6,8,24"),
+      days: SPONSOR_DAYS_SCHEMA,
+      refresh_every: REFRESH_EVERY_SCHEMA,
       homepage: z.boolean().default(false),
     },
     annotations: readOnly,
@@ -320,7 +330,7 @@ server.registerTool(
       c.sponsorPrice(args.id, {
         type: args.type as SponsorType,
         days: args.days as SponsorDays,
-        refresh_every: args.refresh_every as RefreshEvery | undefined,
+        refresh_every: args.refresh_every as RefreshEvery,
         locations: args.homepage ? ["homepage"] : undefined,
       }),
     ),
@@ -463,7 +473,7 @@ server.registerTool(
   },
   (args) =>
     run(async (c) => {
-      const user = args.user ?? (await c.me()).username ?? String((await c.me()).id);
+      const user = args.user ?? (await c.resolveUsername());
       const limits = await c.refreshLimits();
       const remaining = Math.max(0, limits.free_limit - limits.free_count);
       const cap = Math.min(args.limit, remaining);
@@ -577,8 +587,8 @@ server.registerTool(
     inputSchema: {
       id: z.union([z.number(), z.string()]),
       type: z.number().int().min(0).max(2).describe("0 bez, 1 klasicno, 2 premium"),
-      days: z.number().int().describe("1,2,3,5,7,14,21,30"),
-      refresh_every: z.number().int().optional().describe("0,3,6,8,24"),
+      days: SPONSOR_DAYS_SCHEMA,
+      refresh_every: REFRESH_EVERY_SCHEMA,
       homepage: z.boolean().default(false),
       confirm: z.boolean().default(false),
     },
@@ -588,7 +598,7 @@ server.registerTool(
     const options: SponsorOptions = {
       type: args.type as SponsorType,
       days: args.days as SponsorDays,
-      refresh_every: args.refresh_every as RefreshEvery | undefined,
+      refresh_every: args.refresh_every as RefreshEvery,
       locations: args.homepage ? ["homepage"] : undefined,
     };
     return run((c) => c.sponsorListing(args.id, options, args.confirm));

@@ -152,10 +152,7 @@ async function withAuth(): Promise<OlxClient> {
 // Vraca username ulogovanog korisnika ako nije eksplicitno zadat.
 async function resolveUser(c: OlxClient, given?: string): Promise<string> {
   if (given) return given;
-  const me = await c.me();
-  const username = me.username ?? (me.id !== undefined ? String(me.id) : undefined);
-  if (!username) throw new OlxAuthError("Ne mogu odrediti korisnika. Zadaj --user.");
-  return username;
+  return c.resolveUsername();
 }
 
 const program = new Command();
@@ -699,11 +696,23 @@ location
 // ---- Sponsor ----
 const sponsor = program.command("sponsor").description("Izdvajanje (trosi kredite)");
 
+// API odbija sve osim ovih vrijednosti (422), pa provjeravamo prije poziva da greska bude jasna.
+const VALID_DAYS = [1, 2, 3, 5, 7, 14, 21, 30];
+const VALID_REFRESH_EVERY = [0, 3, 6, 8, 24];
+
 function sponsorOptions(opts: { type: string; days: string; refreshEvery?: string; homepage?: boolean }): SponsorOptions {
+  const days = Number(opts.days);
+  if (!VALID_DAYS.includes(days)) {
+    throw new Error(`Nevalidan --days ${opts.days}. Dozvoljeno: ${VALID_DAYS.join(", ")}.`);
+  }
+  const refreshEvery = opts.refreshEvery === undefined ? 0 : Number(opts.refreshEvery);
+  if (!VALID_REFRESH_EVERY.includes(refreshEvery)) {
+    throw new Error(`Nevalidan --refresh-every ${opts.refreshEvery}. Dozvoljeno: ${VALID_REFRESH_EVERY.join(", ")}.`);
+  }
   return {
     type: Number(opts.type) as SponsorType,
-    days: Number(opts.days) as SponsorDays,
-    refresh_every: opts.refreshEvery ? (Number(opts.refreshEvery) as RefreshEvery) : undefined,
+    days: days as SponsorDays,
+    refresh_every: refreshEvery as RefreshEvery,
     locations: opts.homepage ? ["homepage"] : undefined,
   };
 }
