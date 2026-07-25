@@ -114,6 +114,28 @@ Obnova na 24h dodaje pola osnovne cijene, obnova na 8h dodaje 150 posto. Duži p
 jeftiniji po danu: 30 dana izlazi 4,2 kredita dnevno naprema 5,14 za 7 dana. Premium (type 2)
 je oko 2,7 puta skuplji od klasičnog.
 
+### Izdvajanje na oglas koji je VEC izdvojen (bitno za planiranje)
+
+Provjereno na MixBox nalogu 25.07.2026: ako oglas ima aktivno izdvajanje, novi poziv
+`POST /listings/:id/sponsore` NE zamjenjuje i NE prekida trenutno, nego ga **zakazuje** da
+pocne kad trenutno istekne.
+
+- odgovor je `"Oglas je snimljen u listu za izdvajanje"` (a ne `"Oglas je uspjesno izdvojen"`)
+- **krediti se u tom trenutku NE naplacuju**; stanje ostaje isto, naplata ide kad zakazano pocne
+- pojavljuje se polje `sponsor_scheduled` sa `{id, is_active, start_date, criterias}`, gdje je
+  `start_date` tacno jednak `sponsored_until` iz `sponsor_active`
+- `sponsor_active` ostaje nepromijenjen, dakle ne gubi se ni jedan plaćeni dan
+
+Prakticne posljedice:
+
+- Nema potrebe cekati da izdvajanje istekne da bi se postavilo sljedece. Moze se zakazati
+  unaprijed, i tako se izbjegne prekid vidljivosti izmedju dva ciklusa.
+- Rotacija se moze pripremiti unaprijed: zakazi sljedeci ciklus dok tekuci traje.
+- Kod planiranja budzeta racunaj da zakazano izdvajanje jos NIJE placeno, pa kredita mora
+  biti dovoljno u momentu kad zakazano pocne, ne sada.
+- Ako ti treba drukcija konfiguracija SADA (npr. dodati autoobnovu odmah), zakazivanje to ne
+  rjesava, jer novi parametri stupaju na snagu tek kad tekuci period istekne.
+
 ### Polja koja se lako pogrešno protumače
 
 - **`available` NE znači zalihu.** Na PIK-u stoji `false` na oglasima čiji artikli imaju
