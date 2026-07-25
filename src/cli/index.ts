@@ -4,6 +4,8 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { OlxClient, OlxApiError, OlxAuthError, OlxSpendError } from "../core/index.js";
 import { resolveConfig, listProfileNames } from "../core/config.js";
+import { matchCatalog, summarizeMatches } from "../core/match.js";
+import type { PikItem, ShopifyItem, OverrideEntry } from "../core/match.js";
 import type { CreateListingInput, SponsorOptions, SponsorType, SponsorDays, RefreshEvery, CategoryNode, Country, City } from "../core/types.js";
 
 // Ucitaj .env ako postoji (Node 20.12+/22). Bez vanjske zavisnosti.
@@ -772,6 +774,89 @@ discount
   .action(async (id: string) => {
     try {
       out(await (await withAuth()).finishDiscount(id));
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+// ---- Spajanje sa Shopify katalogom ----
+//
+// Shopify katalog se dobavlja izvan ovog alata (npr. kroz Shopify MCP) i predaje kao JSON.
+// Time repo ostaje bez Shopify kredencijala, a matching je ista funkcija za svaki izvor.
+// Ocekivani oblik: [{ handle, title, skus?: string[], totalInventory?, price? }, ...]
+// ili { products: [...] }.
+function loadShopifyCatalog(path: string): ShopifyItem[] {
+  const raw: unknown = JSON.parse(readFileSync(path, "utf8"));
+  const list = Array.isArray(raw) ? raw : (raw as { products?: unknown }).products;
+  if (!Array.isArray(list)) {
+    throw new Error(`Shopify katalog u ${path} nije niz proizvoda ni { products: [...] }.`);
+  }
+  return list.map((entry) => {
+    const item = entry as Record<string, unknown>;
+    const skus = Array.isArray(item.skus) ? item.skus.filter((s): s is string => typeof s === "string") : [];
+    return {
+      handle: String(item.handle ?? ""),
+      title: String(item.title ?? ""),
+      skus,
+      totalInventory: typeof item.totalInventory === "number" ? item.totalInventory : null,
+      price: typeof item.price === "number" ? item.price : null,
+    };
+  });
+}
+
+program
+  .command("match")
+  .description("Spaja PIK oglase sa Shopify proizvodima i njihovom zalihom")
+  .requiredOption("--shopify <fajl>", "JSON sa Shopify katalogom")
+  .option("--overrides <fajl>", "JSON sa rucnim mapiranjem po PIK id-u")
+  .option("--out <fajl>", "gdje snimiti izvjestaj")
+  .option("--user <user>", "username (default: ulogovani)")
+  .option("--with-sku", "dohvati SKU za svaki oglas (sporo: jedan zahtjev po oglasu)", false)
+  .option("--min-score <n>", "prag za automatski match", "0.72")
+  .action(async (opts: { shopify: string; overrides?: string; out?: string; user?: string; withSku?: boolean; minScore: string }) => {
+    try {
+      const c = await withAuth();
+      const user = await resolveUser(c, opts.user);
+      const shopify = loadShopifyCatalog(opts.shopify);
+      const overrides = opts.overrides
+        ? (JSON.parse(readFileSync(opts.overrides, "utf8")) as Record<string, OverrideEntry>)
+        : {};
+
+      const active = await c.listAllActive(user);
+      const pik: PikItem[] = [];
+      for (const listing of active) {
+        // SKU nije u listi, samo na pojedinacnom oglasu, pa je dohvat opcion.
+        let sku: string | null = null;
+        if (opts.withSku) {
+          const detail = (await c.getListing(listing.id)) as { sku_number?: string | null };
+          sku = detail.sku_number ?? null;
+        }
+        pik.push({
+          id: listing.id,
+          title: listing.title ?? "",
+          sku,
+          // Aktivna lista daje category_id, drugi oblici daju ugnijezdeni category objekat.
+          categoryId: listing.category_id ?? (listing.category as { id?: number } | undefined)?.id ?? null,
+          price: typeof listing.price === "number" ? listing.price : null,
+        });
+      }
+
+      const results = matchCatalog(pik, shopify, { overrides, autoThreshold: Number(opts.minScore) || 0.72 });
+      const report = {
+        generated_for: user,
+        pik_count: pik.length,
+        shopify_count: shopify.length,
+        sku_fetched: Boolean(opts.withSku),
+        summary: summarizeMatches(results),
+        results,
+      };
+      if (opts.out) {
+        mkdirSync(dirname(opts.out), { recursive: true });
+        writeFileSync(opts.out, JSON.stringify(report, null, 2));
+        out({ ...report, results: `snimljeno u ${opts.out}` });
+      } else {
+        out(report);
+      }
     } catch (e) {
       fail(e);
     }

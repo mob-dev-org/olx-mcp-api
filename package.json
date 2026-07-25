@@ -15,7 +15,8 @@
     "mcp": "node dist/mcp/server.js",
     "dev:cli": "tsc && node dist/cli/index.js",
     "dev:mcp": "tsc && node dist/mcp/server.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsc && node --test dist/core/*.test.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
