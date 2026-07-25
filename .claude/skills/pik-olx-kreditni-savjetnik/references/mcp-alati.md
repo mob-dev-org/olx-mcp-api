@@ -126,6 +126,23 @@ pocne kad trenutno istekne.
   `start_date` tacno jednak `sponsored_until` iz `sponsor_active`
 - `sponsor_active` ostaje nepromijenjen, dakle ne gubi se ni jedan plaćeni dan
 
+Ako oglas ima I aktivno I zakazano izdvajanje, svaki dalji poziv se ODBIJA sa
+`400 "Oglas je vec u listi za izdvajanje"`. Nista se ne naplacuje i nista se ne mijenja.
+Slot za zakazano je jedan, pa se zakazana konfiguracija ne moze zamijeniti preko API-ja.
+
+Dakle postoje tri stanja i tri razlicita ishoda:
+
+| Stanje oglasa | Ishod poziva sponsore | Naplata |
+|---|---|---|
+| bez izdvajanja | izdvaja se ODMAH | da, odmah |
+| aktivno izdvajanje | ZAKAZUJE se za kraj tekuceg | ne, kad pocne |
+| aktivno + zakazano | ODBIJA se, 400 | ne |
+
+Posljedica za nadogradnju: premium ili naslovnica se NE mogu dodati na oglas koji je vec
+izdvojen i ima zakazano. Ne postoji ni endpoint za otkazivanje (`sponsore/finish` i
+`sponsore/cancel` vracaju 404), pa se zakazano moze otkazati samo rucno kroz web (Moj OLX).
+Zato konfiguraciju (type, naslovnica, refresh_every) treba izabrati PRIJE prvog zakazivanja.
+
 Prakticne posljedice:
 
 - Nema potrebe cekati da izdvajanje istekne da bi se postavilo sljedece. Moze se zakazati
