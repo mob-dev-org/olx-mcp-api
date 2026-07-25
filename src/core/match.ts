@@ -108,12 +108,25 @@ export function modelTokens(input: string): Set<string> {
 }
 
 // PIK cuva SKU u tri oblika (h6412, b0714, ca-b0537-bwa), a Shopify dodaje i velicinu na kraju.
-// Sve svodimo na kod modela da poredjenje bude moguce.
+// Kod modela je najgrublji kljuc i NIJE dovoljan sam: CA-B0978-0WA i CA-B0978-0WB su dva
+// razlicita modela (OREN i OREN ESD) koji dijele kod B0978. Zato postoje dva nivoa kljuca.
 export function skuModelCode(sku?: string | null): string | undefined {
   if (!sku) return undefined;
   const normalized = sku.toUpperCase().replace(/[^A-Z0-9]/g, "");
   const match = normalized.match(/([BH]\d{3,4})/);
   return match ? match[1] : normalized || undefined;
+}
+
+// Precizan kljuc: cijeli SKU bez sufiksa velicine. Cuva razlikovni dio (0WA naprema 0WB),
+// pa razdvaja modele koje kod modela spaja.
+export function skuBaseKey(sku?: string | null): string | undefined {
+  if (!sku) return undefined;
+  const trimmed = sku
+    .toUpperCase()
+    .trim()
+    .replace(/[-_\s](\d{1,3}|X{0,3}[SML]|\d?X{1,2}L)$/i, "");
+  const normalized = trimmed.replace(/[^A-Z0-9]/g, "");
+  return normalized || undefined;
 }
 
 export function buildIdf(corpus: string[]): Map<string, number> {
@@ -196,17 +209,32 @@ export function matchCatalog(
   const idf = buildIdf([...pikItems.map((i) => i.title), ...shopifyItems.map((i) => i.title)]);
   const byHandle = new Map(shopifyItems.map((item) => [item.handle, item]));
 
-  // Indeks po kodu modela: iz varijantnih SKU i iz handlea, jer handle cesto sadrzi kod (base-bull-b0714).
-  const bySkuCode = new Map<string, ShopifyItem>();
+  // Dva nivoa indeksa. Precizan (cijeli SKU bez velicine) razdvaja modele koji dijele kod,
+  // grubi (kod modela) hvata slucaj kad PIK ima samo kratki kod (H6412).
+  // Grubi kljuc koji pokazuje na vise proizvoda je dvosmislen i ne smije davati automatski match.
+  const byBaseKey = new Map<string, ShopifyItem>();
+  const byModelCode = new Map<string, ShopifyItem>();
+  const modelCodeCollisions = new Set<string>();
+
   for (const item of shopifyItems) {
-    const codes = new Set<string>();
+    const baseKeys = new Set<string>();
+    const modelCodes = new Set<string>();
     for (const sku of item.skus ?? []) {
+      const base = skuBaseKey(sku);
+      if (base) baseKeys.add(base);
       const code = skuModelCode(sku);
-      if (code) codes.add(code);
+      if (code) modelCodes.add(code);
     }
+    // Handle cesto nosi kod modela (base-bull-b0714), korisno kad varijante nemaju SKU.
     const fromHandle = skuModelCode(item.handle);
-    if (fromHandle) codes.add(fromHandle);
-    for (const code of codes) if (!bySkuCode.has(code)) bySkuCode.set(code, item);
+    if (fromHandle) modelCodes.add(fromHandle);
+
+    for (const key of baseKeys) if (!byBaseKey.has(key)) byBaseKey.set(key, item);
+    for (const code of modelCodes) {
+      const existing = byModelCode.get(code);
+      if (existing === undefined) byModelCode.set(code, item);
+      else if (existing.handle !== item.handle) modelCodeCollisions.add(code);
+    }
   }
 
   return pikItems.map((pik) => {
@@ -235,9 +263,24 @@ export function matchCatalog(
       };
     }
 
+    // Prvo precizan kljuc, pa kod modela i to samo ako nije dvosmislen.
+    const baseKey = skuBaseKey(pik.sku);
+    const exact = baseKey ? byBaseKey.get(baseKey) : undefined;
+    if (exact) {
+      return {
+        ...base,
+        shopifyHandle: exact.handle,
+        shopifyTitle: exact.title,
+        totalInventory: exact.totalInventory ?? null,
+        score: 1,
+        method: "sku" as const,
+        decision: "matched" as const,
+      };
+    }
+
     const skuCode = skuModelCode(pik.sku);
-    if (skuCode) {
-      const hit = bySkuCode.get(skuCode);
+    if (skuCode && !modelCodeCollisions.has(skuCode)) {
+      const hit = byModelCode.get(skuCode);
       if (hit) {
         return {
           ...base,
@@ -250,6 +293,7 @@ export function matchCatalog(
         };
       }
     }
+    // Ako je kod modela dvosmislen, pada na slicnost naslova, koja razdvaja OREN od OREN ESD.
 
     const ranked = shopifyItems
       .map((item) => ({
