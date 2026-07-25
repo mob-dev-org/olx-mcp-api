@@ -52,6 +52,14 @@ okvir za svaki savjet: prvo naslov, pa svježina, pa tek onda plaćeno izdvajanj
   u naslovu, jer su to dva odvojena pojma u pretrazi. Ako artikal treba izaći na "creatine
   monohydrate", naslov mora sadržati "monohydrate".
 - Dodatne ključne riječi koje ne stanu u naslov staviti u podnaslov (i podnaslov ulazi u pretragu).
+- **Naslov je ograničen na 65 znakova.** Duži naslov API odbija sa 422
+  `"naslov ne može biti duži od 65 karaktera."` Podnaslov je u praksi prošao do 72 znaka.
+- **Padež je odvojen pojam, i to je najčešća skrivena greška.** Naslov "Radna jakna i hlače" NE
+  izlazi na upit "radne hlače", jer riječ "radne" nije prisutna. Prije izdvajanja provjeri da
+  naslov sadrži oblik koji kupac zaista kuca, u množini i padežu iz upita.
+- Provjera koja se isplati: sastavi spisak upita za koje želiš da oglas izlazi, pa za svaki
+  provjeri da su SVE riječi iz upita prisutne u naslovu ili podnaslovu. Ako nisu, izdvajanje
+  plaća poziciju na pretrazi u kojoj se oglas ne pojavljuje.
 
 ## Metoda izbora artikala iz statistike (ključni alat savjetnika)
 

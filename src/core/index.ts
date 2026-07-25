@@ -207,13 +207,17 @@ export class OlxClient {
     return res;
   }
 
-  // API vraca /me u envelope obliku { data: {...} }; odvijamo ga da .username i .id ne budu undefined.
-  async me(): Promise<OlxUser> {
-    const res = await this.request<OlxUser | { data: OlxUser }>("/me");
-    if (res && typeof res === "object" && "data" in res) {
-      return (res as { data: OlxUser }).data;
+  // Dio odgovora dolazi u envelope obliku { data: {...} } (npr. /me, PUT i POST /listings),
+  // a dio plosnato (GET /listings/:id). Odvijamo samo kad je envelope, da polja ne budu undefined.
+  private unwrap<T>(res: T | { data: T }): T {
+    if (res && typeof res === "object" && "data" in (res as object)) {
+      return (res as { data: T }).data;
     }
-    return res as OlxUser;
+    return res as T;
+  }
+
+  async me(): Promise<OlxUser> {
+    return this.unwrap(await this.request<OlxUser | { data: OlxUser }>("/me"));
   }
 
   // Username je jedini identifikator koji svi katalog endpointi prihvataju
@@ -241,12 +245,14 @@ export class OlxClient {
     return this.request<Listing>(`/listings/${id}`);
   }
 
-  createListing(input: CreateListingInput): Promise<Listing> {
-    return this.request<Listing>("/listings", { method: "POST", body: input });
+  async createListing(input: CreateListingInput): Promise<Listing> {
+    return this.unwrap(await this.request<Listing | { data: Listing }>("/listings", { method: "POST", body: input }));
   }
 
-  updateListing(id: number | string, input: UpdateListingInput): Promise<Listing> {
-    return this.request<Listing>(`/listings/${id}`, { method: "PUT", body: input });
+  async updateListing(id: number | string, input: UpdateListingInput): Promise<Listing> {
+    return this.unwrap(
+      await this.request<Listing | { data: Listing }>(`/listings/${id}`, { method: "PUT", body: input }),
+    );
   }
 
   publishListing(id: number | string): Promise<{ message: string; status: string }> {

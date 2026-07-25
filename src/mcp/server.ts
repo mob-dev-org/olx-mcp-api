@@ -197,6 +197,9 @@ const writeOp = { readOnlyHint: false, destructiveHint: false, idempotentHint: f
 
 // API prihvata samo ove vrijednosti; sve ostalo vraca 422 pa ih odbijamo lokalno.
 // refresh_every je na API-ju OBAVEZAN, zato ima default 0 (izdvajanje bez autoobnove).
+// API odbija naslov duzi od 65 znakova (422). Pretraga trazi TACNE rijeci, padezi se broje,
+// pa naslov mora sadrzati oblik koji kupac kuca ("radne hlace", ne samo "radna").
+const TITLE_SCHEMA = z.string().min(1).max(65).describe("naslov, najvise 65 znakova; mora sadrzati tacne pojmove koje kupci traze");
 const SPONSOR_DAYS_SCHEMA = z
   .union([z.literal(1), z.literal(2), z.literal(3), z.literal(5), z.literal(7), z.literal(14), z.literal(21), z.literal(30)])
   .describe("broj dana: 1,2,3,5,7,14,21,30 (15 nije validan)");
@@ -405,9 +408,9 @@ server.registerTool(
     description:
       "Kreira oglas. Ostaje DRAFT i NIJE vidljiv dok se ne objavi (olx_publish_listing). OBAVEZNI su title i category_id (API odbija bez kategorije). category_id nadji u resource olx://categories-index, a dozvoljene attributes za tu kategoriju preko olx_category_attributes (obavezni atributi su required: true). Za vozila koristi brand_id/model_id.",
     inputSchema: {
-      title: z.string().min(1),
+      title: TITLE_SCHEMA,
       category_id: z.union([z.number(), z.string()]).describe("ID kategorije (obavezno); vidi olx://categories-index"),
-      short_description: z.string().optional().describe("podnaslov; ulazi u pretragu"),
+      short_description: z.string().optional().describe("podnaslov; ULAZI u pretragu, iskoristi ga za ključne riječi koje ne stanu u naslov"),
       description: z.string().optional(),
       country_id: z.union([z.number(), z.string()]).optional(),
       city_id: z.union([z.number(), z.string()]).optional(),
@@ -438,7 +441,7 @@ server.registerTool(
     description: "Mijenja polja oglasa (npr. title, description, price).",
     inputSchema: {
       id: z.union([z.number(), z.string()]),
-      title: z.string().optional(),
+      title: TITLE_SCHEMA.optional(),
       description: z.string().optional(),
       short_description: z.string().optional(),
       price: z.number().optional(),
