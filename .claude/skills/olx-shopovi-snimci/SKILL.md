@@ -95,6 +95,8 @@ Listovi u izlazu:
   privremeno stanje.
 - Kod poredjenja: shop koji je "nestao" nije nuzno ugasen. Mogao je promijeniti paket na nesto
   sto snimak ne pokriva, ili je ekstrakcija bila nepotpuna. Provjeri kroz `GET /users/:username`
+  (endpoint postoji i radi, ali NIJE implementiran u toolkitu; pozovi ga rucno curl-om sa Bearer
+  tokenom, vidi API-INVENTAR.md sekciju o nedokumentovanim endpointima)
   prije nego to nazoves gasenjem.
 
 ## Kad korisnik donese novi snimak
@@ -110,3 +112,6 @@ Redoslijed koji se isplati:
 ## Ovisnosti
 
 `pandas` i `openpyxl`. Provjera: `python3 -c "import pandas, openpyxl"`.
+
+Brojevi i pravila platforme (paketi, cijene, kvote): jedan izvor istine je
+`olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md`.

@@ -129,7 +129,7 @@ Gdje korisnik generise token: u repozitoriju nema URL-a ni ekrana na kojem se to
 
 ### Limiti koje vraca ili namece API
 
-- Obnove: `GET /listing/refresh/limits` vraca `free_limit`, `free_count`, `paid_count`, `listing_count` (`core/types.ts:71` do `:76`). Za shopove je dokumentovan `free_limit` 750 mjesecno (`olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md:46`).
+- Obnove: `GET /listing/refresh/limits` vraca `free_limit`, `free_count`, `paid_count`, `listing_count` (`core/types.ts:71` do `:76`). `free_limit` zavisi od naloga: zvanicna pomoc tvrdi 750, izmjereno je 1.800 na dva Gold naloga; uvijek procitati, ne pretpostavljati (`olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md:46`).
 - Bulk obnova u kodu nikad ne prelazi preostalu besplatnu kvotu, `remaining = free_limit - free_count` (`server.ts:481`), a ulazni `limit` je dodatno ogranicen na najvise 750 (`server.ts:472`).
 - Broj oglasa: `GET /listing-limits` vraca limite po grupama kategorija (cars, real-estate, other). Konkretne brojeve kod ne poznaje, tip je `unknown` (`core/index.ts:270`).
 - Naslov: najvise 65 znakova, validira se lokalno jer API vraca 422 (`server.ts:202`).
@@ -282,3 +282,39 @@ Lista je ogranicena na ono sto postojeci endpointi stvarno omogucavaju.
 - Retry se izvrsava i na POST i PUT pozivima (`core/index.ts:160`), ukljucujuci `sponsore`, `refresh` i `publish`. Ako API vrati 5xx nakon sto je radnju vec proveo, ponavljanje moze dovesti do dvostrukog izvrsenja. Kod nema idempotency kljuc.
 - Nema detekcije isteka tokena ni automatskog ponovnog logina.
 - Svi limiti oko slika (broj, velicina, format) su neprovjereni i nisu validirani lokalno.
+
+---
+
+## Propusteno / preporuke (popis za buduce izmjene koda)
+
+Stanje 26.07.2026. Kod se u konsolidaciji znanja nije dirao; ovo je red vožnje za sljedecu
+rundu, poredano po odnosu koristi i truda.
+
+1. **Tvrdi limit 750 u bulk obnovi** (`src/mcp/server.ts:472`, `z.number().max(750)`). Pisano po
+   zastarjeloj brojci; Gold nalozi vracaju `free_limit` 1800. Podici na 4600 ili ukloniti gornju
+   granicu (stvarni cap se ionako racuna iz `free_limit - free_count` na `server.ts:481`).
+2. **`GET /users/:username` implementirati kao `olx_user_profile`** (read-only). Endpoint
+   postoji i radi (potvrdjeno zivim pozivom), vraca paket, poslovne podatke, ocjene i vrijeme
+   odgovora tudjeg shopa. Osnova za analizu konkurencije; sada se poziva rucno curl-om.
+3. **`olx_update_listing` ne prima `category_id` ni `sku_number`** iako jezgro to podrzava
+   (`core/types.ts:69`). Blokira premjestanje oglasa u tacnu kategoriju (cest prvi savjet iz
+   analize) i sync sa Shopify zalihom.
+4. **Korpus podrske izloziti kao MCP resource**: `olx://pomoc-index` (CSV pregled) plus
+   pojedinacni clanci, po uzoru na categories-index. Kompletni fajl od 176 KB ne izlagati kao
+   jedan resource.
+5. **Retry bez idempotency kljuca na POST/PUT** (`core/index.ts:160`): kod 5xx nakon vec
+   izvrsene radnje moguce dvostruko izvrsenje, ukljucujuci dvostruku naplatu izdvajanja.
+   Najmanje: iskljuciti retry za `sponsore` i `discount`.
+6. **Spend-guard nema nijedan test.** Jedan test da `sponsorListing` bez `confirm` NE salje
+   POST (i da baca `OlxSpendError`) cuva jedinu zastitu od trosenja kredita od regresije.
+   Trenutno testovi pokrivaju samo `match.ts` (17 testova).
+7. **Detekcija isteka tokena**: 401/403 tretirati kao signal za relogin kad postoje
+   kredencijali, umjesto generičke poruke.
+8. **`.mcp.json` ne prosljedjuje `OLX_PROFILE`** iako je multiprofil glavna funkcija; default
+   registracija je jednonalogna, README obilaznicu opisuje rucno.
+9. **Lozinka u komentaru `.env:29`** — izbaciti, drzati u keychainu.
+10. **Iz PLAN.md obecano a neuradjeno**: cron auto-obnova, planer izdvajanja, audit log
+    (zapis svake write operacije sa nalogom, alatom i ishodom — korisno cim vise ljudi radi
+    sa vise klijenata).
+11. **Otvoreno mjerenje**: `olx_refresh_limits` na nalogu koji nije Gold — razlucuje da li
+    kvota obnova prati paket ili je 1800 za sve shop pakete.

@@ -1,5 +1,13 @@
 # Plan: repozitorij, build i MCP/CLI (handoff za Claude Code)
 
+> **ARHIVIRANO (26.07.2026.).** Ovo je handoff iz juna 2026., pisano PRIJE builda, i vise ne
+> opisuje stvarno stanje: build odavno prolazi, profili/tokeni po korisniku su uradjeni,
+> potvrda na bulk obnovu postoji, format uploada slika je potvrdjen (multipart `images[]`),
+> repo ima 4 skilla i komandu `match` koje ovaj dokument ne pominje. Neuradjeno iz faze 5
+> (cron auto-obnova, planer izdvajanja, audit log) je popisano u
+> `olx-dokumentacija/API-INVENTAR.md` pod "Propusteno / preporuke". Stvarno stanje: README.md
+> i `olx-dokumentacija/API-INVENTAR.md`. Fajl se cuva samo kao historijski zapis.
+
 Ovaj dokument je vodic da se projekat dovrsi lokalno u Claude Code. Kod je vec napisan; lokalno nema sandbox ogranicenja koja su ovdje kocila `npm install`.
 
 ## 1. Struktura repozitorija

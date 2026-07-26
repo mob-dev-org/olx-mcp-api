@@ -18,6 +18,10 @@ PIK.ba (ranije OLX.ba). Cilj nije teorija, nego isplativa odluka: koje artikle i
 period, kojim tipom obnove, i kako rasporediti besplatne obnove, sve unutar konkretnog kreditnog
 budžeta.
 
+Brojevi i pravila platforme: jedan izvor istine je `olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md`
+(MCP resource `olx://knowledgebase`); popis alata je `olx-dokumentacija/API-INVENTAR.md`. Za
+analizu profila koristi skill `olx-analiza-profila`, za setup MCP-a `olx-mcp-setup`.
+
 ## Zlatno pravilo prije svega: dvije odvojene "valute"
 
 Najčešća greška je miješanje dvije stvari koje rade različit posao:

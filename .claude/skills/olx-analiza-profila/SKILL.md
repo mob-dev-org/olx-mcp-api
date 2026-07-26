@@ -45,9 +45,9 @@ Detaljan recept (kako citati naslove, cijene, kako rasporediti obnove, sablon iz
 
 ## Dijagnostika u jednoj recenici
 
-- Malo pregleda -> problem je vidljivost. Prvo naslov (kljucne rijeci) i tacna kategorija, pa tek onda obnova/izdvajanje.
-- Mnogo pregleda, malo poruka -> problem je ponuda, ne pozicija. Cijena, slike, opis. Ne trosi kredite na izdvajanje.
-- Zasicena kategorija (npr. auto) -> izdvajanje slabije i skuplje. Naglasak na precizan naslov, konkurentnu cijenu, premium + autoobnova.
+Malo pregleda znaci problem vidljivosti (naslov i kategorija prije obnove i izdvajanja); mnogo
+pregleda a malo poruka znaci problem ponude (cijena, slike, opis) i tu se krediti ne trose.
+Puna pravila odlucivanja: KB sekcija 6 (`olx://knowledgebase`).
 
 ## Granice i zastite
 
@@ -56,7 +56,11 @@ Detaljan recept (kako citati naslove, cijene, kako rasporediti obnove, sablon iz
   toolkit ima spend-guard (`confirm: true`), ali ti to objasni korisniku, ne pokrecaj naplatu tiho.
 - Za artikle kojih nema na stanju preporuci hide/finish, nikad brisanje (gubi se historija i pregledi).
 - Ne predlazi brisanje pa ponovno objavljivanje radi vrha; to je spam i krsi pravila. Koristi obnovu.
-- Postuj mjesecni limit obnova (750 besplatnih); rasporedi ih na najvaznije/najkonkurentnije oglase.
+- Postuj mjesecni limit obnova: kvotu procitaj sa `olx_refresh_limits` (`free_limit` zavisi od
+  naloga, izmjereno 1.800 na Gold; ne pretpostavljaj broj). Rasporedi obnove na
+  najvaznije/najkonkurentnije oglase.
+- Brojevi i pravila platforme (paketi, kvote, kako radi pretraga): jedan izvor istine je
+  `olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md` (MCP resource `olx://knowledgebase`).
 
 ## Format izvjestaja
 

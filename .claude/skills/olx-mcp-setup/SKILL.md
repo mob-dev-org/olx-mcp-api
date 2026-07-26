@@ -92,6 +92,10 @@ Vazno: forme i opcije pojedine kategorije NISU u snapshotima. Za njih pozovi liv
 
 ## Brzi izbor alata (sta za sta)
 
+Ovo je samo podsjetnik za mapiranje CLI komandi na MCP alate. Puni popis svih 35 alata sa
+parametrima, troskom i nepovratnoscu je u `olx-dokumentacija/API-INVENTAR.md` (jedini izvor
+istine za alate); brojevi i pravila platforme su u `olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md`.
+
 Sigurno (citanje, bez troska):
 - `whoami` / `olx_whoami` — test pristupa i ko je ulogovan.
 - `listings ls` / `olx_list_listings` — oglasi po stanju (active, finished, inactive, expired, hidden).

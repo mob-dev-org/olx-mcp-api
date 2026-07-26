@@ -36,10 +36,13 @@ Tri kolone su tip automatskog obnavljanja uz izdvajanje: svakih 8 sati (3x dnevn
 - **Koliko artikala stalno izdvojeno cijeli mjesec:** (krediti / cijena_po_danu) / 30.
 - **Ponavljanje kratkog vs jedno dugo izdvajanje:** uporedi 4 × (cijena 7 dana) naspram (cijena
   30 dana). Primjer 24h: 4 × 54 = 216 naspram 189. Za stalnu potražnju dugo je isplativije.
-- **Pokrivenost besplatnim obnovama:** 750 / (broj obnova po oglasu mjesečno).
-  - Ciklus ~7-8 dana: oko 4 obnove mjesečno po oglasu, pa 750 / 4 je oko 187 oglasa.
-  - Ciklus ~15 dana: 2 obnove mjesečno po oglasu, pa 750 / 2 je oko 375 oglasa.
-  - Za katalog od ~400 oglasa ravnomjerno: 750 / 400 je oko 1,9 obnova, dakle ciklus ~16 dana.
+- **Pokrivenost besplatnim obnovama:** `free_limit` / (broj obnova po oglasu mjesečno), gdje
+  `free_limit` UVIJEK pročitaš sa `olx_refresh_limits` (izmjereno 1.800 na Gold nalozima).
+  Primjeri sa 1.800:
+  - Ciklus ~7-8 dana: oko 4 obnove mjesečno po oglasu, pa 1.800 / 4 je oko 450 oglasa.
+  - Ciklus ~15 dana: 2 obnove mjesečno po oglasu, pa 1.800 / 2 je oko 900 oglasa.
+  - Za katalog od ~400 oglasa ravnomjerno: 1.800 / 400 je 4,5 obnove, dakle ciklus ~7 dana,
+    tj. cijeli katalog moze ici na minimalnom pragu od 7 dana.
 
 ### Primjeri (24h obnova, period 7 dana, cijena 54 po artiklu)
 
@@ -159,5 +162,5 @@ Pravilo do tada: **ne citiraj kvotu napamet, pročitaj je sa `olx_refresh_limits
 
 ## Otvorena pitanja koja vrijedi provjeriti u nalogu
 
-- Da li se automatsko obnavljanje uz izdvajanje broji u kvotu od 750 ili je odvojeno.
-- Cijena samostalnog plaćenog obnavljanja preko 750 besplatnih (nije u cjenovniku izdvajanja).
+- Da li se automatsko obnavljanje uz izdvajanje broji u besplatnu kvotu (`free_limit`) ili je odvojeno.
+- Cijena samostalnog plaćenog obnavljanja preko besplatne kvote (nije u cjenovniku izdvajanja; `paid_count` u API odgovoru sugeriše da postoji).

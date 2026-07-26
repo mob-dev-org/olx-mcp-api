@@ -16,6 +16,8 @@ cp .env.example .env     # popuni OLX_TOKEN ili OLX_USERNAME/OLX_PASSWORD
 node dist/cli/index.js whoami
 ```
 
+Provjere: `npm test` (testovi match logike, bez mreze) i `npm run typecheck`.
+
 ## CLI primjeri
 
 ```bash
@@ -41,6 +43,12 @@ node dist/cli/index.js listings images rm 12345 67890        # obrisi sliku
 ```
 
 Napomena o slikama (potvrdjeno uzivo): API prima slike samo kao stvarne fajlove preko `multipart/form-data`, pod poljem `images[]`. Ne prihvata `image_url`. Zato `--url` prvo preuzme sliku pa je posalje kao fajl, a `--file` salje lokalni fajl direktno. Oba zavrse isto na `POST /listings/:id/image-upload`.
+
+## Spajanje sa Shopify zalihom (komanda match)
+
+CLI ima komandu `match` koja spaja PIK oglase sa Shopify artiklima (po SKU, pa po slicnosti
+naslova: IDF Jaccard i trigram Dice, sa normalizacijom dijakritika). Logika je u
+`src/core/match.ts` i pokrivena je testovima (`npm test`). Detalji: `node dist/cli/index.js match --help`.
 
 ## Snapshot kategorija i lokacija (statički, bez stalnog dohvatanja)
 
@@ -136,7 +144,7 @@ export OLX_TOKEN=tvoj_token        # zsh/bash; trajno dodaj u ~/.zshrc ili ~/.ba
 claude
 ```
 
-Pri prvom otvaranju Claude Code pita da odobriš projektni MCP server `olx-pik`. Potvrdi, pa provjeri sa `/mcp`. Server preuzima `OLX_TOKEN` iz tvog okruzenja preko `${OLX_TOKEN}` u `.mcp.json`.
+Pri prvom otvaranju Claude Code pita da odobriš projektni MCP server `olx-pik`. Potvrdi, pa provjeri sa `/mcp`. Server preuzima `OLX_TOKEN` iz tvog okruzenja preko `${OLX_TOKEN:-}` u `.mcp.json` (prazan default ako varijabla nije postavljena).
 
 Alternativa bez `.mcp.json` (registracija samo za tebe, token ostaje lokalno):
 
@@ -153,12 +161,19 @@ Napomene:
 
 ## Claude Code skillovi
 
-Repozitorij nosi i dva skilla u `.claude/skills/` (folder je skriven u file browserima jer pocinje tackom, ali je u gitu):
+Repozitorij nosi cetiri skilla u `.claude/skills/` (folder je skriven u file browserima jer pocinje tackom, ali je u gitu):
 
 - `olx-mcp-setup`: postavljanje i koristenje toolkita (token, MCP, CLI, troubleshooting).
 - `olx-analiza-profila`: analiza vlastitog profila i oglasa uz strategiju iz KB resursa.
+- `pik-olx-kreditni-savjetnik`: potrosnja kredita, izdvajanje, cjenovnik, strategija promocije.
+- `olx-shopovi-snimci`: obrada Excel snimaka Gold/Platinum shopova (razdvajanje po kantonima, poredjenje dva snimka).
 
-Dolaze automatski sa kloniranjem; nista se ne instalira posebno.
+Dolaze automatski sa kloniranjem; nista se ne instalira posebno. Sistemski prompt za bota je u
+`CLAUDE.md` u korijenu.
 
-Detaljan plan za repo, build, MCP integraciju u Claude Code i rollout tima je u `PLAN.md`.
-Strateska i API referenca za AI je u `olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md`.
+Izvori znanja (jedan izvor istine, ne duplirati brojeve po skillovima):
+- `olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md` — pravila platforme, paketi, kvote, pretraga.
+- `olx-dokumentacija/API-INVENTAR.md` — svi MCP alati, parametri, rupe u API-ju.
+- `olx-dokumentacija/PIK-pomoc-korpus/` — 52 zvanicna clanka podrske (pomoc.olx.ba).
+
+`PLAN.md` je arhiviran handoff iz faze prije builda; stvarno stanje opisuju README i API-INVENTAR.
