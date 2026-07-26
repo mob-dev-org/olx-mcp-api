@@ -53,16 +53,27 @@ Tri kolone su tip automatskog obnavljanja uz izdvajanje: svakih 8 sati (3x dnevn
 
 ## Paketi shopova (bonus krediti i popusti)
 
-| Paket | Bonus krediti/mjesec | Popust na dopunu dodatnih kredita |
-|---|---|---|
-| Bronze | 750 | do 33% |
-| Silver | 1.100 | do 44% |
-| Gold | 1.800 | do 56% |
-| Platinum | 4.600 | do 60% |
+Provjereno na zvaničnoj stranici olx.ba/shopovi/paketi, 26.07.2026.
 
-- Gold pretplata je oko 119 KM mjesečno (sa PDV-om); 1.800 kredita je mjesečni iznos uključen u
-  pretplatu, ne jednokratni bonus.
+| Paket | Cijena/mjesec (sa PDV-om) | Bonus krediti/mjesec | Vrijednost kredita | Popust na dopunu |
+|---|---|---|---|---|
+| Bronze | 59 KM | 750 | 75 KM | do 33% |
+| Silver | 79 KM | 1.100 | 110 KM | do 44% |
+| Gold | 119 KM | 1.800 | 180 KM | do 56% |
+| Platinum | 299 KM | 4.600 | 460 KM | do 60% |
+
+- Krediti su mjesečni iznos uključen u pretplatu, ne jednokratni bonus.
+- Kod Silvera i Golda krediti vrijede više od same pretplate (110 naspram 79 KM, 180 naspram
+  119 KM). Kod Platinuma je obrnuto (460 naspram 299 KM u korist kredita, ali skok cijene je
+  2,5x), a kod Bronzea krediti vrijede više od pretplate (75 naspram 59 KM).
+- Paket se može mijenjati u bilo kojem trenutku, bez dugoročnog ugovora. Uplata za duži period
+  nosi popust do 30%.
+- Shop nema ograničenje na broj oglasa ni u jednoj kategoriji.
+- Shop ostvaruje popust do 30% na objavu oglasa u komercijalnim kategorijama (Vozila,
+  Nekretnine i sl.).
 - Pri otvaranju shopa: 30 dana probno + 500 kredita dobrodošlice.
+- Zvanična statistika sa iste stranice (26.07.2026.): oko 4.500 PIK shopova, 71 milion
+  objavljenih oglasa, 4 miliona korisnika.
 
 ## Bonusi na dopunu kredita (kartično)
 
@@ -101,9 +112,47 @@ SMS dopunom je maksimalni bonus oko 20%, pa je za veće iznose kartično plaćan
 
 ## Obnavljanje po tipu naloga
 
-- **Shop (Gold/Platinum):** besplatna ručna obnova svakih 7 dana, do 750 obnova mjesečno.
+- **Shop:** besplatna ručna obnova svakih 7 dana. Mjesečna kvota zavisi od naloga, vidi niže.
 - **OLX PRO:** obnova svakih 21 dan.
 - **Klasični profil:** obnova svakih 30 dana.
+
+### Mjesečna kvota obnova: 750 naspram 1.800
+
+Ovdje postoji protivrječnost koju treba znati prije nego se korisniku kaže broj.
+
+- Zvanična stranica olx.ba/shopovi/paketi (provjereno 26.07.2026.) tvrdi **750 besplatnih obnova
+  mjesečno**, i to jednako za sva četiri paketa, bez razlike.
+- Izmjereno preko API-ja na stvarnom **Gold** shopu: `GET /listing/refresh/limits` vraća
+  `free_limit: 1800`. Dakle 750 nije tačno za Gold.
+- Razmak između dvije obnove istog oglasa je izmjeren i na **Platinum** shopu i iznosi 7 dana,
+  isto kao Gold. Paket ne skraćuje razmak.
+
+### Izmjereno na dva Gold naloga (26.07.2026.)
+
+| Nalog | Paket | Krediti | free_limit | free_count | listing_count | Član od |
+|---|---|---|---|---|---|---|
+| Proton_Ilidza | Gold | 1.488 | 1.800 | 611 | 331 | 06/2026 |
+| MixBox | Gold | 21.575 | 1.800 | 301 | 0 | 01/2019 |
+
+Šta ovo dokazuje:
+
+- **Kvota obnova je potpuno odvojena od salda kredita.** MixBox ima 21.575 kredita, četrnaest puta
+  više od Protona, a `free_limit` je identičan, 1.800. Krediti ne kupuju obnove i obnove ne troše
+  kredite.
+- **Kvota ne zavisi ni od broja oglasa.** Proton ima 331 oglas, MixBox nula, a kvota je ista.
+- **Kvota ne zavisi od starosti naloga.** MixBox je od 2019., Proton od juna 2026.
+
+Šta ostaje otvoreno: dva Gold naloga ne mogu razlučiti dvije mogućnosti.
+
+1. Kvota prati paket, i slučajno je jednaka broju kredita paketa (Bronze 750, Silver 1.100,
+   Gold 1.800, Platinum 4.600).
+2. Kvota je ravnih 1.800 za svaki shop paket, a 750 na zvaničnoj stranici je jednostavno
+   zastarjelo.
+
+Kako razlučiti: pokrenuti `olx_refresh_limits` na nalogu koji NIJE Gold. Jedan Bronze, Silver ili
+Platinum token rješava pitanje u jednom pozivu.
+
+Pravilo do tada: **ne citiraj kvotu napamet, pročitaj je sa `olx_refresh_limits` za taj nalog.**
 - Oglas NE mora isteći da bi se obnovio; obnavlja se aktivan oglas da dobije svjež datum, čim
   prođe prag za taj tip naloga.
 - Obnovu treba uraditi bar jednom u 6 mjeseci da oglas ne pređe u istekle.
