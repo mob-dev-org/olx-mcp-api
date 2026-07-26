@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { dirname } from "node:path";
 import { OlxClient, OlxApiError, OlxAuthError, OlxSpendError } from "../core/index.js";
 import { loadConfig } from "../core/config.js";
 import { setAuditContext } from "../core/audit.js";
 import { parseSponsorOptions, SPONSOR_DAYS, REFRESH_EVERY } from "../core/sponsor-options.js";
+import { buildPlan, dospjeliTermini, oznaciTermin, planSazetak, zaglavljeniTermini } from "../core/plan.js";
+import type { PlanKandidat, SponsorPlan } from "../core/plan.js";
 import { matchCatalog, summarizeMatches } from "../core/match.js";
 import type { PikItem, ShopifyItem, OverrideEntry } from "../core/match.js";
 import type { CreateListingInput, SponsorOptions, SponsorType, SponsorDays, RefreshEvery, CategoryNode, Country, City } from "../core/types.js";
@@ -756,6 +758,271 @@ sponsor
       out(await (await withAuth()).sponsorListing(id, sponsorOptions(opts), Boolean(opts.yes)));
     } catch (e) {
       fail(e);
+    }
+  });
+
+// ---- Planer izdvajanja ----
+// API ne prima zakazivanje, pa raspored zivi u lokalnom fajlu, a izvrsenje pokrece ova komanda
+// (rucno ili kroz dnevni cron). Trosak se nikad ne naplacuje bez --yes.
+
+const PLAN_FILE = ".olx-pik/plan-izdvajanja.json";
+
+function citajPlan(putanja: string): SponsorPlan {
+  const raw: unknown = JSON.parse(readFileSync(putanja, "utf8"));
+  if (!raw || typeof raw !== "object" || !Array.isArray((raw as SponsorPlan).termini)) {
+    throw new Error(`Fajl ${putanja} nije plan izdvajanja.`);
+  }
+  return raw as SponsorPlan;
+}
+
+function upisiPlan(putanja: string, plan: SponsorPlan): void {
+  mkdirSync(dirname(putanja), { recursive: true });
+  writeFileSync(putanja, `${JSON.stringify(plan, null, 2)}\n`, "utf8");
+}
+
+function danasnjiDatum(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// Kljuc protiv dvostrukog izvrsenja: dva paralelna pokretanja ne smiju naplatiti isti termin.
+function zauzmiKljuc(putanja: string): () => void {
+  const kljuc = `${putanja}.lock`;
+  try {
+    writeFileSync(kljuc, String(process.pid), { flag: "wx" });
+  } catch {
+    throw new Error(`Izvrsenje je vec u toku (postoji ${kljuc}). Ako je proces pao, obrisi taj fajl rucno.`);
+  }
+  return () => {
+    try {
+      rmSync(kljuc, { force: true });
+    } catch {
+      // ako se kljuc ne moze obrisati, sljedece pokretanje ce to prijaviti
+    }
+  };
+}
+
+function ispisiPlan(plan: SponsorPlan): void {
+  const s = planSazetak(plan);
+  out({
+    napravljen: plan.napravljen,
+    nalog: plan.nalog,
+    budzet: plan.budzet,
+    dana_raspored: plan.dana_raspored,
+    sazetak: s,
+    termini: plan.termini.map((t) => ({
+      za_datum: t.za_datum,
+      id: t.listing_id,
+      naslov: t.naslov,
+      cijena: t.cijena,
+      status: t.status,
+      ...(t.napomena ? { napomena: t.napomena } : {}),
+    })),
+  });
+}
+
+const plan = sponsor.command("plan").description("Raspored izdvajanja kroz dane (plan fajl, izvrsenje uz --yes)");
+
+plan
+  .command("napravi")
+  .description("Pravi predlog plana: dohvata cijene (ne trosi) i rasporedjuje ih u budzet")
+  .requiredOption("--budzet <n>", "koliko kredita ukupno smije otici na ovaj plan")
+  .option("--dana <n>", "kroz koliko dana se raspored siri", "7")
+  .option("--type <0|1|2>", "0 bez, 1 klasicno, 2 premium", "1")
+  .option("--trajanje <n>", `koliko dana traje jedno izdvajanje: ${SPONSOR_DAYS.join(",")}`, "7")
+  .option("--refresh-every <h>", `autoobnova u satima: ${REFRESH_EVERY.join(",")}`)
+  .option("--homepage", "ukljuci naslovnicu", false)
+  .option("--broj-oglasa <n>", "koliko oglasa najvise razmatrati", "40")
+  .option("--oglasi <ids>", "izricit spisak ID-jeva, odvojen zapezom (preskace izbor po svjezini)")
+  .option("--user <user>", "username (default: ulogovani)")
+  .option("--file <putanja>", "gdje se snima plan", PLAN_FILE)
+  .action(async (opts: {
+    budzet: string;
+    dana: string;
+    type: string;
+    trajanje: string;
+    refreshEvery?: string;
+    homepage?: boolean;
+    brojOglasa: string;
+    oglasi?: string;
+    user?: string;
+    file: string;
+  }) => {
+    try {
+      const budzet = Number(opts.budzet);
+      if (!Number.isFinite(budzet) || budzet <= 0) throw new Error("--budzet mora biti pozitivan broj kredita.");
+      const opcije = sponsorOptions({
+        type: opts.type,
+        days: opts.trajanje,
+        refreshEvery: opts.refreshEvery,
+        homepage: opts.homepage,
+      });
+
+      const c = await withAuth();
+      const user = await resolveUser(c, opts.user);
+      const limit = Math.max(1, Number(opts.brojOglasa) || 40);
+
+      let kandidati: PlanKandidat[];
+      if (opts.oglasi) {
+        const ids = opts.oglasi.split(",").map((x) => Number(x.trim())).filter((x) => Number.isFinite(x));
+        if (!ids.length) throw new Error("--oglasi ne sadrzi ni jedan validan ID.");
+        kandidati = [];
+        for (const id of ids) {
+          const oglas = await c.getListing(id);
+          kandidati.push({ id, naslov: oglas.title, vec_izdvojen: Boolean(oglas.sponsored) });
+        }
+      } else {
+        // Bez izricitog spiska: najstariji aktivni oglasi koji nisu izdvojeni. Ovo je heuristika
+        // (najdublje su pali), ne mjerenje: API ne daje ni pregled ni pojmove pretrage.
+        const aktivni = await c.listAllActive(user);
+        kandidati = aktivni
+          .filter((l) => !l.sponsored)
+          .sort((a, b) => (a.date ?? 0) - (b.date ?? 0))
+          .slice(0, limit)
+          .map((l) => ({ id: l.id, naslov: l.title }));
+      }
+
+      // Cijena se dohvata za svakog kandidata; GET ne trosi kredite.
+      for (const kandidat of kandidati) {
+        try {
+          const cijena = await c.sponsorPrice(kandidat.id, opcije);
+          kandidat.cijena = cijena.total;
+        } catch (e) {
+          // Bez cijene kandidat ne ulazi u plan; razlog ide na stderr da se ne izgubi tiho.
+          console.error(
+            `Cijena za oglas ${kandidat.id} nije dohvacena, preskacem: ${String(e instanceof Error ? e.message : e)}`,
+          );
+        }
+      }
+
+      const noviPlan = buildPlan({
+        kandidati,
+        budzet,
+        danaRaspored: Number(opts.dana) || 7,
+        opcije,
+        pocetniDatum: danasnjiDatum(),
+        napravljen: new Date().toISOString(),
+        nalog: user,
+      });
+
+      upisiPlan(opts.file, noviPlan);
+      ispisiPlan(noviPlan);
+      console.error(`Plan je snimljen u ${opts.file}. Nista nije naplaceno.`);
+      console.error(`Izvrsenje: node dist/cli/index.js sponsor plan izvrsi --yes`);
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+plan
+  .command("prikazi")
+  .description("Ispisuje trenutni plan i sta je od njega izvrseno")
+  .option("--file <putanja>", "putanja plana", PLAN_FILE)
+  .action((opts: { file: string }) => {
+    try {
+      ispisiPlan(citajPlan(opts.file));
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+plan
+  .command("izvrsi")
+  .description("Izvrsava termine dospjele do danas (TROSI KREDITE; bez --yes je probni prikaz)")
+  .option("--file <putanja>", "putanja plana", PLAN_FILE)
+  .option("--datum <YYYY-MM-DD>", "racunaj kao da je taj datum (za provjeru)")
+  .option("--yes", "potvrda troska", false)
+  .action(async (opts: { file: string; datum?: string; yes?: boolean }) => {
+    let otpusti: (() => void) | undefined;
+    try {
+      let tekuci = citajPlan(opts.file);
+      const danas = opts.datum ?? danasnjiDatum();
+
+      const zaglavljeni = zaglavljeniTermini(tekuci);
+      if (zaglavljeni.length) {
+        throw new Error(
+          `Plan ima ${zaglavljeni.length} termina u stanju "u_toku" (prekinuto izvrsenje): ` +
+            `${zaglavljeni.map((t) => t.listing_id).join(", ")}. ` +
+            "Provjeri rucno da li su ti oglasi izdvojeni (listings get <id>, polje sponsored), " +
+            "pa im u planu postavi izvrsen ili planiran. Automatski ih ne diram, da se ne naplati dva puta.",
+        );
+      }
+
+      const dospjeli = dospjeliTermini(tekuci, danas);
+      if (!dospjeli.length) {
+        out({ danas, dospjelo: 0, napomena: "Nema termina za danas.", sazetak: planSazetak(tekuci) });
+        return;
+      }
+
+      const ukupno = dospjeli.reduce((zbir, t) => zbir + t.cijena, 0);
+      if (!opts.yes) {
+        out({
+          probni_prikaz: true,
+          danas,
+          dospjelo: dospjeli.length,
+          procijenjen_trosak: ukupno,
+          termini: dospjeli.map((t) => ({ id: t.listing_id, naslov: t.naslov, cijena: t.cijena })),
+        });
+        console.error("Probni prikaz. Dodaj --yes da se izdvajanje stvarno naplati.");
+        return;
+      }
+
+      otpusti = zauzmiKljuc(opts.file);
+      const c = await withAuth();
+      const ishodi: { id: number; status: string; napomena?: string }[] = [];
+
+      for (const termin of dospjeli) {
+        // Cijena se provjerava ponovo: plan je star nekoliko dana, a cijena izdvajanja je dinamicna.
+        let cijenaSada: number | undefined;
+        try {
+          cijenaSada = (await c.sponsorPrice(termin.listing_id, termin.opcije)).total;
+        } catch (e) {
+          tekuci = oznaciTermin(tekuci, termin.id, {
+            status: "neuspio",
+            napomena: `cijena se ne moze dohvatiti: ${String(e instanceof Error ? e.message : e)}`,
+          });
+          upisiPlan(opts.file, tekuci);
+          ishodi.push({ id: termin.listing_id, status: "neuspio" });
+          continue;
+        }
+
+        if (cijenaSada > termin.cijena) {
+          tekuci = oznaciTermin(tekuci, termin.id, {
+            status: "cijena_promijenjena",
+            napomena: `planirano ${termin.cijena}, sada ${cijenaSada} kredita; nije naplaceno`,
+          });
+          upisiPlan(opts.file, tekuci);
+          ishodi.push({ id: termin.listing_id, status: "cijena_promijenjena", napomena: `${termin.cijena} -> ${cijenaSada}` });
+          continue;
+        }
+
+        // Upis PRIJE poziva: ako proces padne, termin ostaje "u_toku" i sljedece pokretanje trazi
+        // rucnu provjeru umjesto da naplati drugi put.
+        tekuci = oznaciTermin(tekuci, termin.id, { status: "u_toku" });
+        upisiPlan(opts.file, tekuci);
+
+        try {
+          await c.sponsorListing(termin.listing_id, termin.opcije, true);
+          tekuci = oznaciTermin(tekuci, termin.id, {
+            status: "izvrsen",
+            izvrseno_u: new Date().toISOString(),
+            napomena: cijenaSada < termin.cijena ? `pojeftinilo: ${termin.cijena} -> ${cijenaSada}` : undefined,
+          });
+          ishodi.push({ id: termin.listing_id, status: "izvrsen" });
+        } catch (e) {
+          tekuci = oznaciTermin(tekuci, termin.id, {
+            status: "neuspio",
+            napomena: String(e instanceof Error ? e.message : e),
+          });
+          ishodi.push({ id: termin.listing_id, status: "neuspio", napomena: String(e instanceof Error ? e.message : e) });
+        }
+        upisiPlan(opts.file, tekuci);
+      }
+
+      out({ danas, izvrseno: ishodi.filter((i) => i.status === "izvrsen").length, ishodi, sazetak: planSazetak(tekuci) });
+    } catch (e) {
+      fail(e);
+    } finally {
+      otpusti?.();
     }
   });
 
