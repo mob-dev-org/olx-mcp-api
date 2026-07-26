@@ -4,9 +4,9 @@ description: >-
   Savjetnik za promociju oglasa i potrošnju kredita na PIK.ba / OLX.ba (bosanskohercegovačka
   oglasna platforma; OLX.ba se u junu 2026. rebrandira u Pik.ba). Koristi OBAVEZNO kad god se
   spomene izdvajanje oglasa, promocija, PIK ili OLX krediti, obnavljanje oglasa, "koliko da
-  izdvojim", "koliko kredita", Gold ili Platinum shop, 750 besplatnih obnova, automatsko
+  izdvojim", "koliko kredita", Gold ili Platinum shop, besplatne obnove i mjesečna kvota, automatsko
   obnavljanje (8h/24h), naslovi oglasa i pozicija u pretrazi, ili kad korisnik pita kako
-  rasporediti budžet kredita na artikle. Pokriva cjenovnik izdvajanja, matematiku potrošnje,
+  rasporediti budžet kredita na artikle. Pokriva model cijene izdvajanja, matematiku potrošnje,
   strategiju izbora artikala iz statistike pretrage, te korištenje olx-pik MCP alata. Pomaže
   donijeti isplativu odluku umjesto nagađanja, i nikad ne troši kredite bez potvrde korisnika.
 ---
@@ -22,30 +22,47 @@ Brojevi i pravila platforme: jedan izvor istine je `olx-dokumentacija/OLX_PIK_AI
 (MCP resource `olx://knowledgebase`); popis alata je `olx-dokumentacija/API-INVENTAR.md`. Za
 analizu profila koristi skill `olx-analiza-profila`, za setup MCP-a `olx-mcp-setup`.
 
+## PRVO PRAVILO, IZNAD SVEGA U OVOM FAJLU: nijedan broj napamet
+
+`olx://pravila-brojeva` (`olx-dokumentacija/pravila-brojeva.md`) ima prednost nad ovim skillom i
+nad svim referencama kad je u pitanju bilo koji broj. Procitaj ga prije nego izgovoris cijenu,
+kvotu ili broj artikala koje budzet pokriva.
+
+Kratko: cijena izdvajanja je dinamicna i mjerena je razlika od tri i po puta izmedju dvije
+kategorije za istu uslugu. Kvota obnova se cita sa naloga; ni 750 ni 1.800 se ne citiraju. Ako
+pristup nalogu nije moguc, ne izgovara se nijedan broj, nego se kaze sta ce se izmjeriti.
+
+Cijena se ne pamti nego racuna:
+`cijena = dnevna_cijena x naplativi_dani x faktor_obnove`, gdje se samo `dnevna_cijena` dohvaca
+(cijena za 7 dana bez obnove podijeljena sa 6). Model je u `references/cjenovnik-i-krediti.md`.
+
 ## Zlatno pravilo prije svega: dvije odvojene "valute"
 
 Najčešća greška je miješanje dvije stvari koje rade različit posao:
 
-- **Besplatne obnove** (kvota zavisi od naloga, provjeri `refresh/limits`; mjereno 1.800 mjesečno
-  na Gold shopu, svakih 7 dana po oglasu). Troše
+- **Besplatne obnove** (mjesečna kvota se ČITA sa naloga preko `refresh/limits`, nije fiksna; prag
+  je svakih 7 dana po oglasu na shopu). Troše
   KVOTU obnova, ne kredite. Daju oglasu svjež datum i dižu ga na vrh među standardnim oglasima.
-- **Krediti** (npr. Gold paket nosi 1.800 bonus kredita). Troše se na IZDVAJANJE (promociju) i na
-  akcijsku cijenu. Izdvajanje diže oglas IZNAD svih standardnih, u vrh kategorije i pretrage.
+- **Krediti** (paket nosi mjesečni bonus kredita; provjeri na nalogu koliko). Troše se na
+  IZDVAJANJE (promociju) i na akcijsku cijenu. Izdvajanje diže oglas IZNAD svih standardnih, u vrh
+  kategorije i pretrage.
 
 Kad god savjetuješ, prvo razdvoji ove dvije poluge. Obnavljanje održava cijeli katalog vidljivim
 besplatno; krediti su za uzak izbor prioritetnih artikala.
 
 ## Workflow savjetovanja (prati ovaj redoslijed)
 
-1. **Utvrdi kontekst budžeta.** Koji paket (Gold = 1.800 kredita / Platinum = 4.600), koliko
-   kredita trenutno ima, koliko aktivnih oglasa, je li shop nov ili zreo. Ako fali, pitaj kratko.
+1. **Utvrdi kontekst budžeta.** Koji paket, koliko kredita trenutno ima, kolika je kvota obnova i
+   koliko je potrošeno, koliko aktivnih oglasa, je li shop nov ili zreo, i šta prodaje uz procjenu
+   koliko donosi jedna prosječna prodaja. Sve brojeve pročitaj sa naloga; ako fali, pitaj kratko.
 2. **Razdvoji valute.** Podsjeti šta ide na kredite (izdvajanje), a šta je besplatno (obnova).
 3. **Izaberi artikle iz podataka, ne napamet.** Ako korisnik ima statistiku ("pojmovi u
    pretrazi", "najposjećeniji oglasi"), primijeni metodu ukrštanja iz
-   `references/strategija.md`. Ako nema, predloži da je povuče ili da izdvaja po Proton modelu.
-4. **Izračunaj, ne nagađaj.** Koristi cjenovnik i formule iz `references/cjenovnik-i-krediti.md`.
-   Cijena izdvajanja je zvanično DINAMIČNA, pa ako nemaš potvrđen broj za tu kategoriju, traži ga
-   sa koraka "Izdvoji" umjesto da izmišljaš.
+   `references/strategija.md`. Ako nema, predloži da je povuče ili da izdvaja po modelu uskog
+   izbora (jedan artikal po skupini potražnje).
+4. **Dohvati dnevnu cijenu, pa računaj.** Za svaku kategoriju u igri dohvati cijenu izdvajanja na
+   7 dana bez obnove preko `olx_sponsor_price` (ne troši kredite), podijeli sa 6 i dalje računaj po
+   modelu iz `references/cjenovnik-i-krediti.md`. Bez tog jednog dohvaćenog broja nema računice.
 5. **Ponudi varijante i preporuči.** Pokaži širinu (više artikala kraće) vs dubinu (manje
    artikala duže) vs agresiju (8h obnova), uporedi i preporuči najpraktičniju za tu fazu.
 6. **Provjeri stanje prije izvršenja.** Ako su MCP alati dostupni, provjeri šta je već izdvojeno
@@ -54,7 +71,7 @@ besplatno; krediti su za uzak izbor prioritetnih artikala.
 
 ## Ključne činjenice (kompaktno; detalji u reference fajlovima)
 
-- **Obnova po tipu naloga:** Shop svakih 7 dana (kvota po nalogu, mjereno 1.800/mjesec). OLX PRO svakih 21 dan. Klasični
+- **Obnova po tipu naloga:** Shop svakih 7 dana (mjesečnu kvotu pročitaj sa naloga). OLX PRO svakih 21 dan. Klasični
   profil svakih 30 dana. Ako korisnik citira "30 dana", to je pravilo za klasični profil, ne za
   shop. Provjeri o kom nalogu je riječ prije nego potvrdiš prag.
 - **Izdvajanje ima tri nivoa autoobnove:** bez obnavljanja (najjeftinije), svaki dan / 24h
@@ -65,8 +82,8 @@ besplatno; krediti su za uzak izbor prioritetnih artikala.
 - **Pretraga radi na cijelim riječima iz naslova i podnaslova** (AND logika); opis NE ulazi u
   pretragu. Zato izdvojeni artikal mora imati tačan traženi pojam u naslovu.
 - **Cijena izdvajanja je zvanično dinamična** (zavisi od broja oglasa i izdvojenih u kategoriji i
-  od broja dana). Cjenovnik u skillu je snimak za kategoriju suplemenata; tretiraj ga kao polaznu
-  tačku, ne kao zauvijek fiksan.
+  od broja dana). U skillu nema cjenovnika, nego model: dohvati dnevnu cijenu za kategoriju pa je
+  pomnoži naplativim danima i faktorom obnove. Nijedan zapamćen broj se ne koristi.
 
 ## Brza dijagnostika (prije nego predložiš trošenje kredita)
 
@@ -80,13 +97,16 @@ besplatno; krediti su za uzak izbor prioritetnih artikala.
 
 ## Kada čitati koji reference fajl
 
-- `references/cjenovnik-i-krediti.md` — cjenovnik izdvajanja (tabela svih kombinacija), cijena po
-  danu, formule za računicu, paketi, bonusi na dopunu, vrijednost (1 KM = 10 kredita), zarada
-  kredita, probni period, fotografije, obnavljanje po tipu naloga. Čitaj kad računaš potrošnju.
+- `olx://pravila-brojeva` — koji brojevi su fiksni, koji se čitaju sa naloga, a koji se nikad ne
+  pretpostavljaju. Ima prednost nad svim ostalim. Čitaj prije bilo kakve računice.
+- `references/cjenovnik-i-krediti.md` — model cijene izdvajanja (dnevna cijena puta naplativi dani
+  puta faktor obnove), naplativi dani po periodu, faktori obnove, računice koje se izvode iz
+  dohvaćene cijene, bonusi na dopunu, vrijednost (1 KM = 10 kredita), zarada kredita, fotografije,
+  obnavljanje po tipu naloga. Čitaj kad računaš potrošnju.
 - `references/strategija.md` — hijerarhija pozicioniranja, dijagnostika, kako pretraga radi
   (AND logika, naslov i podnaslov, dijakritici), pravila naslova, sortiranje, metoda izbora
-  artikala iz statistike, Proton model (4 artikla, 1 po kategoriji, 7+1 dan), faze za nov shop.
-  Čitaj kad biraš ŠTA i KAKO izdvojiti.
+  artikala iz statistike, model uskog izbora (jedan artikal po skupini potražnje, 7+1 dan na
+  početku), faze za nov shop. Čitaj kad biraš ŠTA i KAKO izdvojiti.
 - `references/platforma-i-pravila.md` — Gold naspram Platinum, pinovanje naspram izdvajanja, video,
   zakazivanje i produženje promocije, naplative kategorije i limiti profila, statistika, grupno
   uređivanje, brza dostava, pravila i zabrane, šta se može automatizovati a šta je ručno. Čitaj
@@ -107,7 +127,8 @@ besplatno; krediti su za uzak izbor prioritetnih artikala.
 - **Ne tvrdi cijenu napamet.** Ako nije potvrđena za tu kategoriju, reci da je dinamična i traži
   stvarni broj sa koraka "Izdvoji".
 - **Budi objektivan.** Ne povlađuj automatski; ako korisnikova pretpostavka ne stoji (npr. da
-  1.800 kredita može pokriti svih 400 artikala izdvajanjem), reci jasno i pokaži zašto.
+  mjesečni bonus kredita može pokriti izdvajanje cijelog kataloga), reci jasno i pokaži zašto,
+  na osnovu dohvaćene cijene a ne procjene.
 
 ## Napomena o brendu
 

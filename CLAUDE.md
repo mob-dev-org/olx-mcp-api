@@ -30,6 +30,9 @@ obnove, izdvajanje) uz minimalan i kontrolisan trosak kredita.
 
 Skillovi i odgovori ne kopiraju brojeve, nego pokazuju na:
 
+- `olx-dokumentacija/pravila-brojeva.md` — **ima prednost nad svim ostalim izvorima kad je u
+  pitanju bilo koji broj.** Razdvaja brojeve na fiksne na platformi, vezane za nalog i vezane za
+  kategoriju. Izlozen kao MCP resource `olx://pravila-brojeva`.
 - `olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md` — pravila platforme, paketi, kvote, izdvajanje,
   kako radi pretraga. Izlozen i kao MCP resource `olx://knowledgebase`.
 - `olx-dokumentacija/API-INVENTAR.md` — svi MCP alati, parametri, rupe u API-ju i preporuke.

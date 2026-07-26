@@ -126,6 +126,7 @@ def pregled(df: pd.DataFrame, grupa: str, min_shopova: int = 0) -> pd.DataFrame:
             continue
         bez = int(g[o].eq(0).sum())
         nenula = g.loc[g[o] > 0, o]
+        akt = g[o].gt(0)
         redovi.append({
             grupa: kljuc if pd.notna(kljuc) else "(prazno)",
             "broj shopova": len(g),
@@ -134,6 +135,10 @@ def pregled(df: pd.DataFrame, grupa: str, min_shopova: int = 0) -> pd.DataFrame:
             "procenat bez oglasa": round(bez / len(g) * 100, 1),
             "Gold": int(g[p].eq("Gold").sum()),
             "Platinum": int(g[p].eq("Platinum").sum()),
+            "Gold aktivni": int((akt & g[p].eq("Gold")).sum()),
+            "Platinum aktivni": int((akt & g[p].eq("Platinum")).sum()),
+            "Gold bez oglasa": int((~akt & g[p].eq("Gold")).sum()),
+            "Platinum bez oglasa": int((~akt & g[p].eq("Platinum")).sum()),
             "ukupno oglasa": int(g[o].sum()),
             "medijana oglasa (svi)": float(g[o].median()),
             "medijana oglasa (bez nula)": float(nenula.median()) if len(nenula) else 0.0,
@@ -141,10 +146,77 @@ def pregled(df: pd.DataFrame, grupa: str, min_shopova: int = 0) -> pd.DataFrame:
     return pd.DataFrame(redovi).sort_values("broj shopova", ascending=False)
 
 
-def formatiraj(dst: Path) -> None:
+def analiza(df: pd.DataFrame, pk: pd.DataFrame, datum: str, izvor: str,
+            firmi_bez: int) -> tuple:
+    """Prvi list izlaza: zbirno stanje i aktivni shopovi po paketu i kantonu.
+
+    Sluzi kao radna podloga za pripremu liste profila za prodavce, pa su
+    aktivni shopovi (najmanje jedan oglas) prva kolona i sortiranje.
+    """
+    o, p = KOL["oglasi"], KOL["paket"]
+    akt = df[o].gt(0)
+    ostali_akt = int((akt & ~df[p].isin(["Gold", "Platinum"])).sum())
+    zbirno = pd.DataFrame({
+        "pokazatelj": [
+            "Datum snimka", "Izvorni fajl", "Ukupno shopova",
+            "Aktivni (najmanje 1 oglas)", "Gold aktivni", "Platinum aktivni",
+            "Ostali paketi aktivni", "Bez oglasa", "Gold bez oglasa",
+            "Platinum bez oglasa", "Procenat bez oglasa", "Firme bez oglasa",
+            "Ukupno oglasa (aktivni)", "Medijana oglasa (aktivni)",
+        ],
+        "vrijednost": [
+            datum, izvor, len(df), int(akt.sum()),
+            int((akt & df[p].eq("Gold")).sum()),
+            int((akt & df[p].eq("Platinum")).sum()),
+            ostali_akt, int((~akt).sum()),
+            int((~akt & df[p].eq("Gold")).sum()),
+            int((~akt & df[p].eq("Platinum")).sum()),
+            f"{(~akt).mean()*100:.1f}%", firmi_bez,
+            int(df.loc[akt, o].sum()), float(df.loc[akt, o].median()),
+        ],
+    })
+    kol_kanton = pk.columns[0]
+    tabela = pk[[kol_kanton, "sa oglasima", "Gold aktivni", "Platinum aktivni",
+                 "bez oglasa", "Gold bez oglasa", "Platinum bez oglasa",
+                 "procenat bez oglasa", "broj shopova", "ukupno oglasa",
+                 "medijana oglasa (bez nula)"]].copy()
+    tabela = tabela.rename(columns={
+        "sa oglasima": "aktivni ukupno",
+        "medijana oglasa (bez nula)": "medijana oglasa (aktivni)",
+    }).sort_values("aktivni ukupno", ascending=False)
+    zbir = {kol_kanton: "UKUPNO"}
+    for c in tabela.columns[1:]:
+        zbir[c] = int(tabela[c].sum()) if c not in (
+            "procenat bez oglasa", "medijana oglasa (aktivni)") else ""
+    zbir["procenat bez oglasa"] = round(
+        int(tabela["bez oglasa"].sum()) / int(tabela["broj shopova"].sum()) * 100, 1)
+    tabela = pd.concat([tabela, pd.DataFrame([zbir])], ignore_index=True)
+    return zbirno, tabela
+
+
+def formatiraj_analizu(ws, red_tabele: int) -> None:
+    """List Analiza ima dva bloka pa ne dobija filter ni zamrznut prvi red."""
+    ws["A1"] = "ANALIZA SNIMKA — aktivni shopovi po paketu i kantonu"
+    ws["A1"].font = Font(bold=True, size=13)
+    for red in (2, red_tabele):
+        for c in ws[red]:
+            c.font = Font(bold=True)
+    for c in ws[ws.max_row]:
+        c.font = Font(bold=True)
+    for i in range(1, ws.max_column + 1):
+        duzine = [len(str(ws.cell(row=r, column=i).value or ""))
+                  for r in range(2, ws.max_row + 1)]
+        ws.column_dimensions[get_column_letter(i)].width = min(max(duzine) + 2, 42)
+
+
+def formatiraj(dst: Path, red_tabele_analiza: int) -> None:
     sivo = PatternFill("solid", fgColor="F2F2F2")
     wb = load_workbook(dst)
+    if "Analiza" in wb.sheetnames:
+        formatiraj_analizu(wb["Analiza"], red_tabele_analiza)
     for ws in wb.worksheets:
+        if ws.title == "Analiza":
+            continue
         ws.freeze_panes = "A2"
         ws.auto_filter.ref = ws.dimensions
         zaglavlje = [c.value for c in ws[1]]
@@ -221,8 +293,11 @@ def main() -> None:
         ],
     })
 
+    an_zbirno, an_tabela = analiza(df, pk, datum, src.name, len(firme_bez))
+
     izlazne = [c for c in df.columns if not c.startswith("_")]
-    zauzeta = {"Info", "Pregled kantoni", "Pregled gradovi", "Firme bez oglasa"}
+    zauzeta = {"Analiza", "Info", "Pregled kantoni", "Pregled gradovi",
+               "Firme bez oglasa"}
 
     def ime_lista(kanton: str) -> str:
         osnova = NEDOZVOLJENO_U_IMENU.sub("-", str(kanton))[:31].strip() or "Bez naziva"
@@ -235,7 +310,12 @@ def main() -> None:
         return ime
 
     ukupno = 0
+    # Analiza je prvi list: zbirno od reda 2, tabela po kantonima ispod njega.
+    red_tabele = 2 + len(an_zbirno) + 3
     with pd.ExcelWriter(dst, engine="openpyxl") as w:
+        an_zbirno.to_excel(w, sheet_name="Analiza", index=False, startrow=1)
+        an_tabela.to_excel(w, sheet_name="Analiza", index=False,
+                           startrow=red_tabele - 1)
         info.to_excel(w, sheet_name="Info", index=False)
         pk.to_excel(w, sheet_name="Pregled kantoni", index=False)
         pg.to_excel(w, sheet_name="Pregled gradovi", index=False)
@@ -247,7 +327,7 @@ def main() -> None:
             g[izlazne].to_excel(w, sheet_name=ime_lista(kanton), index=False)
         firme_bez[izlazne].to_excel(w, sheet_name="Firme bez oglasa", index=False)
 
-    formatiraj(dst)
+    formatiraj(dst, red_tabele)
     print(f"  Zbir po kantonskim listovima: {ukupno} "
           f"({'odgovara' if ukupno == len(df) else 'NE ODGOVARA'} masteru)")
     print(f"\nSnimljeno: {dst}")

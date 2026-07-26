@@ -1,166 +1,188 @@
-# Cjenovnik, krediti i obnavljanje (računica)
+# Cijena izdvajanja, krediti i obnavljanje
 
-Ovaj fajl sadrži sve brojke i formule za izračun potrošnje. Cijene izdvajanja su zvanično
-DINAMIČNE; tabela ispod je potvrđeni snimak za kategoriju suplemenata (juni 2026.) i poklopila se
-sa stvarnim računom na nalogu. Za drugu kategoriju ili kasniji period, zatraži stvarnu cijenu sa
-koraka "Izdvoji".
+Zamjenjuje raniju verziju koja je sadržavala tabelu cijena. Tabela je uklonjena jer je važila samo
+za jedan cjenovni razred, a čitala se kao opšti cjenovnik. Umjesto nje stoji model koji radi za
+bilo koju kategoriju uz jedan dohvaćen broj.
 
-## Cjenovnik izdvajanja (PIK krediti)
+Pravila o tome koji brojevi se smiju koristiti bez provjere su u `pravila-brojeva.md` i taj fajl
+ima prednost nad ovim.
 
-Tri kolone su tip automatskog obnavljanja uz izdvajanje: svakih 8 sati (3x dnevno), svaki dan
-(24h), ili bez obnavljanja.
+---
 
-| Period | 8 sati | Svaki dan (24h) | Bez obnavljanja |
-|---|---|---|---|
-| 1 dan | 20 | 12 | 8 |
-| 2 dana | 30 | 18 | 12 |
-| 3 dana | 45 | 27 | 18 |
-| 5 dana | 75 | 45 | 30 |
-| 7 dana (1 dan gratis) | 90 | 54 | 36 |
-| 14 dana (3 dana gratis) | 165 | 99 | 66 |
-| 21 dan (5 dana gratis) | 240 | 144 | 96 |
-| 30 dana (9 dana gratis) | 315 | 189 | 126 |
+## Model cijene izdvajanja
 
-### Kako čitati cjenovnik
+Cijena se ne pamti. Računa se iz jednog broja koji se dohvati za kategoriju.
 
-- Račun na nalogu prikazuje izdvajanje i autoobnovu kao DVIJE stavke. Primjer: 21 dan + 8 sati =
-  96 (izdvajanje) + 144 (automatsko obnavljanje) = 240 ukupno.
-- Osnovna cijena po danu (od 2 dana naviše): oko 6 kredita bez obnove, 9 uz 24h, 15 uz 8h. Period
-  od 1 dan je relativno skuplji po danu (minimalna cijena).
-- Gratis dani snižavaju efektivnu cijenu po danu na dužim periodima. Kod "svaki dan": 7 dana je
-  oko 7,7 kr/dan, a 30 dana oko 6,3 kr/dan.
+```
+cijena = dnevna_cijena × naplativi_dani × faktor_obnove
+```
 
-## Formule za potrošnju
+### Dnevna cijena
 
-- **Oglas-dana koje budžet pokriva:** krediti / (cijena po danu za odabrani tip).
-- **Koliko artikala stalno izdvojeno cijeli mjesec:** (krediti / cijena_po_danu) / 30.
-- **Ponavljanje kratkog vs jedno dugo izdvajanje:** uporedi 4 × (cijena 7 dana) naspram (cijena
-  30 dana). Primjer 24h: 4 × 54 = 216 naspram 189. Za stalnu potražnju dugo je isplativije.
-- **Pokrivenost besplatnim obnovama:** `free_limit` / (broj obnova po oglasu mjesečno), gdje
-  `free_limit` UVIJEK pročitaš sa `olx_refresh_limits` (izmjereno 1.800 na Gold nalozima).
-  Primjeri sa 1.800:
-  - Ciklus ~7-8 dana: oko 4 obnove mjesečno po oglasu, pa 1.800 / 4 je oko 450 oglasa.
-  - Ciklus ~15 dana: 2 obnove mjesečno po oglasu, pa 1.800 / 2 je oko 900 oglasa.
-  - Za katalog od ~400 oglasa ravnomjerno: 1.800 / 400 je 4,5 obnove, dakle ciklus ~7 dana,
-    tj. cijeli katalog moze ici na minimalnom pragu od 7 dana.
+Jedini podatak koji se mora dohvatiti. Dobija se iz cijene za sedam dana bez obnove:
 
-### Primjeri (24h obnova, period 7 dana, cijena 54 po artiklu)
+```
+dnevna_cijena = cijena_7_dana_bez_obnove / 6
+```
 
-- 3 artikla: 3 × 54 = 162 kredita
-- 4 artikla: 4 × 54 = 216 kredita
+Sedam dana se naplaćuje kao šest, jer je jedan dan gratis. Zato dijeljenje sa šest, ne sa sedam.
 
-### Primjeri (24h obnova, period 30 dana, cijena 189 po artiklu)
+### Naplativi dani
 
-- 3 artikla: 3 × 189 = 567 kredita
-- 9 artikala: 9 × 189 = 1.701 kredita (blizu cijelog Gold budžeta od 1.800)
+Duži periodi nose gratis dane. Naplaćuje se razlika.
 
-## Paketi shopova (bonus krediti i popusti)
+| Odabrani period | Gratis dana | Naplativi dani |
+|---|---|---|
+| 1 dan | 0 | 1,33 (minimalna naplata) |
+| 2 dana | 0 | 2 |
+| 3 dana | 0 | 3 |
+| 5 dana | 0 | 5 |
+| 7 dana | 1 | 6 |
+| 14 dana | 3 | 11 |
+| 21 dan | 5 | 16 |
+| 30 dana | 9 | 21 |
 
-Provjereno na zvaničnoj stranici olx.ba/shopovi/paketi, 26.07.2026.
+### Faktor obnove
 
-| Paket | Cijena/mjesec (sa PDV-om) | Bonus krediti/mjesec | Vrijednost kredita | Popust na dopunu |
-|---|---|---|---|---|
-| Bronze | 59 KM | 750 | 75 KM | do 33% |
-| Silver | 79 KM | 1.100 | 110 KM | do 44% |
-| Gold | 119 KM | 1.800 | 180 KM | do 56% |
-| Platinum | 299 KM | 4.600 | 460 KM | do 60% |
-
-- Krediti su mjesečni iznos uključen u pretplatu, ne jednokratni bonus.
-- Kod Silvera i Golda krediti vrijede više od same pretplate (110 naspram 79 KM, 180 naspram
-  119 KM). Kod Platinuma je obrnuto (460 naspram 299 KM u korist kredita, ali skok cijene je
-  2,5x), a kod Bronzea krediti vrijede više od pretplate (75 naspram 59 KM).
-- Paket se može mijenjati u bilo kojem trenutku, bez dugoročnog ugovora. Uplata za duži period
-  nosi popust do 30%.
-- Shop nema ograničenje na broj oglasa ni u jednoj kategoriji.
-- Shop ostvaruje popust do 30% na objavu oglasa u komercijalnim kategorijama (Vozila,
-  Nekretnine i sl.).
-- Pri otvaranju shopa: 30 dana probno + 500 kredita dobrodošlice.
-- Zvanična statistika sa iste stranice (26.07.2026.): oko 4.500 PIK shopova, 71 milion
-  objavljenih oglasa, 4 miliona korisnika.
-
-## Bonusi na dopunu kredita (kartično)
-
-| Iznos dopune | Bonus |
+| Automatska obnova | Faktor |
 |---|---|
-| manje od 10 KM | bez bonusa |
-| 10 – 49 KM | 20% |
-| 50 – 149 KM | 25% |
-| 150 – 199 KM | 30% |
-| 200 KM i više | 40% |
+| bez obnove | 1,0 |
+| svaka 24 sata | 1,5 |
+| svakih 8 sati | 2,5 |
 
-SMS dopunom je maksimalni bonus oko 20%, pa je za veće iznose kartično plaćanje isplativije.
+Premium izdvajanje je oko 2,7 puta skuplje od klasičnog. Taj odnos je izmjeren jednom i nije
+provjeren kroz više kategorija, pa se za premium cijena uvijek dohvaća posebno.
+
+### Pouzdanost modela
+
+Model je provjeren na 24 polja jednog cjenovnika i na četiri kategorije čije se dnevne cijene
+razlikuju tri i po puta, od 2 do 7 kredita dnevno. Pogađa svako polje, uz odstupanje do jednog
+kredita zbog zaokruživanja.
+
+**Faktori su strukturni i drže kroz kategorije. Dnevna cijena nije i mora se dohvatiti.**
+Ako se ikad naiđe na kategoriju gdje model promaši za više od jednog kredita, prestani ga koristiti
+za tu kategoriju i dohvaćaj svaku kombinaciju posebno.
+
+---
+
+## Kako se dnevna cijena dohvaća
+
+Jedan poziv za cijenu izdvajanja na bilo koji oglas iz te kategorije, sa periodom sedam dana i bez
+automatske obnove. Dohvatanje ne troši kredite.
+
+Napomena o parametrima: polje za razmak obnavljanja je obavezno i za izdvajanje bez obnove, tada
+se šalje nula. Bez njega poziv pada.
+
+Za katalog sa više kategorija dohvati po jedan oglas iz svake kategorije. Broj poziva je jednak
+broju kategorija, ne broju oglasa.
+
+**Nepotvrđeno i vrijedi provjeriti:** pretpostavka je da je dnevna cijena ista za sve oglase unutar
+jedne kategorije. Provjera traje minutu, uporedi dva oglasa iste kategorije sa različitom cijenom
+artikla i različitom starošću. Dok se to ne provjeri, ponašaj se kao da pretpostavka ne drži i
+dohvaćaj po oglasu za uži izbor koji se stvarno razmatra.
+
+---
+
+## Računice koje se izvode iz dohvaćene cijene
+
+Sve što slijedi traži da dnevna cijena već bude poznata.
+
+- **Koliko artikala stalno izdvojeno cijeli mjesec:** raspoloživi krediti podijeljeni sa cijenom za
+  30 dana po jednom artiklu.
+- **Kratko ponavljano naprema jednom dugom:** četiri puta cijena za sedam dana naprema jednoj
+  cijeni za trideset dana. Uz gratis dane duži period je uvijek jeftiniji, razlika je oko 12 posto
+  bez obzira na kategoriju, jer proizlazi iz odnosa naplativih dana (4 puta 6 je 24 naprema 21).
+- **Isplati li se obnova na 24 sata:** poređenje između istog perioda sa faktorom 1,0 i 1,5.
+  Razlika je uvijek pola osnovne cijene, pa je pitanje samo vrijedi li ti biti na vrhu svaki dan
+  umjesto jednom.
+- **Prag isplativosti po artiklu:** procijenjena zarada od jedne dodatne prodaje naspram cijene
+  izdvajanja tog artikla na trideset dana. Oba broja se dohvaćaju ili traže od korisnika, ne
+  procjenjuju se napamet.
+
+---
 
 ## Vrijednost kredita
 
-- **1 KM = 10 kredita** (potvrđeno na zvaničnom izvoru i odnosom 500 kredita = 50 KM u probnom
-  periodu). Koristi ovaj odnos kad pretvaraš kredite u KM za korisnika.
+1 KM je 10 kredita. Ovo je platformsko i smije se koristiti bez provjere.
 
-## Zarada kredita (bez dopune)
+---
 
-- 3 kredita za prvu prihvaćenu prijavu zloupotrebe oglasa; 1 kredit za naknadnu prihvaćenu prijavu.
-- 2 kredita za uspješnu prijavu nedozvoljenog naslova (npr. više modela u jednom oglasu).
-- Brza dostava: za svaku uspješnu dostavu gdje prodavac snosi trošak dostave 30 kredita; gdje kupac
-  snosi trošak, prodavac dobija 10 a kupac 20 kredita.
-- Napomena: zarada kredita dijeljenjem oglasa na Facebook više ne postoji (ukinuta).
+## Krediti u paketima
 
-## Probni period
+Iz dokumentacije, provjeriti na nalogu prije nego uđe u računicu jer se paketi mijenjaju.
 
-- 30 dana besplatno pri prvoj aktivaciji shopa, uz 500 kredita (= 50 KM) bez obzira na paket.
-- Prelaskom na shop nalog se NE može vratiti na PRO ili klasični profil (nepovratno).
+| Paket | Krediti mjesečno | Popust na dopunu |
+|---|---|---|
+| Bronze | 750 | do 33% |
+| Silver | 1.100 | do 44% |
+| Gold | 1.800 | do 56% |
+| Platinum | 4.600 | do 60% |
+
+Pri prvom otvaranju shopa: 30 dana probno i 500 kredita.
+
+---
+
+## Bonusi na dopunu kredita karticom
+
+Platformsko, važi bez obzira na kategoriju.
+
+| Iznos dopune | Bonus |
+|---|---|
+| ispod 10 KM | bez bonusa |
+| 10 do 49 KM | 20% |
+| 50 do 149 KM | 25% |
+| 150 do 199 KM | 30% |
+| 200 KM i više | 40% |
+
+Dopunom preko SMS poruke maksimalan bonus je oko 20 posto, pa je za veće iznose kartica
+isplativija. Jedna veća dopuna nosi više kredita nego više manjih za isti ukupan novac.
+
+---
+
+## Obnavljanje
+
+- Prag ručne obnove: shop svakih 7 dana, PRO svakih 21 dan, klasični profil svakih 30 dana.
+  Platformsko, smije se koristiti bez provjere.
+- Oglas se obnavlja i kad je aktivan, ne mora isteći. Obnova daje svjež datum.
+- Bar jednom u šest mjeseci, inače oglas prelazi u istekle.
+- **Mjesečna kvota besplatnih obnova se MORA pročitati sa naloga.** Zvanična pomoć navodi 750,
+  izmjereno je 1.800 na Gold nalogu. Nijedan broj se ne koristi kao pretpostavka.
+- Polje sa iskorištenim obnovama pokazuje POTROŠENO, ne preostalo.
+
+### Pokrivenost kataloga obnovama
+
+```
+maksimalno obnova po oglasu mjesečno = 30 / prag u danima
+broj oglasa koji staje u kvotu = kvota / obnova po oglasu
+```
+
+Za shop na sedmodnevnom pragu to je oko četiri obnove mjesečno po oglasu. Ako je katalog veći od
+kvote podijeljene sa četiri, sedmični ciklus nije moguć za cijeli katalog i obnove se moraju
+rasporediti po prioritetu.
+
+---
 
 ## Fotografije
 
-- Besplatno po oglasu: klasični profil 7, PRO 15, Shop 20. Maksimum 25 po oglasu; svaka iznad
-  besplatnog limita košta 1 kredit.
+Besplatno po oglasu: klasični profil 7, PRO 15, shop 20. Maksimum 25, svaka preko besplatnog
+limita košta 1 kredit. Platformsko.
 
-## Obnavljanje po tipu naloga
+---
 
-- **Shop:** besplatna ručna obnova svakih 7 dana. Mjesečna kvota zavisi od naloga, vidi niže.
-- **OLX PRO:** obnova svakih 21 dan.
-- **Klasični profil:** obnova svakih 30 dana.
+## Zarada kredita bez dopune
 
-### Mjesečna kvota obnova: 750 naspram 1.800
+- 3 kredita za prvu prihvaćenu prijavu zloupotrebe, 1 za naknadnu prihvaćenu.
+- 2 kredita za prijavu nedozvoljenog naslova.
+- Brza dostava: 30 kredita kad prodavac snosi trošak dostave, 10 kredita prodavcu i 20 kupcu kad
+  kupac snosi trošak.
+- Oko 30 posto prijava se odbija zbog pogrešnog obrazloženja, pa je zarada kroz prijave nepouzdana
+  kao izvor.
 
-Ovdje postoji protivrječnost koju treba znati prije nego se korisniku kaže broj.
+---
 
-- Zvanična stranica olx.ba/shopovi/paketi (provjereno 26.07.2026.) tvrdi **750 besplatnih obnova
-  mjesečno**, i to jednako za sva četiri paketa, bez razlike.
-- Izmjereno preko API-ja na stvarnom **Gold** shopu: `GET /listing/refresh/limits` vraća
-  `free_limit: 1800`. Dakle 750 nije tačno za Gold.
-- Razmak između dvije obnove istog oglasa je izmjeren i na **Platinum** shopu i iznosi 7 dana,
-  isto kao Gold. Paket ne skraćuje razmak.
+## Otvorena pitanja
 
-### Izmjereno na dva Gold naloga (26.07.2026.)
-
-| Nalog | Paket | Krediti | free_limit | free_count | listing_count | Član od |
-|---|---|---|---|---|---|---|
-| Proton_Ilidza | Gold | 1.488 | 1.800 | 611 | 331 | 06/2026 |
-| MixBox | Gold | 21.575 | 1.800 | 301 | 0 | 01/2019 |
-
-Šta ovo dokazuje:
-
-- **Kvota obnova je potpuno odvojena od salda kredita.** MixBox ima 21.575 kredita, četrnaest puta
-  više od Protona, a `free_limit` je identičan, 1.800. Krediti ne kupuju obnove i obnove ne troše
-  kredite.
-- **Kvota ne zavisi ni od broja oglasa.** Proton ima 331 oglas, MixBox nula, a kvota je ista.
-- **Kvota ne zavisi od starosti naloga.** MixBox je od 2019., Proton od juna 2026.
-
-Šta ostaje otvoreno: dva Gold naloga ne mogu razlučiti dvije mogućnosti.
-
-1. Kvota prati paket, i slučajno je jednaka broju kredita paketa (Bronze 750, Silver 1.100,
-   Gold 1.800, Platinum 4.600).
-2. Kvota je ravnih 1.800 za svaki shop paket, a 750 na zvaničnoj stranici je jednostavno
-   zastarjelo.
-
-Kako razlučiti: pokrenuti `olx_refresh_limits` na nalogu koji NIJE Gold. Jedan Bronze, Silver ili
-Platinum token rješava pitanje u jednom pozivu.
-
-Pravilo do tada: **ne citiraj kvotu napamet, pročitaj je sa `olx_refresh_limits` za taj nalog.**
-- Oglas NE mora isteći da bi se obnovio; obnavlja se aktivan oglas da dobije svjež datum, čim
-  prođe prag za taj tip naloga.
-- Obnovu treba uraditi bar jednom u 6 mjeseci da oglas ne pređe u istekle.
-
-## Otvorena pitanja koja vrijedi provjeriti u nalogu
-
-- Da li se automatsko obnavljanje uz izdvajanje broji u besplatnu kvotu (`free_limit`) ili je odvojeno.
-- Cijena samostalnog plaćenog obnavljanja preko besplatne kvote (nije u cjenovniku izdvajanja; `paid_count` u API odgovoru sugeriše da postoji).
+- Da li se automatsko obnavljanje uz izdvajanje broji u kvotu besplatnih obnova ili je odvojeno.
+- Cijena plaćene obnove preko besplatne kvote.
+- Da li je dnevna cijena stvarno ista za sve oglase unutar kategorije.
+- Da li faktor premium izdvajanja od oko 2,7 drži kroz kategorije.

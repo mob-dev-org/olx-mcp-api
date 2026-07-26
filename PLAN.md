@@ -114,7 +114,8 @@ Napomene:
 
 ## 6. Automatizacija (CLI + cron)
 
-Noćna obnova kroz besplatnih 750 mjesecno, npr. svaki dan u 03:00:
+Noćna obnova unutar besplatne mjesecne kvote (kvota se cita sa naloga, nije fiksna), npr. svaki
+dan u 03:00:
 
 ```
 0 3 * * * cd /putanja/olx-mcp-api && OLX_TOKEN=... node dist/cli/index.js refresh all --limit 200 --yes >> /var/log/olx-refresh.log 2>&1

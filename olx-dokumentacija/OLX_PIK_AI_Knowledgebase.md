@@ -6,7 +6,6 @@
 
 Izvori i pouzdanost:
 - Zvanična API referenca: `api-documentation.olx.ba` (provjereno, juni 2026).
-- Zvanični članci podrške: `PIK-pomoc-korpus/` u ovom folderu (52 članka sa pomoc.olx.ba, scrape 26.07.2026.). Pregled u `index.csv`, pojedinačni članci u `clanci/`, recept za osvježavanje u `NALAZI-i-osvjezavanje.md`.
 - Interni vodič o rangiranju i pretrazi (AND-podudaranje naslova, svježina, izdvajanje).
 - Interni vodič za vlasnike shopova (paketi, krediti, izdvajanje, video, pravila).
 - Gdje je nešto pretpostavka a ne doslovno dokumentovano, jasno je označeno sa "NEPOTVRĐENO".
@@ -44,7 +43,7 @@ Izvori i pouzdanost:
 | Izmijeni oglas | `PUT /listings/:id` | npr. title, description, price. |
 | Objavi oglas | `POST /listings/:id/publish` | DRAFT postaje active. Bez ovog koraka oglas ostaje nevidljiv. |
 | Obriši oglas | `DELETE /listings/:id` | Vidi pravila niže (ne briši radi re-rankinga). |
-| Limit obnova | `GET /listing/refresh/limits` | `{ free_limit, free_count, paid_count, listing_count }`. `free_limit` zavisi od naloga: izmjereno 1.800 na Gold shopu (26.07.2026.), a zvanicna stranica tvrdi 750. Uvijek procitaj, ne pretpostavljaj. |
+| Limit obnova | `GET /listing/refresh/limits` | `{ free_limit, free_count, paid_count, listing_count }`. OBAVEZNO procitati sa naloga; `free_limit` NIJE fiksan (zvanicno se navodi 750, izmjereno 1.800 na Gold shopu), a `free_count` je ISKORISTENO a ne preostalo. |
 | Limiti oglasa | `GET /listing-limits` | Limiti po grupama kategorija (cars, real-estate, other). |
 | Obnovi oglas | `PUT /listings/:id/refresh` | Daje svjež datum i diže rang. |
 | Upload slike | `POST /listings/:id/image-upload` | `images` array. |
@@ -114,8 +113,7 @@ Za kreiranje oglasa trebaš `country_id` i `city_id`. Lokacija na mapi povećava
 Parametri izdvajanja:
 - `type`: 0 bez izdvajanja, 1 klasično, 2 premium.
 - `days`: 1, 2, 3, 5, 7, 14, 21, 30.
-- `refresh_every`: 0, 3, 6, 8, 24 (automatska obnova svakih X sati). Napomena: API prima i 6,
-  a zvanična pomoć navodi samo intervale 3, 8 i 24 (`clanci/izdvajanje-oglasa-promocija-209206805.md`).
+- `refresh_every`: 0, 3, 6, 8, 24 (automatska obnova svakih X sati).
 - `locations`: `["homepage"]` za prikaz i na naslovnici.
 
 Pravilo alata: nikad ne pozivaj `sponsore` ni `discount` bez da si prvo dohvatio cijenu i dobio eksplicitnu potvrdu korisnika.
@@ -153,7 +151,7 @@ Sve tri poluge rade zajedno. Nijedna sama nije dovoljna. Izdvajanje ne spašava 
 ### 5.4 Svježina i obnova
 
 - Obnova daje oglasu svjež datum i diže ga na vrh kategorije.
-- Shop: ručna besplatna obnova svakih 7 dana (izmjereno i na Gold i na Platinum nalogu), grupne radnje do 50 artikala odjednom. Mjesečna kvota obnova nije fiksna: zvanična stranica navodi 750 za sve pakete, ali je na Gold shopu izmjereno 1.800. Izmjereno na dva razlicita Gold naloga: oba vracaju `free_limit` 1800, iako jedan ima 1.488 a drugi 21.575 kredita, i iako jedan ima 331 a drugi nula oglasa. Dakle kvota obnova je odvojena od kredita, od broja oglasa i od starosti naloga. Da li kvota prati paket ili je ravnih 1.800 za sve shop pakete, NEPOTVRĐENO, treba nalog koji nije Gold.
+- Shop: mjesečna kvota besplatnih obnova se čita sa naloga (zvanično se navodi 750, izmjereno 1.800 na Gold shopu, pa se nijedan broj ne pretpostavlja), ručna besplatna obnova svakih 7 dana, grupne radnje do 50 artikala odjednom.
 - Za stalno prisustvo na vrhu: kombinovana opcija, izdvajanje plus automatska obnova na 3, 8 ili 24 sata.
 
 ### 5.5 Krediti i izdvajanje (interno)
@@ -161,12 +159,9 @@ Sve tri poluge rade zajedno. Nijedna sama nije dovoljna. Izdvajanje ne spašava 
 - Kredit je virtuelna valuta za servise vidljivosti (objava u naplativim kategorijama, izdvajanje, akcijska cijena).
 - Cijena izdvajanja je dinamična. Raste sa konkurencijom u kategoriji i brojem dana. U manjem broju kategorija je fiksna. Tačan iznos se vidi tek na koraku izdvajanja, zato uvijek prvo dohvati cijenu preko API-ja.
 - Kartična dopuna nosi veće bonuse od SMS-a (veći iznosi, veći bonus). Za veće budžete kartično je isplativije.
-- Paketi (interno, ne dijeliti klijentima), cijene sa PDV-om i krediti mjesečno, provjereno na olx.ba/shopovi/paketi 26.07.2026.: Bronze 59 KM / 750 kredita / popust do 33%, Silver 79 KM / 1.100 / do 44%, Gold 119 KM / 1.800 / do 56%, Platinum 299 KM / 4.600 / do 60%. Gold nosi i logo na naslovnici, Platinum ekskluzivnu poziciju na naslovnici. Shop nema limit na broj oglasa i ima do 30% popusta na objavu u komercijalnim kategorijama. Paket se mijenja bilo kad, bez ugovora. Probni period nosi 500 kredita kroz 30 dana.
+- Paketi (interno, ne dijeliti klijentima; provjeriti na nalogu jer se paketi mijenjaju): Gold nosi 1.800 bonus kredita i logo na naslovnici, Platinum 4.600 bonus kredita i ekskluzivnu poziciju na naslovnici. Probni period nosi 500 kredita kroz 30 dana.
 
 ### 5.6 Video (Video Stories)
-
-NAPOMENA: cijela ova sekcija nema potvrdu u zvaničnoj pomoći (PIK-pomoc-korpus je ne sadrži);
-izvor je interni vodič. Tretirati kao NEPOTVRĐENO dok se ne nađe zvanični izvor.
 
 - Besplatan alat, ne troši kredite. Dodaje se samo preko Android i iOS aplikacije, ne preko weba.
 - Aktivan u dijelu kategorija (Vozila, Nekretnine, Mobiteli, Tablet PCs, Elektronske cigarete), uz najavu širenja.
@@ -177,17 +172,6 @@ izvor je interni vodič. Tretirati kao NEPOTVRĐENO dok se ne nađe zvanični iz
 - Zabranjeno brisati pa ponovo dodavati isti artikal isti dan radi dolaska na vrh. To je spam i moderatori uklanjaju takve oglase. Umjesto toga koristi obnovu ili produženje promocije.
 - Kad artikla nema na stanju, ne briši (gubiš historiju i preglede). Koristi "Sakrij" ili završi oglas.
 - Naslovi moraju biti u skladu s pravilima (za auto: proizvođač plus model, bez nabrajanja).
-
-### 5.8 Nalazi iz zvanične pomoći (PIK-pomoc-korpus, scrape 26.07.2026.)
-
-Dopune kojih ranije nije bilo u ovom fajlu; uz svaku stoji izvorni članak u `PIK-pomoc-korpus/clanci/`:
-
-- Shop može imati neograničen broj istovremeno izdvojenih oglasa, može sakriti historiju cijene na oglasu, ima do 20 fotografija besplatno i može izdvajati na samo 1 dan (`otvaranje-olx-shopa-209206465.md`).
-- Zakazano izdvajanje se može otkazati kroz web prije nego se izvrši, a termini se biraju u intervalima od pola sata (`zakazivanje-promocije-oglasa-29643561166226.md`).
-- Oglas u naplativoj kategoriji ima status "neaktivan" dok se ne aktivira; aktivacija je kreditima ili čekanjem (`kako-objaviti-i-aktivirati-automobil-4417214741778.md` i srodni članci za nekretnine, posao, servise).
-- Besplatna vremenska aktivacija u naplativim kategorijama: novoobjavljeni oglas dobija timer do 5 dana nakon kojeg se aktivira besplatno; aktivacija kreditima prije isteka je uz popust koji zavisi od preostalog vremena. Nudi se samo korisnicima bez aktivnih oglasa u toj naplativoj kategoriji (`besplatna-objava-oglasa-25093952692242.md`).
-- Zarada kredita prijavama zloupotrebe ima mjesečni bonus za najbolje prijavitelje, ali isti korisnik ne može osvojiti bonus dva mjeseca zaredom (`zarada-pik-kredita-209206705.md`).
-- Zvanični članak o shopu i dalje navodi "750 obnavljanja mjesečno" (`otvaranje-olx-shopa-209206465.md`), što je u sukobu sa izmjerenih 1.800; vidi 5.4.
 
 ---
 
@@ -236,7 +220,7 @@ Klasifikacija alata u MCP:
 - DRAFT zamka: poslije kreiranja oglasa uvijek slijedi publish, inače oglas nije vidljiv.
 - Trošak kredita: `sponsore` i `discount` uvijek prvo prikaži cijenu i traži potvrdu.
 - Ne briši radi re-rankinga: koristi refresh ili hide.
-- Mjesečni limit obnova: prije bulk obnove provjeri `GET /listing/refresh/limits` i ne prelazi `free_limit` koji taj nalog stvarno vraća. Ne kodiraj 750 kao konstantu, na Gold nalogu je 1.800.
+- Mjesečni limit obnova: prije bulk obnove OBAVEZNO provjeri `GET /listing/refresh/limits` i ne prelazi pročitani `free_limit`. Ne koristiti nijedan zapamćen broj.
 - Rate limiti API-ja: NEPOTVRĐENO koliki su. Implementiraj konzervativni throttling i retry sa backoff-om.
 - Tokeni: env ili keychain, po korisniku, nikad u repou.
 - Zaštita podataka: ne logiraj lične podatke kupaca; ne izvozi interne cijene kredita ni marže u materijale za klijente.

@@ -45,12 +45,14 @@ okvir za svaki savjet: prvo naslov, pa svježina, pa tek onda plaćeno izdvajanj
 
 ## Pravila naslova
 
-- Pisati u nominativu, sa ključnim riječima: "Kreatin Optimum Nutrition 317g", ne "Prodajem
-  kreatin povoljno".
+- Pisati u nominativu, sa ključnim riječima, redoslijedom brend pa model pa ključna specifikacija.
+  Test je jedna rečenica: da li bi kupac tačno ovo ukucao. Prodajno obraćanje u naslovu (prodajem,
+  povoljno, hitno, kao nov) troši znakove a ne donosi nijedan pogodak, jer to kupci ne kucaju.
 - Jedan artikal po oglasu; ne nabrajati više modela u jednom naslovu.
-- Pokriti jezičke varijante koje kupci kucaju. Za kreatin to znači imati i "kreatin" i "creatine"
-  u naslovu, jer su to dva odvojena pojma u pretrazi. Ako artikal treba izaći na "creatine
-  monohydrate", naslov mora sadržati "monohydrate".
+- Pokriti jezičke varijante koje kupci kucaju. Domaći i strani naziv istog artikla su dva odvojena
+  pojma u pretrazi i oglas izlazi samo na onaj koji je zaista u naslovu. Isto važi za skraćenice,
+  oznake modela sa razmakom i bez njega, te za lokalne nazive. Ako artikal treba izaći na dvije
+  varijante, obje moraju stajati u naslovu ili podnaslovu.
 - Dodatne ključne riječi koje ne stanu u naslov staviti u podnaslov (i podnaslov ulazi u pretragu).
 - **Naslov je ograničen na 65 znakova.** Duži naslov API odbija sa 422
   `"naslov ne može biti duži od 65 karaktera."` Podnaslov je u praksi prošao do 72 znaka.
@@ -80,33 +82,45 @@ Pravila:
   oko dvije trećine), cilj je vrh rezultata pretrage u kategoriji; naslovnica i premium nisu
   prioritet i skuplji su.
 
-### Primjer primjene
+### Kako se metoda primjenjuje
 
-Ako su top pojmovi "kreatin", "testosteron", "whey protein", a među najgledanijim oglasima su
-kreatin i whey artikli, izdvoji baš njih. Artikle koji se gledaju ali se ne traže kroz pretragu
-(npr. neki vitamin koji ima posjete ali nije u top pojmovima) ostavi da žive od organskog prometa
-i besplatne obnove.
+Napravi dva spiska iz statistike korisnika. Prvi su pojmovi koje kupci najviše kucaju. Drugi su
+oglasi koji skupljaju najviše pregleda. Presjek ta dva spiska je lista kandidata za izdvajanje, jer
+tu izdvajanje hvata postojeći talas umjesto da ga stvara.
 
-## Proton model izdvajanja (provjeren pristup operatera)
+Artikal koji ima preglede ali se ne pojavljuje među traženim pojmovima već dobija promet besplatno,
+najčešće kroz pregledanje shopa ili nisku konkurenciju. Njega ne treba plaćati.
 
-Model koji koristi iskusan operater sličnog shopa:
+Artikal koji se traži a nema pregleda je znak problema sa naslovom ili kategorijom, ne kandidat za
+izdvajanje. Prvo se popravi naslov, pa se mjeri ponovo.
 
-- **4 artikla, tačno jedan po kategoriji:** 1 kreatin (ne dva ili više), 1 protein, 1 preworkout,
-  1 vitamin. Ne cijepati budžet na više sličnih artikala koji se takmiče za istu pretragu.
-- **Period 7+1 dan** (sedmica plus gratis dan).
-- **Izbor artikla nije presudan,** osim kad se svjesno gura roba koja je na zalihama i treba je
-  isprazniti.
-- **Obnavljanje je važnije od izdvajanja.** Bolje redovno obnavljati nego pretjerivati sa
-  izdvajanjem. Ne trošiti sve kredite na izdvajanje; ostaviti rezervu za obnavljanje.
-- **Na početku ne žuriti** sa velikim brojem izdvajanja.
-- **Prioritet obnove:** artikli na stanju na ciklusu od oko 8 dana; ostatak kataloga na oko 15
-  dana, koliko besplatna kvota pokrije (provjeri stvarni `free_limit`, nije fiksno 750).
+Ovo vrijedi jednako za dijelove, odjeću, vozila, nekretnine ili usluge. Metoda ne zavisi od robe.
+
+## Model uskog izbora (provjeren pristup iskusnog operatera)
+
+- **Jedan artikal po skupini potražnje.** Skupina potražnje je grupa artikala koji se takmiče za
+  isti upit kupca. Dva artikla iz iste skupine se međusobno guše i cijepaju budžet na isti rezultat.
+  Bilo da su to dva slična modela, dvije veličine istog artikla ili dva stana u istoj ulici, izdvaja
+  se jedan.
+- **Skupine se prepoznaju iz upita, ne iz police.** Ako kupci kucaju isti pojam da bi došli do dva
+  različita artikla iz ponude, to je jedna skupina, makar bili u različitim odjeljcima.
+- **Broj skupina određuje broj izdvajanja.** Ne kreće se od budžeta pa naniže, nego od broja stvarno
+  različitih skupina potražnje pa naviše, dokle budžet stigne.
+- **Period sedam dana na početku**, jer nosi jedan gratis dan i dovoljno je kratak da se vidi
+  djeluje li. Kad se pokaže šta radi, ide se na duži period koji je jeftiniji po danu.
+- **Izbor artikla unutar skupine nije presudan,** osim kad se svjesno gura roba koja stoji na
+  zalihama.
+- **Obnavljanje prije izdvajanja.** Besplatna svježina se troši prva jer ne košta ništa. Krediti idu
+  samo na ono što svježina ne može podići. Ne trošiti cijeli kreditni budžet na izdvajanje.
+- **Na početku ne žuriti.** Nekoliko skupina, pa mjerenje, pa širenje.
+- **Prioritet obnove:** ono što je na stanju i što se traži ide na najkraći dozvoljeni ciklus,
+  ostatak kataloga na duži, koliko stvarna kvota pokrije. Kvota se čita sa naloga.
 
 ## Faze za nov shop
 
 - **Prvih nekoliko dana:** katalog je prirodno svjež (rangira se po datumu objave), pa obnova još
   nije potrebna. Pusti dan-dva da se skupi statistika prije velikih izdvajanja.
-- **Početno izdvajanje:** mali, ciljani izbor (npr. 3-4 artikla po Proton modelu) na 7+1 dan, da
+- **Početno izdvajanje:** mali, ciljani izbor (npr. tri do četiri skupine potražnje, po modelu uskog izbora) na 7+1 dan, da
   se vidi diže li izdvajanje preglede ("broj pregleda tokom promocije" u statistici).
 - **Od 7. dana:** pokreni ciklus besplatne obnove na prioritetnim artiklima; artikle koji su se
   pokazali u izdvajanju prebaci na duži period, slabije zamijeni drugima.

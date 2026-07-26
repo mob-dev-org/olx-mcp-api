@@ -2,12 +2,12 @@
 
 Ako je `olx-pik` MCP server dostupan, koristi ga da provjeriš stvarno stanje naloga umjesto da
 nagađaš (koji su oglasi aktivni, šta je već izdvojeno, cijene). Alati se učitavaju preko
-pretrage alata; nazivi su na engleskom i počinju sa `olx_` (npr. `olx_list_listings`).
+pretrage alata; nazivi su na bosanskom i počinju sa `olx_`.
 
 ## Redoslijed rada (uvijek isti)
 
-1. **Provjeri aktivni nalog prije svega.** Pozovi `olx_whoami` (i `olx_list_accounts` za spisak
-   profila) da potvrdiš na kom si nalogu. Server radi na jednom aktivnom nalogu.
+1. **Provjeri aktivni nalog prije svega.** Pozovi `olx_list_accounts` (ili `olx_whoami` ako
+   postoji) da potvrdiš na kom si nalogu. Server radi na jednom aktivnom nalogu.
 2. **Po potrebi promijeni nalog** sa `olx_switch_account` i obavezno potvrdi korisniku na koji si
    nalog prešao PRIJE bilo kakvog upisa ili troška, da se radnja ne izvrši na pogrešnom klijentu.
 3. **Čitaj stanje** (bezopasno): `olx_list_listings` (po stanju: active, finished, inactive,
@@ -18,26 +18,33 @@ pretrage alata; nazivi su na engleskom i počinju sa `olx_` (npr. `olx_list_list
 
 ## Glavni alati
 
-Puni popis svih 35 alata sa parametrima, oznakom troška i nepovratnosti je u
-`olx-dokumentacija/API-INVENTAR.md` — to je jedini izvor istine za alate, ne dupliraj ga ovdje.
+| Alat | Šta radi | Troši kredite / nepovratno |
+|---|---|---|
+| `olx_list_accounts` | Aktivni nalog i profili | Ne |
+| `olx_switch_account` | Mijenja aktivni nalog | Ne (ali potvrdi prelazak) |
+| `olx_list_listings` | Lista oglasa po stanju | Ne |
+| `olx_get_listing` | Pojedinačni oglas po ID-u | Ne |
+| `olx_category` | Pravila i cijene kategorije | Ne |
+| `olx_sponsor_price` | Cijena izdvajanja u kreditima | Ne (samo upit) |
+| `olx_sponsor_listing` | Izdvaja oglas | DA, troši kredite |
+| `olx_set_discount` | Postavlja akcijsku cijenu | DA, troši kredite |
+| `olx_finish_discount` | Završava akcijsku cijenu | Ne |
+| `olx_refresh_listing` | Obnavlja jedan oglas | Besplatno do kvote |
+| `olx_refresh_bulk` | Obnavlja više aktivnih | Besplatno do kvote |
+| `olx_hide_listing` / `olx_unhide_listing` | Sakriva / vraća oglas | Ne |
+| `olx_finish_listing` | Završava oglas (prodano) | Ne |
+| `olx_delete_listing` | Nepovratno briše oglas | Nepovratno, izbjegavaj |
 
-Za ovaj skill je bitna samo podjela po posljedicama:
-
-- **Troše kredite** (nikad bez potvrde, imaju spend-guard `confirm`): `olx_sponsor_listing`,
-  `olx_set_discount`.
-- **Nepovratno**: brisanje oglasa kroz bota ne postoji. `olx_delete_listing` je uklonjen iz
-  MCP-a; kad korisnik traži brisanje, predloži `olx_finish_listing` (oglas ostaje u historiji
-  profila kao dokaz prodaje) ili `olx_hide_listing`.
-- **Troše kvotu obnova** (besplatno do `free_limit`): `olx_refresh_listing`, `olx_refresh_bulk`.
-- **Sve ostalo je čitanje** i bezopasno je.
+Imena se mogu malo razlikovati po verziji servera; ako alat ne postoji, pretraži dostupne alate
+ponovo prije nego zaključiš da ga nema.
 
 ## Sigurno izvršenje (obavezno)
 
-- **Akcije koje troše kredite** (`olx_sponsor_listing`, `olx_set_discount`) NIKAD ne pokreći bez
-  izričite potvrde korisnika. Prvo pripremi
+- **Akcije koje troše kredite** (`olx_sponsor_listing`, `olx_set_discount`) i **nepovratne
+  akcije** (`olx_delete_listing`) NIKAD ne pokreći bez izričite potvrde korisnika. Prvo pripremi
   plan sa ID-evima, periodom, tipom obnove i ukupnim troškom, pa sačekaj jasno "izvrši".
-- **Prije izdvajanja provjeri stvarnu cijenu** preko `olx_sponsor_price`, jer je cijena
-  dinamična; ne oslanjaj se samo na statički cjenovnik.
+- **Prije izdvajanja provjeri stvarnu cijenu** preko `olx_sponsor_price` ako alat postoji, jer je
+  cijena dinamična; ne oslanjaj se samo na statički cjenovnik.
 - **Za dolazak na vrh koristi obnovu, ne brisanje.** Kad nema na stanju, koristi sakrivanje ili
   završavanje, da se sačuva historija i dojmovi.
 - **Ako server ne odgovara** (timeout), reci to korisniku i predloži restart lokalnih MCP
@@ -91,9 +98,13 @@ device_name), pa `GET /me` za provjeru pristupa (403 znači da treba odobrenje s
   `"Polje obnavljanje svakih je obavezno."` Za izdvajanje bez autoobnove pošalji 0.
 - `locations`: `["homepage"]` za prikaz i na naslovnici.
 
-### Izmjereni cjenovnik (MixBox, 25.07.2026, type 1)
+### DOKAZ da cijena varira po kategoriji (NIJE cjenovnik, ne citirati)
 
-Cijena je dinamična i razlikuje se po kategoriji, pa je ovo samo polazna tačka. Za oglas
+Ovo NIJE cjenovnik i ne smije se koristiti kao izvor cijene ni za jednu kategoriju.
+Svrha tabele je samo da dokaze dvije stvari: (1) dnevna cijena se razlikuje po kategoriji i
+do tri i po puta, (2) faktori perioda i obnove su isti u svim izmjerenim kategorijama, pa se
+cijeli cjenovnik izvodi iz jednog dohvacenog broja. Model je u
+`references/cjenovnik-i-krediti.md`. Za oglas
 `70073750` (kategorija 1918) i `77556842` (kategorija 1920):
 
 | Kategorija | 7 dana bez obnove | 7 dana + 24h | 14 dana + 24h | 30 dana bez obnove | 30 dana + 24h |
@@ -170,8 +181,7 @@ Kreiraj (`POST /listings` daje DRAFT, nevidljiv) → upload slika → postavi gl
 ### Zaštite u alatu (obavezno)
 
 - Prije `sponsore` i `discount` uvijek dohvati cijenu (`sponsore/price`) i traži potvrdu.
-- Prije bulk obnove provjeri `refresh/limits` i ne prelazi `free_limit - free_count` koje taj
-  nalog stvarno vraća (ne pretpostavljaj broj).
+- Prije bulk obnove provjeri `refresh/limits` i ne prelazi PROCITANI `free_limit`. Kvota nije fiksna.
 - Ne briši radi re-rankinga; koristi refresh ili hide.
 - Tokeni u env varijablama ili keychainu, po korisniku, nikad u kodu ili gitu.
 - Ne logiraj lične podatke kupaca; ne izvozi cijene kredita ni marže u materijale za klijente.

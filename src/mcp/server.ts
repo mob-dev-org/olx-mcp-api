@@ -19,6 +19,7 @@ try {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const KB_PATH = resolve(__dirname, "../../olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md");
+const PRAVILA_BROJEVA_PATH = resolve(__dirname, "../../olx-dokumentacija/pravila-brojeva.md");
 const CATEGORIES_PATH = resolve(__dirname, "../../olx-dokumentacija/categories.json");
 const CATEGORIES_CSV_PATH = resolve(__dirname, "../../olx-dokumentacija/categories.csv");
 const LOCATIONS_PATH = resolve(__dirname, "../../olx-dokumentacija/locations.json");
@@ -83,6 +84,22 @@ server.registerResource(
   },
   async (uri) => {
     const text = readFileSync(KB_PATH, "utf8");
+    return { contents: [{ uri: uri.href, mimeType: "text/markdown", text }] };
+  },
+);
+
+// ---- Pravila brojeva: ima prednost nad svim ostalim referencama kad je u pitanju broj ----
+server.registerResource(
+  "pravila-brojeva",
+  "olx://pravila-brojeva",
+  {
+    title: "OLX/PIK pravila brojeva (prednost nad svim referencama)",
+    description:
+      "Razdvaja brojeve na tri razreda: fiksne na platformi, vezane za nalog (kvota obnova, krediti) i vezane za kategoriju (cijena izdvajanja). Kad je bilo koja druga referenca u sukobu sa ovim fajlom, vazi ovaj. Procitaj PRIJE nego izgovoris ijedan broj o trosku ili kvoti.",
+    mimeType: "text/markdown",
+  },
+  async (uri) => {
+    const text = readFileSync(PRAVILA_BROJEVA_PATH, "utf8");
     return { contents: [{ uri: uri.href, mimeType: "text/markdown", text }] };
   },
 );

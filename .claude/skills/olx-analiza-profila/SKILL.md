@@ -13,6 +13,37 @@ description: >-
 
 # OLX/PIK analiza profila i savjetovanje
 
+## PRVO PRAVILO, IZNAD SVIH OSTALIH: nijedan broj napamet
+
+Ovaj savjetnik radi za bilo koju bransu. Nijedna referenca ne sadrzi cijenu koja vazi za
+korisnikovu kategoriju.
+
+Cijena izdvajanja je dinamicna: zavisi od kategorije, broja oglasa u njoj, broja vec izdvojenih
+oglasa i trajanja. Izmjerena je razlika od tri i po puta izmedju dvije kategorije za istu uslugu.
+
+- Prije bilo kakvog spominjanja cijene, troska ili broja artikala koje budzet pokriva, dohvati
+  stvarnu cijenu za taj konkretan oglas. Dohvatanje ne trosi kredite.
+- Prije bilo kakve racunice o obnovama, procitaj stvarnu kvotu sa naloga. Ne koristi ni 750 ni
+  1.800; oba broja postoje u dokumentaciji i oba su nepouzdana kao opste pravilo.
+- Ako pristup nalogu nije moguc, ne izgovaraj nijedan broj. Reci sta ce se izmjeriti i koliko traje.
+
+Cijena se ne pamti nego racuna:
+`cijena = dnevna_cijena x naplativi_dani x faktor_obnove`, gdje se samo `dnevna_cijena` dohvaca
+(cijena za 7 dana bez obnove podijeljena sa 6). Detalji u
+`.claude/skills/pik-olx-kreditni-savjetnik/references/cjenovnik-i-krediti.md`.
+
+Resource `olx://pravila-brojeva` (`olx-dokumentacija/pravila-brojeva.md`) ima prednost nad svim
+ostalim referencama i nad ovim skillom kad je u pitanju bilo koji broj.
+
+Primjeri iz bilo koje konkretne branse sluze samo da pokazu oblik racunice. Ne prenose se na
+korisnikovu kategoriju i ne izgovaraju se korisniku.
+
+## Drugo pravilo: prilagodi se bransi, ne pretpostavljaj je
+
+Prije savjetovanja utvrdi sta korisnik prodaje i koliko donosi jedna prosjecna prodaja, koliko ima
+oglasa, i koji paket ima uz stanje kredita i obnova. Ta tri podatka mijenjaju svaki dalji savjet.
+Ako neki fali, pitaj kratko prije nego pocnes racunati.
+
 Ovaj skill te vodi da od sirovih podataka shopa napravis korisnu, konkretnu analizu sa
 prioritetnim koracima. Strategija (kako radi pretraga, svjezina, izdvajanje) NIJE prepisana
 ovdje, nego zivi u MCP resursima. Tvoj posao je da je primijenis na stvarne oglase korisnika.
@@ -20,6 +51,8 @@ ovdje, nego zivi u MCP resursima. Tvoj posao je da je primijenis na stvarne ogla
 ## Prvo procitaj strategiju iz resursa
 
 Prije savjetovanja procitaj MCP resurse (preko olx-pik servera):
+- `olx://pravila-brojeva` — koji brojevi se smiju koristiti bez provjere, a koji se citaju. Ima
+  prednost nad svim ostalim izvorima kad je u pitanju broj.
 - `olx://knowledgebase` — API referenca, pravila vidljivosti, dijagnostika.
 - Vodic o rangiranju/pretrazi/sortiranju (`olx-dokumentacija/OLX_PIK_Rangiranje_Pretraga_Sortiranje.md`).
 
@@ -45,9 +78,9 @@ Detaljan recept (kako citati naslove, cijene, kako rasporediti obnove, sablon iz
 
 ## Dijagnostika u jednoj recenici
 
-Malo pregleda znaci problem vidljivosti (naslov i kategorija prije obnove i izdvajanja); mnogo
-pregleda a malo poruka znaci problem ponude (cijena, slike, opis) i tu se krediti ne trose.
-Puna pravila odlucivanja: KB sekcija 6 (`olx://knowledgebase`).
+- Malo pregleda -> problem je vidljivost. Prvo naslov (kljucne rijeci) i tacna kategorija, pa tek onda obnova/izdvajanje.
+- Mnogo pregleda, malo poruka -> problem je ponuda, ne pozicija. Cijena, slike, opis. Ne trosi kredite na izdvajanje.
+- Zasicena kategorija (npr. auto) -> izdvajanje slabije i skuplje. Naglasak na precizan naslov, konkurentnu cijenu, premium + autoobnova.
 
 ## Granice i zastite
 
@@ -56,11 +89,8 @@ Puna pravila odlucivanja: KB sekcija 6 (`olx://knowledgebase`).
   toolkit ima spend-guard (`confirm: true`), ali ti to objasni korisniku, ne pokrecaj naplatu tiho.
 - Za artikle kojih nema na stanju preporuci hide/finish, nikad brisanje (gubi se historija i pregledi).
 - Ne predlazi brisanje pa ponovno objavljivanje radi vrha; to je spam i krsi pravila. Koristi obnovu.
-- Postuj mjesecni limit obnova: kvotu procitaj sa `olx_refresh_limits` (`free_limit` zavisi od
-  naloga, izmjereno 1.800 na Gold; ne pretpostavljaj broj). Rasporedi obnove na
-  najvaznije/najkonkurentnije oglase.
-- Brojevi i pravila platforme (paketi, kvote, kako radi pretraga): jedan izvor istine je
-  `olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md` (MCP resource `olx://knowledgebase`).
+- Procitaj mjesecnu kvotu obnova sa naloga (`olx_refresh_limits`) i ne prelazi je; rasporedi
+  obnove na najvaznije i najkonkurentnije oglase. Kvota NIJE fiksna.
 
 ## Format izvjestaja
 
