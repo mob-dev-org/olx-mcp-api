@@ -19,7 +19,10 @@ export interface PikItem {
   price?: number | null;
 }
 
-export interface ShopifyItem {
+// Artikal iz vanjskog kataloga: Shopify izvoz, WooCommerce CSV, izvoz iz ERP-a, bilo sta sto ima
+// sifru, naziv i (po zelji) zalihu i cijenu. Nazivi polja su neutralni na izvor.
+export interface KatalogItem {
+  // Stabilan kljuc artikla u vanjskom sistemu (handle, slug, sifra).
   handle: string;
   title: string;
   skus?: string[];
@@ -107,13 +110,16 @@ export function modelTokens(input: string): Set<string> {
   return tokens;
 }
 
-// PIK cuva SKU u tri oblika (h6412, b0714, ca-b0537-bwa), a Shopify dodaje i velicinu na kraju.
-// Kod modela je najgrublji kljuc i NIJE dovoljan sam: CA-B0978-0WA i CA-B0978-0WB su dva
-// razlicita modela (OREN i OREN ESD) koji dijele kod B0978. Zato postoje dva nivoa kljuca.
+// Sifra istog artikla se javlja u vise oblika: kratki kod modela (P4120), puna sifra dobavljaca
+// (CA-M0330-0WA) i ista sifra sa velicinom na kraju (CA-M0330-0WA-42). Kod modela je slovo plus
+// tri ili cetiri cifre; prefiks se NE ogranicava na odredjena slova, jer svaki dobavljac ima svoju
+// semu. Kod modela je najgrublji kljuc i NIJE dovoljan sam: CA-M0330-0WA i CA-M0330-0WB su dva
+// razlicita modela koji dijele kod M0330. Zato postoje dva nivoa kljuca (vidi skuBaseKey), a
+// dvosmislen kod modela nikad ne prolazi kao automatski match.
 export function skuModelCode(sku?: string | null): string | undefined {
   if (!sku) return undefined;
   const normalized = sku.toUpperCase().replace(/[^A-Z0-9]/g, "");
-  const match = normalized.match(/([BH]\d{3,4})/);
+  const match = normalized.match(/([A-Z]\d{3,4})/);
   return match ? match[1] : normalized || undefined;
 }
 
@@ -198,7 +204,7 @@ export function scorePair(a: string, b: string, idf?: Map<string, number>): numb
 
 export function matchCatalog(
   pikItems: PikItem[],
-  shopifyItems: ShopifyItem[],
+  shopifyItems: KatalogItem[],
   options: MatchOptions = {},
 ): MatchResult[] {
   const autoThreshold = options.autoThreshold ?? DEFAULTS.autoThreshold;
@@ -212,8 +218,8 @@ export function matchCatalog(
   // Dva nivoa indeksa. Precizan (cijeli SKU bez velicine) razdvaja modele koji dijele kod,
   // grubi (kod modela) hvata slucaj kad PIK ima samo kratki kod (H6412).
   // Grubi kljuc koji pokazuje na vise proizvoda je dvosmislen i ne smije davati automatski match.
-  const byBaseKey = new Map<string, ShopifyItem>();
-  const byModelCode = new Map<string, ShopifyItem>();
+  const byBaseKey = new Map<string, KatalogItem>();
+  const byModelCode = new Map<string, KatalogItem>();
   const modelCodeCollisions = new Set<string>();
 
   for (const item of shopifyItems) {
