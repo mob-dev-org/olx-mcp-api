@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { OlxClient, OlxAuthError, OlxSpendError } from "./index.js";
 import { loadConfig } from "./config.js";
+import { withAuditContext, type AuditEntry } from "./audit.js";
 import type { OlxConfig } from "./config.js";
 
 interface FetchCall {
@@ -222,4 +223,259 @@ test("loadConfig postavlja audit log na putanju van gita", () => {
   const svoje = loadConfig({ OLX_AUDIT_FILE: "moj/log.jsonl", OLX_AUDIT_READS: "1" } as NodeJS.ProcessEnv);
   assert.equal(svoje.auditFile, "moj/log.jsonl");
   assert.equal(svoje.auditReads, true);
+});
+
+// ---- Audit log i obnova tokena ----
+// Sink se injektuje kao funkcija, pa nijedan test ne pise u fajl.
+
+// Stub koji odgovara po URL-u, ne po redu. Potreban je za relogin testove, gdje se izmedju dva
+// pokusaja originalnog poziva ubacuje poziv na /auth/login.
+function stubFetchByUrl(
+  handler: (call: { url: string; method: string; body?: string }, index: number) => StubReply,
+): { calls: FetchCall[]; restore: () => void } {
+  const calls: FetchCall[] = [];
+  const original = globalThis.fetch;
+
+  globalThis.fetch = (async (input: unknown, init?: { method?: string; body?: unknown }) => {
+    const call: FetchCall = {
+      url: typeof input === "string" ? input : String(input),
+      method: init?.method ?? "GET",
+      body: typeof init?.body === "string" ? init.body : undefined,
+    };
+    calls.push(call);
+    const reply = handler(call, calls.length - 1);
+    const text = reply.body === undefined ? "" : JSON.stringify(reply.body);
+    return {
+      ok: reply.status >= 200 && reply.status < 300,
+      status: reply.status,
+      text: async () => text,
+    };
+  }) as unknown as typeof globalThis.fetch;
+
+  return { calls, restore: () => { globalThis.fetch = original; } };
+}
+
+function auditCollector(): { entries: AuditEntry[]; sink: (e: AuditEntry) => void } {
+  const entries: AuditEntry[] = [];
+  return { entries, sink: (e) => entries.push(e) };
+}
+
+test("audit biljezi upis, a citanje preskace", async () => {
+  const { restore } = stubFetch([{ status: 200, body: { message: "ok" } }]);
+  const { entries, sink } = auditCollector();
+  try {
+    const client = new OlxClient(testConfig(), { audit: sink });
+    await client.me();
+    assert.equal(entries.length, 0, "GET se ne biljezi bez OLX_AUDIT_READS");
+
+    await client.refreshListing(555);
+    assert.equal(entries.length, 1, "obnova mijenja stanje, pa se biljezi");
+    const zapis = entries[0];
+    assert.equal(zapis?.method, "PUT");
+    assert.equal(zapis?.path, "/listings/555/refresh");
+    assert.equal(zapis?.ok, true);
+    assert.equal(zapis?.status, 200);
+    assert.equal(zapis?.attempts, 1);
+    assert.ok(typeof zapis?.duration_ms === "number");
+  } finally {
+    restore();
+  }
+});
+
+test("audit biljezi i citanja kad je to ukljuceno", async () => {
+  const { restore } = stubFetch([{ status: 200, body: { data: { id: 1 } } }]);
+  const { entries, sink } = auditCollector();
+  try {
+    const client = new OlxClient(testConfig({ auditReads: true }), { audit: sink });
+    await client.me();
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0]?.method, "GET");
+    assert.equal(entries[0]?.path, "/me");
+  } finally {
+    restore();
+  }
+});
+
+test("audit nikad ne sadrzi lozinku ni tijelo zahtjeva", async () => {
+  const { restore } = stubFetch([{ status: 200, body: { token: "svjez-token", user: { id: 1 } } }]);
+  const { entries, sink } = auditCollector();
+  try {
+    const client = new OlxClient(
+      testConfig({ username: "korisnik", password: "tajna-lozinka-123" }),
+      { audit: sink },
+    );
+    await client.login();
+    assert.equal(entries.length, 1, "login je POST, pa se biljezi");
+    const serijalizovano = JSON.stringify(entries[0]);
+    assert.equal(serijalizovano.includes("tajna-lozinka-123"), false, "lozinka ne smije u log");
+    assert.equal(serijalizovano.includes("svjez-token"), false, "token ne smije u log");
+  } finally {
+    restore();
+  }
+});
+
+test("audit nosi ime operacije iz konteksta", async () => {
+  const { restore } = stubFetch([{ status: 200, body: {} }]);
+  const { entries, sink } = auditCollector();
+  try {
+    const client = new OlxClient(testConfig(), { audit: sink });
+    await withAuditContext({ operation: "olx_refresh_listing", source: "mcp" }, () =>
+      client.refreshListing(9),
+    );
+    assert.equal(entries[0]?.operation, "olx_refresh_listing");
+    assert.equal(entries[0]?.source, "mcp");
+  } finally {
+    restore();
+  }
+});
+
+test("audit biljezi i neuspjeh, sa statusom i porukom", async () => {
+  const { restore } = stubFetch([{ status: 422, body: { message: "Polje je obavezno" } }]);
+  const { entries, sink } = auditCollector();
+  try {
+    const client = new OlxClient(testConfig(), { audit: sink });
+    await assert.rejects(() => client.createListing({ title: "Test", category_id: 1 }));
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0]?.ok, false);
+    assert.equal(entries[0]?.status, 422);
+    assert.ok(entries[0]?.error?.includes("422"));
+  } finally {
+    restore();
+  }
+});
+
+test("401 sa kredencijalima obnovi token i ponovi citanje", async () => {
+  let prviPokusaj = true;
+  const { calls, restore } = stubFetchByUrl((call) => {
+    if (call.url.endsWith("/auth/login")) return { status: 200, body: { token: "novi-token", user: { id: 1 } } };
+    if (prviPokusaj) {
+      prviPokusaj = false;
+      return { status: 401, body: { message: "unauthorized" } };
+    }
+    return { status: 200, body: { data: { id: 1, username: "shop_test" } } };
+  });
+  try {
+    const client = new OlxClient(testConfig({ username: "korisnik", password: "lozinka" }));
+    const me = await client.me();
+    assert.equal(me.username, "shop_test", "poziv uspije nakon obnove tokena");
+    assert.equal(calls.length, 3, "originalni poziv, login, pa ponovljeni poziv");
+    assert.ok(calls[1]?.url.endsWith("/auth/login"));
+    assert.equal(calls[2]?.url.endsWith("/me"), true);
+  } finally {
+    restore();
+  }
+});
+
+test("401 bez kredencijala ne pokusava login", async () => {
+  const { calls, restore } = stubFetchByUrl(() => ({ status: 401, body: { message: "unauthorized" } }));
+  try {
+    const client = new OlxClient(testConfig());
+    await assert.rejects(
+      () => client.me(),
+      (err: unknown) => {
+        assert.ok(err instanceof OlxAuthError);
+        assert.match(err.message, /Postavi novi OLX_TOKEN/);
+        return true;
+      },
+    );
+    assert.equal(calls.length, 1, "bez lozinke nema sta da se obnovi");
+  } finally {
+    restore();
+  }
+});
+
+test("401 i nakon obnove tokena ne pravi petlju", async () => {
+  const { calls, restore } = stubFetchByUrl((call) =>
+    call.url.endsWith("/auth/login")
+      ? { status: 200, body: { token: "novi-token", user: { id: 1 } } }
+      : { status: 401, body: { message: "unauthorized" } },
+  );
+  try {
+    const client = new OlxClient(testConfig({ username: "korisnik", password: "lozinka" }));
+    await assert.rejects(() => client.me(), (err: unknown) => err instanceof OlxAuthError);
+    assert.equal(calls.length, 3, "jedan login, jedan ponovljeni poziv, pa stop");
+  } finally {
+    restore();
+  }
+});
+
+test("403 se ne lijeci loginom", async () => {
+  const { calls, restore } = stubFetchByUrl(() => ({ status: 403, body: { message: "forbidden" } }));
+  try {
+    const client = new OlxClient(testConfig({ username: "korisnik", password: "lozinka" }));
+    await assert.rejects(
+      () => client.me(),
+      (err: unknown) => {
+        assert.ok(err instanceof OlxAuthError);
+        assert.match(err.message, /nema dozvolu/);
+        return true;
+      },
+    );
+    assert.equal(calls.length, 1, "403 nije pitanje tokena, nego dozvole");
+  } finally {
+    restore();
+  }
+});
+
+test("izdvajanje se ne ponavlja nakon obnove tokena", async () => {
+  const { calls, restore } = stubFetchByUrl((call) => {
+    if (call.url.endsWith("/auth/login")) return { status: 200, body: { token: "novi-token", user: { id: 1 } } };
+    return { status: 401, body: { message: "unauthorized" } };
+  });
+  try {
+    const client = new OlxClient(testConfig({ username: "korisnik", password: "lozinka" }));
+    await assert.rejects(
+      () => client.sponsorListing(123, { type: 1, days: 7 }, true),
+      (err: unknown) => {
+        assert.ok(err instanceof OlxAuthError);
+        assert.match(err.message, /nije ponovljena automatski/);
+        return true;
+      },
+    );
+    const postovi = calls.filter((c) => c.method === "POST" && c.url.includes("/sponsore"));
+    assert.equal(postovi.length, 1, "trosak se ne ponavlja tiho nakon obnove tokena");
+    assert.equal(calls.filter((c) => c.url.endsWith("/auth/login")).length, 1);
+  } finally {
+    restore();
+  }
+});
+
+test("paralelni 401 pozivi dijele jednu obnovu tokena", async () => {
+  const vidjeni = new Set<string>();
+  const { calls, restore } = stubFetchByUrl((call) => {
+    if (call.url.endsWith("/auth/login")) return { status: 200, body: { token: "novi-token", user: { id: 1 } } };
+    if (!vidjeni.has(call.url)) {
+      vidjeni.add(call.url);
+      return { status: 401, body: { message: "unauthorized" } };
+    }
+    return { status: 200, body: { data: { id: 1 } } };
+  });
+  try {
+    const client = new OlxClient(testConfig({ username: "korisnik", password: "lozinka" }));
+    await Promise.all([client.me(), client.getListing(1)]);
+    assert.equal(
+      calls.filter((c) => c.url.endsWith("/auth/login")).length,
+      1,
+      "dva 401 istovremeno ne smiju pokrenuti dva logina",
+    );
+  } finally {
+    restore();
+  }
+});
+
+test("odbijen trosak se biljezi iako zahtjev nije poslan", async () => {
+  const { calls, restore } = stubFetch([{ status: 200, body: PRICE_BODY }]);
+  const { entries, sink } = auditCollector();
+  try {
+    const client = new OlxClient(testConfig(), { audit: sink });
+    await assert.rejects(() => client.sponsorListing(77, { type: 2, days: 7 }, false));
+    assert.equal(calls.filter((c) => c.method === "POST").length, 0, "nista nije poslano");
+    assert.equal(entries.length, 1, "odbijanje se biljezi");
+    assert.equal(entries[0]?.ok, false);
+    assert.equal(entries[0]?.path, "/listings/77/sponsore");
+    assert.match(String(entries[0]?.error), /odbijeno bez potvrde/);
+    assert.match(String(entries[0]?.error), /60 kredita/);
+  } finally {
+    restore();
+  }
 });

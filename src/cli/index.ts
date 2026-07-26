@@ -4,6 +4,8 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { OlxClient, OlxApiError, OlxAuthError, OlxSpendError } from "../core/index.js";
 import { loadConfig } from "../core/config.js";
+import { setAuditContext } from "../core/audit.js";
+import { parseSponsorOptions, SPONSOR_DAYS, REFRESH_EVERY } from "../core/sponsor-options.js";
 import { matchCatalog, summarizeMatches } from "../core/match.js";
 import type { PikItem, ShopifyItem, OverrideEntry } from "../core/match.js";
 import type { CreateListingInput, SponsorOptions, SponsorType, SponsorDays, RefreshEvery, CategoryNode, Country, City } from "../core/types.js";
@@ -38,6 +40,17 @@ function fail(err: unknown): never {
 // Jedan klon repoa radi za jedan nalog: token iz OLX_TOKEN u .env ovog klona.
 function client(): OlxClient {
   return new OlxClient(loadConfig());
+}
+
+// Puno ime komande ("sponsor apply"), da audit log kaze koja je radnja pokrenula poziv.
+function commandPath(cmd: Command): string {
+  const dijelovi: string[] = [];
+  let current: Command | null = cmd;
+  while (current && current.name() !== "olx") {
+    dijelovi.unshift(current.name());
+    current = current.parent as Command | null;
+  }
+  return dijelovi.join(" ") || "olx";
 }
 
 // Lagani CSV index kategorija: samo polja bitna za izbor kategorije i kreiranje oglasa.
@@ -162,6 +175,11 @@ program
   .name("olx")
   .description("Interni CLI za OLX.ba / PIK.ba shopove")
   .version("0.1.0");
+
+// Svaka radnja se u audit logu vidi pod imenom komande koja ju je pokrenula.
+program.hook("preAction", (_thisCommand, actionCommand) => {
+  setAuditContext({ operation: commandPath(actionCommand), source: "cli" });
+});
 
 // ---- Auth ----
 const auth = program.command("auth").description("Autentifikacija");
@@ -700,33 +718,22 @@ location
 // ---- Sponsor ----
 const sponsor = program.command("sponsor").description("Izdvajanje (trosi kredite)");
 
-// API odbija sve osim ovih vrijednosti (422), pa provjeravamo prije poziva da greska bude jasna.
-const VALID_DAYS = [1, 2, 3, 5, 7, 14, 21, 30];
-const VALID_REFRESH_EVERY = [0, 3, 6, 8, 24];
-
+// Dozvoljene vrijednosti su u jezgru (src/core/sponsor-options.ts), da lista ne zivi u tri kopije.
 function sponsorOptions(opts: { type: string; days: string; refreshEvery?: string; homepage?: boolean }): SponsorOptions {
-  const days = Number(opts.days);
-  if (!VALID_DAYS.includes(days)) {
-    throw new Error(`Nevalidan --days ${opts.days}. Dozvoljeno: ${VALID_DAYS.join(", ")}.`);
-  }
-  const refreshEvery = opts.refreshEvery === undefined ? 0 : Number(opts.refreshEvery);
-  if (!VALID_REFRESH_EVERY.includes(refreshEvery)) {
-    throw new Error(`Nevalidan --refresh-every ${opts.refreshEvery}. Dozvoljeno: ${VALID_REFRESH_EVERY.join(", ")}.`);
-  }
-  return {
-    type: Number(opts.type) as SponsorType,
-    days: days as SponsorDays,
-    refresh_every: refreshEvery as RefreshEvery,
-    locations: opts.homepage ? ["homepage"] : undefined,
-  };
+  return parseSponsorOptions({
+    type: Number(opts.type),
+    days: Number(opts.days),
+    refreshEvery: opts.refreshEvery === undefined ? 0 : Number(opts.refreshEvery),
+    homepage: Boolean(opts.homepage),
+  });
 }
 
 sponsor
   .command("price <id>")
   .description("Cijena izdvajanja (ne trosi kredite)")
   .requiredOption("--type <0|1|2>", "0 bez, 1 klasicno, 2 premium")
-  .requiredOption("--days <n>", "1,2,3,5,7,14,21,30")
-  .option("--refresh-every <h>", "0,3,6,8,24")
+  .requiredOption("--days <n>", `dana izdvajanja: ${SPONSOR_DAYS.join(",")}`)
+  .option("--refresh-every <h>", `autoobnova u satima: ${REFRESH_EVERY.join(",")}`)
   .option("--homepage", "ukljuci naslovnicu", false)
   .action(async (id: string, opts: { type: string; days: string; refreshEvery?: string; homepage?: boolean }) => {
     try {
@@ -740,8 +747,8 @@ sponsor
   .command("apply <id>")
   .description("Izdvaja oglas (TROSI KREDITE; trazi --yes)")
   .requiredOption("--type <0|1|2>", "0 bez, 1 klasicno, 2 premium")
-  .requiredOption("--days <n>", "1,2,3,5,7,14,21,30")
-  .option("--refresh-every <h>", "0,3,6,8,24")
+  .requiredOption("--days <n>", `dana izdvajanja: ${SPONSOR_DAYS.join(",")}`)
+  .option("--refresh-every <h>", `autoobnova u satima: ${REFRESH_EVERY.join(",")}`)
   .option("--homepage", "ukljuci naslovnicu", false)
   .option("--yes", "potvrda troska", false)
   .action(async (id: string, opts: { type: string; days: string; refreshEvery?: string; homepage?: boolean; yes?: boolean }) => {

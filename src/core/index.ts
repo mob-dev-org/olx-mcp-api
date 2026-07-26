@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { loadConfig, type OlxConfig } from "./config.js";
+import { auditSinkFromPath, currentAuditContext, type AuditSink } from "./audit.js";
 import type {
   BrandOrModel,
   Category,
@@ -74,13 +75,30 @@ interface RequestOptions {
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
+export interface OlxClientOptions {
+  // Gdje ide trag radnji. Injektovan namjerno: testovi podmetnu kolektor u memoriji umjesto fajla.
+  audit?: AuditSink;
+}
+
+// Koliko se ceka prije novog pokusaja logina nakon neuspjelog. Bez ovoga bi pogresna lozinka
+// znacila jedan poziv na /auth/login po svakoj radnji.
+const RELOGIN_COOLDOWN_MS = 30_000;
+
 export class OlxClient {
   private token?: string;
   private lastRequestAt = 0;
   private cachedUsername?: string;
+  private readonly audit: AuditSink;
+  // Jedan login u letu za sve pozive koji su istovremeno dobili 401.
+  private reloginPromise?: Promise<void>;
+  private reloginFailedAt?: number;
 
-  constructor(private readonly config: OlxConfig = loadConfig()) {
+  constructor(
+    private readonly config: OlxConfig = loadConfig(),
+    options: OlxClientOptions = {},
+  ) {
     this.token = config.token;
+    this.audit = options.audit ?? auditSinkFromPath(config.auditFile);
   }
 
   get baseUrl(): string {
@@ -130,21 +148,44 @@ export class OlxClient {
     );
   }
 
-  // Centralni request wrapper sa retry/backoff na 429 i 5xx.
+  // Centralni request wrapper: throttle, retry/backoff na 429 i 5xx, relogin na 401 i audit zapis.
   private async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
     const { method = "GET", query, body, auth = true, retryOnServerError = true } = options;
 
     // Kod multipart uploada (FormData) Content-Type postavlja fetch sam (sa boundary).
     const isForm = typeof FormData !== "undefined" && body instanceof FormData;
-    const headers: Record<string, string> = isForm ? {} : { "Content-Type": "application/json" };
-    if (auth) Object.assign(headers, this.authHeaders());
-
     const url = this.buildUrl(path, query);
+    const startedAt = Date.now();
     let attempt = 0;
+    let reloginTried = false;
+
+    // Jedan zapis po logickom pozivu, ne po HTTP pokusaju, da backoff ne pravi spam u logu.
+    // Tijelo i query nikad ne ulaze u zapis (login nosi lozinku).
+    const zapisi = (status: number, ok: boolean, error?: string): void => {
+      if (method === "GET" && !this.config.auditReads) return;
+      const ctx = currentAuditContext();
+      this.audit({
+        ts: new Date().toISOString(),
+        operation: ctx.operation,
+        source: ctx.source,
+        method,
+        path,
+        status,
+        ok,
+        duration_ms: Date.now() - startedAt,
+        attempts: attempt,
+        ...(this.cachedUsername ? { account: this.cachedUsername } : {}),
+        ...(error ? { error } : {}),
+      });
+    };
 
     while (true) {
       attempt++;
       await this.throttle();
+
+      // Headeri se grade u svakom pokusaju, jer relogin u medjuvremenu mijenja token.
+      const headers: Record<string, string> = isForm ? {} : { "Content-Type": "application/json" };
+      if (auth) Object.assign(headers, this.authHeaders());
 
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), this.config.timeoutMs);
@@ -161,7 +202,10 @@ export class OlxClient {
         const text = await res.text();
         const parsed: unknown = text ? safeJson(text) : undefined;
 
-        if (res.ok) return parsed as T;
+        if (res.ok) {
+          zapisi(res.status, true);
+          return parsed as T;
+        }
 
         // 429 se ponavlja uvijek (zahtjev nije izvrsen). 5xx se ne ponavlja za pozive koji troše
         // kredite ili kreiraju oglas, jer je server mogao izvrsiti radnju pa pasti pri odgovoru.
@@ -172,11 +216,34 @@ export class OlxClient {
           continue;
         }
 
-        if (res.status === 401 || res.status === 403) {
-          throw new OlxAuthError(
-            `Pristup odbijen (${res.status}). Provjeri token i da li je shop odobren za API.`,
-          );
+        // 401 znaci da token ne vrijedi. Ako imamo kredencijale, obnovimo ga jednom.
+        // 403 se NE lijeci loginom: tamo je autentikacija prosla a nalog nema dozvolu
+        // (npr. shop nije odobren za API), pa bi login bio uzaludan poziv.
+        if (res.status === 401 && auth && !reloginTried && this.canRelogin()) {
+          reloginTried = true;
+          const obnovljen = await this.tryRelogin();
+          if (obnovljen && retryOnServerError) continue;
+          if (obnovljen) {
+            // Poziv koji trosi kredite ili kreira oglas se NE ponavlja tiho: ne zna se da li je
+            // server odbio zahtjev prije ili poslije izvrsenja radnje.
+            zapisi(res.status, false, "token obnovljen, radnja nije ponovljena automatski");
+            throw new OlxAuthError(
+              "Token je bio istekao pa je obnovljen, ali ova radnja (trosak kredita ili kreiranje oglasa) nije ponovljena automatski, da se ne bi naplatila dva puta. Provjeri stanje i pokreni je ponovo.",
+            );
+          }
         }
+
+        if (res.status === 401 || res.status === 403) {
+          const poruka =
+            res.status === 401
+              ? this.canRelogin()
+                ? "Sesija je istekla (401) i obnova tokena nije uspjela. Provjeri OLX_USERNAME i OLX_PASSWORD."
+                : "Token ne vrijedi ili je istekao (401). Postavi novi OLX_TOKEN, ili dodaj OLX_USERNAME i OLX_PASSWORD pa ce se token obnavljati sam."
+              : "Pristup odbijen (403). Autentikacija je prosla, ali nalog nema dozvolu: najcesce shop nije odobren za API pristup.";
+          zapisi(res.status, false, poruka);
+          throw new OlxAuthError(poruka);
+        }
+        zapisi(res.status, false, `Zahtjev nije uspio (${res.status})`);
         throw new OlxApiError(`Zahtjev nije uspio (${res.status}) ${method} ${path}`, res.status, parsed);
       } catch (err) {
         clearTimeout(timer);
@@ -187,12 +254,62 @@ export class OlxClient {
           await sleep(backoff);
           continue;
         }
-        throw new OlxApiError(
-          isAbort ? `Timeout nakon ${this.config.timeoutMs}ms na ${path}` : `Mrezna greska na ${path}: ${String(err)}`,
-          0,
-          undefined,
-        );
+        const poruka = isAbort
+          ? `Timeout nakon ${this.config.timeoutMs}ms na ${path}`
+          : `Mrezna greska na ${path}: ${String(err)}`;
+        zapisi(0, false, poruka);
+        throw new OlxApiError(poruka, 0, undefined);
       }
+    }
+  }
+
+  // Zapis radnje koja je zaustavljena prije mreze (spend-guard). Vrijedi zabiljeziti: pokazuje
+  // da je trosak bio predlozen i da nije potvrdjen, pa se kasnije ne pita "je li bot pitao".
+  private zapisiOdbijeno(method: Method, path: string, razlog: string): void {
+    const ctx = currentAuditContext();
+    this.audit({
+      ts: new Date().toISOString(),
+      operation: ctx.operation,
+      source: ctx.source,
+      method,
+      path,
+      status: 0,
+      ok: false,
+      duration_ms: 0,
+      attempts: 0,
+      ...(this.cachedUsername ? { account: this.cachedUsername } : {}),
+      error: `odbijeno bez potvrde, zahtjev nije poslan: ${razlog}`,
+    });
+  }
+
+  // Relogin je moguc samo kad postoje lozinka i korisnicko ime. Client-id rezim se ne obnavlja
+  // loginom, a nakon neuspjelog logina se ceka, da se ne bombarduje /auth/login.
+  private canRelogin(): boolean {
+    if (!this.config.username || !this.config.password) return false;
+    if (this.reloginFailedAt && Date.now() - this.reloginFailedAt < RELOGIN_COOLDOWN_MS) return false;
+    return true;
+  }
+
+  // Svi pozivi koji su istovremeno dobili 401 dijele jedan login, ne pokrecu svoj.
+  private async tryRelogin(): Promise<boolean> {
+    if (!this.reloginPromise) {
+      this.reloginPromise = this.login()
+        .then(() => {
+          this.reloginFailedAt = undefined;
+        })
+        .catch((e: unknown) => {
+          this.reloginFailedAt = Date.now();
+          throw e;
+        })
+        .finally(() => {
+          this.reloginPromise = undefined;
+        });
+    }
+    try {
+      await this.reloginPromise;
+      return true;
+    } catch {
+      return false;
     }
   }
 
@@ -525,6 +642,7 @@ export class OlxClient {
   ): Promise<unknown> {
     if (!confirm) {
       const price = await this.sponsorPrice(id, options);
+      this.zapisiOdbijeno("POST", `/listings/${id}/sponsore`, `izdvajanje za ${price.total} kredita`);
       throw new OlxSpendError(
         `Izdvajanje bi koštalo ${price.total} kredita. Potvrdi (confirm) da bi se naplatilo.`,
         price,
@@ -540,6 +658,7 @@ export class OlxClient {
 
   async setDiscount(id: number | string, input: DiscountInput, confirm: boolean): Promise<unknown> {
     if (!confirm) {
+      this.zapisiOdbijeno("POST", `/listings/${id}/discount`, `akcijska cijena ${input.price} na ${input.days} dana`);
       throw new OlxSpendError(
         `Akcijska cijena je premium opcija i troši kredite. Potvrdi (confirm) za izvršenje.`,
       );
