@@ -18,15 +18,21 @@ export interface LoginResponse {
 
 // Javni profil korisnika ili shopa (GET /users/:username). Sadrzi samo ono sto je javno
 // vidljivo: paket, poslovne podatke, ocjene i vrijeme odgovora. Osnova za analizu konkurencije.
+// Potvrdjeno zivim pozivom 26.07.2026. na shopu APlus: ends_at je unix timestamp u sekundama
+// (ne datum kao tekst), registered je boolean, a business_name i business_vat su popunjeni i
+// kod shopova koji nisu "registered".
 export interface OlxPublicProfileShop {
   package?: string;
   business_name?: string;
+  business_type?: string | null;
   business_vat?: string;
-  ends_at?: string;
-  web?: string;
+  active?: boolean;
+  availability?: boolean;
+  ends_at?: number;
+  web?: string | null;
   description?: string;
   working_hours?: unknown;
-  registered?: string;
+  registered?: boolean;
   [key: string]: unknown;
 }
 
@@ -34,12 +40,14 @@ export interface OlxPublicProfile {
   type?: string;
   id: number;
   username?: string;
-  medals?: unknown;
-  feedbacks?: unknown;
+  medals?: { type?: string; text?: string; value?: number; url?: string }[];
+  feedbacks?: { positive?: number; negative?: number };
   shop?: OlxPublicProfileShop;
   location?: unknown;
-  created_at?: string;
-  avg_response_time?: unknown;
+  // Unix timestamp u sekundama.
+  created_at?: number;
+  // Prosjecno vrijeme odgovora; na APlus nalogu vraceno kao broj (14).
+  avg_response_time?: number;
   [key: string]: unknown;
 }
 

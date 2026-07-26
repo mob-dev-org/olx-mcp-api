@@ -7,8 +7,11 @@ pristup. Nas token sluzi samo za autentikaciju prema API-ju.
 ## Koraci
 
 1. `olx_user_profile <username>` — paket (Gold, Platinum), poslovni podaci, datum registracije,
-   ocjene, medalje, prosjecno vrijeme odgovora, datum do kojeg paket vazi. Paket govori koliko
-   kandidat mjesecno placa i koliko kredita dobija (cjenovnik je u `olx://knowledgebase`, 5.5).
+   ocjene, medalje, prosjecno vrijeme odgovora, datum do kojeg paket vazi. Paket se cita iz
+   `shop.package`, a `shop.ends_at` i `created_at` su unix timestampi u sekundama, pa ih pretvori
+   u datum prije nego ih pokazes. Paket se vidi i kroz medalju (`medals`, tip `platinum_shop`), i
+   govori koliko kandidat mjesecno placa i koliko kredita dobija (cjenovnik je u
+   `olx://knowledgebase`, 5.5).
 2. `olx_list_listings state=active all=true user=<username>` — cijeli aktivni katalog:
    koliko oglasa, koje kategorije, raspon cijena, koliko ih je izdvojeno (`sponsored`), koliko
    ima svjez datum (`date`), da li je `refresh_available` iskoristen.

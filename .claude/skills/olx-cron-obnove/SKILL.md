@@ -49,7 +49,8 @@ Tabela po profilu:
 Upozorenja koja se traze i samo prijavljuju, nikad ne izvrsavaju:
 
 - krediti pri kraju (klijent ne moze izdvajati kad zatreba),
-- paket istice za manje od 7 dana (`olx_user_profile`, polje `ends_at`),
+- paket istice za manje od 7 dana (`olx_user_profile`, polje `shop.ends_at`, unix timestamp u
+  sekundama),
 - izdvajanje na oglasu istice danas ili sutra,
 - kvota obnova ide u gubitak (preostalo veliko a dana malo),
 - oglasi koji stalno padaju na obnovi (isti id vise dana zaredom),
