@@ -94,7 +94,10 @@ Gdje korisnik generise token: u repozitoriju nema URL-a ni ekrana na kojem se to
 ### Gdje se token cuva
 
 - U memoriji klijenta, privatno polje `token` (`core/index.ts:78`).
-- U okruzenju: `OLX_TOKEN`, `OLX_TOKEN_<IME>`, `OLX_CLIENT_ID`, `OLX_CLIENT_TOKEN` (`core/config.ts:38` do `:43`, `core/config.ts:86`).
+- U okruzenju: `OLX_TOKEN`, `OLX_CLIENT_ID`, `OLX_CLIENT_TOKEN` (`core/config.ts:39` do `:44`). Profilnih
+  varijabli `OLX_TOKEN_<IME>` vise nema: uklonjene su sa multiprofilom, jedan klon je jedan nalog.
+- Lozinke se ne drze u `.env`. `OLX_USERNAME` i `OLX_PASSWORD` kod cita ako postoje, ali ovaj klon
+  radi sa `OLX_TOKEN`; kredencijali za ponovni login idu u keychain, ne u fajl.
 - MCP server ucitava `.env` iz radnog direktorija na startu (`server.ts:15`).
 - `.mcp.json` ne sadrzi token, nego referencu `${OLX_TOKEN:-}` (`.mcp.json`, polje `env`).
 - `.gitignore` iskljucuje `.env`, `KLIJENT.md`, folder `klijenti/` i `.olx-pik/` (audit log i plan izdvajanja) iz gita.
@@ -318,11 +321,13 @@ rijesene i zapisane nize kao ucinjeno; ostatak je red voznje za sljedecu rundu.
   tvrda granica, ponovna provjera cijene, kljuc protiv dvostrukog pokretanja).
 - Vanjski katalog: `core/katalog.ts` cita JSON i CSV, pa `match` radi i za sisteme koji nisu
   Shopify. Prepoznavanje koda modela vise nije vezano na prefikse jednog dobavljaca.
+- Ciscenje `.env` (26.07.2026.): iz lokalnog fajla su izbaceni lozinka u komentaru, `OLX_PASSWORD`,
+  `OLX_USERNAME` i zaostali profilni tokeni `OLX_TOKEN_*` sa `OLX_PROFILE`. Ostaje samo `OLX_TOKEN`
+  ovog klona; prava na fajlu su `600`. Tokeni koji su bili u fajlu se rotiraju na nalozima.
 
 ### Ostaje
 
-1. **Lozinka u komentaru `.env`** — izbaciti iz lokalnog fajla, drzati u keychainu.
-2. **Statistika po oglasu** (pregledi, pojmovi pretrage) ne postoji u API-ju; bez nje se efekat
+1. **Statistika po oglasu** (pregledi, pojmovi pretrage) ne postoji u API-ju; bez nje se efekat
    izdvajanja ne moze mjeriti brojem. Provjeriti da li podrska izdaje takav endpoint.
-3. **Otvoreno mjerenje**: `olx_refresh_limits` na nalogu koji nije Gold — razlucuje da li
+2. **Otvoreno mjerenje**: `olx_refresh_limits` na nalogu koji nije Gold — razlucuje da li
    kvota obnova prati paket ili je 1800 za sve shop pakete.

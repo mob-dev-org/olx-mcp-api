@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "ask": [
+      "mcp__olx-pik__olx_sponsor_listing",
+      "mcp__olx-pik__olx_set_discount"
+    ]
+  }
+}

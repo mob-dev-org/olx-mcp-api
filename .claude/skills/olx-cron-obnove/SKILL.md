@@ -63,7 +63,28 @@ Upozorenja koja se traze i samo prijavljuju, nikad ne izvrsavaju:
 - Obnove se biljeze u audit log (`.olx-pik/audit.jsonl`), pa se kasnije moze dokazati sta je i
   kada obnovljeno.
 
-## Zakazivanje (cron unutar Claude)
+## Zakazivanje
+
+Dvije varijante. Prva ne kosta nista i ne zavisi od modela, druga daje izvjestaj i upozorenja.
+
+### Varijanta A: sistemski cron preko CLI-ja (bez modela)
+
+Kvota, filtriranje kandidata i gornja granica su u kodu (`src/cli/index.ts`, komanda `refresh all`),
+ne u promptu. Zato dnevna obnova ne treba Claudea: obicna crontab linija radi isti posao, bez
+troska po tokenima i bez zavisnosti od modela ili pretplate.
+
+```
+0 3 * * * cd /putanja/do/olx-mcp-api && node dist/cli/index.js refresh all --limit 60 --yes >> .olx-pik/cron.log 2>&1
+```
+
+- `cd` u korijen repoa je obavezan: CLI cita `.env` iz radnog direktorija, pa token ne mora u
+  crontab liniju. `OLX_TOKEN` mora biti popunjen, inace job svaku noc tiho pada na AUTH gresci.
+- `--limit` je gornja granica, a ne cilj. Stvarni cap ostaje `free_limit - free_count`.
+- Bez `--yes` komanda samo prikazuje kandidate, sto je nacin da se linija provjeri prije zakazivanja.
+- Ova varijanta ne daje izvjestaj ni upozorenja iz sekcije gore, samo obnavlja. Za analizu se
+  ritual pokrece rucno kroz Claudea kad zatreba.
+
+### Varijanta B: cron unutar Claude (sa izvjestajem)
 
 Ritual se moze zakazati kao lokalni Claude cron job, jedan poziv dnevno, predlozeno 08:00:
 
