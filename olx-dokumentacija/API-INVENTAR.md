@@ -105,7 +105,7 @@ Gdje korisnik generise token: u repozitoriju nema URL-a ni ekrana na kojem se to
 
 ### Tajne vrijednosti u cistom tekstu
 
-- Fajl `.env` sadrzi dva prava Bearer tokena u cistom tekstu: `OLX_TOKEN_PROTON_ILIDZA` (`.env:26`) i `OLX_TOKEN_MIXBOX` (`.env:30`).
+- Fajl `.env` sadrzi jedan pravi Bearer token u cistom tekstu (`OLX_TOKEN`). Jedan klon repoa radi za jedan nalog, pa u `.env` nikad ne stoje tokeni vise klijenata.
 - Fajl `.env` sadrzi i lozinku naloga u cistom tekstu, unutar komentara na liniji `.env:29` ("Kredencijali za ponovni login ako token istekne", username i password). Lozinka je ovdje namjerno necitirana.
 - Fajl je u `.gitignore` i nije u git historiji, tako da nije procurio u repozitorij. Ipak, lozinka u komentaru je nepotrebna izlozenost. Preporuka je da se lozinka izbaci i drzi u OS keychainu ili menadzeru lozinki, a u `.env` ostane samo token.
 - U izvornom kodu, `.env.example` i `.olx-profiles.example.json` nema pravih tajni, samo placeholderi.
@@ -165,17 +165,17 @@ Gdje korisnik generise token: u repozitoriju nema URL-a ni ekrana na kojem se to
 ### Javni podaci o tudjim oglasima i shopovima
 
 - `GET /users/:username/listings` i njegove varijante vracaju i tudje javne oglase, jer `olx_list_listings` prima proizvoljan `user` parametar (`server.ts:347`, `core/index.ts:363`). Podrazumijevano se koristi korisnik iz tokena (`server.ts:355`).
-- **Potvrdjeno zivim testom 26.07.2026.** na shopu APlus: `active` vraca 33 oglasa sa punim cijenama, `finished` vraca 156 oglasa ali sa cijenom 0 i oznakom "Na upit", `inactive` vraca 2 oglasa sa cijenom, `expired` i `hidden` vracaju prazno. Ovo obara raniju napomenu iz `.claude/skills/olx-analiza-profila/references/konkurencija-faza2.md` da je stvar nepotvrdjena.
+- **Potvrdjeno zivim testom 26.07.2026.** na javnom Platinum shopu: `active` vraca 33 oglasa sa punim cijenama, `finished` vraca 156 oglasa ali sa cijenom 0 i oznakom "Na upit", `inactive` vraca 2 oglasa sa cijenom, `expired` i `hidden` vracaju prazno. Ovo obara raniju napomenu iz `.claude/skills/olx-analiza-profila/references/konkurencija-faza2.md` da je stvar nepotvrdjena.
 - Podaci koji dolaze po tudjem oglasu: naslov, cijena, kategorija, brend, godiste, kilometraza, gorivo, broj slika, `sponsored`, `olx_stories`, `premium_badges`, `refresh_available`, `date` zadnje obnove, `created_at` i `updated_at` na zavrsenim oglasima.
 - **`GET /users/:username`** (radi i kao `GET /shops/:username`) nije u zvanicnoj dokumentaciji, pronadjen je probom 26.07.2026. Varijanta sa brojcanim id-om vraca 404, prolazi samo username. Od 26.07.2026. je implementiran kao `olx_user_profile` i CLI `users profile` (`core/index.ts:247`).
 - Sta vraca za tudji shop: `type`, `id`, `username`, medalje (ukljucujuci `platinum_shop` ili `gold_shop`), `shop.package` (npr. Platinum), `shop.business_name`, `shop.business_vat`, `shop.ends_at`, `shop.web`, `shop.description`, `shop.working_hours`, `location` sa lat i lon, `created_at`, `avg_response_time`, `feedbacks` sa brojem pozitivnih i negativnih ocjena, te postavke privatnosti.
-- Oblik odgovora, provjeren ponovo 26.07.2026. na APlus: `shop.ends_at` i `created_at` su unix timestampi u sekundama (ne datum kao tekst), `shop.registered` je boolean, `avg_response_time` je broj (14 na tom nalogu), a `shop.business_name` i `shop.business_vat` su popunjeni i kad je `registered` false. Tipovi u `core/types.ts` (`OlxPublicProfile`) prate ovaj oblik.
+- Oblik odgovora, provjeren ponovo 26.07.2026. na javnom Platinum shopu: `shop.ends_at` i `created_at` su unix timestampi u sekundama (ne datum kao tekst), `shop.registered` je boolean, `avg_response_time` je broj (14 na tom nalogu), a `shop.business_name` i `shop.business_vat` su popunjeni i kad je `registered` false. Tipovi u `core/types.ts` (`OlxPublicProfile`) prate ovaj oblik.
 - Prakticna vrijednost: paket konkurenta se moze procitati direktno, sto u kombinaciji sa poljem `sponsored` na njihovim oglasima pokazuje da li plaćeni paket zaista i koriste.
 
 ### Statistika
 
 - U kodu nema nijednog statistickog endpointa. Nema pregleda, nema klikova, nema pojmova na pretrazi, nema podataka po kategoriji ni po shopu, nema vremenskog perioda.
-- Saldo kredita JESTE dostupan. `GET /me` vraca polje `credits` (potvrdjeno zivim pozivom 26.07.2026., nalog Proton_Ilidza je imao 1488 kredita). Polje nije u tipu `OlxUser` (`core/types.ts:4`), ali prolazi kroz index potpis, pa ga `olx_whoami` vec vraca. Ranija tvrdnja u sekciji 6 da se saldo ne moze procitati je netacna.
+- Saldo kredita JESTE dostupan. `GET /me` vraca polje `credits` (potvrdjeno zivim pozivom 26.07.2026. na Gold nalogu, saldo se vraca kao broj). Polje nije u tipu `OlxUser` (`core/types.ts:4`), ali prolazi kroz index potpis, pa ga `olx_whoami` vec vraca. Ranija tvrdnja u sekciji 6 da se saldo ne moze procitati je netacna.
 - `GET /me` vraca i paket shopa (`shop.package`, npr. Gold), datum isteka paketa `shop.ends_at`, prosjecno vrijeme odgovora `avg_response_time` i brojac neodgovorenih pitanja `new_questions_count`.
 - Jedina brojka blizu statistike je `count` u prijedlogu kategorije, koji pokazuje broj oglasa uz predlozenu kategoriju (`core/types.ts:172`, `olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md:87`).
 - Iz liste vlastitih oglasa dolaze polja koja se mogu koristiti kao gruba interna metrika: `sponsored`, `date`, `refresh_available`, `status`, `visible` (`core/types.ts:105` do `:91`).

@@ -23,7 +23,7 @@ Provjere: `npm test` (testovi match logike, bez mreze) i `npm run typecheck`.
 ```bash
 # Sigurno (citanje)
 node dist/cli/index.js listings ls --state active --all
-node dist/cli/index.js users profile APlus                # javni profil shopa (paket, ocjene)
+node dist/cli/index.js users profile <username>           # javni profil shopa (paket, ocjene)
 node dist/cli/index.js refresh limits
 node dist/cli/index.js category suggest "golf 7"
 node dist/cli/index.js sponsor price 12345 --type 2 --days 7 --refresh-every 8
@@ -36,6 +36,12 @@ node dist/cli/index.js refresh all --limit 200 --yes      # izvrsi
 # Trosak kredita (uvijek trazi --yes)
 node dist/cli/index.js sponsor apply 12345 --type 2 --days 7 --refresh-every 8 --yes
 
+# Planer izdvajanja: predlog u fajl (ne trosi), pa izvrsenje termina dospjelih danas
+node dist/cli/index.js sponsor plan napravi --budzet 500 --dana 7 --trajanje 7
+node dist/cli/index.js sponsor plan prikazi
+node dist/cli/index.js sponsor plan izvrsi              # probni prikaz
+node dist/cli/index.js sponsor plan izvrsi --yes        # naplacuje
+
 # Slike (URL-ovi i/ili lokalni fajlovi)
 node dist/cli/index.js listings images add 12345 --url https://primjer.com/1.jpg https://primjer.com/2.jpg
 node dist/cli/index.js listings images add 12345 --file ./slika1.jpg ./slika2.jpg
@@ -45,11 +51,21 @@ node dist/cli/index.js listings images rm 12345 67890        # obrisi sliku
 
 Napomena o slikama (potvrdjeno uzivo): API prima slike samo kao stvarne fajlove preko `multipart/form-data`, pod poljem `images[]`. Ne prihvata `image_url`. Zato `--url` prvo preuzme sliku pa je posalje kao fajl, a `--file` salje lokalni fajl direktno. Oba zavrse isto na `POST /listings/:id/image-upload`.
 
-## Spajanje sa Shopify zalihom (komanda match)
+## Spajanje sa vanjskim katalogom (komanda match)
 
-CLI ima komandu `match` koja spaja PIK oglase sa Shopify artiklima (po SKU, pa po slicnosti
-naslova: IDF Jaccard i trigram Dice, sa normalizacijom dijakritika). Logika je u
-`src/core/match.ts` i pokrivena je testovima (`npm test`). Detalji: `node dist/cli/index.js match --help`.
+CLI ima komandu `match` koja spaja PIK oglase sa artiklima iz vanjskog kataloga (po sifri, pa po
+slicnosti naslova: IDF Jaccard i trigram Dice, sa normalizacijom dijakritika). Katalog se predaje
+kao fajl, pa repo ne nosi kredencijale nijednog vanjskog sistema:
+
+```bash
+node dist/cli/index.js match --katalog izvoz.csv --out izvjestaj.json
+node dist/cli/index.js match --katalog shopify-izvoz.json --with-sku
+```
+
+Prihvata se CSV sa kolonama `sifra, naziv, zaliha, cijena` (izvoz iz WooCommerce, ERP-a, Excela)
+ili JSON (Shopify izvoz sa `handle/title/skus/totalInventory/price`, ili neutralna imena polja).
+Prazna zaliha ostaje nepoznata, ne nula, da se ne skrije oglas koji je pun. Logika je u
+`src/core/match.ts` i `src/core/katalog.ts`, pokrivena testovima (`npm test`).
 
 ## Snapshot kategorija i lokacija (statički, bez stalnog dohvatanja)
 
@@ -71,54 +87,25 @@ Zatim commitaj te fajlove. Poslije toga AI/MCP cita kategorije i lokacije iz res
 
 Za forme i opcije izabrane kategorije koristi live alat `olx_category_attributes <id>` (opcije nisu u snapshotu, dolaze iz API-ja). Pojedinacni live upiti su i dalje dostupni (`category list/children/get/brands/models`, `location countries/cities/city`).
 
-## Vise klijenata (profili, vise tokena)
+## Jedan klon, jedan klijent, jedan nalog
 
-Za vise OLX naloga (razliciti klijenti) koristi profile. Token nikad ne ide u git.
+Ovaj repozitorij se klonira po klijentu. U `.env` tog klona ide token samo tog naloga:
 
-Konfiguracija (bilo koji od tri nacina):
-
-- Fajl `.olx-profiles.json` u korijenu (kopiraj iz `.olx-profiles.example.json`):
-  ```json
-  {
-    "default": "klijent_a",
-    "profiles": {
-      "klijent_a": { "token": "...", "base_url": "https://api.olx.ba" },
-      "klijent_b": { "token": "..." }
-    }
-  }
-  ```
-- Ili env varijable `OLX_TOKEN_<IME>` (npr. `OLX_TOKEN_KLIJENTA=...`).
-- Ili `OLX_PROFILES_FILE` za drugu putanju do fajla.
-
-CLI: biraj profil po pozivu sa `--profile`:
 ```bash
-node dist/cli/index.js --profile klijent_a listings ls --all
-node dist/cli/index.js --profile klijent_b refresh all --limit 200 --yes
-node dist/cli/index.js auth profiles            # lista konfigurisanih profila
+OLX_TOKEN=token_tog_naloga
 ```
-Bez `--profile` koristi se `OLX_PROFILE`, pa `default` iz fajla, pa obican `OLX_TOKEN`.
 
-MCP: jedan server radi na jednom nalogu (radi sigurnosti, da se nalozi ne mijesaju). Za vise
-klijenata registruj vise servera u `.mcp.json`, svaki sa svojim `OLX_PROFILE`:
-```json
-{
-  "mcpServers": {
-    "olx-klijent-a": {
-      "type": "stdio",
-      "command": "node",
-      "args": ["dist/mcp/server.js"],
-      "env": { "OLX_PROFILE": "klijent_a", "OLX_PROFILES_FILE": ".olx-profiles.json" }
-    },
-    "olx-klijent-b": {
-      "type": "stdio",
-      "command": "node",
-      "args": ["dist/mcp/server.js"],
-      "env": { "OLX_PROFILE": "klijent_b", "OLX_PROFILES_FILE": ".olx-profiles.json" }
-    }
-  }
-}
-```
-Alat `olx_list_accounts` pokazuje aktivni nalog i sve profile.
+Zato u toolkitu nema profila, nema prebacivanja naloga i nema alata koji mijenja nalog u letu.
+Radnja ne moze zavrsiti na pogresnom klijentu, jer u procesu postoji samo jedan nalog. Za drugog
+klijenta kloniraj repo ponovo i postavi njegov token.
+
+Ko je klijent ovog klona pise u `KLIJENT.md` (kopija `KLIJENT.primjer.md`, u `.gitignore`):
+naziv firme, username, glavne kategorije, ton komunikacije, sta bot smije bez pitanja i sta nikad
+bez potvrde. Brojevi (paket, krediti, kvota obnova) se ne prepisuju tamo, nego citaju sa API-ja.
+
+Kad token istekne: ako su u `.env` postavljeni `OLX_USERNAME` i `OLX_PASSWORD`, toolkit sam
+obnovi token na prvi 401 i ponovi citanje. Radnje koje trose kredite se posle obnove NE ponavljaju
+same, nego se javlja da ih treba pokrenuti ponovo, da se nista ne naplati dva puta.
 
 ## MCP server
 
@@ -170,25 +157,33 @@ Repozitorij nosi sedam skillova u `.claude/skills/` (folder je skriven u file br
 - `olx-shopovi-snimci`: obrada Excel snimaka Gold/Platinum shopova (razdvajanje po kantonima, poredjenje dva snimka).
 - `olx-seo-oglasa`: naslov, podnaslov i format opisa; izvjestaj pa primjena tek uz potvrdu.
 - `olx-klijent-flow`: kandidat iz javnih podataka, onboarding sa tokenom, prvi potezi po ROI.
-- `olx-cron-obnove`: dnevni pregled svih profila i ravnomjerno trosenje kvote obnova.
+- `olx-cron-obnove`: dnevni pregled naloga i ravnomjerno trosenje kvote obnova.
 
 Dolaze automatski sa kloniranjem; nista se ne instalira posebno. Sistemski prompt za bota je u
 `CLAUDE.md` u korijenu.
 
 ### Dnevna obnova (cron unutar Claude)
 
-Skill `olx-cron-obnove` opisuje dnevni ritual: kroz sve profile, `olx_refresh_limits`, dry-run
+Skill `olx-cron-obnove` opisuje dnevni ritual za nalog ovog klona: `olx_refresh_limits`, dry-run
 pa obnova do dnevnog budzeta (preostala kvota podijeljena danima do kraja mjeseca), pa zbirni
-izvjestaj sa upozorenjima. Obnove unutar besplatne kvote ne kostaju, pa se izvrsavaju bez
+izvjestaj sa upozorenjima (krediti pri kraju, paket istice, kvota ide u gubitak). Obnove unutar besplatne kvote ne kostaju, pa se izvrsavaju bez
 pitanja; izdvajanje i akcijska cijena nikad automatski. Zakazuje se kao lokalni Claude cron job
 (`CronCreate`, dnevno u 08:00), i to samo kad korisnik izricito to kaze. Racunar mora biti
 upaljen u to vrijeme.
 
+### Audit log
+
+Svaka radnja koja mijenja stanje ili trosi kredite upisuje se u `.olx-pik/audit.jsonl` (jedan JSON
+po liniji, van gita). Zapis nosi vrijeme, ime komande ili MCP alata, metodu, putanju, status,
+trajanje i broj pokusaja, a kod odbijenog troska i to da potvrda nije data. Tijelo zahtjeva se
+nikad ne zapisuje, jer login nosi lozinku. Citanja se ne biljeze osim ako se postavi
+`OLX_AUDIT_READS=1`. Putanja se mijenja kroz `OLX_AUDIT_FILE`; prazna vrijednost gasi log.
+
 ### Podaci klijenata
 
 Onboarding klijenta pise baseline i zapise poteza u `klijenti/<ime>/`. Taj folder je u
-`.gitignore` jer sadrzi podatke klijenata. Tokeni klijenata idu u `.env` kao
-`OLX_TOKEN_<IME>`, nikad u git.
+`.gitignore` jer sadrzi podatke klijenata. Token klijenta ide u `.env` tog klona kao `OLX_TOKEN`,
+a kontekst klijenta u `KLIJENT.md`. Nista od toga ne ide u git.
 
 Izvori znanja (jedan izvor istine, ne duplirati brojeve po skillovima):
 - `olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md` — pravila platforme, paketi, kvote, pretraga.
