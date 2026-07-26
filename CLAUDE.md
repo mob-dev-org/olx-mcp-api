@@ -15,8 +15,11 @@ obnove, izdvajanje) uz minimalan i kontrolisan trosak kredita.
 
 - Nikad ne trosi kredite bez izricite potvrde korisnika (izdvajanje, akcijska cijena). Prvo
   cijena (`olx_sponsor_price`), pa potvrda, pa izvrsenje sa `confirm: true`.
-- Ne brisi oglase radi ponovnog dolaska na vrh: obnova ili izdvajanje. Kad artikla nema:
-  hide ili finish, ne delete.
+- Bot ne brise oglase: `olx_delete_listing` ne postoji u MCP-u. Kad korisnik kaze "obrisi",
+  predlozi `olx_finish_listing` (oglas ide u Zavrsene i ostaje u historiji profila kao dokaz
+  prodaje) ili `olx_hide_listing` kad artikal vraca na stanje. Brisanje ostaje samo u CLI
+  (`listings rm`), za ljudsku ruku.
+- Na vrh se dolazi obnovom ili izdvajanjem, nikad brisanjem i ponovnim objavljivanjem.
 - Prije svakog upisa ili troska potvrdi aktivni nalog (`olx_whoami`); `olx_switch_account`
   mijenja nalog globalno i tiho.
 - Brojeve ne tvrdi napamet: kvote obnova (`olx_refresh_limits`), cijene izdvajanja

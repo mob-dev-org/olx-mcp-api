@@ -16,6 +16,7 @@ import type {
   LocationSnapshot,
   ListingSummary,
   LoginResponse,
+  OlxPublicProfile,
   OlxUser,
   Paginated,
   RefreshLimits,
@@ -64,6 +65,11 @@ interface RequestOptions {
   query?: Query;
   body?: unknown;
   auth?: boolean;
+  // Iskljucuje ponavljanje na 5xx. Koristi se za pozive koji nisu idempotentni: izdvajanje i
+  // akcijska cijena (naplata bi mogla proci dva puta) i kreiranje oglasa (duplikat oglasa,
+  // a u kategorijama sa listing_fee i dupli trosak). Mreznu gresku i timeout takodjer ne
+  // ponavljamo za te pozive, jer se ne zna da li je zahtjev stigao do servera.
+  retryOnServerError?: boolean;
 }
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
@@ -126,7 +132,7 @@ export class OlxClient {
 
   // Centralni request wrapper sa retry/backoff na 429 i 5xx.
   private async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-    const { method = "GET", query, body, auth = true } = options;
+    const { method = "GET", query, body, auth = true, retryOnServerError = true } = options;
 
     // Kod multipart uploada (FormData) Content-Type postavlja fetch sam (sa boundary).
     const isForm = typeof FormData !== "undefined" && body instanceof FormData;
@@ -157,7 +163,9 @@ export class OlxClient {
 
         if (res.ok) return parsed as T;
 
-        const retriable = res.status === 429 || res.status >= 500;
+        // 429 se ponavlja uvijek (zahtjev nije izvrsen). 5xx se ne ponavlja za pozive koji troše
+        // kredite ili kreiraju oglas, jer je server mogao izvrsiti radnju pa pasti pri odgovoru.
+        const retriable = res.status === 429 || (res.status >= 500 && retryOnServerError);
         if (retriable && attempt <= this.config.maxRetries) {
           const backoff = Math.min(8000, 2 ** attempt * 250) + Math.random() * 200;
           await sleep(backoff);
@@ -174,7 +182,7 @@ export class OlxClient {
         clearTimeout(timer);
         if (err instanceof OlxApiError || err instanceof OlxAuthError) throw err;
         const isAbort = err instanceof Error && err.name === "AbortError";
-        if (attempt <= this.config.maxRetries) {
+        if (retryOnServerError && attempt <= this.config.maxRetries) {
           const backoff = Math.min(8000, 2 ** attempt * 250) + Math.random() * 200;
           await sleep(backoff);
           continue;
@@ -233,6 +241,14 @@ export class OlxClient {
     return username;
   }
 
+  // Javni profil korisnika ili shopa. Radi SAMO sa username (numericki id vraca 404);
+  // ista putanja postoji i kao /shops/:username. Odgovor je envelope { data: ... }.
+  // Ne trazi da profil bude nas: koristi se za analizu konkurencije i kandidata.
+  async userProfile(username: string): Promise<OlxPublicProfile> {
+    const user = this.assertUser(username);
+    return this.unwrap(await this.request<OlxPublicProfile | { data: OlxPublicProfile }>(`/users/${user}`));
+  }
+
   // Osigurava da postoji token: koristi postojeci ili radi login ako ima kredencijale.
   async ensureAuth(): Promise<void> {
     if (this.token || (this.config.clientId && this.config.clientToken)) return;
@@ -245,8 +261,15 @@ export class OlxClient {
     return this.request<Listing>(`/listings/${id}`);
   }
 
+  // Bez retry-a na 5xx: ponovljen POST bi napravio duplikat oglasa (i dupli listing_fee).
   async createListing(input: CreateListingInput): Promise<Listing> {
-    return this.unwrap(await this.request<Listing | { data: Listing }>("/listings", { method: "POST", body: input }));
+    return this.unwrap(
+      await this.request<Listing | { data: Listing }>("/listings", {
+        method: "POST",
+        body: input,
+        retryOnServerError: false,
+      }),
+    );
   }
 
   async updateListing(id: number | string, input: UpdateListingInput): Promise<Listing> {
@@ -507,9 +530,11 @@ export class OlxClient {
         price,
       );
     }
+    // Bez retry-a na 5xx: naplata je mogla proci prije nego je server pao na odgovoru.
     return this.request(`/listings/${id}/sponsore`, {
       method: "POST",
       body: { ...options, refresh_every: options.refresh_every ?? 0 },
+      retryOnServerError: false,
     });
   }
 
@@ -519,7 +544,8 @@ export class OlxClient {
         `Akcijska cijena je premium opcija i troši kredite. Potvrdi (confirm) za izvršenje.`,
       );
     }
-    return this.request(`/listings/${id}/discount`, { method: "POST", body: input });
+    // Bez retry-a na 5xx: isti razlog kao kod izdvajanja (dupla naplata).
+    return this.request(`/listings/${id}/discount`, { method: "POST", body: input, retryOnServerError: false });
   }
 
   finishDiscount(id: number | string): Promise<unknown> {

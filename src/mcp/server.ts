@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { readFileSync, existsSync } from "node:fs";
@@ -23,6 +23,9 @@ const CATEGORIES_PATH = resolve(__dirname, "../../olx-dokumentacija/categories.j
 const CATEGORIES_CSV_PATH = resolve(__dirname, "../../olx-dokumentacija/categories.csv");
 const LOCATIONS_PATH = resolve(__dirname, "../../olx-dokumentacija/locations.json");
 const LOCATIONS_CSV_PATH = resolve(__dirname, "../../olx-dokumentacija/locations.csv");
+const POMOC_DIR = resolve(__dirname, "../../olx-dokumentacija/PIK-pomoc-korpus");
+const POMOC_INDEX_PATH = resolve(POMOC_DIR, "index.csv");
+const POMOC_CLANCI_DIR = resolve(POMOC_DIR, "clanci");
 
 // Jedan server radi na jednom nalogu (profilu), biranom kroz OLX_PROFILE. Za vise klijenata
 // registruj vise MCP servera (svaki sa svojim OLX_PROFILE / OLX_TOKEN), da se nalozi ne mijesaju.
@@ -192,6 +195,68 @@ server.registerResource(
   },
 );
 
+// ---- Zvanicna pomoc (pomoc.olx.ba) kao resursi: index pa pojedinacni clanak ----
+// Kompletni korpus (176 KB) se NE izlaze kao jedan resource; citaj index, pa samo trazeni clanak.
+server.registerResource(
+  "pomoc-index",
+  "olx://pomoc-index",
+  {
+    title: "Zvanicna PIK/OLX pomoc (index clanaka, CSV)",
+    description:
+      "Index 52 clanka zvanicne podrske (pomoc.olx.ba): kolone kategorija, sekcija, naslov, azurirano, url. Koristi OVO da nadjes clanak, pa procitaj pojedinacni preko olx://pomoc/<ime-fajla>.md. Zvanicna pomoc je izvor za pravila platforme; gdje se razlikuje od izmjerenog stanja, vazi knowledgebase (olx://knowledgebase).",
+    mimeType: "text/csv",
+  },
+  async (uri) => {
+    if (!existsSync(POMOC_INDEX_PATH)) {
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: "text/plain",
+            text: "Korpus pomoci nije prisutan. Osvjezavanje po receptu: olx-dokumentacija/PIK-pomoc-korpus/NALAZI-i-osvjezavanje.md",
+          },
+        ],
+      };
+    }
+    return { contents: [{ uri: uri.href, mimeType: "text/csv", text: readFileSync(POMOC_INDEX_PATH, "utf8") }] };
+  },
+);
+
+server.registerResource(
+  "pomoc-clanak",
+  new ResourceTemplate("olx://pomoc/{fajl}", { list: undefined }),
+  {
+    title: "Zvanicni clanak pomoci",
+    description:
+      "Jedan clanak zvanicne pomoci u markdownu. {fajl} je ime fajla iz kolone url/naslova u olx://pomoc-index, npr. cijena-izdvajanja-oglasa-promocije-360014561439.md",
+    mimeType: "text/markdown",
+  },
+  async (uri, variables) => {
+    const raw = variables.fajl;
+    const name = Array.isArray(raw) ? raw[0] : raw;
+    // Putanju gradimo samo iz imena fajla: bez separatora i bez ".." da se ne izadje iz foldera.
+    const safe = typeof name === "string" ? decodeURIComponent(name) : "";
+    if (!safe || safe.includes("/") || safe.includes("\\") || safe.includes("..")) {
+      return {
+        contents: [{ uri: uri.href, mimeType: "text/plain", text: `Neispravno ime clanka: ${String(name)}` }],
+      };
+    }
+    const file = resolve(POMOC_CLANCI_DIR, safe.endsWith(".md") ? safe : `${safe}.md`);
+    if (!file.startsWith(POMOC_CLANCI_DIR) || !existsSync(file)) {
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: "text/plain",
+            text: `Clanak ne postoji: ${safe}. Provjeri imena u olx://pomoc-index.`,
+          },
+        ],
+      };
+    }
+    return { contents: [{ uri: uri.href, mimeType: "text/markdown", text: readFileSync(file, "utf8") }] };
+  },
+);
+
 const readOnly = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true } as const;
 const writeOp = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true } as const;
 
@@ -257,6 +322,18 @@ server.registerTool(
       return errResult(String(e instanceof Error ? e.message : e));
     }
   },
+);
+
+server.registerTool(
+  "olx_user_profile",
+  {
+    title: "Javni profil korisnika/shopa",
+    description:
+      "Javni profil tudjeg ili svog shopa po USERNAME-u: paket (Gold/Platinum), poslovni podaci, ocjene, medalje, vrijeme odgovora i datum registracije. Osnova za analizu konkurencije i kandidata (ne treba njihov token). Numericki id ne radi, samo username.",
+    inputSchema: { username: z.string().min(1).describe("username shopa, npr. APlus; numericki id vraca 404") },
+    annotations: readOnly,
+  },
+  (args) => run((c) => c.userProfile(args.username)),
 );
 
 server.registerTool(
@@ -438,14 +515,24 @@ server.registerTool(
   "olx_update_listing",
   {
     title: "Izmijeni oglas",
-    description: "Mijenja polja oglasa (npr. title, description, price).",
+    description:
+      "Mijenja polja oglasa. Salje se samo ono sto se mijenja. Pored teksta i cijene moze i kategorija, stanje, lokacija, brend/model i atributi. Kad mijenjas category_id provjeri obavezne atribute nove kategorije (olx_category_attributes), inace API vraca 422.",
     inputSchema: {
       id: z.union([z.number(), z.string()]),
       title: TITLE_SCHEMA.optional(),
       description: z.string().optional(),
-      short_description: z.string().optional(),
+      short_description: z.string().optional().describe("podnaslov; ULAZI u pretragu, iskoristi ga za kljucne rijeci koje ne stanu u naslov"),
       price: z.number().optional(),
       available: z.boolean().optional(),
+      category_id: z.union([z.number(), z.string()]).optional().describe("nova kategorija; vidi olx://categories-index"),
+      sku_number: z.string().optional(),
+      state: z.enum(["new", "used"]).optional(),
+      listing_type: z.enum(["sell", "buy", "rent"]).optional(),
+      country_id: z.union([z.number(), z.string()]).optional(),
+      city_id: z.union([z.number(), z.string()]).optional(),
+      brand_id: z.union([z.number(), z.string()]).optional(),
+      model_id: z.union([z.number(), z.string()]).optional(),
+      attributes: z.array(z.object({ id: z.number(), value: z.string() })).optional(),
     },
     annotations: writeOp,
   },
@@ -469,7 +556,8 @@ server.registerTool(
       "Obnavlja aktivne oglase kojima je obnova dostupna, uz postivanje mjesecnog limita. confirm=false (default) je dry-run i vraca samo listu kandidata. confirm=true izvrsava obnovu.",
     inputSchema: {
       user: z.string().optional(),
-      limit: z.number().int().min(1).max(750).default(100),
+      // Gornja granica je samo sanity check; stvarni cap je free_limit - free_count sa API-ja.
+      limit: z.number().int().min(1).max(4600).default(100),
       confirm: z.boolean().default(false),
     },
     annotations: writeOp,
@@ -512,24 +600,14 @@ server.registerTool(
 
 server.registerTool(
   "olx_finish_listing",
-  { title: "Zavrsi oglas", description: "Oznacava oglas kao zavrsen/prodano (cuva historiju i statistiku).", inputSchema: { id: z.union([z.number(), z.string()]) }, annotations: writeOp },
-  (args) => run((c) => c.finishListing(args.id)),
-);
-
-server.registerTool(
-  "olx_delete_listing",
   {
-    title: "Obrisi oglas",
+    title: "Zavrsi oglas",
     description:
-      "NEPOVRATNO brise oglas. Trazi confirm=true. Za dolazak na vrh koristi obnovu, ne brisanje. Kad nema na stanju koristi hide/finish.",
-    inputSchema: { id: z.union([z.number(), z.string()]), confirm: z.boolean().default(false) },
-    annotations: destructiveOp,
+      "Oznacava oglas kao zavrsen/prodano (cuva historiju i statistiku). Kad korisnik trazi BRISANJE oglasa, predlozi ovo: oglas ide u Zavrsene, ostaje u historiji profila kao dokaz prodaje i ne gubi se statistika. Brisanje kroz bota ne postoji, samo u CLI (listings rm).",
+    inputSchema: { id: z.union([z.number(), z.string()]) },
+    annotations: writeOp,
   },
-  (args) =>
-    run((c) => {
-      if (!args.confirm) throw new Error("Brisanje je nepovratno. Pozovi ponovo sa confirm: true.");
-      return c.deleteListing(args.id);
-    }),
+  (args) => run((c) => c.finishListing(args.id)),
 );
 
 server.registerTool(

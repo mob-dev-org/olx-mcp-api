@@ -205,6 +205,21 @@ program
     }
   });
 
+// ---- Users (javni podaci) ----
+const users = program.command("users").description("Javni podaci o korisnicima i shopovima");
+
+users
+  .command("profile <username>")
+  .description("Javni profil shopa: paket, poslovni podaci, ocjene, vrijeme odgovora (samo username)")
+  .action(async (username: string) => {
+    try {
+      const c = await withAuth();
+      out(await c.userProfile(username));
+    } catch (e) {
+      fail(e);
+    }
+  });
+
 // ---- Listings ----
 const listings = program.command("listings").description("Upravljanje oglasima");
 

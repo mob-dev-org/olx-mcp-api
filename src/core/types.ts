@@ -16,6 +16,33 @@ export interface LoginResponse {
   user: OlxUser;
 }
 
+// Javni profil korisnika ili shopa (GET /users/:username). Sadrzi samo ono sto je javno
+// vidljivo: paket, poslovne podatke, ocjene i vrijeme odgovora. Osnova za analizu konkurencije.
+export interface OlxPublicProfileShop {
+  package?: string;
+  business_name?: string;
+  business_vat?: string;
+  ends_at?: string;
+  web?: string;
+  description?: string;
+  working_hours?: unknown;
+  registered?: string;
+  [key: string]: unknown;
+}
+
+export interface OlxPublicProfile {
+  type?: string;
+  id: number;
+  username?: string;
+  medals?: unknown;
+  feedbacks?: unknown;
+  shop?: OlxPublicProfileShop;
+  location?: unknown;
+  created_at?: string;
+  avg_response_time?: unknown;
+  [key: string]: unknown;
+}
+
 export interface ListingLocation {
   lat: number;
   lon: number;
