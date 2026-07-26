@@ -94,10 +94,9 @@ Listovi u izlazu:
   da shop placa ili ne placa pretplatu, ni da je nalog ugasen. Nula oglasa danas moze biti
   privremeno stanje.
 - Kod poredjenja: shop koji je "nestao" nije nuzno ugasen. Mogao je promijeniti paket na nesto
-  sto snimak ne pokriva, ili je ekstrakcija bila nepotpuna. Provjeri kroz `GET /users/:username`
-  (endpoint postoji i radi, ali NIJE implementiran u toolkitu; pozovi ga rucno curl-om sa Bearer
-  tokenom, vidi API-INVENTAR.md sekciju o nedokumentovanim endpointima)
-  prije nego to nazoves gasenjem.
+  sto snimak ne pokriva, ili je ekstrakcija bila nepotpuna. Provjeri alatom
+  `olx_user_profile <username>` (ili CLI `users profile <username>`): vraca paket, datum do kojeg
+  vazi i poslovne podatke. Tek ako profil ne postoji, govori se o gasenju.
 
 ## Kad korisnik donese novi snimak
 

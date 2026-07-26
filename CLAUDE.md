@@ -46,6 +46,9 @@ Skillovi i odgovori ne kopiraju brojeve, nego pokazuju na:
 - `pik-olx-kreditni-savjetnik` — potrosnja kredita: koje artikle izdvojiti, period, autoobnova.
 - `olx-shopovi-snimci` — Excel snimci Gold/Platinum shopova: razdvajanje po kantonima, razlika
   dva snimka.
+- `olx-seo-oglasa` — naslov, podnaslov i format opisa; izvjestaj pa primjena uz potvrdu.
+- `olx-klijent-flow` — kandidat (javni podaci), onboarding sa tokenom, prvi potezi po ROI.
+- `olx-cron-obnove` — dnevni pregled svih profila i ravnomjerno trosenje kvote obnova.
 
 ## Redoslijed citanja podataka
 

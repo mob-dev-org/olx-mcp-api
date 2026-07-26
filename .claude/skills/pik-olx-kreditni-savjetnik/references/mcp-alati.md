@@ -25,14 +25,16 @@ Za ovaj skill je bitna samo podjela po posljedicama:
 
 - **Troše kredite** (nikad bez potvrde, imaju spend-guard `confirm`): `olx_sponsor_listing`,
   `olx_set_discount`.
-- **Nepovratno** (traži `confirm`, izbjegavaj): `olx_delete_listing`.
+- **Nepovratno**: brisanje oglasa kroz bota ne postoji. `olx_delete_listing` je uklonjen iz
+  MCP-a; kad korisnik traži brisanje, predloži `olx_finish_listing` (oglas ostaje u historiji
+  profila kao dokaz prodaje) ili `olx_hide_listing`.
 - **Troše kvotu obnova** (besplatno do `free_limit`): `olx_refresh_listing`, `olx_refresh_bulk`.
 - **Sve ostalo je čitanje** i bezopasno je.
 
 ## Sigurno izvršenje (obavezno)
 
-- **Akcije koje troše kredite** (`olx_sponsor_listing`, `olx_set_discount`) i **nepovratne
-  akcije** (`olx_delete_listing`) NIKAD ne pokreći bez izričite potvrde korisnika. Prvo pripremi
+- **Akcije koje troše kredite** (`olx_sponsor_listing`, `olx_set_discount`) NIKAD ne pokreći bez
+  izričite potvrde korisnika. Prvo pripremi
   plan sa ID-evima, periodom, tipom obnove i ukupnim troškom, pa sačekaj jasno "izvrši".
 - **Prije izdvajanja provjeri stvarnu cijenu** preko `olx_sponsor_price`, jer je cijena
   dinamična; ne oslanjaj se samo na statički cjenovnik.

@@ -5,3 +5,4 @@ dist/
 *.log
 .olx-pik/
 .DS_Store
+klijenti/

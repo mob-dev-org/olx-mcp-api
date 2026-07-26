@@ -23,6 +23,7 @@ Provjere: `npm test` (testovi match logike, bez mreze) i `npm run typecheck`.
 ```bash
 # Sigurno (citanje)
 node dist/cli/index.js listings ls --state active --all
+node dist/cli/index.js users profile APlus                # javni profil shopa (paket, ocjene)
 node dist/cli/index.js refresh limits
 node dist/cli/index.js category suggest "golf 7"
 node dist/cli/index.js sponsor price 12345 --type 2 --days 7 --refresh-every 8
@@ -161,15 +162,33 @@ Napomene:
 
 ## Claude Code skillovi
 
-Repozitorij nosi cetiri skilla u `.claude/skills/` (folder je skriven u file browserima jer pocinje tackom, ali je u gitu):
+Repozitorij nosi sedam skillova u `.claude/skills/` (folder je skriven u file browserima jer pocinje tackom, ali je u gitu):
 
 - `olx-mcp-setup`: postavljanje i koristenje toolkita (token, MCP, CLI, troubleshooting).
 - `olx-analiza-profila`: analiza vlastitog profila i oglasa uz strategiju iz KB resursa.
 - `pik-olx-kreditni-savjetnik`: potrosnja kredita, izdvajanje, cjenovnik, strategija promocije.
 - `olx-shopovi-snimci`: obrada Excel snimaka Gold/Platinum shopova (razdvajanje po kantonima, poredjenje dva snimka).
+- `olx-seo-oglasa`: naslov, podnaslov i format opisa; izvjestaj pa primjena tek uz potvrdu.
+- `olx-klijent-flow`: kandidat iz javnih podataka, onboarding sa tokenom, prvi potezi po ROI.
+- `olx-cron-obnove`: dnevni pregled svih profila i ravnomjerno trosenje kvote obnova.
 
 Dolaze automatski sa kloniranjem; nista se ne instalira posebno. Sistemski prompt za bota je u
 `CLAUDE.md` u korijenu.
+
+### Dnevna obnova (cron unutar Claude)
+
+Skill `olx-cron-obnove` opisuje dnevni ritual: kroz sve profile, `olx_refresh_limits`, dry-run
+pa obnova do dnevnog budzeta (preostala kvota podijeljena danima do kraja mjeseca), pa zbirni
+izvjestaj sa upozorenjima. Obnove unutar besplatne kvote ne kostaju, pa se izvrsavaju bez
+pitanja; izdvajanje i akcijska cijena nikad automatski. Zakazuje se kao lokalni Claude cron job
+(`CronCreate`, dnevno u 08:00), i to samo kad korisnik izricito to kaze. Racunar mora biti
+upaljen u to vrijeme.
+
+### Podaci klijenata
+
+Onboarding klijenta pise baseline i zapise poteza u `klijenti/<ime>/`. Taj folder je u
+`.gitignore` jer sadrzi podatke klijenata. Tokeni klijenata idu u `.env` kao
+`OLX_TOKEN_<IME>`, nikad u git.
 
 Izvori znanja (jedan izvor istine, ne duplirati brojeve po skillovima):
 - `olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md` — pravila platforme, paketi, kvote, pretraga.

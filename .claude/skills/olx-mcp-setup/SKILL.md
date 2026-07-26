@@ -86,6 +86,8 @@ bez API poziva: `category index` i `location index`. Commitaj sve fajlove.
 - `olx://locations-index` (CSV, lagano) — koristi PRVO za `country_id` (BiH = 49) i `city_id` po imenu.
 - `olx://locations` (puni JSON) — samo za detalje (lat/lon, zip, state).
 - `olx://knowledgebase` — API referenca, pravila vidljivosti, dijagnostika (strategija).
+- `olx://pomoc-index` (CSV) — index 52 clanka zvanicne pomoci; nadji clanak pa ga procitaj
+  preko `olx://pomoc/<ime-fajla>.md`. Ne citaj cijeli korpus odjednom.
 
 Vazno: forme i opcije pojedine kategorije NISU u snapshotima. Za njih pozovi live alat
 `olx_category_attributes <id>`. Tok: nadji kategoriju u CSV indexu -> uzmi opcije preko atributa.
