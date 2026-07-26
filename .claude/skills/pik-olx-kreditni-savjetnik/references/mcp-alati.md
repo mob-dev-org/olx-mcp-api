@@ -2,7 +2,7 @@
 
 Ako je `olx-pik` MCP server dostupan, koristi ga da provjeriš stvarno stanje naloga umjesto da
 nagađaš (koji su oglasi aktivni, šta je već izdvojeno, cijene). Alati se učitavaju preko
-pretrage alata; nazivi su na bosanskom i počinju sa `olx_`.
+pretrage alata; svi nazivi počinju sa `olx_`.
 
 ## Redoslijed rada (uvijek isti)
 
@@ -30,17 +30,17 @@ pretrage alata; nazivi su na bosanskom i počinju sa `olx_`.
 | `olx_refresh_bulk` | Obnavlja više aktivnih | Besplatno do kvote |
 | `olx_hide_listing` / `olx_unhide_listing` | Sakriva / vraća oglas | Ne |
 | `olx_finish_listing` | Završava oglas (prodano) | Ne |
-| `olx_delete_listing` | Nepovratno briše oglas | Nepovratno, izbjegavaj |
 
 Imena se mogu malo razlikovati po verziji servera; ako alat ne postoji, pretraži dostupne alate
 ponovo prije nego zaključiš da ga nema.
 
 ## Sigurno izvršenje (obavezno)
 
-- **Akcije koje troše kredite** (`olx_sponsor_listing`, `olx_set_discount`) i **nepovratne
-  akcije** (`olx_delete_listing`) NIKAD ne pokreći bez izričite potvrde korisnika. Prvo pripremi
-  plan sa ID-evima, periodom, tipom obnove i ukupnim troškom, pa sačekaj jasno "izvrši".
-- **Prije izdvajanja provjeri stvarnu cijenu** preko `olx_sponsor_price` ako alat postoji, jer je
+- **Akcije koje troše kredite** (`olx_sponsor_listing`, `olx_set_discount`) NIKAD ne pokreći bez
+  izričite potvrde korisnika. Prvo pripremi plan sa ID-evima, periodom, tipom obnove i ukupnim
+  troškom, pa sačekaj jasno "izvrši". Za raspored kroz dane postoji CLI `sponsor plan`, koji plan
+  snima u fajl i izvršava samo termine dospjele taj dan, uz `--yes`.
+- **Prije izdvajanja provjeri stvarnu cijenu** preko `olx_sponsor_price`, jer je
   cijena dinamična; ne oslanjaj se samo na statički cjenovnik.
 - **Za dolazak na vrh koristi obnovu, ne brisanje.** Kad nema na stanju, koristi sakrivanje ili
   završavanje, da se sačuva historija i dojmovi.

@@ -175,7 +175,8 @@ limita košta 1 kredit. Platformsko.
 - 2 kredita za prijavu nedozvoljenog naslova.
 - Brza dostava: 30 kredita kad prodavac snosi trošak dostave, 10 kredita prodavcu i 20 kupcu kad
   kupac snosi trošak.
-- Oko 30 posto prijava se odbija zbog pogrešnog obrazloženja, pa je zarada kroz prijave nepouzdana
+- Prijava koja nije dobro obrazložena se odbija, pa je zarada kroz prijave nepouzdan izvor kredita
+  (postotak odbijenih nije nigdje objavljen, ne navodi ga)
   kao izvor.
 
 ---
