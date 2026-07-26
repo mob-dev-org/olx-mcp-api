@@ -121,6 +121,28 @@ Fajl je van gita.
 
 ## Pokretanje na DeepSeeku
 
-`claude-ds` u `~/.zshrc`. Podesavanja su u `~/.claude/deepseek.env` (prava 600, van repoa):
-flash je radni model, pro je ponuda u `/model` biracu, pozadinske radnje i podagenti idu na
-flash. Kljuc se cita u podshellu, da obicna `claude` sesija ostane na pretplati.
+Konfiguracija je globalna, u `~/.zshrc`, po zvanicnoj DeepSeek dokumentaciji:
+
+```
+export ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic
+export ANTHROPIC_AUTH_TOKEN=<kljuc>
+export API_TIMEOUT_MS=600000
+export ANTHROPIC_MODEL=deepseek-v4-flash
+export ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek-v4-flash
+export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+export ANTHROPIC_CUSTOM_MODEL_OPTION=deepseek-v4-pro
+```
+
+Posljedice koje treba imati na umu:
+
+- Vazi za **svaku** `claude` sesiju na masini, ne samo za ovaj repo. Pretplata se ne koristi
+  dok su te varijable postavljene. Za povratak na Claude: zakomentarisati blok i otvoriti
+  novi terminal.
+- Pro se bira sa `/model` unutar sesije. Za radnje koje trose kredite koristiti pro, zbog
+  nalaza iz tabele gore.
+- `deepseek-chat` iz starije dokumentacije jos radi, ali vraca `deepseek-v4-flash` i ima
+  objavljen datum ukidanja, pa se koristi pravo ime modela.
+- `ANTHROPIC_SMALL_FAST_MODEL` je zamijenjen sa `ANTHROPIC_DEFAULT_HAIKU_MODEL`, prvi je
+  oznacen kao zastario u Claude Code dokumentaciji.
+- Ako su istovremeno postavljeni `ANTHROPIC_AUTH_TOKEN` i `ANTHROPIC_API_KEY`, API odbija
+  zahtjev. Zato ne drzati kljuc na dva mjesta.
