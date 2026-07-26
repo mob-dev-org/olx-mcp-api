@@ -132,7 +132,7 @@ Faza 1 — Osnova (uvijek, za svaki oglas):
 
 Faza 2 — Održavanje svježine (besplatno):
 
-7. Obnavljati redovno. Shop: iskoristiti besplatne obnove svakih 7 dana (do 750/mjesec) — rasporedite ih na najvažnije/najkonkurentnije oglase. Standardni profil: bar jednom u 6 mjeseci da oglas ne istekne, a češće za bolju poziciju.
+7. Obnavljati redovno. Shop: iskoristiti besplatne obnove svakih 7 dana (zvanično „750/mjesec", ali je na Gold nalozima izmjereno 1.800 — stvarnu kvotu čitaj sa `refresh/limits`, vidi Knowledgebase) — rasporedite ih na najvažnije/najkonkurentnije oglase. Standardni profil: bar jednom u 6 mjeseci da oglas ne istekne, a češće za bolju poziciju.
 8. Pratiti statistiku oglasa, posebno „pojmovi na pretrazi" — ako kupci kucaju frazu koje nema u vašem naslovu, dopišite je.
 
 Faza 3 — Plaćeno (kad organsko nije dovoljno):
