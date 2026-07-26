@@ -3,7 +3,7 @@ import { Command } from "commander";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { OlxClient, OlxApiError, OlxAuthError, OlxSpendError } from "../core/index.js";
-import { resolveConfig, listProfileNames } from "../core/config.js";
+import { loadConfig } from "../core/config.js";
 import { matchCatalog, summarizeMatches } from "../core/match.js";
 import type { PikItem, ShopifyItem, OverrideEntry } from "../core/match.js";
 import type { CreateListingInput, SponsorOptions, SponsorType, SponsorDays, RefreshEvery, CategoryNode, Country, City } from "../core/types.js";
@@ -35,9 +35,9 @@ function fail(err: unknown): never {
   process.exit(1);
 }
 
+// Jedan klon repoa radi za jedan nalog: token iz OLX_TOKEN u .env ovog klona.
 function client(): OlxClient {
-  const profile = (program.opts() as { profile?: string }).profile;
-  return new OlxClient(resolveConfig(profile).config);
+  return new OlxClient(loadConfig());
 }
 
 // Lagani CSV index kategorija: samo polja bitna za izbor kategorije i kreiranje oglasa.
@@ -161,24 +161,11 @@ const program = new Command();
 program
   .name("olx")
   .description("Interni CLI za OLX.ba / PIK.ba shopove")
-  .version("0.1.0")
-  .option("-p, --profile <name>", "OLX profil (za vise klijenata/tokena); vidi: olx auth profiles");
+  .version("0.1.0");
 
 // ---- Auth ----
 const auth = program.command("auth").description("Autentifikacija");
 
-auth
-  .command("profiles")
-  .description("Lista konfigurisanih profila (imena, bez tokena)")
-  .action(() => {
-    const names = listProfileNames();
-    if (!names.length) {
-      console.error("Nema konfigurisanih profila. Koristi se jedan OLX_TOKEN.");
-      console.error("Dodaj profile u .olx-profiles.json ili env OLX_TOKEN_<IME>.");
-      return;
-    }
-    out({ profiles: names, napomena: "Aktiviraj profil sa --profile <ime> ili env OLX_PROFILE." });
-  });
 auth
   .command("login")
   .description("Login kredencijalima iz env, ispisuje token")

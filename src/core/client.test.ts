@@ -1,11 +1,11 @@
 // Testovi zastita u jezgru: spend-guard (nista se ne naplacuje bez confirm), politika retry-a
-// (429 se ponavlja, 401 i 5xx na naplati ne) i razrjesavanje profila (da se ne radi tiho na
-// pogresnom nalogu). Mreza se ne dira: fetch je zamijenjen stubom koji broji pozive.
+// (429 se ponavlja, 401 i 5xx na naplati ne) i citanje konfiguracije jednog naloga.
+// Mreza se ne dira: fetch je zamijenjen stubom koji broji pozive.
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { OlxClient, OlxAuthError, OlxSpendError } from "./index.js";
-import { resolveConfig } from "./config.js";
+import { loadConfig } from "./config.js";
 import type { OlxConfig } from "./config.js";
 
 interface FetchCall {
@@ -55,6 +55,9 @@ function testConfig(overrides: Partial<OlxConfig> = {}): OlxConfig {
     minRequestIntervalMs: 0,
     maxRetries: 1,
     timeoutMs: 5000,
+    // Testovi nikad ne pisu audit log u fajl; sink se, gdje treba, injektuje kao funkcija.
+    auditFile: ".olx-pik/test-audit.jsonl",
+    auditReads: false,
     ...overrides,
   };
 }
@@ -142,12 +145,12 @@ test("401 se ne ponavlja i daje OlxAuthError", async () => {
 test("429 se ponavlja pa uspije", async () => {
   const { calls, restore } = stubFetch([
     { status: 429, body: { message: "too many" } },
-    { status: 200, body: { data: { id: 1, username: "mixbox" } } },
+    { status: 200, body: { data: { id: 1, username: "shop_test" } } },
   ]);
   try {
     const client = new OlxClient(testConfig({ maxRetries: 2 }));
     const me = await client.me();
-    assert.equal(me.username, "mixbox", "envelope { data } se odvija");
+    assert.equal(me.username, "shop_test", "envelope { data } se odvija");
     assert.equal(calls.length, 2, "429 se ponovi tacno jednom prije uspjeha");
   } finally {
     restore();
@@ -168,12 +171,12 @@ test("obnova oglasa ide kao PUT na tacnu putanju", async () => {
 });
 
 test("userProfile trazi username i odbija prazan unos", async () => {
-  const { calls, restore } = stubFetch([{ status: 200, body: { data: { id: 7, username: "APlus", shop: { package: "Platinum" } } } }]);
+  const { calls, restore } = stubFetch([{ status: 200, body: { data: { id: 7, username: "primjer_shop", shop: { package: "Platinum" } } } }]);
   try {
     const client = new OlxClient(testConfig());
-    const profile = await client.userProfile("APlus");
+    const profile = await client.userProfile("primjer_shop");
     assert.equal(profile.shop?.package, "Platinum");
-    assert.ok(calls[0]?.url.endsWith("/users/APlus"));
+    assert.ok(calls[0]?.url.endsWith("/users/primjer_shop"));
     await assert.rejects(() => client.userProfile("  "), (err: unknown) => err instanceof OlxAuthError);
     assert.equal(calls.length, 1, "prazan username se odbija prije mreze");
   } finally {
@@ -181,39 +184,42 @@ test("userProfile trazi username i odbija prazan unos", async () => {
   }
 });
 
-test("resolveConfig baca gresku za nepoznat profil", () => {
-  const env = {
-    OLX_PROFILES_FILE: "test-nepostojeci-profiles.json",
-    OLX_TOKEN_MIXBOX: "token-mixbox",
-  } as NodeJS.ProcessEnv;
-  assert.throws(
-    () => resolveConfig("nepostojeci", env),
-    (err: unknown) => {
-      assert.ok(err instanceof Error);
-      assert.match(err.message, /Nepoznat OLX profil/);
-      assert.match(err.message, /mixbox/, "greska navodi dostupne profile");
-      return true;
-    },
-  );
+test("loadConfig cita token iz okruzenja i skida kosu crtu sa base URL-a", () => {
+  const config = loadConfig({
+    OLX_BASE_URL: "https://api.primjer.test/",
+    OLX_TOKEN: "token-klona",
+  } as NodeJS.ProcessEnv);
+
+  assert.equal(config.token, "token-klona");
+  assert.equal(config.baseUrl, "https://api.primjer.test", "kosa crta na kraju bi napravila dvostruku // u putanji");
 });
 
-test("resolveConfig uzima token iz OLX_TOKEN_<IME> i ne mijesa naloge", () => {
-  const env = {
-    OLX_PROFILES_FILE: "test-nepostojeci-profiles.json",
-    OLX_TOKEN: "token-default",
-    OLX_TOKEN_MIXBOX: "token-mixbox",
-    OLX_TOKEN_PROTON: "token-proton",
-  } as NodeJS.ProcessEnv;
+test("loadConfig ne izmislja token i ostaje na jednom nalogu", () => {
+  const config = loadConfig({} as NodeJS.ProcessEnv);
+  assert.equal(config.token, undefined, "bez OLX_TOKEN nema tokena, ne trazi se drugdje");
+  assert.equal(config.baseUrl, "https://api.olx.ba");
+  // Jedan klon radi za jedan nalog: u konfiguraciji ne postoji pojam profila.
+  assert.equal("profiles" in config, false);
+});
 
-  const mixbox = resolveConfig("mixbox", env);
-  assert.equal(mixbox.profile, "mixbox");
-  assert.equal(mixbox.config.token, "token-mixbox");
+test("loadConfig vraca default brojeve kad su env vrijednosti neispravne", () => {
+  const config = loadConfig({
+    OLX_MIN_REQUEST_INTERVAL_MS: "brzo",
+    OLX_MAX_RETRIES: "",
+    OLX_TIMEOUT_MS: "0",
+  } as NodeJS.ProcessEnv);
 
-  const proton = resolveConfig("proton", env);
-  assert.equal(proton.config.token, "token-proton");
+  assert.equal(config.minRequestIntervalMs, 350, "neispravna vrijednost ne smije ugasiti throttle");
+  assert.equal(config.maxRetries, 4);
+  assert.equal(config.timeoutMs, 0, "eksplicitna nula je validna vrijednost, ne greska");
+});
 
-  // Bez imena profila i bez OLX_PROFILE ostaje obican OLX_TOKEN.
-  const plain = resolveConfig(undefined, env);
-  assert.equal(plain.profile, undefined);
-  assert.equal(plain.config.token, "token-default");
+test("loadConfig postavlja audit log na putanju van gita", () => {
+  const podrazumijevano = loadConfig({} as NodeJS.ProcessEnv);
+  assert.equal(podrazumijevano.auditFile, ".olx-pik/audit.jsonl");
+  assert.equal(podrazumijevano.auditReads, false, "citanja se ne loguju bez izricite zastavice");
+
+  const svoje = loadConfig({ OLX_AUDIT_FILE: "moj/log.jsonl", OLX_AUDIT_READS: "1" } as NodeJS.ProcessEnv);
+  assert.equal(svoje.auditFile, "moj/log.jsonl");
+  assert.equal(svoje.auditReads, true);
 });

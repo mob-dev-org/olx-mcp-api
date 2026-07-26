@@ -8,8 +8,7 @@
       ],
       "env": {
         "OLX_BASE_URL": "https://api.olx.ba",
-        "OLX_TOKEN": "${OLX_TOKEN:-}",
-        "OLX_PROFILE": "${OLX_PROFILE:-}"
+        "OLX_TOKEN": "${OLX_TOKEN:-}"
       }
     }
   }

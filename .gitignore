@@ -1,8 +1,8 @@
 node_modules/
 dist/
 .env
-.olx-profiles.json
 *.log
 .olx-pik/
 .DS_Store
 klijenti/
+KLIJENT.md

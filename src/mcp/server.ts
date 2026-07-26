@@ -6,7 +6,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { OlxClient, OlxSpendError, OlxApiError } from "../core/index.js";
-import { resolveConfig, listProfileNames } from "../core/config.js";
+import { loadConfig } from "../core/config.js";
 import type { SponsorOptions, SponsorType, SponsorDays, RefreshEvery } from "../core/types.js";
 
 // Ucitaj .env iz radnog direktorija ako postoji (Node 20.12+), da tokeni (OLX_TOKEN_<IME>) i
@@ -27,11 +27,11 @@ const POMOC_DIR = resolve(__dirname, "../../olx-dokumentacija/PIK-pomoc-korpus")
 const POMOC_INDEX_PATH = resolve(POMOC_DIR, "index.csv");
 const POMOC_CLANCI_DIR = resolve(POMOC_DIR, "clanci");
 
-// Jedan server radi na jednom nalogu (profilu), biranom kroz OLX_PROFILE. Za vise klijenata
-// registruj vise MCP servera (svaki sa svojim OLX_PROFILE / OLX_TOKEN), da se nalozi ne mijesaju.
-// Aktivni nalog moze se mijenjati u toku rada kroz olx_switch_account (jedan server, vise klijenata).
-let { config, profile: activeProfile } = resolveConfig(process.env.OLX_PROFILE);
-let client = new OlxClient(config);
+// Jedan klon repozitorija radi za jedan nalog: token dolazi iz OLX_TOKEN u .env ovog klona.
+// Za drugog klijenta se klonira repo. Zato nema alata za promjenu naloga i nema mutabilnog
+// stanja: nemoguce je da radnja tiho zavrsi na pogresnom klijentu.
+const config = loadConfig();
+const client = new OlxClient(config);
 
 type ToolResult = {
   content: { type: "text"; text: string }[];
@@ -283,54 +283,12 @@ server.registerTool(
 );
 
 server.registerTool(
-  "olx_list_accounts",
-  {
-    title: "Nalozi (profili)",
-    description:
-      "Prikazuje aktivni nalog ovog servera i sve konfigurisane profile (bez tokena). Ovaj server radi iskljucivo na aktivnom nalogu. Za drugi nalog koristi MCP server registrovan sa tim profilom.",
-    inputSchema: {},
-    annotations: readOnly,
-  },
-  () =>
-    ok({
-      active: activeProfile ?? "(jedan OLX_TOKEN, bez profila)",
-      profiles: listProfileNames(),
-      napomena: "Promijeni nalog sa olx_switch_account, ili pokreni server sa drugim OLX_PROFILE.",
-    }),
-);
-
-server.registerTool(
-  "olx_switch_account",
-  {
-    title: "Promijeni nalog",
-    description:
-      "Mijenja aktivni OLX nalog (profil) za SVE naredne pozive na ovom serveru. Koristi kad korisnik kaze da radi za drugog klijenta. Obavezno potvrdi korisniku na koji si nalog presao PRIJE bilo kakvog upisa ili troska kredita, da se radnja ne izvrsi na pogresnom klijentu. Imena profila vidi kroz olx_list_accounts.",
-    inputSchema: { profile: z.string().min(1).describe("ime profila iz olx_list_accounts") },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  },
-  (args) => {
-    try {
-      const resolved = resolveConfig(args.profile);
-      config = resolved.config;
-      client = new OlxClient(config);
-      activeProfile = resolved.profile;
-      return ok({
-        switched_to: activeProfile ?? args.profile,
-        napomena: "Svi naredni pozivi idu na ovaj nalog. Potvrdi korisniku prije upisa ili troska kredita.",
-      });
-    } catch (e) {
-      return errResult(String(e instanceof Error ? e.message : e));
-    }
-  },
-);
-
-server.registerTool(
   "olx_user_profile",
   {
     title: "Javni profil korisnika/shopa",
     description:
       "Javni profil tudjeg ili svog shopa po USERNAME-u: paket (Gold/Platinum), poslovni podaci, ocjene, medalje, vrijeme odgovora i datum registracije. Osnova za analizu konkurencije i kandidata (ne treba njihov token). Numericki id ne radi, samo username.",
-    inputSchema: { username: z.string().min(1).describe("username shopa, npr. APlus; numericki id vraca 404") },
+    inputSchema: { username: z.string().min(1).describe("username shopa; numericki id vraca 404") },
     annotations: readOnly,
   },
   (args) => run((c) => c.userProfile(args.username)),
@@ -711,7 +669,7 @@ server.registerTool(
 async function main(): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  const acc = activeProfile ? `nalog: ${activeProfile}` : "nalog: default (OLX_TOKEN)";
+  const acc = client.hasToken() ? "token je postavljen" : "BEZ TOKENA (pozivi ce vracati 401)";
   console.error(`olx-pik-mcp-server radi preko stdio. ${acc}`);
 }
 
