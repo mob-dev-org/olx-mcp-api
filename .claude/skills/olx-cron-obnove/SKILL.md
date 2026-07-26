@@ -1,11 +1,11 @@
 ---
 name: olx-cron-obnove
 description: >-
-  Dnevni pregled i obnova oglasa kroz sve OLX/PIK naloge, sa ravnomjernim trosenjem mjesecne
+  Dnevni pregled i obnova oglasa na OLX/PIK nalogu ovog klona, sa ravnomjernim trosenjem mjesecne
   kvote obnova. Koristi ovaj skill kad korisnik trazi dnevnu ili automatsku obnovu, pita koliko
-  obnova da potrosi danas, hoce zbirni pregled svih klijenata, ili trazi da se obnova zakaze.
+  obnova da potrosi danas, hoce dnevni pregled stanja, ili trazi da se obnova zakaze.
   Okidaci: "obnovi oglase", "dnevna obnova", "koliko obnova danas", "zakazi obnove", "cron
-  obnove", "pregled svih naloga", "iskoristi kvotu obnova". Obnove unutar besplatne kvote se
+  obnove", "pregled naloga", "iskoristi kvotu obnova". Obnove unutar besplatne kvote se
   izvrsavaju bez pitanja jer ne kostaju; izdvajanje i akcijska cijena nikad automatski, samo kao
   preporuka u izvjestaju.
 ---
@@ -20,31 +20,26 @@ Brojeve ne pretpostavljaj. Kvota se cita sa API-ja (`olx_refresh_limits`), jer s
 nalogu; poznata protivrjecnost zvanicne pomoci i izmjerenog stanja je opisana u
 `olx://knowledgebase`, sekcija 5.4.
 
-## Ritual, za svaki profil
+## Dnevni ritual
 
-Zapamti pocetni nalog na startu, da ga na kraju vratis.
-
-1. `olx_list_accounts` — popis profila. Radi redom kroz sve.
-2. `olx_switch_account profile=<ime>` pa `olx_whoami` — potvrdi da si stvarno na tom nalogu.
-   Ako `whoami` padne (401 ili 403), preskoci nalog, zapisi razlog u izvjestaj i nastavi dalje.
-3. `olx_refresh_limits` — `free_limit`, `free_count`. Preostalo = `free_limit - free_count`.
-4. Dnevni budzet obnova = preostalo / broj dana do kraja mjeseca, zaokruzeno nadolje, najmanje 1
+1. `olx_whoami` — potvrdi nalog ovog klona i reci korisniku koji je. Ako padne (401 ili 403),
+   stani i prijavi: token ne vrijedi ili shop nema odobren API pristup (skill olx-mcp-setup).
+2. `olx_refresh_limits` — `free_limit`, `free_count`. Preostalo = `free_limit - free_count`.
+3. Dnevni budzet obnova = preostalo / broj dana do kraja mjeseca, zaokruzeno nadolje, najmanje 1
    kad je preostalo vece od nule. Zadnjeg dana mjeseca potrosi sve preostalo (kvota se ne prenosi).
-5. `olx_refresh_bulk confirm=false limit=<dnevni budzet>` — dry-run. Vraca kandidate
+4. `olx_refresh_bulk confirm=false limit=<dnevni budzet>` — dry-run. Vraca kandidate
    (`refresh_available: true`) i preostalu kvotu. Ako kandidata nema, nalog je zavrsen za danas.
-6. Prioritet unutar budzeta: oglasi sa najstarijim datumom prvi (`date` u listi oglasa), jer su
+5. Prioritet unutar budzeta: oglasi sa najstarijim datumom prvi (`date` u listi oglasa), jer su
    oni najdublje pali. Ako je kandidata vise nego budzeta, ostatak ide na sutra.
-7. `olx_refresh_bulk confirm=true limit=<dnevni budzet>` — izvrsi. Ovo ne trosi kredite, samo
+6. `olx_refresh_bulk confirm=true limit=<dnevni budzet>` — izvrsi. Ovo ne trosi kredite, samo
    besplatnu kvotu, pa se radi bez pitanja korisnika.
-8. Zapisi ishod: koliko obnovljeno, koliko palo, koliko kvote ostalo.
+7. Zapisi ishod: koliko obnovljeno, koliko palo, koliko kvote ostalo.
 
-Na kraju se vrati na pocetni nalog (`olx_switch_account`) i ispisi zbirni izvjestaj.
+Na kraju ispisi izvjestaj.
 
-## Zbirni izvjestaj
+## Izvjestaj
 
-Tabela po profilu:
-
-| profil | obnovljeno danas | neuspjelo | preostala kvota | dana do kraja mjeseca | upozorenja |
+| obnovljeno danas | neuspjelo | preostala kvota | dana do kraja mjeseca | upozorenja |
 
 Upozorenja koja se traze i samo prijavljuju, nikad ne izvrsavaju:
 
@@ -65,7 +60,8 @@ Upozorenja koja se traze i samo prijavljuju, nikad ne izvrsavaju:
 - Nikad ne prekoraci `free_limit - free_count`. `olx_refresh_bulk` sam ogranicava na tu vrijednost,
   ali i dnevni budzet racunaj iz nje, ne iz zeljenog broja.
 - Ne brisi i ne objavljuj ponovo oglase da bi dosli na vrh. To je spam po pravilima platforme.
-- Ako mijenjas nalog, na kraju uvijek vrati pocetni, da naredni rad ne krene na tudjem nalogu.
+- Obnove se biljeze u audit log (`.olx-pik/audit.jsonl`), pa se kasnije moze dokazati sta je i
+  kada obnovljeno.
 
 ## Zakazivanje (cron unutar Claude)
 

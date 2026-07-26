@@ -11,14 +11,16 @@ Redom, bez preskakanja. Svaki korak ima provjeru koja mora proci prije sljedeceg
 
 ## 2. Upis tokena lokalno
 
-- U `.env` dodaj liniju `OLX_TOKEN_<IME>=<token>`, gdje je `<IME>` kratko ime klijenta velikim
-  slovima bez razmaka (npr. `OLX_TOKEN_MIXBOX`). Ime profila postaje malim slovima (`mixbox`).
+- Ako ovaj klon repozitorija vec radi za drugog klijenta, prvo kloniraj repo za novog. Jedan klon
+  je jedan klijent.
+- U `.env` tog klona postavi `OLX_TOKEN=<token>`.
+- Kopiraj `KLIJENT.primjer.md` u `KLIJENT.md` i popuni ga: firma, username, kategorije, ton,
+  granice, kontakt.
 - `.env` je u `.gitignore`. Token ne ide nigdje drugo: ne u chat, ne u dokument, ne u commit.
-- Provjera: `olx_list_accounts` prikazuje novo ime profila.
+- Provjera: `olx_whoami` vraca klijentov nalog.
 
-## 3. Prelazak na nalog i potvrda
+## 3. Potvrda naloga
 
-- `olx_switch_account profile=<ime>`.
 - `olx_whoami` — potvrdi da je nalog stvarno klijentov (username, tip naloga) i reci korisniku
   na kojem si nalogu.
 - Ako `olx_whoami` vrati 401 ili 403: token je pogresan, istekao ili shop nema odobren API
@@ -59,4 +61,4 @@ Reci klijentu u jednoj poruci, pa to zapisi u baseline:
 - `olx_whoami` vraca klijentov nalog.
 - Baseline fajl postoji i ima datum.
 - U `.env` je token, u gitu nije nista od klijentovih podataka (`git status` cist).
-- Vratio si aktivni nalog na onaj na kojem inace radis, ako je potrebno.
+- `KLIJENT.md` je popunjen, a audit log (`.olx-pik/audit.jsonl`) biljezi sve sto se dalje radi.

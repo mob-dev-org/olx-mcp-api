@@ -7,10 +7,11 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { OlxClient, OlxSpendError, OlxApiError } from "../core/index.js";
 import { loadConfig } from "../core/config.js";
+import { withAuditContext } from "../core/audit.js";
 import type { SponsorOptions, SponsorType, SponsorDays, RefreshEvery } from "../core/types.js";
 
-// Ucitaj .env iz radnog direktorija ako postoji (Node 20.12+), da tokeni (OLX_TOKEN_<IME>) i
-// OLX_PROFILE budu dostupni i kad server pokrene MCP klijent. Tokeni ostaju u gitignore .env fajlu.
+// Ucitaj .env iz radnog direktorija ako postoji (Node 20.12+), da OLX_TOKEN bude dostupan i kad
+// server pokrene MCP klijent. Token ostaje u .env fajlu koji je u .gitignore.
 try {
   (process as unknown as { loadEnvFile?: (p?: string) => void }).loadEnvFile?.(".env");
 } catch {
@@ -72,6 +73,18 @@ async function run(fn: (c: OlxClient) => Promise<unknown>): Promise<ToolResult> 
 }
 
 const server = new McpServer({ name: "olx-pik-mcp-server", version: "0.1.0" });
+
+// Svaki alat se izvrsava unutar audit konteksta sa svojim imenom, da zapis u audit logu kaze
+// koja je radnja pokrenula poziv. Omotano je na jednom mjestu, pa registracije alata nize ostaju
+// obicni registerTool pozivi (i cuvaju tipove svojih shema). Kontekst ide kroz AsyncLocalStorage,
+// pa se dva preklopljena poziva alata ne mogu pomijesati.
+const registrujAlat = server.registerTool.bind(server);
+server.registerTool = ((name: string, config: unknown, handler: (args: never) => unknown) =>
+  registrujAlat(
+    name,
+    config as never,
+    ((args: never) => withAuditContext({ operation: name, source: "mcp" }, () => handler(args))) as never,
+  )) as typeof server.registerTool;
 
 // ---- KB kao resource ----
 server.registerResource(

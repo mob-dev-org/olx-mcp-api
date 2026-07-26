@@ -10,17 +10,15 @@ Bazni URL je `https://api.olx.ba`, konfigurabilan kroz `OLX_BASE_URL` (`src/core
 
 ## 1. Tabela alata
 
-Ukupno 35 registrovanih MCP alata (`src/mcp/server.ts:279` do `src/mcp/server.ts:705`). Tri alata ne dodiruju API (rade samo nad lokalnom konfiguracijom).
+Ukupno 33 registrovana MCP alata. Svi dodiruju API; nema vise alata koji rade samo nad lokalnom konfiguracijom.
 
-Izmjena od 26.07.2026.: dodan je `olx_user_profile`, a `olx_delete_listing` je uklonjen iz MCP-a (brisanje kroz bota nije moguce, ostaje samo CLI `listings rm`), pa je zbir ostao 35. Brojevi linija u tabeli su iz stanja nakon te izmjene; kod se mijenja pa ih provjeri prije citiranja.
+Izmjene od 26.07.2026.: dodan `olx_user_profile`; `olx_delete_listing` uklonjen (brisanje kroz bota nije moguce, ostaje CLI `listings rm`); `olx_list_accounts` i `olx_switch_account` uklonjeni, jer jedan klon repozitorija radi za jedan nalog. Brojevi linija u tabeli su iz stanja prije te zadnje izmjene i mogu biti pomjereni; putanje i imena alata vaze.
 
 Legenda kolone "Kredit": da = poziv sigurno trosi kredite, moguce = zavisi od kategorije ili paketa, ne = ne trosi.
 
 | MCP alat | HTTP metoda i putanja | Sta radi | Obavezni parametri | Opcioni parametri | R/W | Kredit | Nepovratno |
 |---|---|---|---|---|---|---|---|
 | `olx_whoami` (`server.ts:279`) | GET `/me` (`core/index.ts:228`) | Vraca podatke o nalogu iz tokena, sluzi kao test pristupa. | nema | nema | read | ne | ne |
-| `olx_list_accounts` (`server.ts:285`) | nema API poziva (`server.ts:295`) | Ispisuje aktivni profil i imena svih konfigurisanih profila, bez tokena. | nema | nema | read | ne | ne |
-| `olx_switch_account` (`server.ts:302`) | nema API poziva (`server.ts:313`) | Mijenja aktivni nalog za sve naredne pozive na ovom serveru. | `profile` | nema | write (lokalno stanje) | ne | ne, ali mijenja na kojem nalogu se izvrsavaju naredne radnje |
 | `olx_user_profile` (`server.ts:404`) | GET `/users/:username` (`core/index.ts:263`) | Javni profil korisnika ili shopa: paket, poslovni podaci, ocjene, medalje, vrijeme odgovora, datum registracije. Radi bez tokena vlasnika, pa je osnova za analizu konkurencije i kandidata. Numericki id vraca 404, prihvata samo username. | `username` | nema | read | ne | ne |
 | `olx_list_listings` (`server.ts:416`) | GET `/users/:user/listings` (`core/index.ts:365`), `/finished` (`:347`), `/inactive` (`:352`), `/expired` (`:357`), `/hidden` (`:362`) | Lista vlastite oglase po stanju, paginirano. | nema (default `state=active`, korisnik se izvlaci iz tokena, `server.ts:355`) | `state`, `user`, `page`, `all` | read | ne | ne |
 | `olx_get_listing` (`server.ts:364`) | GET `/listings/:id` (`core/index.ts:261`) | Dohvata jedan oglas po ID-u. | `id` | nema | read | ne | ne |
@@ -90,25 +88,23 @@ Gdje korisnik generise token: u repozitoriju nema URL-a ni ekrana na kojem se to
 ### Jedan nalog ili vise naloga
 
 - Jedan proces servera u datom trenutku radi na tacno jednom nalogu. Postoji jedna globalna `client` instanca (`server.ts:33` i `:31`).
-- Vise naloga se moze konfigurisati kao profili i mijenjati u toku rada alatom `olx_switch_account`, koji zamjenjuje globalnog klijenta (`server.ts:313` do `:251`). To nije paralelan rad, nego prebacivanje.
-- Profili se ucitavaju iz `.olx-profiles.json` ili iz env varijabli oblika `OLX_TOKEN_<IME>` (`core/config.ts:54` do `:94`).
+- Jedan klon repozitorija radi za JEDAN nalog (`OLX_TOKEN`). Prebacivanje naloga u toku rada ne postoji: nema profila i nema alata koji mijenja nalog, pa radnja ne moze zavrsiti na pogresnom klijentu. Za drugog klijenta se klonira repo.
 - Rizik: posto je promjena naloga globalna i tiha, svaka naredna operacija ide na novi nalog. Kod to i sam istice u opisu alata (`server.ts:307`), ali nema tehnicke zastite, samo tekstualno upozorenje. Ovo je realna mogucnost da se izdvajanje ili brisanje izvrsi na pogresnom klijentu.
 
 ### Gdje se token cuva
 
 - U memoriji klijenta, privatno polje `token` (`core/index.ts:78`).
 - U okruzenju: `OLX_TOKEN`, `OLX_TOKEN_<IME>`, `OLX_CLIENT_ID`, `OLX_CLIENT_TOKEN` (`core/config.ts:38` do `:43`, `core/config.ts:86`).
-- U fajlu `.olx-profiles.json`, putanja se moze promijeniti kroz `OLX_PROFILES_FILE` (`core/config.ts:58`).
 - MCP server ucitava `.env` iz radnog direktorija na startu (`server.ts:15`).
 - `.mcp.json` ne sadrzi token, nego referencu `${OLX_TOKEN:-}` (`.mcp.json`, polje `env`).
-- `.gitignore` iskljucuje `.env` i `.olx-profiles.json` iz gita.
+- `.gitignore` iskljucuje `.env`, `KLIJENT.md`, folder `klijenti/` i `.olx-pik/` (audit log i plan izdvajanja) iz gita.
 
 ### Tajne vrijednosti u cistom tekstu
 
 - Fajl `.env` sadrzi jedan pravi Bearer token u cistom tekstu (`OLX_TOKEN`). Jedan klon repoa radi za jedan nalog, pa u `.env` nikad ne stoje tokeni vise klijenata.
 - Fajl `.env` sadrzi i lozinku naloga u cistom tekstu, unutar komentara na liniji `.env:29` ("Kredencijali za ponovni login ako token istekne", username i password). Lozinka je ovdje namjerno necitirana.
 - Fajl je u `.gitignore` i nije u git historiji, tako da nije procurio u repozitorij. Ipak, lozinka u komentaru je nepotrebna izlozenost. Preporuka je da se lozinka izbaci i drzi u OS keychainu ili menadzeru lozinki, a u `.env` ostane samo token.
-- U izvornom kodu, `.env.example` i `.olx-profiles.example.json` nema pravih tajni, samo placeholderi.
+- U izvornom kodu i u `.env.example` nema pravih tajni, samo placeholderi.
 - Sigurnosno pravilo iz dokumentacije koje ovo krsi: `olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md:33` i `:225` traze token u env ili keychainu, po korisniku, nikad u repou.
 
 ### Sta se desava kad token istekne
@@ -257,7 +253,7 @@ Lista je ogranicena na ono sto postojeci endpointi stvarno omogucavaju.
   - Alati: `olx_refresh_limits`, `olx_refresh_bulk`.
   - Nedostaje: MCP server nema vlastiti scheduler, treba vanjski pokretac. Takodjer nedostaje podatak koji oglas je zadnji put obnovljen, u listi postoji samo `date` i `refresh_available` (`core/types.ts:111` i `:89`).
 - **Zastita od rada na pogresnom nalogu.** Obavezna potvrda naloga prije svake operacije koja mijenja stanje ili trosi kredite.
-  - Alati: `olx_list_accounts`, `olx_switch_account`, `olx_whoami`.
+  - Alati: `olx_whoami`.
   - Nedostaje: izmjena servera tako da svaki write alat provjeri ocekivani nalog. Trenutno je zastita samo tekst u opisu alata (`server.ts:307`), ne kod.
 
 ### Tesko
@@ -284,7 +280,7 @@ Lista je ogranicena na ono sto postojeci endpointi stvarno omogucavaju.
 ## Sazetak rizika
 
 - Dva prava tokena i jedna lozinka stoje u cistom tekstu u `.env` (`.env:26`, `.env:29`, `.env:30`). Fajl je izvan gita, ali lozinku u komentaru treba ukloniti.
-- Promjena naloga kroz `olx_switch_account` je globalna i tiha. Nema tehnicke provjere prije trosenja kredita; obavezu potvrde naloga namece CLAUDE.md, ne kod. Brisanje oglasa kroz MCP vise nije moguce.
+- Nema tehnicke provjere naloga prije trosenja kredita; obavezu potvrde (`olx_whoami`) namece CLAUDE.md, ne kod. Brisanje oglasa kroz MCP nije moguce, a promjena naloga ne postoji.
 - Retry se i dalje izvrsava na PUT i POST pozivima koji ne kostaju (`refresh`, `publish`, `update`), pa kod 5xx nakon vec izvrsene radnje moze doci do dvostrukog izvrsenja; kod nema idempotency kljuc. Pozivi koji kostaju (`sponsore`, `discount`) i `POST /listings` su izuzeti (`core/index.ts:168`).
 - Nema detekcije isteka tokena ni automatskog ponovnog logina.
 - Svi limiti oko slika (broj, velicina, format) su neprovjereni i nisu validirani lokalno.
@@ -311,17 +307,22 @@ rijesene i zapisane nize kao ucinjeno; ostatak je red voznje za sljedecu rundu.
 - Retry iskljucen za `sponsore`, `discount` i `POST /listings` (`retryOnServerError: false`).
 - Spend-guard i retry politika pokriveni testovima: `src/core/client.test.ts` (10 testova, uz
   17 postojecih za `match.ts`).
-- `.mcp.json` prosljedjuje `OLX_PROFILE`.
+- `.mcp.json` prosljedjuje samo `OLX_TOKEN` i `OLX_BASE_URL`.
+- Multiprofil je uklonjen: jedan klon je jedan klijent (`core/config.ts` ima samo `loadConfig`).
+- Audit log: svaka radnja koja mijenja stanje ili trosi kredite ide u `.olx-pik/audit.jsonl`
+  (`core/audit.ts`), sa imenom CLI komande ili MCP alata. Tijelo zahtjeva se ne zapisuje.
+  Odbijen trosak se takodjer biljezi.
+- Obnova tokena: 401 uz postavljene kredencijale pokrece jedan login kroz dijeljeni promise;
+  403 se ne lijeci loginom; radnje koje kostaju se ne ponavljaju automatski.
+- Planer izdvajanja: `core/plan.ts` plus CLI `sponsor plan` (plan fajl u `.olx-pik/`, budzet kao
+  tvrda granica, ponovna provjera cijene, kljuc protiv dvostrukog pokretanja).
+- Vanjski katalog: `core/katalog.ts` cita JSON i CSV, pa `match` radi i za sisteme koji nisu
+  Shopify. Prepoznavanje koda modela vise nije vezano na prefikse jednog dobavljaca.
 
 ### Ostaje
 
-1. **Detekcija isteka tokena**: 401/403 tretirati kao signal za relogin kad postoje
-   kredencijali, umjesto genericke poruke.
-2. **Lozinka u komentaru `.env`** — izbaciti, drzati u keychainu.
-3. **Audit log** (zapis svake write operacije sa nalogom, alatom i ishodom). Postaje obavezan
-   cim vise ljudi radi sa vise klijenata. Cron auto-obnova je pokrivena skillom
-   `olx-cron-obnove`, planer izdvajanja jos nije napravljen.
-4. **Statistika po oglasu** (pregledi, pojmovi pretrage) ne postoji u API-ju; bez nje se efekat
+1. **Lozinka u komentaru `.env`** — izbaciti iz lokalnog fajla, drzati u keychainu.
+2. **Statistika po oglasu** (pregledi, pojmovi pretrage) ne postoji u API-ju; bez nje se efekat
    izdvajanja ne moze mjeriti brojem. Provjeriti da li podrska izdaje takav endpoint.
-5. **Otvoreno mjerenje**: `olx_refresh_limits` na nalogu koji nije Gold — razlucuje da li
+3. **Otvoreno mjerenje**: `olx_refresh_limits` na nalogu koji nije Gold — razlucuje da li
    kvota obnova prati paket ili je 1800 za sve shop pakete.

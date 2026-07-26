@@ -57,15 +57,18 @@ Token je tajna. Ide kroz env varijablu ili `claude mcp add -s user`, nikad u `.m
 commita ni u `.env` koji se commita. `.env` i `*.json` snapshoti tokena su u `.gitignore`. Ako
 korisnik zalijepi token u chat, ne upisuj ga u fajl koji ide na GitHub.
 
-## Vise klijenata (profili)
+## Jedan klon, jedan klijent
 
-Za vise OLX naloga koristi profile (token nikad u git):
-- Fajl `.olx-profiles.json` (kopija iz `.olx-profiles.example.json`) sa `default` i mapom `profiles` (ime -> token, opciono base_url).
-- Ili env `OLX_TOKEN_<IME>`. Aktivni profil bira `OLX_PROFILE` ili CLI `--profile <ime>`.
+Ovaj repozitorij radi za JEDAN nalog: token je `OLX_TOKEN` u `.env` ovog klona. Za drugog klijenta
+se klonira repo i u njemu postavi njegov token. Nema profila, nema alata koji mijenja nalog, pa
+radnja ne moze zavrsiti na pogresnom klijentu.
 
-CLI: `node dist/cli/index.js --profile klijent_a listings ls --all`. Lista profila: `olx auth profiles`.
-MCP: jedan server = jedan nalog (da se ne mijesaju). Za vise klijenata registruj vise servera u
-`.mcp.json`, svaki sa svojim `OLX_PROFILE`. Alat `olx_list_accounts` pokazuje aktivni nalog. Detalji u README.
+Ko je klijent ovog klona pise u `KLIJENT.md` (kopija `KLIJENT.primjer.md`, gitignore-ovan). Ako
+`KLIJENT.md` ne postoji, reci to korisniku i predlozi da ga popuni, umjesto da nagadjas ton i
+granice.
+
+Ako su postavljeni `OLX_USERNAME` i `OLX_PASSWORD`, token se obnavlja sam na prvi 401. Radnje koje
+trose kredite se posle obnove ne ponavljaju automatski.
 
 ## Snapshot kategorija i lokacija
 
@@ -107,7 +110,7 @@ Sigurno (citanje, bez troska):
   `olx_category_attributes` — kategorije, brendovi/modeli i forme/opcije. Za samo pronalazak kategorije
   radije citaj resource `olx://categories-index` nego da listas preko API-ja.
 - `location countries|cities|city` / `olx_countries`, `olx_cities`, `olx_city` — `country_id` i `city_id` za create.
-- Nalozi: `auth profiles` / `olx_list_accounts`, prebacivanje naloga `olx_switch_account` (jedan server).
+- Nalog: `whoami` / `olx_whoami` — jedini nalog ovog klona; provjeri ga prije svakog upisa.
 - `refresh limits` / `olx_refresh_limits` i `listings limits` / `olx_listing_limits` — limiti.
 - `sponsor price` / `olx_sponsor_price` — cijena izdvajanja u kreditima (ne trosi).
 

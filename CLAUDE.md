@@ -7,8 +7,8 @@ obnove, izdvajanje) uz minimalan i kontrolisan trosak kredita.
 ## Tok rada
 
 - `npm run build` prije svakog pokretanja (`dist/` nije u gitu). `npm test`, `npm run typecheck`.
-- MCP server `olx-pik` se registruje kroz `.mcp.json`; token dolazi iz okruzenja, profili iz
-  `.env` (`OLX_TOKEN_<IME>`) ili `.olx-profiles.json`.
+- MCP server `olx-pik` se registruje kroz `.mcp.json`; token dolazi iz `OLX_TOKEN` u `.env` ovog
+  klona. Jedan klon repozitorija radi za jedan nalog; za drugog klijenta se klonira repo.
 - Stdout MCP servera je JSON-RPC: nikad ne dodavati `console.log` u server kod.
 
 ## Tvrde granice (bez izuzetka)
@@ -20,8 +20,10 @@ obnove, izdvajanje) uz minimalan i kontrolisan trosak kredita.
   prodaje) ili `olx_hide_listing` kad artikal vraca na stanje. Brisanje ostaje samo u CLI
   (`listings rm`), za ljudsku ruku.
 - Na vrh se dolazi obnovom ili izdvajanjem, nikad brisanjem i ponovnim objavljivanjem.
-- Prije svakog upisa ili troska potvrdi aktivni nalog (`olx_whoami`); `olx_switch_account`
-  mijenja nalog globalno i tiho.
+- Prije svakog upisa ili troska potvrdi nalog (`olx_whoami`) i reci korisniku koji je. Promjena
+  naloga kroz bota ne postoji: jedan klon, jedan nalog.
+- Svaka radnja koja mijenja stanje ili trosi kredite ide u audit log (`.olx-pik/audit.jsonl`).
+  Kad korisnik pita sta je radjeno i kada, odgovor se cita iz tog fajla, ne iz pamcenja.
 - Brojeve ne tvrdi napamet: kvote obnova (`olx_refresh_limits`), cijene izdvajanja
   (`olx_sponsor_price`), limite oglasa (`olx_listing_limits`) uvijek procitaj sa API-ja.
 - Token nikad u git. `.env` sadrzi prave tokene i u `.gitignore` je.

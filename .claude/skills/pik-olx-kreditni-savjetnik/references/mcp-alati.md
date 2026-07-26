@@ -6,22 +6,19 @@ pretrage alata; nazivi su na bosanskom i počinju sa `olx_`.
 
 ## Redoslijed rada (uvijek isti)
 
-1. **Provjeri aktivni nalog prije svega.** Pozovi `olx_list_accounts` (ili `olx_whoami` ako
-   postoji) da potvrdiš na kom si nalogu. Server radi na jednom aktivnom nalogu.
-2. **Po potrebi promijeni nalog** sa `olx_switch_account` i obavezno potvrdi korisniku na koji si
-   nalog prešao PRIJE bilo kakvog upisa ili troška, da se radnja ne izvrši na pogrešnom klijentu.
-3. **Čitaj stanje** (bezopasno): `olx_list_listings` (po stanju: active, finished, inactive,
+1. **Provjeri nalog prije svega.** Pozovi `olx_whoami` i reci korisniku na kojem si nalogu. Jedan
+   klon repozitorija radi za jedan nalog; promjena naloga kroz bota nije moguća.
+2. **Čitaj stanje** (bezopasno): `olx_list_listings` (po stanju: active, finished, inactive,
    expired, hidden), `olx_get_listing` za pojedinačni oglas, `olx_category` za pravila i cijene
    kategorije.
-4. **Provjeri šta je već izdvojeno** prije nego predložiš nova izdvajanja, da se ne duplira.
-5. **Izvrši samo uz potvrdu** (vidi niže).
+3. **Provjeri šta je već izdvojeno** prije nego predložiš nova izdvajanja, da se ne duplira.
+4. **Izvrši samo uz potvrdu** (vidi niže).
 
 ## Glavni alati
 
 | Alat | Šta radi | Troši kredite / nepovratno |
 |---|---|---|
-| `olx_list_accounts` | Aktivni nalog i profili | Ne |
-| `olx_switch_account` | Mijenja aktivni nalog | Ne (ali potvrdi prelazak) |
+| `olx_whoami` | Nalog ovog klona (i saldo kredita) | Ne |
 | `olx_list_listings` | Lista oglasa po stanju | Ne |
 | `olx_get_listing` | Pojedinačni oglas po ID-u | Ne |
 | `olx_category` | Pravila i cijene kategorije | Ne |
@@ -120,7 +117,7 @@ je oko 2,7 puta skuplji od klasičnog.
 
 ### Izdvajanje na oglas koji je VEC izdvojen (bitno za planiranje)
 
-Provjereno na MixBox nalogu 25.07.2026: ako oglas ima aktivno izdvajanje, novi poziv
+Provjereno na Gold nalogu 25.07.2026: ako oglas ima aktivno izdvajanje, novi poziv
 `POST /listings/:id/sponsore` NE zamjenjuje i NE prekida trenutno, nego ga **zakazuje** da
 pocne kad trenutno istekne.
 
@@ -167,8 +164,8 @@ Prakticne posljedice:
 - **Obnova isteklog oglasa ne vraća vidljivost.** Status pređe sa `expired` na `active` i
   datum se osvježi, ali `visible` ostaje `false` i oglas se ne pojavi u katalogu.
 - **`sku_number` postoji samo na pojedinačnom oglasu** (`GET /listings/:id`), nijedna lista ga
-  ne vraća. Na MixBox nalogu ga ima manjina oglasa, u tri oblika: `H6412`, `B0714`,
-  `CA-B0537-BWA`.
+  ne vraća. Na provjerenom nalogu ga ima manjina oglasa, u tri oblika (šema zavisi od dobavljača):
+  kratki kod modela, puna šifra dobavljača, i šifra sa veličinom na kraju.
 - **Aktivni katalog je `/users/:username/listings` bez sufiksa.** Varijanta sa `/active` vraća
   prazan niz, a `/users/:id/listings` sa numeričkim id-em vraća 404. Za ostala stanja
   (finished, inactive, expired, hidden) prolaze i username i id.

@@ -33,8 +33,8 @@ prodaja. Ne nagadjati te brojeve; njihovo odsustvo je i sam argument za saradnju
 
 ## Faza 2: onboarding (klijent je potpisao)
 
-Cetiri koraka: token od klijenta, upis u `.env` kao `OLX_TOKEN_<IME>`, provjera naloga
-(`olx_switch_account` pa `olx_whoami`), i baseline izvjestaj u
+Pet koraka: token od klijenta, novi klon repozitorija za tog klijenta, upis `OLX_TOKEN` u `.env`
+tog klona i popunjen `KLIJENT.md`, provjera naloga (`olx_whoami`), i baseline izvjestaj u
 `klijenti/<ime>/baseline-<datum>.md`. Detalji i provjere po koraku su u
 `references/onboarding-checklista.md`; gotova poruka za token je u `references/token-poruka.md`
 (kopiraj je u clipboard i javi korisniku).
@@ -64,8 +64,8 @@ za mjesec dana moze uporediti sa polaznim stanjem.
 
 ## Tvrda pravila
 
-- Prije svakog upisa i svakog troska: `olx_whoami`, i reci korisniku na kojem si nalogu.
-  `olx_switch_account` mijenja nalog globalno i tiho, pa je zamjena naloga stvarna opasnost.
+- Prije svakog upisa i svakog troska: `olx_whoami`, i reci korisniku na kojem si nalogu. Jedan
+  klon radi za jedan nalog, pa promjena naloga kroz bota ne postoji.
 - Nista se ne trosi bez izricite potvrde. Obnove unutar besplatne kvote su izuzetak i njih
   radimo bez pitanja, jer ne kostaju.
 - Bot ne brise oglase. Na "obrisi" predlozi `olx_finish_listing`.

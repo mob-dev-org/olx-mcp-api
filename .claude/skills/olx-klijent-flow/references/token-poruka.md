@@ -36,7 +36,7 @@ Hvala,
 
 ## Napomene za nas, ne za klijenta
 
-- Token se cuva samo u lokalnom `.env` kao `OLX_TOKEN_<IME>`. Nikad u git, nikad u chat, nikad
+- Token se cuva samo u lokalnom `.env` klona tog klijenta, kao `OLX_TOKEN`. Nikad u git, nikad u chat, nikad
   u dokument koji se dijeli.
 - Ako klijent posalje username i lozinku umjesto tokena, ne koristi ih za sebe: uputi ga natrag
   na korak 2, ili pokreni login sa njim uzivo pa mu odmah reci da promijeni lozinku ako je
