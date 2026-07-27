@@ -125,6 +125,9 @@ export interface ListingSummary {
   [key: string]: unknown;
 }
 
+// Stanja liste oglasa koja API razlikuje po putanji (/listings, /listings/finished...).
+export type ListingStateFilter = "active" | "finished" | "inactive" | "expired" | "hidden";
+
 export interface PaginationMeta {
   total: number;
   last_page: number;

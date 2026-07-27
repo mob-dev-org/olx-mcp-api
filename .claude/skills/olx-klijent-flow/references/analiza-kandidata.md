@@ -6,27 +6,24 @@ pristup. Nas token sluzi samo za autentikaciju prema API-ju.
 
 ## Koraci
 
-1. `olx_user_profile <username>` — paket (Gold, Platinum), poslovni podaci, datum registracije,
-   ocjene, medalje, prosjecno vrijeme odgovora, datum do kojeg paket vazi. Paket se cita iz
-   `shop.package`, a `shop.ends_at` i `created_at` su unix timestampi u sekundama, pa ih pretvori
-   u datum prije nego ih pokazes. Paket se vidi i kroz medalju (`medals`, tip `platinum_shop`), i
-   govori koliko kandidat mjesecno placa i koliko kredita dobija (cjenovnik je u
-   `olx://knowledgebase`, 5.5).
-2. `olx_list_listings state=active all=true user=<username>` — cijeli aktivni katalog:
-   koliko oglasa, koje kategorije, raspon cijena, koliko ih je izdvojeno (`sponsored`), koliko
-   ima svjez datum (`date`), da li je `refresh_available` iskoristen.
-3. `olx_list_listings state=finished user=<username>` — promet. Broj zavrsenih oglasa i tempo
-   pokazuju da li shop stvarno prodaje. Granica: zavrseni oglasi ne vracaju cijene, i "zavrsen"
-   nije nuzno "prodan" (moze biti odustajanje ili istek). Ne tvrditi prihod iz ovoga.
-4. `olx_list_listings state=hidden|expired user=<username>` kad je dostupno — pokazuje
-   zanemarene oglase i neiskoristen katalog.
-5. `olx_get_listing <id>` na uzorku od 10 do 15 oglasa: naslov, podnaslov, opis, broj slika,
-   kategorija. Uzorak birati po najskupljim i najreprezentativnijim artiklima.
-6. Mini SEO ocjena naslova iz uzorka po pravilima skilla `olx-seo-oglasa`
+1. `olx_competitor_report <username> top_views=5` — PRVI poziv, zamjenjuje raniji rucni tok od
+   desetina poziva. Vraca izracunato: paket, kad je zadnji put bio aktivan, godine na platformi,
+   ocjene, vrijeme odgovora, broj aktivnih i zavrsenih, cijene (min/median/max, "na upit"),
+   udio sponzorisanih i akcija, kadencu obnove, plus detaljne izvjestaje (sa PREGLEDIMA) za 5
+   najskorije obnovljenih oglasa.
+2. `olx_listing_report <id>` na jos 2-3 reprezentativna oglasa (najskuplji artikli): pregledi
+   dnevno, broj slika, popunjeni atributi, duzina naslova, podnaslov.
+3. `olx_user_profile <username>` samo kad treba sirovo polje koje report ne nosi (poslovni
+   podaci, web, opis shopa). `shop.ends_at` i `created_at` su unix timestampi u sekundama,
+   pretvori ih u datum prije prikaza. Cjenovnik paketa je u `olx://knowledgebase`, 5.5.
+4. Za sadrzaj naslova/podnaslova/opisa uzorka: `olx_get_listing <id>` (kompaktan default je
+   dovoljan). Mini SEO ocjena po pravilima skilla `olx-seo-oglasa`
    (`references/seo-pravila.md`): nominativ, brend i model, prazne rijeci, duzina, prazan
    podnaslov.
-7. Kategorije: za nekoliko naslova pozovi `olx_suggest_category` i uporedi sa kategorijom u
+5. Kategorije: za nekoliko naslova pozovi `olx_suggest_category` i uporedi sa kategorijom u
    kojoj oglas stoji. Pogresna kategorija je cest i skup propust.
+6. Granica za finished: zavrseni oglasi ne vracaju cijene, i "zavrsen" nije nuzno "prodan".
+   Ne tvrditi prihod iz broja zavrsenih.
 
 ## Sta se trazi (obrazac propusta)
 
@@ -48,8 +45,9 @@ pristup. Nas token sluzi samo za autentikaciju prema API-ju.
 3. Propusti, poredani po tome koliko brzo se popravljaju i koliko donose:
    | propust | dokaz (id oglasa ili broj) | sta se dobija ispravkom | koliko traje |
 4. Sta CodeFactory konkretno radi u prvih 30 dana (vezati na faze iz SKILL.md).
-5. Granice nalaza: sta se iz javnih podataka NE vidi (krediti, statistika pregleda, pojmovi
-   pretrage, stvarna prodaja). To se dobija tek sa tokenom, i to je jedan od argumenata.
+5. Granice nalaza: sta se iz javnih podataka NE vidi (krediti, koliko placa izdvajanja,
+   pojmovi pretrage, neodgovorena pitanja, stvarna prodaja). Pregledi po oglasu SE vide javno.
+   Ostalo se dobija tek sa tokenom, i to je jedan od argumenata.
 
 ## Granice i posteno ponasanje
 

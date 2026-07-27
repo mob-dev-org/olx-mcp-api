@@ -4,14 +4,18 @@ Ovo je detaljni vodic koji dopunjava SKILL.md. Procitaj ga kad radis kompletnu a
 
 ## 1. Prikupljanje (read-only, bez troska)
 
-- `olx_list_listings` state=active, all=true -> cijeli aktivni katalog. Zabiljezi za svaki: id, naslov,
-  cijena, `sponsored`, `refresh_available`, broj/postojanje slika ako je dostupno.
-- `olx_list_listings` state=hidden i state=expired -> sta stoji neiskoristeno (kandidati za unhide ili gasenje).
-- `olx_refresh_limits` -> `free_limit`, `free_count`. Preostalo = free_limit - free_count. To je tvoj budzet obnova.
-- Za sumnjive oglase `olx_get_listing` -> puni naslov, podnaslov (short_description), opis, kategorija, cijena, slike.
+- `olx_profile_stats` -> PRVI poziv, umjesto rucnog prelistavanja: paket, krediti, kvota obnova
+  (budzet obnova = preostalo), brojevi po svim stanjima, cijene, udio sponzorisanih,
+  neobnovljeni oglasi, neodgovorena pitanja. `views: "snapshot"` dodaje preglede iz danasnjeg
+  snapshota bez dodatnih poziva; `views: "sample"` ih mjeri na uzorku.
+- `olx_list_listings` state=active, all=true -> spisak naslova za SEO prolaz (kompaktan default
+  je dovoljan: id, naslov, cijena, sponsored, date, refresh_available).
+- Za svaki oglas koji detaljnije gledas `olx_listing_report <id>` -> izracunato: pregledi
+  ukupno i DNEVNO, pitanja, dana od obnove, broj slika, popunjeni atributi, duzina naslova.
+  `olx_get_listing` (kompaktan) tek kad treba sam sadrzaj naslova/podnaslova/opisa.
 
-Ako korisnik ima statistiku (pregledi, "pojmovi na pretrazi"), trazi je. Toolkit je trenutno ne dohvata
-(nema dokumentovan endpoint), pa ako je nema, radi na osnovu naslova/cijene/kategorije i to jasno reci.
+Pregledi po oglasu POSTOJE (polje `views`); "pojmovi na pretrazi" i dalje ne postoje kroz API,
+pa za kljucne rijeci radi na osnovu naslova/kategorije i to jasno reci.
 
 ## 2. Citanje naslova (najveci poluga vidljivosti)
 

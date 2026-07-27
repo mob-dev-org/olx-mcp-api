@@ -2,6 +2,18 @@ import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { loadConfig, type OlxConfig } from "./config.js";
 import { auditSinkFromPath, currentAuditContext, type AuditSink } from "./audit.js";
+import {
+  alarmiNaloga,
+  konkurentIzvjestaj,
+  oglasIzvjestaj,
+  profilStatistika,
+  type AlarmiNaloga,
+  type AlarmiPragovi,
+  type KonkurentIzvjestaj,
+  type OglasIzvjestaj,
+  type OglasPregledi,
+  type ProfilStatistika,
+} from "./stats.js";
 import type {
   BrandOrModel,
   Category,
@@ -14,6 +26,7 @@ import type {
   CreateListingInput,
   DiscountInput,
   Listing,
+  ListingStateFilter,
   LocationSnapshot,
   ListingSummary,
   LoginResponse,
@@ -416,6 +429,8 @@ export class OlxClient {
   }
 
   // Potvrdjeno uzivo: API NE prihvata image_url, nego stvarne fajlove kao multipart pod poljem images[].
+  // Zvanicna dokumentacija (api-documentation.olx.ba, provjereno 27.07.2026.) i dalje navodi
+  // atribut image_url, ali uzivo je odbijen; vazi zivo ponasanje.
   // Zato i URL upload preuzme sliku i posalje je kao fajl.
   private uploadImageBlobs(
     id: number | string,
@@ -503,12 +518,31 @@ export class OlxClient {
   }
 
   // Prelistava sve stranice aktivnih oglasa i vraca spojeni niz.
-  async listAllActive(username: string, maxPages = 50): Promise<ListingSummary[]> {
-    const first = await this.listActive(username, 1);
+  listAllActive(username: string, maxPages = 50): Promise<ListingSummary[]> {
+    return this.listAllByState("active", username, maxPages);
+  }
+
+  // Genericki paginator za bilo koje stanje: spaja sve stranice u jedan niz.
+  async listAllByState(state: ListingStateFilter, user: number | string, maxPages = 50): Promise<ListingSummary[]> {
+    const fetchPage = (page: number): Promise<Paginated<ListingSummary>> => {
+      switch (state) {
+        case "active":
+          return this.listActive(String(user), page);
+        case "finished":
+          return this.listFinished(user, page);
+        case "inactive":
+          return this.listInactive(user, page);
+        case "expired":
+          return this.listExpired(user, page);
+        case "hidden":
+          return this.listHidden(user, page);
+      }
+    };
+    const first = await fetchPage(1);
     const all: ListingSummary[] = [...first.data];
     const lastPage = Math.min(first.meta.last_page ?? 1, maxPages);
     for (let page = 2; page <= lastPage; page++) {
-      const next = await this.listActive(username, page);
+      const next = await fetchPage(page);
       all.push(...next.data);
     }
     return all;
@@ -670,6 +704,129 @@ export class OlxClient {
   finishDiscount(id: number | string): Promise<unknown> {
     return this.request(`/listings/${id}/discount/finish`, { method: "POST" });
   }
+
+  // ---- Stats agregati ----
+  // Tanki orkestratori: dohvate podatke pa pozovu ciste funkcije iz stats.ts. Svaki izlaz
+  // nosi broj_poziva i trajanje_ms, jer read pozivi po defaultu ne idu u audit log.
+
+  // Statistika vlastitog profila. viewsMode "sample" radi getListing na uzorku aktivnih
+  // oglasa (najsvjeziji, najstariji po obnovi i sponzorisani); "none" ne trosi dodatne pozive.
+  // Kroz `pregledi` se mogu ubaciti podaci iz snapshota sa diska (0 dodatnih poziva).
+  async statsProfil(
+    options: { viewsMode?: "none" | "sample"; pregledi?: OglasPregledi[]; sampleVelicina?: number } = {},
+  ): Promise<{ statistika: ProfilStatistika; broj_poziva: number; trajanje_ms: number }> {
+    const start = Date.now();
+    let pozivi = 0;
+    const me = await this.me();
+    pozivi += 1;
+    const username = await this.resolveUsername();
+    const limits = await this.refreshLimits();
+    pozivi += 1;
+    const aktivni = await this.listAllByState("active", username);
+    pozivi += Math.max(1, Math.ceil(aktivni.length / 20));
+    const [istekli, skriveni, neaktivni, zavrseni] = await Promise.all([
+      this.listExpired(username, 1),
+      this.listHidden(username, 1),
+      this.listInactive(username, 1),
+      this.listFinished(username, 1),
+    ]);
+    pozivi += 4;
+
+    let pregledi = options.pregledi;
+    if (!pregledi && options.viewsMode === "sample") {
+      const uzorak = uzorakZaPreglede(aktivni, options.sampleVelicina ?? 15);
+      pregledi = [];
+      for (const o of uzorak) {
+        const full = await this.getListing(o.id);
+        pozivi += 1;
+        const views = typeof full.views === "number" ? full.views : 0;
+        pregledi.push({
+          id: full.id,
+          title: full.title,
+          views,
+          questions: typeof full.questions === "number" ? full.questions : undefined,
+          created_at: typeof full.created_at === "number" ? full.created_at : undefined,
+        });
+      }
+    }
+
+    const statistika = profilStatistika({
+      me,
+      refreshLimits: limits,
+      aktivni,
+      ukupno: {
+        istekli: istekli.meta.total,
+        skriveni: skriveni.meta.total,
+        neaktivni: neaktivni.meta.total,
+        zavrseni: zavrseni.meta.total,
+      },
+      pregledi,
+      sadaTs: Math.floor(Date.now() / 1000),
+    });
+    return { statistika, broj_poziva: pozivi, trajanje_ms: Date.now() - start };
+  }
+
+  // Izvjestaj o tudjem (ili svom) nalogu iz javnih podataka. topViews > 0 dodatno povlaci
+  // pojedinacne oglase (najskorije obnovljene) radi pregleda po oglasu.
+  async statsKonkurent(
+    username: string,
+    topViews = 0,
+  ): Promise<{ izvjestaj: KonkurentIzvjestaj; top_oglasi: OglasIzvjestaj[]; broj_poziva: number; trajanje_ms: number }> {
+    const start = Date.now();
+    let pozivi = 0;
+    const profil = await this.userProfile(username);
+    pozivi += 1;
+    const aktivni = await this.listAllByState("active", username);
+    pozivi += Math.max(1, Math.ceil(aktivni.length / 20));
+    let zavrseni: number | null = null;
+    try {
+      zavrseni = (await this.listFinished(username, 1)).meta.total;
+      pozivi += 1;
+    } catch {
+      // Zavrseni tudji oglasi mogu biti nedostupni; izvjestaj i bez njih vrijedi.
+    }
+    const sadaTs = Math.floor(Date.now() / 1000);
+    const izvjestaj = konkurentIzvjestaj(profil, aktivni, zavrseni, sadaTs);
+
+    const topOglasi: OglasIzvjestaj[] = [];
+    if (topViews > 0) {
+      const kandidati = [...aktivni].sort((a, b) => (b.date ?? 0) - (a.date ?? 0)).slice(0, topViews);
+      for (const o of kandidati) {
+        topOglasi.push(oglasIzvjestaj(await this.getListing(o.id), sadaTs));
+        pozivi += 1;
+      }
+    }
+    return { izvjestaj, top_oglasi: topOglasi, broj_poziva: pozivi, trajanje_ms: Date.now() - start };
+  }
+
+  // Izvjestaj o jednom oglasu (nasem ili tudjem), 1 poziv.
+  async statsOglas(id: number | string): Promise<OglasIzvjestaj> {
+    return oglasIzvjestaj(await this.getListing(id), Math.floor(Date.now() / 1000));
+  }
+
+  // Alarmi naloga, 3 poziva.
+  async statsAlarmi(pragovi: AlarmiPragovi = {}): Promise<AlarmiNaloga & { broj_poziva: number }> {
+    const me = await this.me();
+    const username = await this.resolveUsername();
+    const [limits, istekli] = await Promise.all([this.refreshLimits(), this.listExpired(username, 1)]);
+    const rezultat = alarmiNaloga(me, limits, istekli.meta.total, Math.floor(Date.now() / 1000), pragovi);
+    return { ...rezultat, broj_poziva: 3 };
+  }
+}
+
+// Uzorak za preglede: najsvjezije i najstarije po zadnjoj obnovi plus sponzorisani, bez duplikata.
+function uzorakZaPreglede(aktivni: ListingSummary[], velicina: number): ListingSummary[] {
+  const trecina = Math.max(1, Math.floor(velicina / 3));
+  const poDatumu = [...aktivni].sort((a, b) => (b.date ?? 0) - (a.date ?? 0));
+  const odabrani = new Map<number, ListingSummary>();
+  for (const o of poDatumu.slice(0, trecina)) odabrani.set(o.id, o);
+  for (const o of poDatumu.slice(-trecina)) odabrani.set(o.id, o);
+  for (const o of aktivni.filter((x) => (x.sponsored ?? 0) > 0).slice(0, trecina)) odabrani.set(o.id, o);
+  for (const o of poDatumu) {
+    if (odabrani.size >= Math.min(velicina, aktivni.length)) break;
+    odabrani.set(o.id, o);
+  }
+  return [...odabrani.values()];
 }
 
 function safeJson(text: string): unknown {

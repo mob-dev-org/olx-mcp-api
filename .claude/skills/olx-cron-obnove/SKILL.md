@@ -24,6 +24,9 @@ nalogu; poznata protivrjecnost zvanicne pomoci i izmjerenog stanja je opisana u
 
 1. `olx_whoami` — potvrdi nalog ovog klona i reci korisniku koji je. Ako padne (401 ili 403),
    stani i prijavi: token ne vrijedi ili shop nema odobren API pristup (skill olx-mcp-setup).
+1a. Dnevni snapshot pregleda (CLI, PRIJE obnova): `node dist/cli/index.js stats snapshot`.
+   Traje 1-2 minute (jedan zahtjev po oglasu), pise `.olx-pik/snapshots/views-YYYY-MM-DD.json`.
+   Bez ovih dnevnih snimaka se efekat izdvajanja ne moze mjeriti (`olx_sponsor_effect`).
 2. `olx_refresh_limits` — `free_limit`, `free_count`. Preostalo = `free_limit - free_count`.
 3. Dnevni budzet obnova = preostalo / broj dana do kraja mjeseca, zaokruzeno nadolje, najmanje 1
    kad je preostalo vece od nule. Zadnjeg dana mjeseca potrosi sve preostalo (kvota se ne prenosi).
@@ -41,13 +44,11 @@ Na kraju ispisi izvjestaj.
 
 | obnovljeno danas | neuspjelo | preostala kvota | dana do kraja mjeseca | upozorenja |
 
-Upozorenja koja se traze i samo prijavljuju, nikad ne izvrsavaju:
+Upozorenja: pozovi `olx_account_alerts` (jedan poziv pokriva neodgovorena pitanja, paket pri
+isteku, saldo kredita, kvotu koja propada i istekle oglase) i prenesi njegove alarme u
+izvjestaj. Dodatno rucno provjeri i samo prijavi, nikad ne izvrsavaj:
 
-- krediti pri kraju (klijent ne moze izdvajati kad zatreba),
-- paket istice za manje od 7 dana (`olx_user_profile`, polje `shop.ends_at`, unix timestamp u
-  sekundama),
-- izdvajanje na oglasu istice danas ili sutra,
-- kvota obnova ide u gubitak (preostalo veliko a dana malo),
+- izdvajanje na oglasu istice danas ili sutra (`sponsor_active.sponsored_until` na oglasu),
 - oglasi koji stalno padaju na obnovi (isti id vise dana zaredom),
 - oglasi sa mnogo pregleda i bez upita, ili sa naslovom bez kljucnih rijeci: to je posao za
   skill `olx-seo-oglasa`, ne za obnovu.
@@ -75,7 +76,11 @@ troska po tokenima i bez zavisnosti od modela ili pretplate.
 
 ```
 0 3 * * * cd /putanja/do/olx-mcp-api && node dist/cli/index.js refresh all --limit 60 --yes >> .olx-pik/cron.log 2>&1
+30 2 * * * cd /putanja/do/olx-mcp-api && node dist/cli/index.js stats snapshot >> .olx-pik/cron.log 2>&1
 ```
+
+Druga linija je dnevni snapshot pregleda (prije obnova, da snimak ne pokupi svjeze datume);
+bez njega `olx_sponsor_effect` nema podatke za mjerenje.
 
 - `cd` u korijen repoa je obavezan: CLI cita `.env` iz radnog direktorija, pa token ne mora u
   crontab liniju. `OLX_TOKEN` mora biti popunjen, inace job svaku noc tiho pada na AUTH gresci.

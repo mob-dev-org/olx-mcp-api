@@ -1,31 +1,38 @@
-# Konkurencija: analiza tudjih naloga i cijena (Faza 2)
+# Konkurencija: analiza tudjih naloga i cijena (IMPLEMENTIRANO 27.07.2026.)
 
-Ovo jos nije potpuno podrzano u toolkitu. Dokument opisuje sta treba da bi radilo i kako pristupiti
-oprezno. Ne izmisljaj podatke o konkurenciji; ako nesto ne mozes dohvatiti, reci to jasno.
+Faza 2 je implementirana kroz agregirane MCP alate. Podaci su zivo potvrdjeni: tudji oglasi,
+njihove liste po stanjima (ukljucujuci finished) i PREGLEDI po tudjem oglasu su dostupni.
+Ne izmisljaj podatke; sve ispod se dohvaca alatima.
 
-## Sta je cilj
+## Alati
 
-- Pregledati javne oglase konkurentskog shopa (naslovi, cijene, izdvojenost, svjezina).
-- Cjenovno porediti nase artikle sa njihovim u istoj kategoriji.
-- Izvuci prakticne zakljucke: gdje smo preskupi/prejeftini, gdje konkurent dominira izdvajanjem, gdje je prazan prostor.
+- `olx_competitor_report <username>` — izracunat izvjestaj u jednom pozivu: paket, kad je
+  zadnji put bio aktivan, godine na platformi, ocjene, vrijeme odgovora, broj aktivnih i
+  zavrsenih oglasa, cijene (min/median/max/prosjek, "na upit"), udio sponzorisanih (i premium),
+  udio akcija, kadenca obnove (median dana od obnove, procenat obnovljenih u 48h).
+  `top_views: N` (max 10) dodaje detaljne izvjestaje za N najskorije obnovljenih oglasa.
+- `olx_listing_report <id>` — analiza JEDNOG tudjeg (ili naseg) oglasa: pregledi ukupno i
+  dnevno, starost, dana od obnove, broj slika, popunjeni atributi, duzina naslova, akcija.
+- `olx_user_profile <username>` — sirovi javni profil kad treba polje koje report ne nosi.
+- CLI ekvivalent: `stats konkurent <username> --top-views N`, `stats oglas <id>`.
 
-## Tehnicki preduslovi (sta fali)
+## Kako citati izvjestaj
 
-- Pristup tudjim oglasima: `GET /users/:username/listings` mozda vraca javne oglase i za tudji nalog,
-  ali to je NEPOTVRDJENO. Treba provjeriti uzivo da li API to dozvoljava i sta tacno vraca za tudji username.
-- Pretraga po kategoriji / kljucnoj rijeci: za cjenovno poredjenje treba search endpoint (npr. lista
-  oglasa u kategoriji sa cijenama). Toolkit ga trenutno NEMA. Vjerovatno postoji javni search na API-ju,
-  ali nije dokumentovan u nasem knowledgebase-u.
+- `zadnja_aktivnost_prije_dana` veliko (mjeseci) = mrtav shop; ne treba ga tretirati kao konkurenta.
+- `procenat_48h` visok = konkurent aktivno obnavlja; nasa svjezina mora pratiti njegovu.
+- `sponzorisano.procenat` pokazuje koliko se oslanja na placenu poziciju; nizak procenat uz
+  dobre preglede znaci da mu naslovi rade posao.
+- Pregledi dnevno naseg ekvivalentnog artikla naspram njihovog top oglasa su direktan benchmark
+  vidljivosti.
 
-Dok se to ne potvrdi i ne doda u `src/core`, konkurentska analiza se ne moze raditi pouzdano kroz MCP.
+## Granice (i dalje vaze)
 
-## Predlozeni redoslijed kad se krene u Fazu 2
-
-1. Potvrditi uzivo (sa radnim tokenom) da li `GET /users/:username/listings` vraca tudje javne oglase.
-2. Ako da: dodati u core metodu npr. `competitorListings(username)` i izloziti je kao read-only CLI/MCP alat.
-3. Provjeriti postoji li javni search po kategoriji; ako da, dodati `searchListings(...)` za cjenovno poredjenje.
-4. Tek onda prosiriti ovaj skill da: dohvati nase + konkurentske oglase u istoj kategoriji, uporedi cijene
-   (medijana, raspon, nasa pozicija), i izvuce preporuke.
+- NEMA otkrivanja konkurenata po kategoriji ili kljucnoj rijeci: API nema search endpoint.
+  Konkurenta zadaje korisnik po username-u, ili se uzima iz mjesecnih Excel snimaka shopova
+  (skill olx-shopovi-snimci).
+- Zavrseni tudji oglasi imaju cijenu 0 / "Na upit"; "zavrsen" ne znaci nuzno prodan.
+- `sponsor_active` detalji (koliko je konkurent PLATIO) vidljivi su samo na vlastitim oglasima;
+  na tudjim je javan samo flag sponzorisan 0/1/2.
 
 ## Eticke i pravne granice
 

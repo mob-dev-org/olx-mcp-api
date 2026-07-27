@@ -6,8 +6,9 @@ description: >-
   pita zasto mu oglasi slabo idu, koje oglase obnoviti ili izdvojiti, kako popraviti naslove,
   da li je cijena dobra, koji artikli na stanju trebaju paznju, ili trazi pregled i analizu
   profila sa preporukama. Okidaci: "analiziraj moje oglase", "sta da izdvojim", "zasto nemam
-  pozive", "optimizuj naslov", "pregled profila", "koje da obnovim", "isplati li se izdvajanje".
-  Analiza konkurencije je Faza 2 (vidi references/konkurencija-faza2.md). Za sam setup MCP-a
+  pozive", "optimizuj naslov", "pregled profila", "koje da obnovim", "isplati li se izdvajanje",
+  "analiziraj konkurenta". Pokriva i analizu poznatog konkurenta po username-u
+  (olx_competitor_report; vidi references/konkurencija-faza2.md). Za sam setup MCP-a
   koristi skill olx-mcp-setup.
 ---
 
@@ -62,12 +63,20 @@ i izdvajanje odlucuju KOLIKO si visoko. Bez toga savjeti su nagadjanje.
 ## Tok rada
 
 1. Provjeri pristup: `olx_whoami`. Ako vrati 403, stani i uputi korisnika na skill olx-mcp-setup.
-2. Prikupi podatke (sve su sigurni, read-only alati, ne trose kredite):
-   - `olx_list_listings` sa `state: active`, `all: true` — cijeli aktivni katalog.
-   - Po potrebi `state: hidden|expired|finished` da vidis sta stoji neiskoristeno.
-   - `olx_get_listing` za oglase koje detaljnije gledas (naslov, podnaslov, cijena, slike, kategorija).
-   - `olx_refresh_limits` — koliko besplatnih obnova je ostalo ovaj mjesec.
+2. Prikupi podatke (sve su sigurni, read-only alati, ne trose kredite). PRVI IZBOR je
+   agregirani alat, ne rucno prelistavanje:
+   - `olx_profile_stats` — JEDAN poziv vraca izracunato: paket i istek, krediti, kvota obnova,
+     brojevi po svim stanjima, cijene, udio sponzorisanih, neobnovljeni oglasi, neodgovorena
+     pitanja. Sa `views: "snapshot"` dodaje preglede iz danasnjeg snapshota (0 dodatnih poziva);
+     sa `views: "sample"` mjeri preglede na uzorku (10-ak sekundi).
+   - `olx_account_alerts` — brzi alarmi (pitanja, paket, krediti, kvota koja propada, istekli).
+   - `olx_listing_report <id>` — izracunata analiza jednog oglasa: pregledi dnevno, pitanja,
+     dana od obnove, slike, atributi, naslov. Koristi za svaki oglas koji detaljnije gledas.
+   - `olx_list_listings` (kompaktan default) tek kad treba cijeli spisak naslova, npr. za SEO
+     prolaz kroz sve naslove; `full: true` samo kad zatreba polje koje kompakt nema.
    - `olx_sponsor_price` SAMO ako razmatras izdvajanje (vraca cijenu, ne trosi).
+   - Efekat proslog izdvajanja: `olx_sponsor_effect <id>` (treba dnevne snapshote, vidi
+     olx-cron-obnove).
 3. Dijagnostikuj svaki problematican oglas po pravilima iz `olx://knowledgebase` (sekcija dijagnostika).
 4. Za sumnju na pogresnu kategoriju provjeri kroz resource `olx://categories-index` (CSV: path, id, zastavice);
    za obavezne forme tacne kategorije pozovi `olx_category_attributes <id>`. Ne ucitavaj cijeli categories JSON.
@@ -110,8 +119,12 @@ Koristi ovu strukturu (detaljnija verzija je u references/analiza-recept.md):
 <gdje ne trositi kredite i zasto>
 ```
 
-## Konkurencija (Faza 2)
+## Konkurencija
 
-Analiza konkurentskih naloga i cjenovno poredjenje su Faza 2 i trenutno nisu potpuno podrzani u
-toolkitu (fali pouzdan pristup tudjim oglasima i pretraga po kategoriji). Ne izmisljaj te podatke.
-Plan i tehnicke preduslove vidi u `references/konkurencija-faza2.md`.
+Analiza POZNATOG konkurenta je podrzana od 27.07.2026.: `olx_competitor_report <username>`
+vraca izracunato (paket, aktivnost, cijene min/median/max, udio sponzorisanih i akcija, kadenca
+obnove), a `top_views: N` dodaje detaljne izvjestaje za N najskorije obnovljenih oglasa,
+ukljucujuci PREGLEDE tudjih oglasa. Pojedinacni tudji oglas: `olx_listing_report <id>`.
+Sto i dalje NE postoji: otkrivanje konkurenata po kategoriji ili kljucnoj rijeci (nema search
+endpointa) — konkurenta zadaje korisnik po username-u, ili se uzima iz mjesecnih Excel snimaka
+shopova. Detalji i granice u `references/konkurencija-faza2.md`.

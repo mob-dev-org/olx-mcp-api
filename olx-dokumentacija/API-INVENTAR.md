@@ -10,9 +10,13 @@ Bazni URL je `https://api.olx.ba`, konfigurabilan kroz `OLX_BASE_URL` (`src/core
 
 ## 1. Tabela alata
 
-Ukupno 33 registrovana MCP alata. Svi dodiruju API; nema vise alata koji rade samo nad lokalnom konfiguracijom.
+Ukupno 34 registrovana MCP alata. Svi dodiruju API; nema vise alata koji rade samo nad lokalnom konfiguracijom.
 
 Izmjene od 26.07.2026.: dodan `olx_user_profile`; `olx_delete_listing` uklonjen (brisanje kroz bota nije moguce, ostaje CLI `listings rm`); `olx_list_accounts` i `olx_switch_account` uklonjeni, jer jedan klon repozitorija radi za jedan nalog. Brojevi linija u tabeli su iz stanja prije te zadnje izmjene i mogu biti pomjereni; putanje i imena alata vaze.
+
+Izmjene od 27.07.2026. (poredjenje sa zvanicnom dokumentacijom api-documentation.olx.ba, vidi `analiza-api-dokumentacije.md`): dodan `olx_country_states`; `olx_sponsor_price` i `olx_sponsor_listing` primaju opcioni `locations` niz pored `homepage` boolean-a (API prima `locations` kao niz stringova; "homepage" je jedina dokumentovana vrijednost, ostale mogu vratiti 422). Zivo provjereno 27.07.2026.: `sponsore/price` sa `locations: ["homepage"]` vraca komponentu `locations` u cijeni.
+
+Izmjene od 27.07.2026., druga runda (agregacioni sloj, ukupno sada 39 alata): dodano 5 read-only agregata koji vise API poziva sazmu u kompaktan rezultat — `olx_profile_stats` (statistika naloga; views: none/sample/snapshot), `olx_competitor_report` (analiza tudjeg naloga po username-u, opcioni top_views), `olx_listing_report` (izracunata analiza jednog oglasa, radi i za tudje), `olx_account_alerts` (alarmi: pitanja, paket, krediti, kvota, istekli), `olx_sponsor_effect` (efekat izdvajanja iz dnevnih snapshota). Snapshote pravi CLI `stats snapshot` u `.olx-pik/snapshots/views-YYYY-MM-DD.json` (jedan zahtjev po oglasu, za cron). Logika je u `src/core/stats.ts` (ciste funkcije) i orkestratorima na `OlxClient` (`statsProfil`, `statsKonkurent`, `statsOglas`, `statsAlarmi`); paginator `listAllByState` radi za svih pet stanja. Usput: `olx_list_listings` i `olx_get_listing` po defaultu vracaju kompaktan oblik (`full: true` za sirovi API oblik), `all` na listi radi za sva stanja, a `ok()` u MCP serveru vise ne pretty-printa niti duplira payload u structuredContent (kompaktna lista je ~4,5x manja od sirove, mjereno).
 
 Legenda kolone "Kredit": da = poziv sigurno trosi kredite, moguce = zavisi od kategorije ili paketa, ne = ne trosi.
 
@@ -26,7 +30,7 @@ Legenda kolone "Kredit": da = poziv sigurno trosi kredite, moguce = zavisi od ka
 | `olx_find_category` (`server.ts:376`) | GET `/categories/find?name=` (`core/index.ts:431`) | Pronalazi kategoriju po imenu i vraca puni path. | `name` | nema | read | ne | ne |
 | `olx_category_attributes` (`server.ts:382`) | GET `/categories/:id/attributes` (`core/index.ts:415`) | Vraca atribute (forme) kategorije, sa `required` i `options`. | `id` | nema | read | ne | ne |
 | `olx_refresh_limits` (`server.ts:388`) | GET `/listing/refresh/limits` (`core/index.ts:290`) | Mjesecni limiti obnove: `free_limit`, `free_count`, `paid_count`, `listing_count` (`core/types.ts:98`). | nema | nema | read | ne | ne |
-| `olx_sponsor_price` (`server.ts:394`) | GET `/listings/:id/sponsore/price` (`core/index.ts:510`) | Racuna cijenu izdvajanja u kreditima, bez naplate. | `id`, `type`, `days` | `refresh_every` (default 0), `homepage` | read | ne | ne |
+| `olx_sponsor_price` (`server.ts:394`) | GET `/listings/:id/sponsore/price` (`core/index.ts:510`) | Racuna cijenu izdvajanja u kreditima, bez naplate. | `id`, `type`, `days` | `refresh_every` (default 0), `homepage`, `locations` (niz; "homepage" jedina dokumentovana vrijednost) | read | ne | ne |
 | `olx_categories` (`server.ts:419`) | GET `/categories` (`core/index.ts:403`) | Top level kategorije. | nema | nema | read | ne | ne |
 | `olx_category_children` (`server.ts:425`) | GET `/categories/:id` (`core/index.ts:407`) | Podkategorije date kategorije. | `id` | nema | read | ne | ne |
 | `olx_category` (`server.ts:431`) | GET `/category/:id` (`core/index.ts:411`) | Detalji kategorije: `listing_fee`, `base_listing_price`, `brand_required`, `model_required`, `show_map`, `show_condition`. | `id` | nema | read | ne | ne |
@@ -37,6 +41,7 @@ Legenda kolone "Kredit": da = poziv sigurno trosi kredite, moguce = zavisi od ka
 | `olx_cities` (`server.ts:461`) | GET `/cities` (`core/index.ts:455`) | Entiteti i regije (sadrze kantone). | nema | nema | read | ne | ne |
 | `olx_city` (`server.ts:467`) | GET `/cities/:id` (`core/index.ts:463`) | Detalji grada: lat, lon, zip, canton_id, state_id. | `id` | nema | read | ne | ne |
 | `olx_canton_cities` (`server.ts:473`) | GET `/cantons/:id/cities` (`core/index.ts:471`) | Gradovi u kantonu. | `id` | nema | read | ne | ne |
+| `olx_country_states` (dodan 27.07.2026.) | GET `/country-states` (`core/index.ts:466`) | Entiteti/regije drzave sa kantonima, isti oblik kao `olx_cities`. | nema | nema | read | ne | ne |
 | `olx_create_listing` (`server.ts:481`) | POST `/listings` (`core/index.ts:267`) | Kreira oglas u DRAFT stanju, jos nije vidljiv. | `title` (max 65 znakova, `server.ts:267`), `category_id` (`server.ts:489`) | `short_description`, `description`, `country_id`, `city_id`, `price`, `available`, `listing_type`, `state`, `brand_id`, `model_id`, `sku_number`, `attributes` | write | moguce, u naplativim kategorijama objava se placa kreditima (`olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md:159`); indikator je `listing_fee` i `base_listing_price` iz `olx_category` | ne, DRAFT se moze obrisati |
 | `olx_publish_listing` (`server.ts:508`) | POST `/listings/:id/publish` (`core/index.ts:282`) | Objavljuje DRAFT, oglas postaje aktivan i javno vidljiv. | `id` | nema | write | moguce, isto kao gore, tacan trenutak naplate nepoznat iz koda | da u smislu javne objave, oglas postaje vidljiv svima |
 | `olx_update_listing` (`server.ts:602`) | PUT `/listings/:id` (`core/index.ts:300`) | Mijenja polja oglasa. Od 26.07.2026. izlaze sva polja koja jezgro podrzava. | `id` | `title`, `description`, `short_description`, `price`, `available`, `category_id`, `sku_number`, `state`, `listing_type`, `country_id`, `city_id`, `brand_id`, `model_id`, `attributes` | write | ne | ne, ali prepisuje prethodne vrijednosti bez backupa u kodu; promjena `category_id` bez obaveznih atributa nove kategorije vraca 422 |
@@ -48,14 +53,14 @@ Legenda kolone "Kredit": da = poziv sigurno trosi kredite, moguce = zavisi od ka
 | `olx_upload_images` (`server.ts:613`) | POST `/listings/:id/image-upload`, multipart polje `images[]` (`core/index.ts:309`) | Dodaje slike na oglas. URL-ovi se prvo preuzmu pa salju kao fajl, jer API ne prihvata `image_url` (`core/index.ts:301`). | `id` i bar jedno od `urls` / `file_paths` (`server.ts:628`) | `urls`, `file_paths` | write | ne | ne, slike se mogu brisati |
 | `olx_set_main_image` (`server.ts:638`) | POST `/listings/:id/image-main` (`core/index.ts:337`) | Postavlja glavnu sliku oglasa. | `id`, `imageId` | nema | write | ne | ne |
 | `olx_delete_image` (`server.ts:649`) | POST `/listings/:id/image-delete` (`core/index.ts:333`) | Brise sliku sa oglasa. | `id`, `imageId` | nema | write | ne | da za samu sliku, nema undo poziva u kodu |
-| `olx_sponsor_listing` (`server.ts:662`) | POST `/listings/:id/sponsore` (`core/index.ts:534`) | Izdvaja oglas. Bez `confirm=true` samo dohvati cijenu i baca `OlxSpendError` (`core/index.ts:521` do `:509`). | `id`, `type`, `days`, `confirm=true` za stvarnu naplatu | `refresh_every`, `homepage` | write | da | da, potroseni krediti se ne vracaju |
+| `olx_sponsor_listing` (`server.ts:662`) | POST `/listings/:id/sponsore` (`core/index.ts:534`) | Izdvaja oglas. Bez `confirm=true` samo dohvati cijenu i baca `OlxSpendError` (`core/index.ts:521` do `:509`). | `id`, `type`, `days`, `confirm=true` za stvarnu naplatu | `refresh_every`, `homepage`, `locations` (niz; "homepage" jedina dokumentovana vrijednost) | write | da | da, potroseni krediti se ne vracaju |
 | `olx_set_discount` (`server.ts:689`) | POST `/listings/:id/discount` (`core/index.ts:548`) | Postavlja akcijsku cijenu, premium opcija. Bez `confirm=true` baca `OlxSpendError` (`core/index.ts:542`). | `id`, `price`, `days` (3, 7 ili 30), `confirm=true` | nema | write | da | da, potroseni krediti se ne vracaju |
 | `olx_finish_discount` (`server.ts:705`) | POST `/listings/:id/discount/finish` (`core/index.ts:552`) | Zavrsava aktivnu akcijsku cijenu. | `id` | nema | write | ne za sam poziv, ali ranije potroseni krediti se ne vracaju | da, prekid akcije prije isteka |
 
 ### Metode u jezgru koje nisu izlozene kao MCP alat
 
 - `login()`, POST `/auth/login` (`core/index.ts:201`). Dostupno samo kroz CLI komandu `auth login` (`src/cli/index.ts:183`).
-- `countryStates()`, GET `/country-states` (`core/index.ts:466`). Nema odgovarajuci MCP alat, koristi se samo unutar `locationSnapshot` (`core/index.ts:479`) i CLI-a.
+- `countryStates()`, GET `/country-states` je od 27.07.2026. izlozen i kao MCP alat `olx_country_states`; ranije je bio samo u `locationSnapshot` i CLI-u.
 - `categoryTree()` (`core/index.ts:436`) i `locationSnapshot()` (`core/index.ts:477`). Agregatori za jednokratni snapshot, pokrecu se preko CLI komandi `category dump` i `location dump` (`src/cli/index.ts:574`).
 - `listAllActive()` (`core/index.ts:389`) je dostupan indirektno, kroz `olx_list_listings` sa `all=true`.
 
@@ -173,7 +178,7 @@ Gdje korisnik generise token: u repozitoriju nema URL-a ni ekrana na kojem se to
 
 ### Statistika
 
-- U kodu nema nijednog statistickog endpointa. Nema pregleda, nema klikova, nema pojmova na pretrazi, nema podataka po kategoriji ni po shopu, nema vremenskog perioda.
+- **ISPRAVKA 27.07.2026.: pregledi oglasa POSTOJE.** `GET /listings/:id` vraca polje `views` (broj pregleda), i to i za VLASTITE i za TUDJE oglase (zivo provjereno: vlastiti oglas 100 pregleda, tudji Platinum oglas 4.798 pregleda). Uz `views` dolaze i `questions` (broj pitanja na oglasu) i `feedbacks`. Ranija tvrdnja da nema pregleda vazila je samo za listu oglasa; pojedinacni oglas ih nosi. Nema klikova, nema pojmova na pretrazi, nema agregata po kategoriji ni vremenskog perioda, ali se vremenska serija pregleda moze graditi vlastitim snimcima (cron).
 - Saldo kredita JESTE dostupan. `GET /me` vraca polje `credits` (potvrdjeno zivim pozivom 26.07.2026. na Gold nalogu, saldo se vraca kao broj). Polje nije u tipu `OlxUser` (`core/types.ts:4`), ali prolazi kroz index potpis, pa ga `olx_whoami` vec vraca. Ranija tvrdnja u sekciji 6 da se saldo ne moze procitati je netacna.
 - `GET /me` vraca i paket shopa (`shop.package`, npr. Gold), datum isteka paketa `shop.ends_at`, prosjecno vrijeme odgovora `avg_response_time` i brojac neodgovorenih pitanja `new_questions_count`.
 - Jedina brojka blizu statistike je `count` u prijedlogu kategorije, koji pokazuje broj oglasa uz predlozenu kategoriju (`core/types.ts:172`, `olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md:87`).
@@ -186,20 +191,82 @@ Gdje korisnik generise token: u repozitoriju nema URL-a ni ekrana na kojem se to
 - Postoji samo pretraga kategorija po imenu: `/categories/suggest?keyword=` (`core/index.ts:427`) i `/categories/find?name=` (`core/index.ts:431`). To vraca kategorije, ne oglase.
 - Repozitorij i sam biljezi da search endpoint nedostaje i da vjerovatno postoji na API-ju, ali nije dokumentovan (`.claude/skills/olx-analiza-profila/references/konkurencija-faza2.md`, tacke 2 i 3).
 
-Zakljucak: konkurentska analiza kroz ovaj MCP trenutno nije moguca na pouzdan nacin.
+Zakljucak (revidiran 27.07.2026.): konkurentska analiza po POZNATOM konkurentu je itekako moguca (profil, svi oglasi, pregledi po oglasu, kadenca obnove, udio sponzorisanih); sto nedostaje je OTKRIVANJE konkurenata po kategoriji ili kljucnoj rijeci, jer nema search endpointa. Konkurenti se moraju unijeti rucno po username-u (izvor: mjesecni Excel snimci shopova).
+
+### Propertiji odgovora, izmjereno zivim pozivima 27.07.2026.
+
+Tipovi u `core/types.ts` namjerno tipiziraju samo podskup; API vraca znatno vise. Sve ispod je
+procitano iz stvarnih odgovora na Gold nalogu (MixBox) i javnom Platinum shopu.
+
+**`GET /me` (olx_whoami)** nosi, pored poznatog `credits` i `shop.package`:
+
+- `new_questions_count` — broj neodgovorenih pitanja kupaca (jedini API prozor u upite!)
+- `active_deliveries_count`, `unconfirmed_deliveries_count` — dostava
+- `feedbacks.positive` / `feedbacks.negative` — ocjene naloga
+- `avg_response_time` — prosjecno vrijeme odgovora u minutama
+- `shop.ends_at` — unix timestamp isteka paketa (alarm za produzenje!)
+- `settings.pro.auto_renewal` — da li je ukljucena autoobnova na nivou naloga
+- `medals`, `email_verified`, `phone_verified`, `created_at`
+
+**`GET /listings/:id` (olx_get_listing)**, radi i za tudje oglase:
+
+- `views` — broj pregleda oglasa (javno!)
+- `questions`, `feedbacks` — po oglasu
+- `date` — unix timestamp ZADNJE OBNOVE (obnova "boosta datum", pa je `date` > `created_at`
+  dokaz obnove; na tudjim oglasima ovo otkriva kadencu obnavljanja konkurenta)
+- `created_at` i `additional.updated_at` — starost i zadnja izmjena
+- `sponsor_active` — SAMO na vlastitom oglasu: placena cijena, `sponsored_until`,
+  `criterias` (type, days, refresh_every), `auto_renewal`; na tudjem je null iako je oglas
+  sponzorisan (flag `sponsored` u listi je javan: 0/1/2)
+- `sponsor_scheduled` — polje postoji (null); platforma dakle interno ima zakazivanje
+  izdvajanja, endpoint za postavljanje nije poznat
+- `has_discount`, `regular_price`, `sponsor_discount` — akcijska cijena
+- `pinned`, `highlighted`, `urgent`, `premium_badges` — pozicijske oznake
+- `attributes` (puni, sa `required` i `group_name`), `images` (broj slika), `sku_number`,
+  `quantity`, `price_by_agreement`, `shipping`, `image_masking`
+
+**`GET /users/:username/listings` (olx_list_listings)**, radi i za tudje (i `finished`
+varijanta, zivo provjereno):
+
+- `sponsored` (0/1/2), `date` (zadnja obnova), `refresh_available`
+- `has_discount`, `original_price`, `discounted_price` — vidljive akcije konkurenta
+- `card_payment`, `shipping`, `labels`, `special_labels`, `premium_badges`, `pinned`,
+  `olx_stories`
+- `meta.total` — tacan broj oglasa po stanju bez prelistavanja
+
+**`GET /users/:username` (olx_user_profile)** za tudji nalog dodatno:
+
+- `last_time_active_at` — kad je korisnik zadnji put bio aktivan (mrtav ili ziv shop!)
+- `feedbacks`, `medals`, `created_at`, `avg_response_time`, `pro.pro`, `delivery_enabled`
+- privatni podaci (email, telefon, krediti) se NE vracaju za tudje naloge
+
+Sta se iz ovoga izvodi bez ijednog novog endpointa:
+
+1. **Mjerenje efekta izdvajanja.** Snimiti `views` prije izdvajanja, pa dnevno tokom i poslije:
+   prirast pregleda dnevno u odnosu na baseline je direktna mjera povrata. Ovo obara raniju
+   tvrdnju u sekciji 7 da se efekat ne moze mjeriti brojem.
+2. **Statistika vlastitog profila.** Jedan prolaz kroz sve oglase daje: preglede po oglasu,
+   preglede po danu starosti (`views / dani od created_at`), oglase bez pitanja, mrtve oglase
+   (nisko `views`, staro `date`), udio sponzorisanih.
+3. **Analiza konkurenta po username-u.** Profil (aktivnost, ocjene, paket) + oglasi (broj,
+   cijene, akcije, udio sponzorisanih, kadenca obnove iz `date`) + pojedini artikl
+   (`views` njihovog top oglasa protiv naseg ekvivalenta, broj slika, popunjenost atributa).
+4. **Alarmi za nalog.** `new_questions_count` > 0 (kupac ceka odgovor), `shop.ends_at` blizu
+   (paket istice), `credits` ispod praga, broj `expired` oglasa (mrtvi inventar koji se moze
+   reaktivirati).
 
 ---
 
 ## 5. Neiskoristeno
 
-Dokumentacija API-ja u repozitoriju postoji: `olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md`, sekcija 4, tabele od linije 39 do linije 118. To je jedina lista endpointa u repozitoriju. Ne postoji OpenAPI spec ni Postman kolekcija.
+Dokumentacija API-ja u repozitoriju postoji: `olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md`, sekcija 4, tabele od linije 39 do linije 118, i od 27.07.2026. `olx-dokumentacija/analiza-api-dokumentacije.md` sa kompletnim popisom endpointa prepisanim sa zvanicnog `api-documentation.olx.ba`. Ne postoji OpenAPI spec ni Postman kolekcija.
 
 Poredjenje te liste sa implementacijom:
 
 - Svi endpointi navedeni u dokumentaciji su implementirani u `src/core/index.ts`. Nema nijednog dokumentovanog endpointa koji jezgro ne pokriva.
 - Neiskoristeno na nivou MCP sloja, iako postoji u jezgru:
   - POST `/auth/login` (`core/index.ts:205`) nije MCP alat, samo CLI komanda.
-  - GET `/country-states` (`core/index.ts:466`) nije MCP alat.
+  - GET `/country-states` je od 27.07.2026. izlozen kao MCP alat `olx_country_states`.
 
 Endpointi koji postoje na API-ju, a nisu ni u dokumentaciji ni u kodu:
 
@@ -233,7 +300,7 @@ Lista je ogranicena na ono sto postojeci endpointi stvarno omogucavaju.
   - Nedostaje: nista, cijela logika je lokalna. Bez podataka o stvarnim pojmovima pretrage ostaje heuristika, ne mjerenje.
 - **Provjera ispravne kategorije.** Za svaki aktivni oglas uporediti trenutnu kategoriju sa onom koju API predlaze na osnovu naslova.
   - Alati: `olx_list_listings`, `olx_suggest_category`, `olx_category`.
-  - Nedostaje: nista. Napomena: premjestanje oglasa u drugu kategoriju nije podrzano, `olx_update_listing` ne prima `category_id` (`server.ts:520` do `:449`), iako ga jezgro tehnicki podrzava kroz `UpdateListingInput` (`core/types.ts:96`).
+  - Nedostaje: nista. Napomena: premjestanje oglasa u drugu kategoriju JE podrzano; `olx_update_listing` od 26.07.2026. prima `category_id` (vidi red u tabeli alata), s tim da promjena kategorije bez obaveznih atributa nove kategorije vraca 422.
 - **Planer obnova sa dry run pregledom.** Prikaz kandidata za obnovu i preostale kvote prije bilo kakvog trosenja.
   - Alati: `olx_refresh_bulk` sa `confirm=false`, `olx_refresh_limits`.
   - Nedostaje: nista, vec je implementirano kao dry run.
@@ -254,7 +321,7 @@ Lista je ogranicena na ono sto postojeci endpointi stvarno omogucavaju.
   - Nedostaje: zakazivanje u tacno vrijeme ne postoji na API-ju, pa bi vremensku komponentu morao voditi vanjski scheduler.
 - **Automatski dnevni ritam obnova.** Raspored koji svakog dana obnavlja odredjeni broj oglasa tako da se mjesecna kvota rasporedi ravnomjerno umjesto da se potrosi odjednom.
   - Alati: `olx_refresh_limits`, `olx_refresh_bulk`.
-  - Nedostaje: MCP server nema vlastiti scheduler, treba vanjski pokretac. Takodjer nedostaje podatak koji oglas je zadnji put obnovljen, u listi postoji samo `date` i `refresh_available` (`core/types.ts:111` i `:89`).
+  - Nedostaje: MCP server nema vlastiti scheduler, treba vanjski pokretac. ISPRAVKA 27.07.2026.: podatak o zadnjoj obnovi POSTOJI, polje `date` u listi i na pojedinacnom oglasu je timestamp zadnje obnove (obnova "boosta" datum oglasa; provjereno na oglasu sa autoobnovom gdje je `date` svjezije od `created_at`).
 - **Zastita od rada na pogresnom nalogu.** Obavezna potvrda naloga prije svake operacije koja mijenja stanje ili trosi kredite.
   - Alati: `olx_whoami`.
   - Nedostaje: izmjena servera tako da svaki write alat provjeri ocekivani nalog. Trenutno je zastita samo tekst u opisu alata (`server.ts:307`), ne kod.
@@ -275,8 +342,11 @@ Lista je ogranicena na ono sto postojeci endpointi stvarno omogucavaju.
   - Alati: `olx_update_listing` za samu izmjenu.
   - Nedostaje: izvor podataka. Statistika i "pojmovi na pretrazi" nisu dostupni kroz API, samo kroz web ili aplikaciju.
 - **Mjerenje povrata ulozenih kredita.** Racunanje da li se izdvajanje isplatilo.
-  - Alati: `olx_sponsor_price` za trosak.
-  - Nedostaje: brojevi pregleda i upita prije i poslije izdvajanja. Ne postoje kroz API.
+  - Alati: `olx_sponsor_price` za trosak, `olx_get_listing` za brojeve.
+  - ISPRAVKA 27.07.2026.: pregledi i upiti POSTOJE kroz API (`views` i `questions` na
+    `GET /listings/:id`). Vremenska serija se gradi vlastitim snimcima: snimiti `views` prije
+    izdvajanja pa dnevno tokom trajanja; prirast po danu u odnosu na baseline je mjera efekta.
+    Vidi sekciju "Propertiji odgovora" u dijelu 4.
 
 ---
 
@@ -327,7 +397,9 @@ rijesene i zapisane nize kao ucinjeno; ostatak je red voznje za sljedecu rundu.
 
 ### Ostaje
 
-1. **Statistika po oglasu** (pregledi, pojmovi pretrage) ne postoji u API-ju; bez nje se efekat
-   izdvajanja ne moze mjeriti brojem. Provjeriti da li podrska izdaje takav endpoint.
+1. **Pojmovi pretrage po oglasu** ne postoje u API-ju. RIJESENO DJELIMICNO 27.07.2026.:
+   pregledi (`views`) i pitanja (`questions`) POSTOJE na `GET /listings/:id`, pa se efekat
+   izdvajanja mjeri vlastitim snimcima pregleda. Pojmovi pretrage i dalje nedostaju;
+   provjeriti sa podrskom.
 2. **Otvoreno mjerenje**: `olx_refresh_limits` na nalogu koji nije Gold — razlucuje da li
    kvota obnova prati paket ili je 1800 za sve shop pakete.

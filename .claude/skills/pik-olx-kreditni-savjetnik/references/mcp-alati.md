@@ -22,7 +22,10 @@ pretrage alata; svi nazivi počinju sa `olx_`.
 | `olx_list_listings` | Lista oglasa po stanju | Ne |
 | `olx_get_listing` | Pojedinačni oglas po ID-u | Ne |
 | `olx_category` | Pravila i cijene kategorije | Ne |
-| `olx_sponsor_price` | Cijena izdvajanja u kreditima | Ne (samo upit) |
+| `olx_sponsor_price` | Cijena izdvajanja u kreditima, razbijena na komponente (search, refresh, locations, extras) | Ne (samo upit) |
+| `olx_listing_report` | Izračunata analiza oglasa: pregledi dnevno, dana od obnove, slike, atributi | Ne |
+| `olx_sponsor_effect` | Efekat izdvajanja iz dnevnih snapshota: pregledi dnevno prije/tokom + faktor | Ne |
+| `olx_profile_stats` | Statistika cijelog naloga u jednom pozivu (krediti, kvota, sponzorisani...) | Ne |
 | `olx_sponsor_listing` | Izdvaja oglas | DA, troši kredite |
 | `olx_set_discount` | Postavlja akcijsku cijenu | DA, troši kredite |
 | `olx_finish_discount` | Završava akcijsku cijenu | Ne |
@@ -49,8 +52,13 @@ ponovo prije nego zaključiš da ga nema.
 
 ## Tipičan zadatak: "pripremi N artikala za izdvajanje da se ne dupliraju"
 
-1. `olx_list_listings` (active) i izdvoji koji su već promovisani (ako odgovor nosi tu oznaku),
-   ili provjeri pojedinačno `olx_get_listing` za sumnjive.
+1. `olx_list_listings` (active) i izdvoji koji su već promovisani (kompaktan odgovor nosi
+   `sponsored` 0/1/2), ili provjeri pojedinačno `olx_listing_report` za sumnjive.
+1a. Prije preporuke KOJE artikle izdvojiti, pogledaj im preglede dnevno kroz
+   `olx_listing_report`: artikal koji već ima dobre preglede dnevno rjeđe treba izdvajanje;
+   artikal sa dobrim proizvodom a slabim pregledima je bolji kandidat (prvo provjeri naslov).
+   Poslije izdvajanja efekat se MJERI, ne pretpostavlja: `olx_sponsor_effect <id>` (treba
+   dnevne snapshote, CLI `stats snapshot`, vidi skill olx-cron-obnove).
 2. Spoji sa metodom izbora iz `strategija.md` (pojmovi u pretrazi × najgledaniji).
 3. Predloži artikle koji nisu već izdvojeni, sa ID-evima i obrazloženjem.
 4. Pokaži trošak iz `cjenovnik-i-krediti.md` (ili `olx_sponsor_price`).

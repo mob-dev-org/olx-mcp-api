@@ -28,6 +28,9 @@ export interface SponsorOptionsInput {
   days: number;
   refreshEvery?: number;
   homepage?: boolean;
+  // API prima locations kao niz; "homepage" je jedina dokumentovana vrijednost, ostale mogu
+  // proci ili pasti sa 422. homepage flag i locations se spajaju bez duplikata.
+  locations?: string[];
 }
 
 // Provjerava ulaz i sklapa opcije za API. Baca gresku sa dozvoljenim vrijednostima, da korisnik
@@ -43,10 +46,16 @@ export function parseSponsorOptions(input: SponsorOptionsInput): SponsorOptions 
   if (!isRefreshEvery(refreshEvery)) {
     throw new Error(`Razmak autoobnove mora biti jedan od: ${REFRESH_EVERY.join(", ")} (sati; 0 je bez obnove).`);
   }
+  const locations = new Set<string>();
+  if (input.homepage) locations.add("homepage");
+  for (const loc of input.locations ?? []) {
+    const trimmed = loc.trim();
+    if (trimmed) locations.add(trimmed);
+  }
   return {
     type: input.type,
     days: input.days,
     refresh_every: refreshEvery,
-    locations: input.homepage ? ["homepage"] : undefined,
+    locations: locations.size > 0 ? [...locations] : undefined,
   };
 }

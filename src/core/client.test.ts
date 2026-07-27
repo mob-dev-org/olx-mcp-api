@@ -104,6 +104,18 @@ test("sponsorListing sa confirm salje POST i ne ponavlja ga na 500", async () =>
   }
 });
 
+test("sponsorPrice serializuje locations kao niz u query stringu", async () => {
+  const { calls, restore } = stubFetch([{ status: 200, body: PRICE_BODY }]);
+  try {
+    const client = new OlxClient(testConfig());
+    await client.sponsorPrice(123, { type: 1, days: 5, refresh_every: 0, locations: ["homepage"] });
+    assert.equal(calls.length, 1);
+    assert.ok(calls[0]?.url.includes("locations%5B%5D=homepage"), "locations ide kao locations[]=homepage");
+  } finally {
+    restore();
+  }
+});
+
 test("setDiscount bez confirm baca OlxSpendError i ne dira mrezu", async () => {
   const { calls, restore } = stubFetch([{ status: 200, body: {} }]);
   try {
@@ -223,6 +235,41 @@ test("loadConfig postavlja audit log na putanju van gita", () => {
   const svoje = loadConfig({ OLX_AUDIT_FILE: "moj/log.jsonl", OLX_AUDIT_READS: "1" } as NodeJS.ProcessEnv);
   assert.equal(svoje.auditFile, "moj/log.jsonl");
   assert.equal(svoje.auditReads, true);
+});
+
+test("listAllByState prelistava sve stranice datog stanja i postuje maxPages", async () => {
+  const stranica = (page: number, lastPage: number) => ({
+    data: [{ id: page * 100, title: `Oglas ${page}` }],
+    meta: { total: lastPage, last_page: lastPage, current_page: page, per_page: 1 },
+  });
+  const { calls, restore } = stubFetch([
+    { status: 200, body: stranica(1, 3) },
+    { status: 200, body: stranica(2, 3) },
+    { status: 200, body: stranica(3, 3) },
+  ]);
+  try {
+    const client = new OlxClient(testConfig());
+    const sve = await client.listAllByState("expired", "primjer_shop");
+    assert.equal(sve.length, 3, "spojene su sve tri stranice");
+    assert.equal(calls.length, 3);
+    assert.ok(calls[0]?.url.includes("/users/primjer_shop/listings/expired"), "gadja se expired putanja");
+    assert.ok(calls[2]?.url.includes("page=3"));
+  } finally {
+    restore();
+  }
+
+  const { calls: calls2, restore: restore2 } = stubFetch([
+    { status: 200, body: stranica(1, 5) },
+    { status: 200, body: stranica(2, 5) },
+  ]);
+  try {
+    const client = new OlxClient(testConfig());
+    const ograniceno = await client.listAllByState("finished", "primjer_shop", 2);
+    assert.equal(ograniceno.length, 2, "maxPages sijece prelistavanje");
+    assert.equal(calls2.length, 2);
+  } finally {
+    restore2();
+  }
 });
 
 // ---- Audit log i obnova tokena ----

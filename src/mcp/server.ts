@@ -8,7 +8,9 @@ import { dirname, resolve } from "node:path";
 import { OlxClient, OlxSpendError, OlxApiError } from "../core/index.js";
 import { loadConfig } from "../core/config.js";
 import { withAuditContext } from "../core/audit.js";
-import type { SponsorOptions, SponsorType, SponsorDays, RefreshEvery } from "../core/types.js";
+import { parseSponsorOptions } from "../core/sponsor-options.js";
+import { efekatIzdvajanja, kompaktList, kompaktListing, type OglasPregledi } from "../core/stats.js";
+import { ucitajSnapshote } from "../core/snapshoti.js";
 
 // Ucitaj .env iz radnog direktorija ako postoji (Node 20.12+), da OLX_TOKEN bude dostupan i kad
 // server pokrene MCP klijent. Token ostaje u .env fajlu koji je u .gitignore.
@@ -41,12 +43,12 @@ type ToolResult = {
   isError?: boolean;
 };
 
+// Kompaktan stringify bez indentacije: pretty-print na velikim listama znacajno napuhava broj
+// tokena. structuredContent se namjerno NE salje, jer bi dupliralo cijeli payload u odgovoru
+// (alati ne deklarisu outputSchema, pa polje nije obavezno).
 function ok(data: unknown): ToolResult {
-  const text = typeof data === "string" ? data : JSON.stringify(data, null, 2);
-  const structured = data && typeof data === "object" && !Array.isArray(data)
-    ? (data as Record<string, unknown>)
-    : { data };
-  return { content: [{ type: "text", text }], structuredContent: structured };
+  const text = typeof data === "string" ? data : JSON.stringify(data);
+  return { content: [{ type: "text", text }] };
 }
 
 function errResult(message: string): ToolResult {
@@ -329,30 +331,50 @@ server.registerTool(
   {
     title: "Lista oglasa",
     description:
-      "Lista oglasa po stanju. state: active|finished|inactive|expired|hidden. user je opciono (default ulogovani). all=true prelistava sve stranice za active.",
+      "Lista oglasa po stanju. state: active|finished|inactive|expired|hidden. user je opciono (default ulogovani, radi i za tudje). all=true prelistava sve stranice. Default vraca kompaktne stavke (id, title, price, sponsored, date, refresh_available, status, visible, has_discount); full=true vraca sirovi API oblik.",
     inputSchema: {
       state: z.enum(["active", "finished", "inactive", "expired", "hidden"]).default("active"),
       user: z.string().optional().describe("username ili id; default je ulogovani korisnik"),
       page: z.number().int().min(1).default(1),
-      all: z.boolean().default(false).describe("samo za active: prelistaj sve stranice"),
+      all: z.boolean().default(false).describe("prelistaj sve stranice datog stanja"),
+      full: z.boolean().default(false).describe("sirovi API oblik umjesto kompaktnog"),
     },
     annotations: readOnly,
   },
   (args) =>
     run(async (c) => {
       const user = args.user ?? (await c.resolveUsername());
-      if (args.state === "active") return args.all ? c.listAllActive(user) : c.listActive(user, args.page);
-      if (args.state === "finished") return c.listFinished(user, args.page);
-      if (args.state === "inactive") return c.listInactive(user, args.page);
-      if (args.state === "expired") return c.listExpired(user, args.page);
-      return c.listHidden(user, args.page);
+      if (args.all) {
+        const sve = await c.listAllByState(args.state, user);
+        return args.full ? sve : { data: kompaktList(sve), ukupno: sve.length };
+      }
+      const stranica =
+        args.state === "active"
+          ? await c.listActive(user, args.page)
+          : args.state === "finished"
+            ? await c.listFinished(user, args.page)
+            : args.state === "inactive"
+              ? await c.listInactive(user, args.page)
+              : args.state === "expired"
+                ? await c.listExpired(user, args.page)
+                : await c.listHidden(user, args.page);
+      return args.full ? stranica : { data: kompaktList(stranica.data), meta: stranica.meta };
     }),
 );
 
 server.registerTool(
   "olx_get_listing",
-  { title: "Detalji oglasa", description: "Dohvata pojedinacni oglas po ID-u.", inputSchema: { id: z.union([z.number(), z.string()]) }, annotations: readOnly },
-  (args) => run((c) => c.getListing(args.id)),
+  {
+    title: "Detalji oglasa",
+    description:
+      "Dohvata pojedinacni oglas po ID-u (radi i za tudje; nosi views i questions). Default je kompaktan oblik bez user i punog category bloka, slike kao broj + prva, atributi samo popunjeni; full=true vraca sirovi API oblik. Za izracunatu analizu koristi olx_listing_report.",
+    inputSchema: {
+      id: z.union([z.number(), z.string()]),
+      full: z.boolean().default(false).describe("sirovi API oblik umjesto kompaktnog"),
+    },
+    annotations: readOnly,
+  },
+  (args) => run(async (c) => (args.full ? c.getListing(args.id) : kompaktListing(await c.getListing(args.id)))),
 );
 
 server.registerTool(
@@ -390,17 +412,22 @@ server.registerTool(
       days: SPONSOR_DAYS_SCHEMA,
       refresh_every: REFRESH_EVERY_SCHEMA,
       homepage: z.boolean().default(false),
+      locations: z.array(z.string()).optional().describe("dodatne lokacije izdvajanja; dokumentovana je samo \"homepage\", ostale API moze odbiti sa 422"),
     },
     annotations: readOnly,
   },
   (args) =>
     run((c) =>
-      c.sponsorPrice(args.id, {
-        type: args.type as SponsorType,
-        days: args.days as SponsorDays,
-        refresh_every: args.refresh_every as RefreshEvery,
-        locations: args.homepage ? ["homepage"] : undefined,
-      }),
+      c.sponsorPrice(
+        args.id,
+        parseSponsorOptions({
+          type: args.type,
+          days: args.days,
+          refreshEvery: args.refresh_every,
+          homepage: args.homepage,
+          locations: args.locations,
+        }),
+      ),
     ),
 );
 
@@ -418,7 +445,13 @@ server.registerTool(
 
 server.registerTool(
   "olx_category",
-  { title: "Kategorija (detalji)", description: "Jedna kategorija: listing_fee, base_listing_price, brand_required, model_required, show_map, show_condition.", inputSchema: { id: z.union([z.number(), z.string()]) }, annotations: readOnly },
+  {
+    title: "Kategorija (detalji)",
+    description:
+      "Jedna kategorija: listing_fee (krediti koje objava oglasa kosta u ovoj kategoriji; 0 = besplatna objava), base_listing_price (osnovna cijena oglasa u kreditima), brand_required, model_required, show_map, show_condition. Za trosak objave PRIJE kreiranja oglasa procitaj ova dva polja; tumacenje brojeva ima olx://pravila-brojeva. Obje kolone nosi i olx://categories-index.",
+    inputSchema: { id: z.union([z.number(), z.string()]) },
+    annotations: readOnly,
+  },
   (args) => run((c) => c.category(args.id)),
 );
 
@@ -453,6 +486,17 @@ server.registerTool(
 );
 
 server.registerTool(
+  "olx_country_states",
+  {
+    title: "Entiteti drzave",
+    description: "Entiteti/regije drzave sa kantonima (isti oblik kao olx_cities). Za stabilan snapshot citaj resource olx://locations.",
+    inputSchema: {},
+    annotations: readOnly,
+  },
+  () => run((c) => c.countryStates()),
+);
+
+server.registerTool(
   "olx_city",
   { title: "Grad po ID", description: "Detalji grada (lat, lon, zip, canton_id, state_id). Daje city_id za create payload.", inputSchema: { id: z.union([z.number(), z.string()]) }, annotations: readOnly },
   (args) => run((c) => c.city(args.id)),
@@ -462,6 +506,119 @@ server.registerTool(
   "olx_canton_cities",
   { title: "Gradovi kantona", description: "Gradovi u datom kantonu.", inputSchema: { id: z.union([z.number(), z.string()]) }, annotations: readOnly },
   (args) => run((c) => c.cantonCities(args.id)),
+);
+
+// ===== STATS AGREGATI =====
+// Sloj biznis logike: vise API poziva ispod haube, AI dobija vec izracunat kompaktan rezultat.
+
+server.registerTool(
+  "olx_profile_stats",
+  {
+    title: "Statistika profila",
+    description:
+      "Kompletan pregled vlastitog naloga u jednom pozivu: paket i istek, krediti, kvota obnova, brojevi oglasa po stanjima, cijene, udio sponzorisanih, neobnovljeni oglasi, neodgovorena pitanja. views: 'none' (brzo, default), 'sample' (pregledi na uzorku od ~15 oglasa, traje 10-ak sekundi), 'snapshot' (cita zadnji dnevni snapshot sa diska, bez dodatnih poziva). Osnova za audit profila i onboarding klijenta.",
+    inputSchema: {
+      views: z.enum(["none", "sample", "snapshot"]).default("none"),
+      sample_size: z.number().int().min(3).max(30).optional().describe("velicina uzorka za views=sample, default 15"),
+    },
+    annotations: readOnly,
+  },
+  (args) =>
+    run(async (c) => {
+      if (args.views === "snapshot") {
+        const snapshoti = ucitajSnapshote();
+        const zadnji = snapshoti[snapshoti.length - 1];
+        if (!zadnji) {
+          return c.statsProfil().then((r) => ({ ...r, napomena: "Nema snapshota u .olx-pik/snapshots; pokreni CLI 'stats snapshot'. Vracena statistika bez pregleda." }));
+        }
+        const pregledi: OglasPregledi[] = zadnji.oglasi.map((o) => ({
+          id: o.id,
+          title: o.title,
+          views: o.views,
+          questions: o.questions,
+          created_at: o.created_at,
+        }));
+        const r = await c.statsProfil({ pregledi });
+        return { ...r, snapshot_ts: zadnji.ts };
+      }
+      return c.statsProfil({ viewsMode: args.views, sampleVelicina: args.sample_size });
+    }),
+);
+
+server.registerTool(
+  "olx_competitor_report",
+  {
+    title: "Izvjestaj o konkurentu",
+    description:
+      "Analiza tudjeg naloga iz javnih podataka u jednom pozivu: paket, aktivnost, ocjene, broj aktivnih i zavrsenih oglasa, cijene (min/median/max), udio sponzorisanih i akcija, kadenca obnove. top_views > 0 dodatno vraca izvjestaj (ukljucujuci preglede) za N najskorije obnovljenih oglasa. Konkurenta zadaj po username-u (nema pretrage po kategoriji).",
+    inputSchema: {
+      username: z.string().min(1),
+      top_views: z.number().int().min(0).max(10).default(0),
+    },
+    annotations: readOnly,
+  },
+  (args) => run((c) => c.statsKonkurent(args.username, args.top_views)),
+);
+
+server.registerTool(
+  "olx_listing_report",
+  {
+    title: "Izvjestaj o oglasu",
+    description:
+      "Izracunata analiza jednog oglasa (naseg ili tudjeg): pregledi ukupno i dnevno, pitanja, starost, dana od zadnje obnove, broj slika i popunjenih atributa, duzina naslova i podnaslov, cijena i akcija, sponzorstvo (na nasem oglasu i placeni detalji). Jedan API poziv.",
+    inputSchema: { id: z.union([z.number(), z.string()]) },
+    annotations: readOnly,
+  },
+  (args) => run((c) => c.statsOglas(args.id)),
+);
+
+server.registerTool(
+  "olx_account_alerts",
+  {
+    title: "Alarmi naloga",
+    description:
+      "Brza provjera naloga (3 API poziva): neodgovorena pitanja kupaca, paket pri isteku, saldo kredita ispod praga, kvota obnova koja propada pred kraj mjeseca, istekli oglasi za reaktivaciju. Vraca ok: true kad je sve cisto. Pragovi su podesivi.",
+    inputSchema: {
+      krediti_min: z.number().int().min(0).optional().describe("prag salda kredita, default 500"),
+      paket_dana: z.number().int().min(1).optional().describe("alarm kad paket istice za manje od N dana, default 14"),
+    },
+    annotations: readOnly,
+  },
+  (args) => run((c) => c.statsAlarmi({ kreditiMin: args.krediti_min, paketDana: args.paket_dana })),
+);
+
+server.registerTool(
+  "olx_sponsor_effect",
+  {
+    title: "Efekat izdvajanja",
+    description:
+      "Mjeri efekat izdvajanja oglasa iz dnevnih snapshota pregleda (.olx-pik/snapshots, pravi ih CLI 'stats snapshot'): pregledi dnevno prije, tokom i poslije perioda, plus faktor rasta. Period se cita iz aktivnog izdvajanja oglasa (sponsor_active), a moze se zadati i rucno preko od_ts/do_ts (unix sekunde).",
+    inputSchema: {
+      id: z.union([z.number(), z.string()]),
+      od_ts: z.number().int().optional(),
+      do_ts: z.number().int().optional(),
+    },
+    annotations: readOnly,
+  },
+  (args) =>
+    run(async (c) => {
+      let period: { od_ts: number; do_ts: number } | null =
+        args.od_ts && args.do_ts ? { od_ts: args.od_ts, do_ts: args.do_ts } : null;
+      if (!period) {
+        const listing = await c.getListing(args.id);
+        const aktivno = listing.sponsor_active as { sponsored_until?: number; sponsored_days?: number } | null;
+        if (aktivno?.sponsored_until && aktivno.sponsored_days) {
+          period = { od_ts: aktivno.sponsored_until - aktivno.sponsored_days * 86_400, do_ts: aktivno.sponsored_until };
+        }
+      }
+      if (!period) {
+        return {
+          greska: "Oglas nema aktivno izdvajanje, a period nije zadan. Zadaj od_ts i do_ts (unix sekunde) proslog izdvajanja.",
+        };
+      }
+      const snapshoti = ucitajSnapshote();
+      return { period, snapshota: snapshoti.length, ...efekatIzdvajanja(snapshoti, Number(args.id), period) };
+    }),
 );
 
 // ===== UPIS =====
@@ -659,17 +816,19 @@ server.registerTool(
       days: SPONSOR_DAYS_SCHEMA,
       refresh_every: REFRESH_EVERY_SCHEMA,
       homepage: z.boolean().default(false),
+      locations: z.array(z.string()).optional().describe("dodatne lokacije izdvajanja; dokumentovana je samo \"homepage\", ostale API moze odbiti sa 422"),
       confirm: z.boolean().default(false),
     },
     annotations: writeOp,
   },
   (args) => {
-    const options: SponsorOptions = {
-      type: args.type as SponsorType,
-      days: args.days as SponsorDays,
-      refresh_every: args.refresh_every as RefreshEvery,
-      locations: args.homepage ? ["homepage"] : undefined,
-    };
+    const options = parseSponsorOptions({
+      type: args.type,
+      days: args.days,
+      refreshEvery: args.refresh_every,
+      homepage: args.homepage,
+      locations: args.locations,
+    });
     return run((c) => c.sponsorListing(args.id, options, args.confirm));
   },
 );

@@ -38,6 +38,9 @@ Skillovi i odgovori ne kopiraju brojeve, nego pokazuju na:
 - `olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md` — pravila platforme, paketi, kvote, izdvajanje,
   kako radi pretraga. Izlozen i kao MCP resource `olx://knowledgebase`.
 - `olx-dokumentacija/API-INVENTAR.md` — svi MCP alati, parametri, rupe u API-ju i preporuke.
+- `olx-dokumentacija/analiza-api-dokumentacije.md` — kompletan popis endpointa sa zvanicnog
+  api-documentation.olx.ba, razilazenja dokumentacije i zivog ponasanja, prijedlozi
+  produktizacije, recept za osvjezavanje.
 - `olx-dokumentacija/PIK-pomoc-korpus/` — 52 zvanicna clanka podrske (pomoc.olx.ba); pregled u
   `index.csv`, pojedinacni clanci u `clanci/`, osvjezavanje po receptu u
   `NALAZI-i-osvjezavanje.md`.
@@ -57,6 +60,13 @@ Skillovi i odgovori ne kopiraju brojeve, nego pokazuju na:
 
 ## Redoslijed citanja podataka
 
+- Za statistiku, analizu i alarme PRVO agregirani alati (`olx_profile_stats`,
+  `olx_competitor_report`, `olx_listing_report`, `olx_account_alerts`, `olx_sponsor_effect`):
+  racunaju u kodu i vracaju kompaktan rezultat umjesto sirovih payloada. Dnevni snapshot
+  pregleda pravi CLI `stats snapshot` (`.olx-pik/snapshots/`), bez njega se efekat izdvajanja
+  ne moze mjeriti.
+- `olx_list_listings` i `olx_get_listing` po defaultu vracaju kompaktan oblik; `full: true`
+  samo kad treba polje koje kompakt nema.
 - Kategoriju trazi u `olx://categories-index` (CSV); puni JSON tek kad CSV nije dovoljan.
 - Forme i obavezna polja kategorije: `olx_category_attributes <id>`.
 - Lokacije: `olx://locations-index` (BiH je country_id 49).

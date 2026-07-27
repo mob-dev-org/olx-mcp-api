@@ -11,6 +11,8 @@ import type { PlanKandidat, SponsorPlan } from "../core/plan.js";
 import { matchCatalog, summarizeMatches } from "../core/match.js";
 import type { PikItem, KatalogItem, OverrideEntry } from "../core/match.js";
 import { loadKatalog } from "../core/katalog.js";
+import { efekatIzdvajanja } from "../core/stats.js";
+import { SNAPSHOT_DIR, ucitajSnapshote, upisiSnapshot, zadnjiSnapshot } from "../core/snapshoti.js";
 import type { CreateListingInput, SponsorOptions, SponsorType, SponsorDays, RefreshEvery, CategoryNode, Country, City } from "../core/types.js";
 
 // Ucitaj .env ako postoji (Node 20.12+/22). Bez vanjske zavisnosti.
@@ -722,12 +724,13 @@ location
 const sponsor = program.command("sponsor").description("Izdvajanje (trosi kredite)");
 
 // Dozvoljene vrijednosti su u jezgru (src/core/sponsor-options.ts), da lista ne zivi u tri kopije.
-function sponsorOptions(opts: { type: string; days: string; refreshEvery?: string; homepage?: boolean }): SponsorOptions {
+function sponsorOptions(opts: { type: string; days: string; refreshEvery?: string; homepage?: boolean; locations?: string[] }): SponsorOptions {
   return parseSponsorOptions({
     type: Number(opts.type),
     days: Number(opts.days),
     refreshEvery: opts.refreshEvery === undefined ? 0 : Number(opts.refreshEvery),
     homepage: Boolean(opts.homepage),
+    locations: opts.locations,
   });
 }
 
@@ -738,7 +741,8 @@ sponsor
   .requiredOption("--days <n>", `dana izdvajanja: ${SPONSOR_DAYS.join(",")}`)
   .option("--refresh-every <h>", `autoobnova u satima: ${REFRESH_EVERY.join(",")}`)
   .option("--homepage", "ukljuci naslovnicu", false)
-  .action(async (id: string, opts: { type: string; days: string; refreshEvery?: string; homepage?: boolean }) => {
+  .option("--locations <loc...>", 'dodatne lokacije izdvajanja (dokumentovana je samo "homepage")')
+  .action(async (id: string, opts: { type: string; days: string; refreshEvery?: string; homepage?: boolean; locations?: string[] }) => {
     try {
       out(await (await withAuth()).sponsorPrice(id, sponsorOptions(opts)));
     } catch (e) {
@@ -753,8 +757,9 @@ sponsor
   .requiredOption("--days <n>", `dana izdvajanja: ${SPONSOR_DAYS.join(",")}`)
   .option("--refresh-every <h>", `autoobnova u satima: ${REFRESH_EVERY.join(",")}`)
   .option("--homepage", "ukljuci naslovnicu", false)
+  .option("--locations <loc...>", 'dodatne lokacije izdvajanja (dokumentovana je samo "homepage")')
   .option("--yes", "potvrda troska", false)
-  .action(async (id: string, opts: { type: string; days: string; refreshEvery?: string; homepage?: boolean; yes?: boolean }) => {
+  .action(async (id: string, opts: { type: string; days: string; refreshEvery?: string; homepage?: boolean; locations?: string[]; yes?: boolean }) => {
     try {
       out(await (await withAuth()).sponsorListing(id, sponsorOptions(opts), Boolean(opts.yes)));
     } catch (e) {
@@ -1051,6 +1056,150 @@ discount
   .action(async (id: string) => {
     try {
       out(await (await withAuth()).finishDiscount(id));
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+// ---- Statistika i snapshoti ----
+// Agregacija je u src/core/stats.ts (ciste funkcije) i orkestratorima na klijentu; ovdje su
+// samo komande. Snapshot je jedina teska komanda (getListing po svakom oglasu), zato zivi u
+// CLI-u za cron, a MCP alati snapshote samo citaju.
+
+const stats = program.command("stats").description("Statistika, analize i snapshoti (ne trosi kredite)");
+
+stats
+  .command("profil")
+  .description("Kompaktna statistika vlastitog profila")
+  .option("--views <mode>", "none|sample|snapshot", "none")
+  .option("--sample-size <n>", "velicina uzorka za sample", "15")
+  .action(async (opts: { views: string; sampleSize: string }) => {
+    try {
+      const c = await withAuth();
+      if (opts.views === "snapshot") {
+        const zadnji = zadnjiSnapshot();
+        if (!zadnji) throw new Error("Nema snapshota u .olx-pik/snapshots; prvo pokreni 'stats snapshot'.");
+        const pregledi = zadnji.oglasi.map((o) => ({
+          id: o.id,
+          title: o.title,
+          views: o.views,
+          questions: o.questions,
+          created_at: o.created_at,
+        }));
+        out({ snapshot_ts: zadnji.ts, ...(await c.statsProfil({ pregledi })) });
+        return;
+      }
+      const viewsMode = opts.views === "sample" ? "sample" : "none";
+      out(await c.statsProfil({ viewsMode, sampleVelicina: Number(opts.sampleSize) || 15 }));
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+stats
+  .command("konkurent <username>")
+  .description("Izvjestaj o tudjem nalogu iz javnih podataka")
+  .option("--top-views <n>", "broj top oglasa za detaljni pregled", "0")
+  .action(async (username: string, opts: { topViews: string }) => {
+    try {
+      out(await (await withAuth()).statsKonkurent(username, Number(opts.topViews) || 0));
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+stats
+  .command("oglas <id>")
+  .description("Izracunata analiza jednog oglasa (naseg ili tudjeg)")
+  .action(async (id: string) => {
+    try {
+      out(await (await withAuth()).statsOglas(id));
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+stats
+  .command("alarmi")
+  .description("Brza provjera naloga: pitanja, paket, krediti, kvota, istekli")
+  .option("--krediti-min <n>", "prag salda kredita", "500")
+  .option("--paket-dana <n>", "alarm kad paket istice za manje od N dana", "14")
+  .action(async (opts: { kreditiMin: string; paketDana: string }) => {
+    try {
+      out(await (await withAuth()).statsAlarmi({ kreditiMin: Number(opts.kreditiMin), paketDana: Number(opts.paketDana) }));
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+stats
+  .command("snapshot")
+  .description("Dnevni snimak pregleda SVIH aktivnih oglasa u .olx-pik/snapshots (sporo: jedan zahtjev po oglasu; za cron)")
+  .action(async () => {
+    try {
+      const start = Date.now();
+      const c = await withAuth();
+      const username = await c.resolveUsername();
+      mkdirSync(SNAPSHOT_DIR, { recursive: true });
+      const otpusti = zauzmiKljuc(`${SNAPSHOT_DIR}/snapshot`);
+      try {
+        const aktivni = await c.listAllByState("active", username);
+        const oglasi = [];
+        let obradjeno = 0;
+        for (const o of aktivni) {
+          const full = await c.getListing(o.id);
+          oglasi.push({
+            id: full.id,
+            title: full.title,
+            views: typeof full.views === "number" ? full.views : 0,
+            questions: typeof full.questions === "number" ? full.questions : undefined,
+            sponsored: typeof full.sponsored === "number" ? full.sponsored : undefined,
+            date: typeof full.date === "number" ? full.date : undefined,
+            created_at: typeof full.created_at === "number" ? full.created_at : undefined,
+            status: full.status,
+            price: typeof full.price === "number" ? full.price : undefined,
+          });
+          obradjeno += 1;
+          if (obradjeno % 20 === 0) console.error(`Snapshot: ${obradjeno}/${aktivni.length} oglasa...`);
+        }
+        const snapshot = {
+          verzija: 1,
+          ts: Math.floor(Date.now() / 1000),
+          account: username,
+          broj_poziva: aktivni.length + Math.max(1, Math.ceil(aktivni.length / 20)) + 1,
+          trajanje_ms: Date.now() - start,
+          oglasi,
+        };
+        const putanja = upisiSnapshot(snapshot);
+        out({ fajl: putanja, oglasa: oglasi.length, trajanje_ms: snapshot.trajanje_ms });
+      } finally {
+        otpusti();
+      }
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+stats
+  .command("efekat <id>")
+  .description("Efekat izdvajanja iz dnevnih snapshota: pregledi dnevno prije/tokom/poslije")
+  .option("--od <ts>", "pocetak perioda (unix sekunde); default iz aktivnog izdvajanja")
+  .option("--do <ts>", "kraj perioda (unix sekunde)")
+  .action(async (id: string, opts: { od?: string; do?: string }) => {
+    try {
+      const c = await withAuth();
+      let period: { od_ts: number; do_ts: number } | null =
+        opts.od && opts.do ? { od_ts: Number(opts.od), do_ts: Number(opts.do) } : null;
+      if (!period) {
+        const listing = await c.getListing(id);
+        const aktivno = listing.sponsor_active as { sponsored_until?: number; sponsored_days?: number } | null;
+        if (aktivno?.sponsored_until && aktivno.sponsored_days) {
+          period = { od_ts: aktivno.sponsored_until - aktivno.sponsored_days * 86_400, do_ts: aktivno.sponsored_until };
+        }
+      }
+      if (!period) throw new Error("Oglas nema aktivno izdvajanje; zadaj --od i --do (unix sekunde).");
+      const snapshoti = ucitajSnapshote();
+      out({ period, snapshota: snapshoti.length, ...efekatIzdvajanja(snapshoti, Number(id), period) });
     } catch (e) {
       fail(e);
     }
