@@ -60,8 +60,8 @@ export function onboardingMarkdown(i: OnboardingIzvjestaj): string {
       (n.limit_oglasa !== null ? ` od ${n.limit_oglasa} koliko paket dozvoljava (${n.popunjenost_procenat}%)` : ""),
   );
   r.push(`- Krediti na nalogu: ${broj(n.krediti)}`);
-  if ((n.neodgovorena_pitanja ?? 0) > 0) {
-    r.push(`- Neodgovorenih upita: ${n.neodgovorena_pitanja}`);
+  if ((n.nova_pitanja ?? 0) > 0) {
+    r.push(`- Novih pitanja kupaca: ${n.nova_pitanja}`);
   }
   r.push("");
 
@@ -189,7 +189,7 @@ export interface DnevniPodaci {
   obnovljeno: number | null;
   neuspjelih_obnova: number;
   alarmi: AlarmiNaloga;
-  neodgovorena_pitanja: number | null;
+  nova_pitanja: number | null;
   promjena: PromjenaPregleda | null;
 }
 
@@ -233,8 +233,8 @@ export function dnevniTekst(d: DnevniPodaci): string {
     }
   }
 
-  if ((d.neodgovorena_pitanja ?? 0) > 0) {
-    r.push("", `Ceka te ${d.neodgovorena_pitanja} neodgovorenih upita na OLX-u.`);
+  if ((d.nova_pitanja ?? 0) > 0) {
+    r.push("", `Na nalogu stoji ${d.nova_pitanja} novih pitanja kupaca.`);
   }
 
   const vazni = d.alarmi.alarmi.filter((a) => a.tip !== "kvota_obnova");

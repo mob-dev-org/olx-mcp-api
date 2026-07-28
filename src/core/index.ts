@@ -740,9 +740,10 @@ export class OlxClient {
     });
   }
 
-  // Akcijska cijena nema endpoint za cijenu, pa se trosak ne moze unaprijed saznati. Zato se u
-  // log ne upisuje iznos i ne racuna se u dnevni plafon; plafon se svejedno provjerava sa 0 da
-  // radnja stane kad je plafon vec probijen izdvajanjima.
+  // Akcijska cijena nema endpoint za cijenu, pa se tacan trosak ne moze unaprijed saznati.
+  // U plafon i audit ulazi kao NAJMANJE 1 kredit: donja granica, ne procjena cijene. Bez toga
+  // bi neogranicen broj akcijskih cijena prolazio kroz vec potrosen plafon (svaka kosta, a
+  // brojac bi ostao na nuli).
   async setDiscount(id: number | string, input: DiscountInput, confirm: boolean): Promise<unknown> {
     if (!confirm) {
       this.zapisiOdbijeno("POST", `/listings/${id}/discount`, `akcijska cijena ${input.price} na ${input.days} dana`);
@@ -750,18 +751,18 @@ export class OlxClient {
         `Akcijska cijena je premium opcija i troši kredite. Potvrdi (confirm) za izvršenje.`,
       );
     }
-    this.provjeriDnevniPlafon(0, "POST", `/listings/${id}/discount`);
+    this.provjeriDnevniPlafon(1, "POST", `/listings/${id}/discount`);
     // Bez retry-a na 5xx: isti razlog kao kod izdvajanja (dupla naplata).
-    return this.request(`/listings/${id}/discount`, { method: "POST", body: input, retryOnServerError: false });
+    return this.request(`/listings/${id}/discount`, { method: "POST", body: input, retryOnServerError: false, krediti: 1 });
   }
 
   /**
    * Tvrdi dnevni plafon potrosnje. Zadnja brana kad je model ubijedjen da je dobio potvrdu.
    *
    * Cita se iz audit loga, ne iz memorije procesa, jer klijentska sesija i cron poslovi rade u
-   * odvojenim procesima nad istim nalogom. Kad log nije citljiv, plafon se NE primjenjuje i o
-   * tome ide upozorenje na stderr: tise bi bilo blokirati sve, ali bi to oborilo i legitimne
-   * radnje zbog problema sa fajlom.
+   * odvojenim procesima nad istim nalogom. Kad log postoji a NE MOZE se procitati, radnja se
+   * ODBIJA (fails closed): plafon koji se tiho iskljuci na pokvaren fajl nije plafon nego
+   * ukras. Legitimna radnja koja zbog toga stane je manja steta od neogranicenog trosenja.
    */
   private provjeriDnevniPlafon(trosak: number, method: Method, path: string): void {
     const plafon = this.config.maxSpendPerDay;
@@ -771,10 +772,10 @@ export class OlxClient {
     try {
       vecPotroseno = potrosenoNaDan(readFileSync(this.config.auditFile, "utf8"), danas);
     } catch (e) {
-      const razlog = (e as NodeJS.ErrnoException)?.code === "ENOENT" ? null : e;
-      if (razlog) {
-        console.error(`Dnevni plafon se ne moze provjeriti (audit log nije citljiv): ${String(razlog)}`);
-        return;
+      if ((e as NodeJS.ErrnoException)?.code !== "ENOENT") {
+        const razlog = `dnevni plafon je ukljucen a audit log nije citljiv (${String(e)})`;
+        this.zapisiOdbijeno(method, path, razlog);
+        throw new OlxSpendError(`Radnja je zaustavljena: ${razlog}. Javi administratoru.`);
       }
       vecPotroseno = 0; // log jos ne postoji, dakle danas nista nije potroseno
     }

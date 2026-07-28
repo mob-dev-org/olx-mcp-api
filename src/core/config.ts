@@ -57,13 +57,24 @@ function profil(value: string | undefined): McpProfil {
   return value?.trim().toLowerCase() === "klijent" ? "klijent" : "admin";
 }
 
+// Svaki proces se OLX-u predstavlja svojim imenom uredjaja. Kad bi MCP sesija i nocni cron
+// dijelili device_name, login jednog bi na strani OLX-a mogao ponistiti token drugog, pa bi
+// ziva sesija osvanula sa 401 usred noci. Sufiks se izvodi iz pokrenute skripte.
+function deviceIme(env: NodeJS.ProcessEnv): string {
+  const osnova = env.OLX_DEVICE_NAME || "olx_pik_toolkit";
+  if (env.OLX_DEVICE_NAME) return osnova; // izricito zadan naziv se ne dira
+  const skripta = process.argv[1] ?? "";
+  const vrsta = skripta.includes("mcp") ? "mcp" : skripta.includes("cli") ? "cli" : "proc";
+  return `${osnova}_${vrsta}`;
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): OlxConfig {
   return {
     baseUrl: (env.OLX_BASE_URL ?? "https://api.olx.ba").replace(/\/+$/, ""),
     token: env.OLX_TOKEN || undefined,
     username: env.OLX_USERNAME || undefined,
     password: env.OLX_PASSWORD || undefined,
-    deviceName: env.OLX_DEVICE_NAME || "olx_pik_toolkit",
+    deviceName: deviceIme(env),
     clientId: env.OLX_CLIENT_ID || undefined,
     clientToken: env.OLX_CLIENT_TOKEN || undefined,
     minRequestIntervalMs: num(env.OLX_MIN_REQUEST_INTERVAL_MS, 350),

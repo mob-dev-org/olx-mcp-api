@@ -15,6 +15,7 @@ import {
   mrtviOglasi,
   oglasIzvjestaj,
   onboardingIzvjestaj,
+  ostvarivihObnova,
   profilStatistika,
   promjenaPregleda,
   provjeriNacrt,
@@ -221,8 +222,8 @@ test("alarmiNaloga pali alarme na pragovima i ok kad je sve cisto", () => {
 });
 
 test("alarmiNaloga: kvota propada samo pred kraj mjeseca uz slabo koristenje", () => {
-  // 2026-07-27 je 4 dana do kraja jula.
-  const slabo = limits({ free_count: 100 });
+  // 2026-07-27 je 4 dana do kraja jula. Katalog dovoljno velik da je kvota uopste ostvariva.
+  const slabo = limits({ free_count: 100, listing_count: 2000 });
   const r = alarmiNaloga(me(), slabo, 0, SADA);
   assert.equal(r.alarmi.some((a) => a.tip === "kvota_obnova"), true, "27. u mjesecu i 5.6% iskoristeno");
 
@@ -230,6 +231,24 @@ test("alarmiNaloga: kvota propada samo pred kraj mjeseca uz slabo koristenje", (
   const sredina = SADA - 15 * DAN;
   const r2 = alarmiNaloga(me({ shop: { package: "Gold", ends_at: sredina + 90 * DAN } }), slabo, 0, sredina);
   assert.equal(r2.alarmi.some((a) => a.tip === "kvota_obnova"), false);
+});
+
+test("alarmiNaloga: nedostizna kvota ne alarmira (mali katalog, velika kvota)", () => {
+  // 10 oglasa fizicki ne moze potrositi kvotu 1800; alarm po sirovoj kvoti bi gorio svaki
+  // mjesec kao sum. Sa 100 vec potrosenih je iskoristeno iznad ostvarivog, dakle sve uredu.
+  const mali = limits({ free_count: 100, listing_count: 10 });
+  const r = alarmiNaloga(me(), mali, 0, SADA);
+  assert.equal(r.alarmi.some((a) => a.tip === "kvota_obnova"), false);
+});
+
+test("ostvarivihObnova: cooldown po oglasu ogranicava mjesecni maksimum", () => {
+  // Shop: obnova istog oglasa svakih 7 dana -> 168 oglasa x 4 = 672 u mjesecu od 30 dana.
+  assert.equal(ostvarivihObnova(168, 30, true), 672);
+  // U 3 dana svaki oglas najvise jednom.
+  assert.equal(ostvarivihObnova(168, 3, true), 168);
+  // Bez shopa obnova ide svakih 30 dana: jedna po oglasu.
+  assert.equal(ostvarivihObnova(50, 30, false), 50);
+  assert.equal(ostvarivihObnova(0, 30, true), 0);
 });
 
 test("efekatIzdvajanja racuna preglede dnevno prije i tokom i faktor", () => {

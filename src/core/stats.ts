@@ -103,7 +103,7 @@ export interface ProfilStatistika {
     paket: string | null;
     paket_istice_za_dana: number | null;
     krediti: number | null;
-    neodgovorena_pitanja: number | null;
+    nova_pitanja: number | null;
     ocjene: { pozitivne: number; negativne: number } | null;
   };
   kvota_obnova: { free_limit: number; free_count: number; preostalo: number; iskoristeno_procenat: number };
@@ -154,7 +154,7 @@ export function profilStatistika(input: ProfilStatistikaInput): ProfilStatistika
       paket: shop?.package ?? null,
       paket_istice_za_dana: shop?.ends_at ? zaokruzi((shop.ends_at - sadaTs) / SEKUNDI_U_DANU, 0) : null,
       krediti: broj(me.credits),
-      neodgovorena_pitanja: broj(me.new_questions_count),
+      nova_pitanja: broj(me.new_questions_count),
       ocjene:
         me.feedbacks && typeof me.feedbacks === "object"
           ? {
@@ -234,7 +234,7 @@ export interface OnboardingIzvjestaj {
     paket: string | null;
     paket_istice_za_dana: number | null;
     krediti: number | null;
-    neodgovorena_pitanja: number | null;
+    nova_pitanja: number | null;
     aktivnih_oglasa: number;
     limit_oglasa: number | null;
     popunjenost_procenat: number | null;
@@ -272,12 +272,27 @@ function nalaz(kljuc: string, poruka: string, lista: { id: number; title?: strin
   return { kljuc, poruka, broj: lista.length, primjeri: primjeri(lista) };
 }
 
-// Broj dana do kraja mjeseca u kojem je `sadaTs`, ukljucujuci danasnji. Radi u UTC, isto kao
-// ostatak modula, jer se kvota obnova ionako mjeri po kalendarskom mjesecu a ne po satu.
+// Broj dana do kraja KALENDARSKOG mjeseca u kojem je `sadaTs`, ukljucujuci danasnji. Radi u
+// UTC, isto kao ostatak modula. PAZNJA: da se kvota obnova resetuje bas krajem kalendarskog
+// mjeseca je pretpostavka, ne izmjerena cinjenica (API ne vraca datum reseta); status provjere
+// stoji u olx-dokumentacija/pravila-brojeva.md. Zato poruke koje iz ovoga nastaju uvijek kazu
+// "kalendarskog mjeseca", da se ne pomijesa sa istekom paketa koji tece svojim ciklusom.
 function danaDoKrajaMjeseca(sadaTs: number): number {
   const d = new Date(sadaTs * 1000);
   const uMjesecu = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
   return Math.max(1, uMjesecu - d.getUTCDate() + 1);
+}
+
+/**
+ * Koliko obnova katalog FIZICKI moze potrositi u `dana` dana: rucna obnova istog oglasa ide
+ * tek svakih 7 dana na shopu, odnosno 30 dana bez shopa (prag iz olx://pravila-brojeva).
+ * Kvota veca od ovoga se ne moze iskoristiti ni teoretski, pa se savjeti i alarmi porede sa
+ * ostvarivim brojem, ne sa sirovom kvotom; inace "kvota propada" gori vjecno na svakom nalogu
+ * ciji je katalog manji od kvote.
+ */
+export function ostvarivihObnova(brojAktivnih: number, dana: number, imaShop: boolean): number {
+  const cooldownDana = imaShop ? 7 : 30;
+  return Math.max(0, brojAktivnih) * Math.max(1, Math.floor(dana / cooldownDana));
 }
 
 export function onboardingIzvjestaj(input: OnboardingInput): OnboardingIzvjestaj {
@@ -377,11 +392,21 @@ export function onboardingIzvjestaj(input: OnboardingInput): OnboardingIzvjestaj
   // Poredani po odnosu ucinka i troska: prvo ono sto ne kosta nista, pa rad, pa kredit.
   const potezi: OnboardingIzvjestaj["prvi_potezi"] = [];
   if (preostalo > 0) {
-    potezi.push({
-      redoslijed: potezi.length + 1,
-      potez: `Potrositi preostalih ${preostalo} besplatnih obnova do kraja mjeseca, oko ${Math.ceil(preostalo / danaDoKraja)} dnevno`,
-      kosta: "besplatno",
-    });
+    // Savjet je ogranicen ostvarivim: sa N aktivnih i obnovom svakih 7 dana po oglasu, "500
+    // dnevno" je fizicki nemoguce i takav savjet samo rusi povjerenje.
+    const ostvarivo = ostvarivihObnova(aktivni.length, danaDoKraja, shop !== null);
+    const zaPotrositi = Math.min(preostalo, ostvarivo);
+    const dnevno = Math.min(Math.ceil(zaPotrositi / danaDoKraja), aktivni.length);
+    if (zaPotrositi > 0 && dnevno > 0) {
+      potezi.push({
+        redoslijed: potezi.length + 1,
+        potez:
+          preostalo > ostvarivo
+            ? `Obnavljati redovno, oko ${dnevno} oglasa dnevno: do kraja kalendarskog mjeseca katalog moze iskoristiti jos oko ${zaPotrositi} obnova. Kvota (${preostalo} preostalo) je veca nego sto katalog fizicki moze potrositi i to je normalno.`
+            : `Potrositi preostalih ${preostalo} besplatnih obnova do kraja kalendarskog mjeseca, oko ${dnevno} dnevno`,
+        kosta: "besplatno",
+      });
+    }
   }
   const najveci = higijena[0];
   if (najveci) {
@@ -420,7 +445,7 @@ export function onboardingIzvjestaj(input: OnboardingInput): OnboardingIzvjestaj
       paket: shop?.package ?? null,
       paket_istice_za_dana: shop?.ends_at ? zaokruzi((shop.ends_at - sadaTs) / SEKUNDI_U_DANU, 0) : null,
       krediti: broj(me.credits),
-      neodgovorena_pitanja: broj(me.new_questions_count),
+      nova_pitanja: broj(me.new_questions_count),
       aktivnih_oglasa: aktivni.length,
       limit_oglasa: limitOglasa,
       popunjenost_procenat: limitOglasa && limitOglasa > 0 ? zaokruzi((aktivni.length / limitOglasa) * 100) : null,
@@ -1010,9 +1035,12 @@ export function alarmiNaloga(
 
   const alarmi: Alarm[] = [];
 
+  // "Nova" a ne "neodgovorena": polje sa API-ja je new_questions_count i nije potvrdjeno da
+  // znaci neodgovorena (moze biti samo neprocitana). Dok se semantika ne izmjeri, poruka
+  // tvrdi samo ono sto sigurno zna.
   const pitanja = broj(me.new_questions_count) ?? 0;
   if (pitanja > 0) {
-    alarmi.push({ tip: "pitanja", poruka: `${pitanja} neodgovorenih pitanja kupaca ceka odgovor.`, vrijednost: pitanja });
+    alarmi.push({ tip: "pitanja", poruka: `${pitanja} novih pitanja kupaca na nalogu.`, vrijednost: pitanja });
   }
 
   const shop = (me.shop ?? null) as { ends_at?: number } | null;
@@ -1030,14 +1058,25 @@ export function alarmiNaloga(
 
   const freeLimit = refreshLimits.free_limit ?? 0;
   if (freeLimit > 0) {
-    const iskoristeno = zaokruzi(((refreshLimits.free_count ?? 0) / freeLimit) * 100);
     const datum = new Date(sadaTs * 1000);
     const zadnjiDan = new Date(Date.UTC(datum.getUTCFullYear(), datum.getUTCMonth() + 1, 0)).getUTCDate();
     const doKraja = zadnjiDan - datum.getUTCDate();
+    // Poredjenje ide sa OSTVARIVIM, ne sa sirovom kvotom: listing_count iz refresh/limits je
+    // broj oglasa naloga, pa katalog od 168 oglasa nikad ne moze potrositi kvotu 1800 i alarm
+    // po sirovoj kvoti bi gorio svaki mjesec kao sum.
+    const aktivnih = refreshLimits.listing_count ?? 0;
+    const imaShop = Boolean(me.shop);
+    const dostizno =
+      aktivnih > 0 ? Math.min(freeLimit, ostvarivihObnova(aktivnih, zadnjiDan, imaShop)) : freeLimit;
+    const iskoristeno = dostizno > 0 ? zaokruzi(((refreshLimits.free_count ?? 0) / dostizno) * 100) : 100;
     if (doKraja <= krajMjesecaDana && iskoristeno < kvotaMinProcenat) {
+      const stize = Math.min(
+        Math.max(0, freeLimit - (refreshLimits.free_count ?? 0)),
+        aktivnih > 0 ? ostvarivihObnova(aktivnih, Math.max(1, doKraja), imaShop) : Number.MAX_SAFE_INTEGER,
+      );
       alarmi.push({
         tip: "kvota_obnova",
-        poruka: `Do kraja mjeseca ${doKraja} dana, a iskoristeno samo ${iskoristeno}% besplatnih obnova; kvota propada.`,
+        poruka: `Do kraja kalendarskog mjeseca ${doKraja} dana, a iskoristeno ${iskoristeno}% ostvarivih besplatnih obnova; jos oko ${stize} se stize iskoristiti.`,
         vrijednost: iskoristeno,
       });
     }

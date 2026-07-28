@@ -1245,7 +1245,10 @@ stats
         otpusti();
       }
     } catch (e) {
-      fail(e);
+      // Snapshot radi nocu iz crona bez ikoga za ekranom. Pad (istekao token, zaglavljen
+      // lock) bez javljanja adminu znaci da vremenska serija tiho stane; zato posaoFail,
+      // ne fail.
+      await posaoFail("snapshot", e);
     }
   });
 
@@ -1390,12 +1393,17 @@ posao
         obnovljeno,
         neuspjelih_obnova: neuspjelih,
         alarmi: alarmiNaloga(me, limits, istekli.meta.total, sadaTs),
-        neodgovorena_pitanja: typeof me.new_questions_count === "number" ? me.new_questions_count : null,
+        nova_pitanja: typeof me.new_questions_count === "number" ? me.new_questions_count : null,
         // Dnevni prirast pregleda: dva zadnja snimka, pa raspon od 2 dana umjesto 7.
         promjena: promjenaPregleda(ucitajSnapshote(), sadaTs, 2),
       });
 
       const poslano = opts.suho || opts.bezSlanja ? 0 : await posaljiPoruku(tekst);
+      // 0 poslanih van suhog rezima znaci da token ili chat NISU postavljeni: klijent bi bez
+      // ove provjere mjesecima cutke ostajao bez jutarnje poruke, a log bi tvrdio uspjeh.
+      if (!opts.suho && !opts.bezSlanja && poslano === 0) {
+        throw new Error("Telegram poruka NIJE poslana: TELEGRAM_BOT_TOKEN ili TELEGRAM_CHAT_ID nedostaje u .env");
+      }
       out({ plan, obnovljeno, neuspjelih, poslano_poruka: poslano, tekst });
     } catch (e) {
       await posaoFail("dnevni", e);
@@ -1426,6 +1434,9 @@ posao
       });
 
       const poslano = opts.suho ? 0 : await posaljiPoruku(tekst);
+      if (!opts.suho && poslano === 0) {
+        throw new Error("Telegram poruka NIJE poslana: TELEGRAM_BOT_TOKEN ili TELEGRAM_CHAT_ID nedostaje u .env");
+      }
       out({ poslano_poruka: poslano, tekst });
     } catch (e) {
       await posaoFail("sedmicni", e);

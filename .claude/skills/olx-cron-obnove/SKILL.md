@@ -42,7 +42,7 @@ Jedan red brojeva, pa samo alarmi koji su STVARNO aktivni. Prazne rubrike se ne 
 
 | obnovljeno danas | neuspjelo | preostala kvota | dana do kraja mjeseca |
 
-Upozorenja: pozovi `olx_account_alerts` (jedan poziv pokriva neodgovorena pitanja, paket pri
+Upozorenja: pozovi `olx_account_alerts` (jedan poziv pokriva nova pitanja, paket pri
 isteku, saldo kredita, kvotu koja propada i istekle oglase) i prenesi samo one alarme koje je
 vratio. Dodatno rucno provjeri i prijavi samo ako se desilo, nikad ne izvrsavaj:
 

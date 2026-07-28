@@ -15,7 +15,9 @@ Redom, bez preskakanja. Svaki korak ima provjeru koja mora proci prije sljedeceg
   je jedan klijent.
 - U `.env` tog klona postavi `OLX_TOKEN=<token>`.
 - Kopiraj `KLIJENT.primjer.md` u `KLIJENT.md` i popuni ga: firma, username, kategorije, ton,
-  granice, kontakt.
+  granice, kontakt. `KLIJENT.md` ide u KORIJEN klona, ne u `klijenti/` — pogon (AI runda,
+  skillovi) ga cita samo iz korijena. Folder `klijenti/<ime>/` je za radne dokumente
+  (baseline, zapisi poteza), ne za identitet klijenta.
 - `.env` je u `.gitignore`. Token ne ide nigdje drugo: ne u chat, ne u dokument, ne u commit.
 - Provjera: `olx_whoami` vraca klijentov nalog.
 
@@ -34,7 +36,7 @@ Snimi stanje na dan preuzimanja, da se kasnije moze dokazati sta se popravilo.
 
 - `olx_profile_stats views=sample` — JEDAN poziv vraca gotov audit: paket i istek, krediti,
   kvota obnova, brojevi po svim stanjima, cijene, udio sponzorisanih, neobnovljeni oglasi,
-  neodgovorena pitanja, pregledi na uzorku oglasa.
+  nova pitanja, pregledi na uzorku oglasa.
 - `olx_account_alerts` — sta je odmah opasno (pitanja bez odgovora, paket pri isteku, krediti,
   kvota koja propada, istekli oglasi).
 - Po potrebi jos: `olx_listing_limits` (limiti broja oglasa po grupama) i CLI `stats snapshot`

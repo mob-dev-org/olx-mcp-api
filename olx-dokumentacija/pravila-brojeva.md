@@ -32,6 +32,15 @@ jer korisnik dobije broj u koji vjeruje.
   od ta dva broja se ne smije citirati. Pročitaj stvarni limit.
 - Koliko je obnova već potrošeno ovaj mjesec. Pažnja: polje sa iskorištenim obnovama pokazuje
   POTROŠENO, ne preostalo. Preostalo je limit minus potrošeno.
+- **Kada se kvota obnova resetuje NIJE potvrđeno.** API ne vraća datum reseta, zvanična pomoć
+  ne precizira. Kod pretpostavlja kraj kalendarskog mjeseca, ali kvota može pratiti i ciklus
+  paketa. Test u toku: očitati limit obnova na test nalogu 1. augusta 2026 (paket aktiviran
+  ~25.07); ako potrošeno padne na 0, važi kalendarski mjesec, inače ciklus paketa. Do tada se
+  o "kvota propada" govori oprezno i uvijek kaže "kalendarskog mjeseca".
+- Većina naloga kvotu NE MOŽE potrošiti do kraja: ručna obnova istog oglasa ide tek nakon
+  praga (red iznad), pa je ostvarivi maksimum broj oglasa puta broj obnova po oglasu u
+  periodu. Poređenja i alarmi idu na ostvarivo, ne na sirovu kvotu (`ostvarivihObnova` u
+  `src/core/stats.ts`).
 - Trenutno stanje kredita.
 - Broj aktivnih, skrivenih, isteklih i završenih oglasa.
 - Koji su oglasi već izdvojeni.

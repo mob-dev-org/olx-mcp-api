@@ -45,7 +45,7 @@ i izdvajanje odlucuju KOLIKO si visoko. Bez toga savjeti su nagadjanje.
 2. Prikupi podatke (sve su sigurni, read-only alati, ne trose kredite). PRVI IZBOR je
    agregirani alat, ne rucno prelistavanje:
    - `olx_profile_stats` — JEDAN poziv vraca izracunato: paket i istek, krediti, kvota obnova,
-     brojevi po svim stanjima, cijene, udio sponzorisanih, neobnovljeni oglasi, neodgovorena
+     brojevi po svim stanjima, cijene, udio sponzorisanih, neobnovljeni oglasi, nova
      pitanja. Sa `views: "snapshot"` dodaje preglede iz danasnjeg snapshota (0 dodatnih poziva);
      sa `views: "sample"` mjeri preglede na uzorku (10-ak sekundi).
    - `olx_account_alerts` — brzi alarmi (pitanja, paket, krediti, kvota koja propada, istekli).

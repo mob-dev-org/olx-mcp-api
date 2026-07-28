@@ -63,7 +63,8 @@ Granice API-ja, ne propusti toolkita. Ne obecavati ni u kojem obliku:
 
 - Nema pretrage oglasa (kljucna rijec, kategorija, cijena, lokacija), pa se pozicija u pretrazi
   ne moze izmjeriti, samo procijeniti po pravilima rangiranja.
-- Nema citanja ni slanja poruka kupcima. Vidi se samo broj neodgovorenih upita.
+- Nema citanja ni slanja poruka kupcima. Vidi se samo brojac NOVIH pitanja sa naloga; da li
+  "novo" znaci i neodgovoreno nije potvrdjeno, pa se ne tvrdi.
 - Nema notifikacija, nema zakazivanja izdvajanja na platformi (raspored vodi `sponsor plan`).
 - Nema statistike po danu ni po kategoriji. Pregledi su kumulativni, pa se vremenska serija
   gradi vlastitim snapshotima (`stats snapshot`).

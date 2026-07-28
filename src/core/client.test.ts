@@ -4,7 +4,7 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { OlxClient, OlxAuthError, OlxSpendError, naknadaKategorije } from "./index.js";
@@ -177,6 +177,57 @@ test("dnevni plafon propusta radnju koja jos stane u plafon", async () => {
     const client = new OlxClient(testConfig({ auditFile: logFajl, maxSpendPerDay: 100 }));
     await client.sponsorListing(123, { type: 2, days: 7 }, true);
     assert.equal(calls.filter((c) => c.method === "POST").length, 1, "30 plus 60 je ispod plafona 100");
+  } finally {
+    restore();
+    rmSync(logFajl, { force: true });
+  }
+});
+
+test("dnevni plafon ODBIJA radnju kad audit log postoji a nije citljiv (fails closed)", async () => {
+  const { calls, restore } = stubFetch([{ status: 200, body: PRICE_BODY }]);
+  // Direktorij umjesto fajla: readFileSync baca EISDIR, sto NIJE ENOENT, pa se radnja odbija.
+  const logDir = join(tmpdir(), `olx-plafon-dir-${process.pid}`);
+  mkdirSync(logDir, { recursive: true });
+  try {
+    const client = new OlxClient(testConfig({ auditFile: logDir, maxSpendPerDay: 100 }));
+    await assert.rejects(
+      () => client.sponsorListing(123, { type: 2, days: 7 }, true),
+      (err: unknown) => {
+        assert.ok(err instanceof OlxSpendError);
+        assert.match(err.message, /nije citljiv/);
+        return true;
+      },
+    );
+    assert.equal(
+      calls.some((c) => c.method === "POST"),
+      false,
+      "naplata ne smije otici na mrezu kad se plafon ne moze provjeriti",
+    );
+  } finally {
+    restore();
+    rmSync(logDir, { recursive: true, force: true });
+  }
+});
+
+test("akcijska cijena ulazi u dnevni plafon kao najmanje 1 kredit", async () => {
+  const { calls, restore } = stubFetch([]);
+  const logFajl = join(tmpdir(), `olx-plafon-discount-${process.pid}.jsonl`);
+  // Plafon 100, potroseno tacno 100: i radnja od "samo" 1 kredit mora stati.
+  writeFileSync(
+    logFajl,
+    `${JSON.stringify({ ts: new Date().toISOString(), operation: "t", source: "cli", method: "POST", path: "/x", status: 200, ok: true, duration_ms: 1, attempts: 1, krediti: 100 })}\n`,
+    "utf8",
+  );
+  try {
+    const client = new OlxClient(testConfig({ auditFile: logFajl, maxSpendPerDay: 100 }));
+    await assert.rejects(
+      () => client.setDiscount(123, { price: 10, days: 7 }, true),
+      (err: unknown) => {
+        assert.ok(err instanceof OlxSpendError);
+        return true;
+      },
+    );
+    assert.equal(calls.length, 0, "zahtjev ne smije otici na mrezu");
   } finally {
     restore();
     rmSync(logFajl, { force: true });
