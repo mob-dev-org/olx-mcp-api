@@ -114,6 +114,56 @@ npm run build
 node dist/mcp/server.js   # radi preko stdio
 ```
 
+`OLX_MCP_PROFILE` u `.env` odlucuje koliko alata server izlaze: `admin` (puna lista) ili
+`klijent` (suzena, bez kataloga, lokacija i analitike konkurenata). Tacan broj alata po profilu
+mjeri `npm run kontekst`.
+
+## Pogon klijenta: dvije sesije, cron, AI runda
+
+Puna mapa sa dijagramima je u `olx-dokumentacija/arhitektura.md` — nju procitaj prvu. Sazetak:
+
+- **Klijentska sesija**: Telegram bot klijenta, profil `klijent`, pravila u
+  `runtime/SISTEM-klijent.md`. AI pogon bira `OLX_KLIJENT_AI` u `.env` (`pretplata` ili
+  `deepseek` preko `OLX_DEEPSEEK_*` varijabli; bez njih se sesija ne pokrece).
+- **Admin bot sesija** (opcion po klonu): vlasnikov privatni Telegram kanal za taj shop,
+  profil `admin`, uvijek na pretplati, bez Bash-a. Priprema:
+  `node scripts/pripremi-admin-runtime.mjs <bot_token> <tvoj_telegram_id> [id_admin_grupe]`.
+  BotFather privacy za admin bota OSTAJE ukljucen (u grupi prima samo mention i reply);
+  za klijentskog bota se privacy GASI.
+- **Cuvar sesija** `scripts/cuvar-sesije.mjs [klijent|admin-bot]`: drzi sesiju zivom, nocni
+  restart u 03h uz ciscenje inboxa, restart poslije mirovanja (klijent 2h, admin 1h) da
+  kontekst i trosak ne rastu kroz dan.
+- **Cron poslovi bez modela** (nula tokena): snapshot pregleda 02:40, dnevne obnove i jutarnja
+  poruka 07:20, sedmicni pregled ponedjeljkom 07:40. Vrti ih CLI (`posao dnevni`,
+  `posao sedmicni`, `stats snapshot`).
+- **AI runda** (nedjelja 21h, jednom za cijelu masinu): headless analiza svih klonova iz
+  `~/.olx-klijenti.txt` kroz vlasnikovu pretplatu, strogo read-only; izvjestaj ide klijentu u
+  grupu, prijedlozi u `.olx-pik/prijedlozi/`, a primjenjuje ih klijentski bot uz potvrdu.
+
+Instalacija svih poslova: macOS `scripts/instaliraj-cron.sh` (launchd, po klonu; AI runda se
+instalira rucno jednom, uputa u sablonu), Windows
+`deploy/windows/instaliraj-zadatke.ps1` (Task Scheduler, isti termini). Na Windowsu admin bot
+trazi jos jedan `claude login` sa `CLAUDE_CONFIG_DIR=.claude-runtime-admin`, jer kredencijali
+tamo zive u config diru; na macOS-u su u Keychainu pa login ne treba.
+
+## Potrosnja tokena po klijentu
+
+Svaki klon biljezi vlastitu potrosnju sam od sebe: transkripti sesija nose tacan broj tokena
+po poruci (ulaz, kes, izlaz, model), odvojeno za klijentsku i admin sesiju. Izvjestaj:
+
+```bash
+npm run tokeni                    # zadnjih 30 dana, po danu i modelu, sa USD i projekcijom
+npm run tokeni -- --od 7          # zadnjih 7 dana
+npm run tokeni -- --dan 2026-07-28
+npm run tokeni -- --upisi         # spoji zbirove u trajni dnevnik (pokreni sedmicno)
+npm run tokeni -- --json          # masinski izlaz za dalju obradu
+```
+
+Transkripti se ciste poslije ~30 dana, pa `--upisi` cuva dnevne zbirove trajno u
+`.olx-pik/tokeni-dnevnik.jsonl`. Cijene modela su na jednom mjestu, `scripts/ai-cijene.mjs`;
+model kojeg tamo nema dobija tokene bez dolara, broj se ne izmislja. Izlaz ukljucuje prosjek po
+aktivnom danu i projekciju na 30 dana, sto je osnova za predikciju troska po klijentu.
+
 ## Za kolege: kloniranje i dodavanje MCP-a u Claude Code
 
 Repozitorij ima `.mcp.json` u korijenu, pa Claude Code automatski ponudi `olx-pik` MCP server kad otvoriš projekat. Token se NE čuva u repou; svako postavlja svoj kroz env varijablu `OLX_TOKEN`.
@@ -149,27 +199,28 @@ Napomene:
 
 ## Claude Code skillovi
 
-Repozitorij nosi sedam skillova u `.claude/skills/` (folder je skriven u file browserima jer pocinje tackom, ali je u gitu):
+Repozitorij nosi devet skillova u `.claude/skills/` (folder je skriven u file browserima jer pocinje tackom, ali je u gitu):
 
 - `olx-mcp-setup`: postavljanje i koristenje toolkita (token, MCP, CLI, troubleshooting).
-- `olx-analiza-profila`: analiza vlastitog profila i oglasa uz strategiju iz KB resursa.
+- `olx-analiza-profila`: analiza vlastitog profila i oglasa; analiza konkurenta po username-u.
 - `pik-olx-kreditni-savjetnik`: potrosnja kredita, izdvajanje, cjenovnik, strategija promocije.
 - `olx-shopovi-snimci`: obrada Excel snimaka Gold/Platinum shopova (razdvajanje po kantonima, poredjenje dva snimka).
 - `olx-seo-oglasa`: naslov, podnaslov i format opisa; izvjestaj pa primjena tek uz potvrdu.
 - `olx-klijent-flow`: kandidat iz javnih podataka, onboarding sa tokenom, prvi potezi po ROI.
-- `olx-cron-obnove`: dnevni pregled naloga i ravnomjerno trosenje kvote obnova.
+- `olx-cron-obnove`: raspored obnova i ravnomjerno trosenje kvote (izvrsenje nosi CLI cron).
+- `olx-objava-artikla`: vodjena objava novog oglasa od slike do objave, sa provjerom nacrta.
+- `olx-serijski-posao`: posao kroz mnogo oglasa odjednom, preko podagenata iz `.claude/agents/`.
 
-Dolaze automatski sa kloniranjem; nista se ne instalira posebno. Sistemski prompt za bota je u
-`CLAUDE.md` u korijenu.
+Dolaze automatski sa kloniranjem; nista se ne instalira posebno. Sistemski prompt nosi
+`CLAUDE.md` u korijenu (tvrde granice kroz `olx-dokumentacija/granice.md`), a po sloju se sama
+ucitavaju i pravila iz `.claude/rules/` (`paths` frontmatter).
 
-### Dnevna obnova (cron unutar Claude)
+### Dnevna obnova
 
-Skill `olx-cron-obnove` opisuje dnevni ritual za nalog ovog klona: `olx_refresh_limits`, dry-run
-pa obnova do dnevnog budzeta (preostala kvota podijeljena danima do kraja mjeseca), pa zbirni
-izvjestaj sa upozorenjima (krediti pri kraju, paket istice, kvota ide u gubitak). Obnove unutar besplatne kvote ne kostaju, pa se izvrsavaju bez
-pitanja; izdvajanje i akcijska cijena nikad automatski. Zakazuje se kao lokalni Claude cron job
-(`CronCreate`, dnevno u 08:00), i to samo kad korisnik izricito to kaze. Racunar mora biti
-upaljen u to vrijeme.
+Dnevnu obnovu NE radi model: CLI `posao dnevni` (launchd/Task Scheduler u 07:20) obnovi oglase
+unutar besplatne kvote po tempu do kraja mjeseca i posalje jutarnju poruku klijentu, sve za
+nula tokena. Skill `olx-cron-obnove` sluzi za razgovor o rasporedu i kvoti, ne za izvrsenje.
+Izdvajanje i akcijska cijena nikad automatski.
 
 ### Audit log
 

@@ -121,7 +121,12 @@ Fajl je van gita.
 
 ## Pokretanje na DeepSeeku
 
-Provajder se bira komandom, ne globalnim podesavanjem:
+**Za POGON (klijentska sesija) ovaj zshrc obrazac vise nije mjerodavan:** pogon bira provajdera
+kroz `OLX_KLIJENT_AI` i `OLX_DEEPSEEK_*` varijable u `.env` klona (vidi `.env.example`), pa je
+sva konfiguracija u repou i radi isto na macOS-u i Windowsu. `claude-ds` iz `~/.zshrc` ostaje
+samo kao licna komanda za rucni rad u terminalu, ako je vec podesena.
+
+Provajder se za rucni rad bira komandom, ne globalnim podesavanjem:
 
 | Komanda | Sta radi |
 |---|---|
