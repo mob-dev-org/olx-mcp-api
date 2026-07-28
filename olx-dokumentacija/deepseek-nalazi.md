@@ -98,7 +98,10 @@ manje alata znaci manje pogresnih izbora slabijeg modela. Redoslijed po isplativ
 ## Granice koje ostaju
 
 - Podaci klijenata idu na DeepSeek servere. Racunati na to kod obecanja diskrecije.
-- Slike i dokumenti se ignorisu na tom endpointu.
+- Slike i dokumenti se ignorisu na tom endpointu. Zaobilaznica za pogon: vision proxy alat
+  `olx_opisi_sliku` (pali se sa `OLX_VID_API_KEY` u .env, vidi `.env.example` i
+  `src/core/vid.ts`) opise sliku jeftinim Claude Haiku modelom pa DeepSeek sesija nastavi sa
+  tekstom.
 - Flash u testu discipline nije pozvao nijedan alat na zahtjev za izdvajanje, samo je pricao.
   Pro je pozvao `olx_sponsor_price`, sto je ispravan prvi korak. Za radnje koje trose kredite
   koristiti pro, ili ostaviti na Claudeu.

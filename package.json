@@ -24,6 +24,7 @@
     "kontekst": "tsc && node scripts/kontekst-izvjestaj.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
     "@modelcontextprotocol/sdk": "^1.0.4",
     "commander": "^12.1.0",
     "zod": "^3.23.8"

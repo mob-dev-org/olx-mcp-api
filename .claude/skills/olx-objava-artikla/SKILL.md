@@ -29,6 +29,9 @@ oglas jos nije objavljen.
 
 Fotografija sa Telegrama se sama spusta na disk, a putanja stize u `<channel>` tagu kao
 `image_path`. Procitaj je i opisi sta vidis, da korisnik potvrdi da si razumio artikal.
+Ako sliku ne mozes vidjeti (pogon bez vida), a postoji alat `olx_opisi_sliku`, opisi je njime
+i nastavi sa tim opisom. Ako ni alata nema, reci korisniku da opise artikal rijecima; nikad ne
+izmisljaj sadrzaj slike koju nisi vidio.
 
 Za vise slika: Telegram album stize kao odvojene poruke i nema bafera. Trazi od korisnika da
 posalje sve slike pa napise "gotovo". Prvu poslanu sliku tretiraj kao glavnu osim ako ne kaze

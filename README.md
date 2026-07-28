@@ -124,7 +124,10 @@ Puna mapa sa dijagramima je u `olx-dokumentacija/arhitektura.md` — nju procita
 
 - **Klijentska sesija**: Telegram bot klijenta, profil `klijent`, pravila u
   `runtime/SISTEM-klijent.md`. AI pogon bira `OLX_KLIJENT_AI` u `.env` (`pretplata` ili
-  `deepseek` preko `OLX_DEEPSEEK_*` varijabli; bez njih se sesija ne pokrece).
+  `deepseek` preko `OLX_DEEPSEEK_*` varijabli; bez njih se sesija ne pokrece). DeepSeek nema
+  vid, pa za objavu iz fotografije postoji vision proxy: uz `OLX_VID_API_KEY` u `.env` server
+  registruje alat `olx_opisi_sliku` koji sliku opise jeftinim Claude Haiku modelom (desetinka
+  centa po slici) i vrati tekst sesiji. Na pretplati nije potreban i ne registruje se.
 - **Admin bot sesija** (opcion po klonu): vlasnikov privatni Telegram kanal za taj shop,
   profil `admin`, uvijek na pretplati, bez Bash-a. Priprema:
   `node scripts/pripremi-admin-runtime.mjs <bot_token> <tvoj_telegram_id> [id_admin_grupe]`.

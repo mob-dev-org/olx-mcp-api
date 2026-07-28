@@ -23,6 +23,7 @@ import { ucitajSnapshote } from "../core/snapshoti.js";
 import { nadjiPoUpitu } from "../core/match.js";
 import { PLAN_FILE, upisiPlan, zauzmiKljuc } from "../core/plan-fajl.js";
 import { buildPlan, planSazetak, type PlanKandidat } from "../core/plan.js";
+import { opisiSliku, vidKonfigurisan } from "../core/vid.js";
 
 // Ucitaj .env iz radnog direktorija ako postoji (Node 20.12+), da OLX_TOKEN bude dostupan i kad
 // server pokrene MCP klijent. Token ostaje u .env fajlu koji je u .gitignore.
@@ -592,6 +593,32 @@ server.registerTool(
     }),
 );
 
+// Vision proxy za sesije ciji glavni model nema vid (DeepSeek ignorise slike). Registruje se
+// SAMO kad je OLX_VID_API_KEY postavljen: klonovi na pretplati vide slike direktno i ovu semu
+// ne placaju u kontekstu.
+if (vidKonfigurisan()) {
+  server.registerTool(
+    "olx_opisi_sliku",
+    {
+      title: "Opisi sliku (vision proxy)",
+      description:
+        "Posalje sliku sa diska jeftinom vision modelu i vrati tekstualni opis proizvoda. Koristi SAMO kad sliku ne mozes direktno vidjeti (pogon bez vida). Ne zove OLX i ne trosi kredite.",
+      inputSchema: {
+        putanja: z.string().min(1).describe("puna putanja do fajla slike, npr. iz Telegram inboxa"),
+        pitanje: z.string().optional().describe("sta te o slici zanima; bez ovoga opis proizvoda za oglas"),
+      },
+      annotations: readOnly,
+    },
+    async (args) => {
+      try {
+        return ok(await opisiSliku(args.putanja, args.pitanje));
+      } catch (e) {
+        return errResult(String(e instanceof Error ? e.message : e));
+      }
+    },
+  );
+}
+
 server.registerTool(
   "olx_categories",
   { title: "Kategorije", description: "Top-level kategorije. Za stabilan snapshot citaj resource olx://categories.", inputSchema: {}, annotations: readOnly },
@@ -704,7 +731,7 @@ server.registerTool(
   {
     title: "Statistika profila",
     description:
-      "Pregled vlastitog naloga u jednom pozivu: paket i istek, krediti, kvota obnova, oglasi po stanjima, cijene, udio sponzorisanih, neobnovljeni oglasi, neodgovorena pitanja.",
+      "Pregled vlastitog naloga u jednom pozivu: paket i istek, krediti, kvota obnova, oglasi po stanjima, cijene, udio sponzorisanih, neobnovljeni oglasi, nova pitanja.",
     inputSchema: {
       views: z
         .enum(["none", "sample", "snapshot"])
@@ -768,7 +795,7 @@ server.registerTool(
   {
     title: "Alarmi naloga",
     description:
-      "Brza provjera naloga (3 API poziva): neodgovorena pitanja kupaca, paket pri isteku, saldo kredita ispod praga, kvota obnova koja propada pred kraj mjeseca, istekli oglasi za reaktivaciju. Vraca ok: true kad je sve cisto. Pragovi su podesivi.",
+      "Brza provjera naloga (3 API poziva): nova pitanja kupaca, paket pri isteku, saldo kredita ispod praga, kvota obnova koja propada pred kraj mjeseca, istekli oglasi za reaktivaciju. Vraca ok: true kad je sve cisto. Pragovi su podesivi.",
     inputSchema: {
       krediti_min: z.number().int().min(0).optional().describe("prag salda kredita, default 500"),
       paket_dana: z.number().int().min(1).optional().describe("alarm kad paket istice za manje od N dana, default 14"),
