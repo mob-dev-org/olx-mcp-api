@@ -33,6 +33,10 @@ export interface AuditEntry {
   // Username naloga ako je poznat iz prethodnih poziva; nikad se ne dohvata samo zbog loga.
   account?: string;
   error?: string;
+  // Koliko je kredita radnja kostala. Postoji samo na radnjama koje trose. Nije dio tijela
+  // zahtjeva nego izracunat trosak, pa ne krsi pravilo o tijelu i query stringu. Bez njega se
+  // dnevni plafon (OLX_MAX_SPEND_PER_DAY) ne bi mogao izracunati iz loga.
+  krediti?: number;
 }
 
 export type AuditSink = (entry: AuditEntry) => void;
@@ -83,4 +87,31 @@ export function fileAuditSink(path: string): AuditSink {
 export function auditSinkFromPath(path: string | undefined): AuditSink {
   if (!path || !path.trim()) return noopAuditSink;
   return fileAuditSink(path.trim());
+}
+
+/**
+ * Zbir potrosenih kredita u zadanom danu, procitan iz JSONL loga.
+ *
+ * Cista funkcija nad tekstom loga, da se testira bez fajla. Broje se samo uspjesne radnje sa
+ * poznatim troskom: odbijeni pokusaji nose razlog u `error` i nemaju `krediti`, pa ne ulaze.
+ * Neispravna linija se preskace umjesto da obori racun, jer bi u suprotnom jedan pokvaren zapis
+ * ugasio plafon i pustio neograniceno trosenje.
+ *
+ * @param dan datum u obliku YYYY-MM-DD, poredi se sa pocetkom ISO timestampa
+ */
+export function potrosenoNaDan(sadrzajLoga: string, dan: string): number {
+  let ukupno = 0;
+  for (const linija of sadrzajLoga.split("\n")) {
+    if (!linija.trim()) continue;
+    try {
+      const z = JSON.parse(linija) as Partial<AuditEntry>;
+      if (z.ok !== true) continue;
+      if (typeof z.krediti !== "number" || !Number.isFinite(z.krediti)) continue;
+      if (typeof z.ts !== "string" || !z.ts.startsWith(dan)) continue;
+      ukupno += z.krediti;
+    } catch {
+      // Pokvarena linija se preskace; plafon mora raditi i na ostecenom logu.
+    }
+  }
+  return ukupno;
 }

@@ -5,12 +5,24 @@ import { z } from "zod";
 import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
-import { OlxClient, OlxSpendError, OlxApiError } from "../core/index.js";
+import { OlxClient, OlxSpendError, OlxApiError, naknadaKategorije } from "../core/index.js";
 import { loadConfig } from "../core/config.js";
 import { withAuditContext } from "../core/audit.js";
 import { parseSponsorOptions } from "../core/sponsor-options.js";
-import { efekatIzdvajanja, kompaktList, kompaktListing, type OglasPregledi } from "../core/stats.js";
+import {
+  efekatIzdvajanja,
+  izracunajNoveCijene,
+  kompaktList,
+  kompaktListing,
+  mrtviOglasi,
+  provjeriNacrt,
+  type OglasPregledi,
+} from "../core/stats.js";
+import { onboardingMarkdown, onboardingTelegram } from "../core/izvjestaj.js";
 import { ucitajSnapshote } from "../core/snapshoti.js";
+import { nadjiPoUpitu } from "../core/match.js";
+import { PLAN_FILE, upisiPlan, zauzmiKljuc } from "../core/plan-fajl.js";
+import { buildPlan, planSazetak, type PlanKandidat } from "../core/plan.js";
 
 // Ucitaj .env iz radnog direktorija ako postoji (Node 20.12+), da OLX_TOKEN bude dostupan i kad
 // server pokrene MCP klijent. Token ostaje u .env fajlu koji je u .gitignore.
@@ -80,13 +92,41 @@ const server = new McpServer({ name: "olx-pik-mcp-server", version: "0.1.0" });
 // koja je radnja pokrenula poziv. Omotano je na jednom mjestu, pa registracije alata nize ostaju
 // obicni registerTool pozivi (i cuvaju tipove svojih shema). Kontekst ide kroz AsyncLocalStorage,
 // pa se dva preklopljena poziva alata ne mogu pomijesati.
+//
+// Isti wrapper nosi i filter profila. Alati iz SAMO_ADMIN se u profilu `klijent` uopste ne
+// registruju, pa njihove seme ne ulaze u kontekst. To su redom pretraga i dumpovi kategorija,
+// brendova, modela i lokacija: najveci payloadi u serveru, a klijentu ne trebaju jer lokacija
+// dolazi iz .env, a kategoriju bira `olx_suggest_category` pri objavi.
+const SAMO_ADMIN = new Set([
+  "olx_categories",
+  "olx_category_children",
+  "olx_category",
+  "olx_category_brands",
+  "olx_category_models",
+  "olx_cities",
+  "olx_countries",
+  "olx_country_states",
+  "olx_city",
+  "olx_canton_cities",
+  "olx_find_category",
+  // Analiticki alati koji klijentu ne trebaju u svakodnevnom radu. Njihovo izbacivanje stedi
+  // vise nego skracivanje proze, a analiza konkurenta i mjerenje efekta izdvajanja su ionako
+  // posao koji se radi iz admin sesije.
+  "olx_competitor_report",
+  "olx_sponsor_effect",
+]);
+
+const zaKlijenta = config.mcpProfil === "klijent";
+
 const registrujAlat = server.registerTool.bind(server);
-server.registerTool = ((name: string, config: unknown, handler: (args: never) => unknown) =>
-  registrujAlat(
+server.registerTool = ((name: string, toolConfig: unknown, handler: (args: never) => unknown) => {
+  if (zaKlijenta && SAMO_ADMIN.has(name)) return undefined as never;
+  return registrujAlat(
     name,
-    config as never,
+    toolConfig as never,
     ((args: never) => withAuditContext({ operation: name, source: "mcp" }, () => handler(args))) as never,
-  )) as typeof server.registerTool;
+  );
+}) as typeof server.registerTool;
 
 // ---- KB kao resource ----
 server.registerResource(
@@ -157,6 +197,19 @@ server.registerResource(
     mimeType: "application/json",
   },
   async (uri) => {
+    // Blizu 2 MB u jednom odgovoru. U klijentskom profilu se ne servira uopste: opis je do sada
+    // samo savjetovao CSV index, a savjet nije zastita.
+    if (zaKlijenta) {
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: "text/plain",
+            text: "Puni JSON stabla kategorija nije dostupan u klijentskom profilu jer je prevelik. Koristi olx://categories-index (CSV) ili olx_suggest_category.",
+          },
+        ],
+      };
+    }
     if (!existsSync(CATEGORIES_PATH)) {
       return {
         contents: [
@@ -305,6 +358,10 @@ const REFRESH_EVERY_SCHEMA = z
   .default(0)
   .describe("autoobnova u satima: 0 bez, ili 3,6,8,24 (obavezno na API-ju, 12 nije validan)");
 const destructiveOp = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true } as const;
+// Radnje koje nepovratno trose kredite. Isti oblik kao destructiveOp, ali odvojena konstanta jer
+// je razlog drugaciji: podatak se ne gubi, novac se gubi. Hostovi koriste destructiveHint da
+// zatraze potvrdu od korisnika, sto je ovdje tacno ono sto treba, pored `confirm` gate u kodu.
+const trosakOp = destructiveOp;
 
 // ===== SIGURNI ALATI =====
 
@@ -331,7 +388,7 @@ server.registerTool(
   {
     title: "Lista oglasa",
     description:
-      "Lista oglasa po stanju. state: active|finished|inactive|expired|hidden. user je opciono (default ulogovani, radi i za tudje). all=true prelistava sve stranice. Default vraca kompaktne stavke (id, title, price, sponsored, date, refresh_available, status, visible, has_discount); full=true vraca sirovi API oblik.",
+      "Lista oglasa po stanju, svojih ili tudjih. Vraca kompaktne stavke. all i full se ne mogu kombinovati.",
     inputSchema: {
       state: z.enum(["active", "finished", "inactive", "expired", "hidden"]).default("active"),
       user: z.string().optional().describe("username ili id; default je ulogovani korisnik"),
@@ -341,12 +398,24 @@ server.registerTool(
     },
     annotations: readOnly,
   },
-  (args) =>
-    run(async (c) => {
+  (args) => {
+    // all + full je jedini poziv u serveru bez gornje granice: prelista sve stranice i vrati ih
+    // sirove. Na shopu od par stotina oglasa to je payload koji sam pojede kontekst, a nikad nije
+    // ono sto je trebalo. Ko stvarno treba sirov oblik, uzme ga po stranici ili po oglasu.
+    if (args.all && args.full) {
+      return Promise.resolve(
+        errResult(
+          "Kombinacija all i full nije dozvoljena jer vraca neogranicen payload. " +
+            "Koristi all bez full za kompaktnu listu svih oglasa, ili full sa page za jednu stranicu, " +
+            "ili olx_get_listing za sirovi oblik jednog oglasa.",
+        ),
+      );
+    }
+    return run(async (c) => {
       const user = args.user ?? (await c.resolveUsername());
       if (args.all) {
         const sve = await c.listAllByState(args.state, user);
-        return args.full ? sve : { data: kompaktList(sve), ukupno: sve.length };
+        return { data: kompaktList(sve), ukupno: sve.length };
       }
       const stranica =
         args.state === "active"
@@ -359,7 +428,8 @@ server.registerTool(
                 ? await c.listExpired(user, args.page)
                 : await c.listHidden(user, args.page);
       return args.full ? stranica : { data: kompaktList(stranica.data), meta: stranica.meta };
-    }),
+    });
+  },
 );
 
 server.registerTool(
@@ -429,6 +499,97 @@ server.registerTool(
         }),
       ),
     ),
+);
+
+// Plan izdvajanja racuna KOD, ne model: cijene dolaze sa API-ja po kandidatu, raspored i
+// budzet racuna testirani buildPlan iz core-a. Model rezultat samo objasnjava i trazi
+// potvrdu. Time izmisljen broj u planu postaje tehnicki nemoguc, ne samo zabranjen.
+server.registerTool(
+  "olx_sponsor_plan",
+  {
+    title: "Plan izdvajanja (racuna kod)",
+    description:
+      "Izracuna plan izdvajanja: kandidati (zadani ID-evi ili najstariji neizdvojeni aktivni), cijena svakog sa API-ja, raspored po danima do budzeta. NISTA ne naplacuje; brojeve ne racunaj sam nego ih citaj odavde. sacuvaj: true upise plan u fajl koji prate sedmicni izvjestaj i CLI izvrsenje.",
+    inputSchema: {
+      budzet: z.number().positive().describe("ukupno kredita za raspodjelu"),
+      dana: z.number().int().min(1).max(31).default(7).describe("na koliko dana se termini rasporede"),
+      type: z.number().int().min(0).max(2).default(2).describe("0 bez, 1 klasicno, 2 premium"),
+      days: SPONSOR_DAYS_SCHEMA,
+      refresh_every: REFRESH_EVERY_SCHEMA,
+      homepage: z.boolean().default(false),
+      oglasi: z.array(z.union([z.number(), z.string()])).optional().describe("konkretni ID-evi; bez ovoga najstariji neizdvojeni aktivni"),
+      broj_oglasa: z.number().int().min(1).max(100).default(40),
+      sacuvaj: z.boolean().default(false),
+    },
+  },
+  (args) =>
+    run(async (c) => {
+      const opcije = parseSponsorOptions({
+        type: args.type,
+        days: args.days,
+        refreshEvery: args.refresh_every,
+        homepage: args.homepage,
+      });
+      const user = await c.resolveUsername();
+
+      let kandidati: PlanKandidat[];
+      if (args.oglasi && args.oglasi.length > 0) {
+        kandidati = [];
+        for (const id of args.oglasi) {
+          const oglas = await c.getListing(id);
+          kandidati.push({ id: Number(id), naslov: oglas.title, vec_izdvojen: Boolean(oglas.sponsored) });
+        }
+      } else {
+        const aktivni = await c.listAllActive(user);
+        kandidati = aktivni
+          .filter((l) => !l.sponsored)
+          .sort((a, b) => (a.date ?? 0) - (b.date ?? 0))
+          .slice(0, args.broj_oglasa)
+          .map((l) => ({ id: l.id, naslov: l.title }));
+      }
+
+      // GET cijene ne trosi kredite. Kandidat bez citljive cijene ne ulazi u plan.
+      const bez_cijene: number[] = [];
+      for (const kandidat of kandidati) {
+        try {
+          kandidat.cijena = (await c.sponsorPrice(kandidat.id, opcije)).total;
+        } catch {
+          bez_cijene.push(Number(kandidat.id));
+        }
+      }
+
+      const plan = buildPlan({
+        kandidati,
+        budzet: args.budzet,
+        danaRaspored: args.dana,
+        opcije,
+        pocetniDatum: new Date().toISOString().slice(0, 10),
+        napravljen: new Date().toISOString(),
+        nalog: user,
+      });
+
+      if (args.sacuvaj) {
+        const otkljucaj = zauzmiKljuc(PLAN_FILE);
+        try {
+          upisiPlan(plan);
+        } finally {
+          otkljucaj();
+        }
+      }
+
+      return {
+        ...planSazetak(plan),
+        termini: plan.termini.map((t) => ({
+          id: t.listing_id,
+          naslov: t.naslov,
+          za_datum: t.za_datum,
+          cijena: t.cijena,
+        })),
+        ...(bez_cijene.length > 0 ? { bez_cijene } : {}),
+        sacuvan: Boolean(args.sacuvaj),
+        napomena: "Nista nije naplaceno. Pojedinacni termin se izvrsava kroz olx_sponsor_listing uz potvrdu.",
+      };
+    }),
 );
 
 server.registerTool(
@@ -512,13 +673,43 @@ server.registerTool(
 // Sloj biznis logike: vise API poziva ispod haube, AI dobija vec izracunat kompaktan rezultat.
 
 server.registerTool(
+  "olx_onboarding_report",
+  {
+    title: "Onboarding izvjestaj",
+    description:
+      "Prva analiza shopa u jednom pozivu: neiskoristene besplatne obnove i dnevni tempo do kraja mjeseca, oglasi sa nedostacima, svjezina, pregledi i upiti, rangirana lista prvih poteza.",
+    inputSchema: {
+      format: z
+        .enum(["json", "markdown", "telegram"])
+        .default("json")
+        .describe("json za obradu, markdown za dokument klijentu, telegram za jednu poruku"),
+      bez_snapshota: z.boolean().default(false).describe("preskoci snapshot, izvjestaj bez higijene i ucinka"),
+    },
+    annotations: readOnly,
+  },
+  (args) =>
+    run(async (c) => {
+      const zadnji = args.bez_snapshota ? null : (ucitajSnapshote().at(-1) ?? null);
+      const rezultat = await c.statsOnboarding(zadnji ? { oglasi: zadnji.oglasi, ts: zadnji.ts } : undefined);
+      if (args.format === "markdown") return onboardingMarkdown(rezultat.izvjestaj);
+      if (args.format === "telegram") return onboardingTelegram(rezultat.izvjestaj);
+      return zadnji
+        ? rezultat
+        : { ...rezultat, napomena: "Nema snapshota u .olx-pik/snapshots; pokreni CLI 'stats snapshot' za higijenu i ucinak." };
+    }),
+);
+
+server.registerTool(
   "olx_profile_stats",
   {
     title: "Statistika profila",
     description:
-      "Kompletan pregled vlastitog naloga u jednom pozivu: paket i istek, krediti, kvota obnova, brojevi oglasa po stanjima, cijene, udio sponzorisanih, neobnovljeni oglasi, neodgovorena pitanja. views: 'none' (brzo, default), 'sample' (pregledi na uzorku od ~15 oglasa, traje 10-ak sekundi), 'snapshot' (cita zadnji dnevni snapshot sa diska, bez dodatnih poziva). Osnova za audit profila i onboarding klijenta.",
+      "Pregled vlastitog naloga u jednom pozivu: paket i istek, krediti, kvota obnova, oglasi po stanjima, cijene, udio sponzorisanih, neobnovljeni oglasi, neodgovorena pitanja.",
     inputSchema: {
-      views: z.enum(["none", "sample", "snapshot"]).default("none"),
+      views: z
+        .enum(["none", "sample", "snapshot"])
+        .default("none")
+        .describe("none brzo (default), sample uzorak ~15 oglasa (oko 10s), snapshot sa diska bez poziva"),
       sample_size: z.number().int().min(3).max(30).optional().describe("velicina uzorka za views=sample, default 15"),
     },
     annotations: readOnly,
@@ -624,14 +815,75 @@ server.registerTool(
 // ===== UPIS =====
 
 server.registerTool(
+  "olx_find_my_listing",
+  {
+    title: "Nadji svoj oglas po opisu",
+    description:
+      "Pronalazi oglase po slobodnom opisu kad korisnik ne zna ID (\"prodao sam crvene cipele\"). Vraca najbolje pogotke sa skorom slicnosti 0 do 1. Skor NIJE dokaz: uvijek pokazi naslov korisniku i trazi potvrdu prije bilo kakve radnje, pogotovo prije zavrsavanja oglasa.",
+    inputSchema: {
+      upit: z.string().min(2),
+      state: z.enum(["active", "finished", "inactive", "expired", "hidden"]).default("active"),
+      limit: z.number().int().min(1).max(10).default(3),
+    },
+    annotations: readOnly,
+  },
+  (args) =>
+    run(async (c) => {
+      const user = await c.resolveUsername();
+      const oglasi = await c.listAllByState(args.state, user);
+      const pogodci = nadjiPoUpitu(
+        args.upit,
+        oglasi.map((o) => ({ id: o.id, title: o.title, price: typeof o.price === "number" ? o.price : undefined })),
+        args.limit,
+      );
+      return { upit: args.upit, pretrazeno: oglasi.length, pogodci };
+    }),
+);
+
+server.registerTool(
+  "olx_draft_check",
+  {
+    title: "Provjera nacrta oglasa",
+    description:
+      "Validira nacrt PRIJE olx_create_listing: naslov (max 65), obavezni atributi kategorije i dozvoljene vrijednosti, kvaliteta (podnaslov, opis, cijena) i naknada objave u kreditima. Vraca spreman: true/false. Obavezan korak.",
+    inputSchema: {
+      category_id: z.union([z.number(), z.string()]),
+      title: z.string().optional(),
+      short_description: z.string().optional(),
+      description: z.string().optional(),
+      price: z.number().optional(),
+      attributes: z.array(z.object({ id: z.number(), value: z.string() })).optional(),
+    },
+    annotations: readOnly,
+  },
+  (args) =>
+    run(async (c) => {
+      // Naknada se dohvata ovdje da se trosak sazna PRIJE nego korisnik potvrdi oglas, a ne kao
+      // iznenadjenje na kreiranju.
+      const [atributi, kategorija] = await Promise.all([
+        c.categoryAttributes(args.category_id),
+        c.category(args.category_id).catch(() => null),
+      ]);
+      const naknada = naknadaKategorije(kategorija);
+      return {
+        ...provjeriNacrt(args, atributi.data ?? []),
+        naknada_objave_kredita: naknada,
+        ...(naknada > 0
+          ? { napomena_troska: `Objava u ovoj kategoriji kosta ${naknada} kredita. Trazi potvrdu prije kreiranja.` }
+          : {}),
+      };
+    }),
+);
+
+server.registerTool(
   "olx_create_listing",
   {
     title: "Kreiraj oglas",
     description:
-      "Kreira oglas. Ostaje DRAFT i NIJE vidljiv dok se ne objavi (olx_publish_listing). OBAVEZNI su title i category_id (API odbija bez kategorije). category_id nadji u resource olx://categories-index, a dozvoljene attributes za tu kategoriju preko olx_category_attributes (obavezni atributi su required: true). Za vozila koristi brand_id/model_id.",
+      "Kreira oglas kao DRAFT, nije vidljiv dok se ne objavi (olx_publish_listing). Prvo pozovi olx_draft_check. U naplatnim kategorijama (vozila, nekretnine, poslovi, usluge) bez confirm=true samo javi cijenu i ne kreira.",
     inputSchema: {
       title: TITLE_SCHEMA,
-      category_id: z.union([z.number(), z.string()]).describe("ID kategorije (obavezno); vidi olx://categories-index"),
+      category_id: z.union([z.number(), z.string()]).describe("vidi olx://categories-index"),
       short_description: z.string().optional().describe("podnaslov; ULAZI u pretragu, iskoristi ga za ključne riječi koje ne stanu u naslov"),
       description: z.string().optional(),
       country_id: z.union([z.number(), z.string()]).optional(),
@@ -644,10 +896,17 @@ server.registerTool(
       model_id: z.union([z.number(), z.string()]).optional(),
       sku_number: z.string().optional(),
       attributes: z.array(z.object({ id: z.number(), value: z.string() })).optional(),
+      confirm: z
+        .boolean()
+        .default(false)
+        .describe("obavezan u naplatnim kategorijama, vidi opis alata"),
     },
     annotations: writeOp,
   },
-  (args) => run((c) => c.createListing(args)),
+  (args) => {
+    const { confirm, ...nacrt } = args;
+    return run((c) => c.createListing(nacrt, { confirm }));
+  },
 );
 
 server.registerTool(
@@ -691,6 +950,141 @@ server.registerTool(
   "olx_refresh_listing",
   { title: "Obnovi oglas", description: "Obnavlja oglas (svjez datum, dize rang u kategoriji).", inputSchema: { id: z.union([z.number(), z.string()]) }, annotations: writeOp },
   (args) => run((c) => c.refreshListing(args.id)),
+);
+
+server.registerTool(
+  "olx_bulk_price",
+  {
+    title: "Grupna promjena cijene",
+    description:
+      "Mijenja cijenu na vise oglasa odjednom. pravilo: postotak (-10 znaci snizi 10 posto), fiksno (-5 znaci oduzmi 5), postavi (svima ista cijena). confirm=false (default) vraca samo pregled stara naspram nova, bez ijedne izmjene. Ne trosi kredite, ali se rucno ne vraca, pa pregled OBAVEZNO pokazi korisniku prije potvrde.",
+    inputSchema: {
+      pravilo: z.enum(["postotak", "fiksno", "postavi"]),
+      iznos: z.number(),
+      category_id: z.number().int().optional().describe("ogranici na jednu kategoriju"),
+      ids: z.array(z.number().int()).optional().describe("tacna lista oglasa; ima prednost nad category_id"),
+      limit: z.number().int().min(1).max(500).default(50),
+      confirm: z.boolean().default(false),
+    },
+    annotations: destructiveOp,
+  },
+  (args) =>
+    run(async (c) => {
+      const user = await c.resolveUsername();
+      const svi = await c.listAllActive(user);
+      const izabrani = args.ids?.length
+        ? svi.filter((l) => args.ids?.includes(l.id))
+        : args.category_id !== undefined
+          ? svi.filter((l) => l.category_id === args.category_id)
+          : svi;
+
+      const pregled = izracunajNoveCijene(
+        izabrani
+          .slice(0, args.limit)
+          .map((l) => ({ id: l.id, title: l.title, price: typeof l.price === "number" ? l.price : undefined })),
+        { vrsta: args.pravilo, iznos: args.iznos },
+      );
+
+      if (!args.confirm) {
+        return { dry_run: true, obuhvaceno: izabrani.length, ...pregled };
+      }
+      if (pregled.stavke.length === 0) {
+        return { izmijenjeno: 0, ukupno: 0, napomena: "Nijedan oglas ne zadovoljava pravilo.", preskoceno: pregled.preskoceno };
+      }
+
+      // Kljuc kao kod plana izdvajanja: dvije paralelne grupne izmjene bi se pregazile.
+      const otpusti = zauzmiKljuc(".olx-pik/bulk-price");
+      try {
+        const rezultati: { id: number; ok: boolean; nova: number; greska?: string }[] = [];
+        for (const s of pregled.stavke) {
+          try {
+            await c.updateListing(s.id, { price: s.nova });
+            rezultati.push({ id: s.id, ok: true, nova: s.nova });
+          } catch (e) {
+            rezultati.push({ id: s.id, ok: false, nova: s.nova, greska: String(e instanceof Error ? e.message : e) });
+          }
+        }
+        return {
+          izmijenjeno: rezultati.filter((r) => r.ok).length,
+          ukupno: rezultati.length,
+          preskoceno: pregled.preskoceno.length,
+          neuspjeli: rezultati.filter((r) => !r.ok),
+        };
+      } finally {
+        otpusti();
+      }
+    }),
+);
+
+server.registerTool(
+  "olx_bulk_sklanjanje",
+  {
+    title: "Grupno sakrivanje ili zavrsavanje",
+    description:
+      "Sklanja vise oglasa odjednom: radnja 'hide' kad se artikal vraca na stanje, 'finish' kad je prodan (ostaje u historiji profila). confirm=false (default) vraca samo listu. Zavrsavanje se kroz ovaj server NE moze ponistiti, pa listu obavezno pokazi korisniku prije potvrde.",
+    inputSchema: {
+      ids: z.array(z.number().int()).min(1),
+      radnja: z.enum(["hide", "finish"]),
+      confirm: z.boolean().default(false),
+    },
+    annotations: destructiveOp,
+  },
+  (args) =>
+    run(async (c) => {
+      const user = await c.resolveUsername();
+      const svi = await c.listAllActive(user);
+      const izabrani = svi.filter((l) => args.ids.includes(l.id));
+      const nepoznati = args.ids.filter((id) => !svi.some((l) => l.id === id));
+
+      if (!args.confirm) {
+        return {
+          dry_run: true,
+          radnja: args.radnja,
+          oglasi: izabrani.map((l) => ({ id: l.id, title: l.title })),
+          nisu_aktivni: nepoznati,
+        };
+      }
+      const rezultati: { id: number; ok: boolean; greska?: string }[] = [];
+      for (const l of izabrani) {
+        try {
+          await (args.radnja === "hide" ? c.hideListing(l.id) : c.finishListing(l.id));
+          rezultati.push({ id: l.id, ok: true });
+        } catch (e) {
+          rezultati.push({ id: l.id, ok: false, greska: String(e instanceof Error ? e.message : e) });
+        }
+      }
+      return {
+        radnja: args.radnja,
+        uspjelo: rezultati.filter((r) => r.ok).length,
+        ukupno: rezultati.length,
+        neuspjeli: rezultati.filter((r) => !r.ok),
+        nisu_aktivni: nepoznati,
+      };
+    }),
+);
+
+server.registerTool(
+  "olx_mrtvi_oglasi",
+  {
+    title: "Oglasi bez novih pregleda",
+    description:
+      "Oglasi koji nisu dobili nijedan NOV pregled u zadanom periodu, racunato iz razlike dnevnih snapshota. Razlicito od 'nula pregleda ukupno': hvata i oglas koji je nekad imao mnogo pregleda a sada stoji. Kandidati za popravku naslova, sakrivanje ili zavrsavanje.",
+    inputSchema: {
+      dana: z.number().int().min(7).max(365).default(60),
+      limit: z.number().int().min(1).max(50).default(20),
+    },
+    annotations: readOnly,
+  },
+  (args) =>
+    run(async () => {
+      const rezultat = mrtviOglasi(ucitajSnapshote(), Math.floor(Date.now() / 1000), args.dana);
+      if (!rezultat) {
+        return {
+          greska: "Nema dva snapshota za poredjenje. Pokreni CLI 'stats snapshot' bar dva puta u razmaku od nekoliko dana.",
+        };
+      }
+      return { ...rezultat, ukupno: rezultat.oglasi.length, oglasi: rezultat.oglasi.slice(0, args.limit) };
+    }),
 );
 
 server.registerTool(
@@ -750,7 +1144,7 @@ server.registerTool(
     description:
       "Oznacava oglas kao zavrsen/prodano (cuva historiju i statistiku). Kad korisnik trazi BRISANJE oglasa, predlozi ovo: oglas ide u Zavrsene, ostaje u historiji profila kao dokaz prodaje i ne gubi se statistika. Brisanje kroz bota ne postoji, samo u CLI (listings rm).",
     inputSchema: { id: z.union([z.number(), z.string()]) },
-    annotations: writeOp,
+    annotations: destructiveOp,
   },
   (args) => run((c) => c.finishListing(args.id)),
 );
@@ -819,7 +1213,7 @@ server.registerTool(
       locations: z.array(z.string()).optional().describe("dodatne lokacije izdvajanja; dokumentovana je samo \"homepage\", ostale API moze odbiti sa 422"),
       confirm: z.boolean().default(false),
     },
-    annotations: writeOp,
+    annotations: trosakOp,
   },
   (args) => {
     const options = parseSponsorOptions({
@@ -844,7 +1238,7 @@ server.registerTool(
       days: z.union([z.literal(3), z.literal(7), z.literal(30)]),
       confirm: z.boolean().default(false),
     },
-    annotations: writeOp,
+    annotations: trosakOp,
   },
   (args) => run((c) => c.setDiscount(args.id, { price: args.price, days: args.days }, args.confirm)),
 );

@@ -4,9 +4,12 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { OlxClient, OlxAuthError, OlxSpendError } from "./index.js";
+import { rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { OlxClient, OlxAuthError, OlxSpendError, naknadaKategorije } from "./index.js";
 import { loadConfig } from "./config.js";
-import { withAuditContext, type AuditEntry } from "./audit.js";
+import { potrosenoNaDan, withAuditContext, type AuditEntry } from "./audit.js";
 import type { OlxConfig } from "./config.js";
 
 interface FetchCall {
@@ -59,6 +62,8 @@ function testConfig(overrides: Partial<OlxConfig> = {}): OlxConfig {
     // Testovi nikad ne pisu audit log u fajl; sink se, gdje treba, injektuje kao funkcija.
     auditFile: ".olx-pik/test-audit.jsonl",
     auditReads: false,
+    mcpProfil: "admin",
+    maxSpendPerDay: 0,
     ...overrides,
   };
 }
@@ -91,17 +96,105 @@ test("sponsorListing bez confirm baca OlxSpendError i ne salje POST", async () =
 });
 
 test("sponsorListing sa confirm salje POST i ne ponavlja ga na 500", async () => {
-  const { calls, restore } = stubFetch([{ status: 500, body: { message: "server" } }]);
+  // Cijena se dohvata i kad je confirm postavljen: treba za dnevni plafon i za iznos u audit logu.
+  const { calls, restore } = stubFetch([
+    { status: 200, body: PRICE_BODY },
+    { status: 500, body: { message: "server" } },
+  ]);
   try {
     const client = new OlxClient(testConfig({ maxRetries: 3 }));
     await assert.rejects(() => client.sponsorListing(123, { type: 2, days: 7 }, true));
-    assert.equal(calls.length, 1, "naplata se NE ponavlja na 5xx (moguca dupla naplata)");
-    assert.equal(calls[0]?.method, "POST");
+    const postovi = calls.filter((c) => c.method === "POST");
+    assert.equal(postovi.length, 1, "naplata se NE ponavlja na 5xx (moguca dupla naplata)");
+    assert.equal(calls[0]?.method, "GET", "prvo cijena");
+    assert.ok(calls[0]?.url.includes("/sponsore/price"));
     // refresh_every je na API-ju obavezan, pa ga klijent uvijek posalje.
-    assert.ok(calls[0]?.body?.includes('"refresh_every":0'));
+    assert.ok(postovi[0]?.body?.includes('"refresh_every":0'));
   } finally {
     restore();
   }
+});
+
+test("sponsorListing zapisuje potroseno kredita u audit log", async () => {
+  const { restore } = stubFetch([
+    { status: 200, body: PRICE_BODY },
+    { status: 200, body: { message: "ok" } },
+  ]);
+  const zapisi: AuditEntry[] = [];
+  try {
+    const client = new OlxClient(testConfig(), { audit: (e) => zapisi.push(e) });
+    await client.sponsorListing(123, { type: 2, days: 7 }, true);
+    const naplata = zapisi.find((z) => z.path.endsWith("/sponsore") && z.method === "POST");
+    assert.equal(naplata?.krediti, 60, "iznos iz cijene ulazi u log, inace se dnevna potrosnja ne moze sabrati");
+    assert.equal(naplata?.ok, true);
+  } finally {
+    restore();
+  }
+});
+
+test("dnevni plafon zaustavlja izdvajanje prije nego zahtjev ode na mrezu", async () => {
+  const { calls, restore } = stubFetch([{ status: 200, body: PRICE_BODY }]);
+  const logFajl = join(tmpdir(), `olx-plafon-${process.pid}.jsonl`);
+  // Danas je vec potroseno 80 kredita, plafon je 100, a ova radnja trazi 60.
+  writeFileSync(
+    logFajl,
+    `${JSON.stringify({ ts: new Date().toISOString(), operation: "t", source: "cli", method: "POST", path: "/x", status: 200, ok: true, duration_ms: 1, attempts: 1, krediti: 80 })}\n`,
+    "utf8",
+  );
+  try {
+    const client = new OlxClient(testConfig({ auditFile: logFajl, maxSpendPerDay: 100 }));
+    await assert.rejects(
+      () => client.sponsorListing(123, { type: 2, days: 7 }, true),
+      (err: unknown) => {
+        assert.ok(err instanceof OlxSpendError);
+        assert.match(err.message, /dnevni plafon 100/);
+        return true;
+      },
+    );
+    assert.equal(
+      calls.some((c) => c.method === "POST"),
+      false,
+      "naplata ne smije otici na mrezu kad je plafon probijen",
+    );
+  } finally {
+    restore();
+    rmSync(logFajl, { force: true });
+  }
+});
+
+test("dnevni plafon propusta radnju koja jos stane u plafon", async () => {
+  const { calls, restore } = stubFetch([
+    { status: 200, body: PRICE_BODY },
+    { status: 200, body: { message: "ok" } },
+  ]);
+  const logFajl = join(tmpdir(), `olx-plafon-ok-${process.pid}.jsonl`);
+  writeFileSync(
+    logFajl,
+    `${JSON.stringify({ ts: new Date().toISOString(), operation: "t", source: "cli", method: "POST", path: "/x", status: 200, ok: true, duration_ms: 1, attempts: 1, krediti: 30 })}\n`,
+    "utf8",
+  );
+  try {
+    const client = new OlxClient(testConfig({ auditFile: logFajl, maxSpendPerDay: 100 }));
+    await client.sponsorListing(123, { type: 2, days: 7 }, true);
+    assert.equal(calls.filter((c) => c.method === "POST").length, 1, "30 plus 60 je ispod plafona 100");
+  } finally {
+    restore();
+    rmSync(logFajl, { force: true });
+  }
+});
+
+test("dnevni plafon ne racuna jucerasnju potrosnju ni odbijene pokusaje", async () => {
+  const juce = new Date(Date.now() - 86_400_000).toISOString();
+  const zapis = (o: Record<string, unknown>) =>
+    JSON.stringify({ operation: "t", source: "cli", method: "POST", path: "/x", status: 200, duration_ms: 1, attempts: 1, ...o });
+  const sadrzaj = [
+    zapis({ ts: juce, ok: true, krediti: 500 }),
+    zapis({ ts: new Date().toISOString(), ok: false, krediti: 400, error: "odbijeno bez potvrde" }),
+    zapis({ ts: new Date().toISOString(), ok: true, krediti: 25 }),
+    "{ ovo nije validan json",
+    "",
+  ].join("\n");
+  assert.equal(potrosenoNaDan(sadrzaj, new Date().toISOString().slice(0, 10)), 25);
 });
 
 test("sponsorPrice serializuje locations kao niz u query stringu", async () => {
@@ -131,11 +224,70 @@ test("setDiscount bez confirm baca OlxSpendError i ne dira mrezu", async () => {
 });
 
 test("createListing se ne ponavlja na 500 (duplikat oglasa)", async () => {
-  const { calls, restore } = stubFetch([{ status: 500, body: { message: "server" } }]);
+  // Prvi poziv je citanje kategorije, radi provjere naknade za objavu.
+  const { calls, restore } = stubFetch([
+    { status: 200, body: { id: 23, name: "Bez naknade", listing_fee: 0 } },
+    { status: 500, body: { message: "server" } },
+  ]);
   try {
     const client = new OlxClient(testConfig({ maxRetries: 3 }));
     await assert.rejects(() => client.createListing({ title: "Test", category_id: 23 }));
-    assert.equal(calls.length, 1, "POST /listings se ne ponavlja");
+    assert.equal(calls.filter((c) => c.method === "POST").length, 1, "POST /listings se ne ponavlja");
+  } finally {
+    restore();
+  }
+});
+
+test("createListing bez confirm ne salje zahtjev u naplatnoj kategoriji", async () => {
+  // Automobili nose listing_fee 70 kredita.
+  const { calls, restore } = stubFetch([{ status: 200, body: { id: 18, name: "Automobili", listing_fee: 70 } }]);
+  try {
+    const client = new OlxClient(testConfig());
+    await assert.rejects(
+      () => client.createListing({ title: "Golf 7 1.6 TDI", category_id: 18 }),
+      (err: unknown) => {
+        assert.ok(err instanceof OlxSpendError);
+        assert.match(err.message, /70 kredita/);
+        return true;
+      },
+    );
+    assert.equal(
+      calls.some((c) => c.method === "POST"),
+      false,
+      "objava se ne salje dok trosak nije potvrdjen",
+    );
+  } finally {
+    restore();
+  }
+});
+
+test("createListing sa confirm objavi u naplatnoj kategoriji i zapise trosak", async () => {
+  const { restore } = stubFetch([
+    { status: 200, body: { id: 18, name: "Automobili", listing_fee: 70 } },
+    { status: 200, body: { data: { id: 999, title: "Golf 7" } } },
+  ]);
+  const zapisi: AuditEntry[] = [];
+  try {
+    const client = new OlxClient(testConfig(), { audit: (e) => zapisi.push(e) });
+    const oglas = await client.createListing({ title: "Golf 7 1.6 TDI", category_id: 18 }, { confirm: true });
+    assert.equal(oglas.id, 999);
+    assert.equal(zapisi.find((z) => z.path === "/listings")?.krediti, 70);
+  } finally {
+    restore();
+  }
+});
+
+test("createListing u besplatnoj kategoriji ne trazi confirm", async () => {
+  const { calls, restore } = stubFetch([
+    { status: 200, body: { id: 754, name: "Party dekoracije", listing_fee: 0 } },
+    { status: 200, body: { data: { id: 1000, title: "Baloni" } } },
+  ]);
+  const zapisi: AuditEntry[] = [];
+  try {
+    const client = new OlxClient(testConfig(), { audit: (e) => zapisi.push(e) });
+    await client.createListing({ title: "Baloni za rodjendan", category_id: 754 });
+    assert.equal(calls.filter((c) => c.method === "POST").length, 1);
+    assert.equal(zapisi.find((z) => z.path === "/listings")?.krediti, undefined, "besplatno se ne biljezi kao trosak");
   } finally {
     restore();
   }
@@ -467,6 +619,8 @@ test("403 se ne lijeci loginom", async () => {
 test("izdvajanje se ne ponavlja nakon obnove tokena", async () => {
   const { calls, restore } = stubFetchByUrl((call) => {
     if (call.url.endsWith("/auth/login")) return { status: 200, body: { token: "novi-token", user: { id: 1 } } };
+    // Cijena mora proci, jer se dohvata prije naplate; 401 se testira na samom POST-u.
+    if (call.url.includes("/sponsore/price")) return { status: 200, body: PRICE_BODY };
     return { status: 401, body: { message: "unauthorized" } };
   });
   try {
@@ -525,4 +679,15 @@ test("odbijen trosak se biljezi iako zahtjev nije poslan", async () => {
   } finally {
     restore();
   }
+});
+
+test("naknadaKategorije cita listing_fee i iz omotaca i iz raspakovanog oblika", () => {
+  // Regresija: GET /category/:id vraca { data: {...} }. Citanje sa vrha omotaca uvijek daje
+  // undefined, pa spend-guard na objavi nikad ne bi opalio. Provjereno na kategoriji Automobili.
+  assert.equal(naknadaKategorije({ data: { id: 18, name: "Automobili", listing_fee: 70 } }), 70);
+  assert.equal(naknadaKategorije({ id: 18, listing_fee: 70 }), 70);
+  assert.equal(naknadaKategorije({ data: { id: 754, listing_fee: 0 } }), 0);
+  assert.equal(naknadaKategorije({ data: { id: 754 } }), 0, "bez polja je 0, ne NaN");
+  assert.equal(naknadaKategorije(null), 0);
+  assert.equal(naknadaKategorije({ data: { listing_fee: "nije broj" } }), 0);
 });

@@ -7,11 +7,16 @@ import { loadConfig } from "../core/config.js";
 import { setAuditContext } from "../core/audit.js";
 import { parseSponsorOptions, SPONSOR_DAYS, REFRESH_EVERY } from "../core/sponsor-options.js";
 import { buildPlan, dospjeliTermini, oznaciTermin, planSazetak, zaglavljeniTermini } from "../core/plan.js";
+import { citajPlan, citajPlanAkoPostoji, PLAN_FILE, upisiPlan, zauzmiKljuc } from "../core/plan-fajl.js";
 import type { PlanKandidat, SponsorPlan } from "../core/plan.js";
 import { matchCatalog, summarizeMatches } from "../core/match.js";
 import type { PikItem, KatalogItem, OverrideEntry } from "../core/match.js";
 import { loadKatalog } from "../core/katalog.js";
-import { efekatIzdvajanja } from "../core/stats.js";
+import { alarmiNaloga, dnevniPlanObnova, efekatIzdvajanja, promjenaKonkurenta, promjenaPregleda } from "../core/stats.js";
+import { ucitajKonkurenta, upisiKonkurenta } from "../core/konkurenti.js";
+import type { OnboardingDetalj } from "../core/stats.js";
+import { dnevniTekst, onboardingMarkdown, onboardingTelegram, sedmicniTekst } from "../core/izvjestaj.js";
+import { javiAdminu, posaljiPoruku } from "../core/telegram.js";
 import { SNAPSHOT_DIR, ucitajSnapshote, upisiSnapshot, zadnjiSnapshot } from "../core/snapshoti.js";
 import type { CreateListingInput, SponsorOptions, SponsorType, SponsorDays, RefreshEvery, CategoryNode, Country, City } from "../core/types.js";
 
@@ -273,11 +278,12 @@ listings
   .description("Kreira oglas iz JSON fajla (ostaje DRAFT dok se ne objavi)")
   .requiredOption("--file <path>", "JSON fajl sa poljima oglasa")
   .option("--publish", "objavi odmah nakon kreiranja", false)
-  .action(async (opts: { file: string; publish?: boolean }) => {
+  .option("--yes", "potvrda za naplatne kategorije (vozila, nekretnine, poslovi)", false)
+  .action(async (opts: { file: string; publish?: boolean; yes?: boolean }) => {
     try {
       const input = JSON.parse(readFileSync(opts.file, "utf8")) as CreateListingInput;
       const c = await withAuth();
-      const created = await c.createListing(input);
+      const created = await c.createListing(input, { confirm: opts.yes });
       out(created);
       if (opts.publish) {
         const pub = await c.publishListing(created.id);
@@ -771,40 +777,11 @@ sponsor
 // API ne prima zakazivanje, pa raspored zivi u lokalnom fajlu, a izvrsenje pokrece ova komanda
 // (rucno ili kroz dnevni cron). Trosak se nikad ne naplacuje bez --yes.
 
-const PLAN_FILE = ".olx-pik/plan-izdvajanja.json";
-
-function citajPlan(putanja: string): SponsorPlan {
-  const raw: unknown = JSON.parse(readFileSync(putanja, "utf8"));
-  if (!raw || typeof raw !== "object" || !Array.isArray((raw as SponsorPlan).termini)) {
-    throw new Error(`Fajl ${putanja} nije plan izdvajanja.`);
-  }
-  return raw as SponsorPlan;
-}
-
-function upisiPlan(putanja: string, plan: SponsorPlan): void {
-  mkdirSync(dirname(putanja), { recursive: true });
-  writeFileSync(putanja, `${JSON.stringify(plan, null, 2)}\n`, "utf8");
-}
+// PLAN_FILE, citajPlan, upisiPlan i zauzmiKljuc su preseljeni u src/core/plan-fajl.ts, da ih
+// mogu koristiti i MCP server i sedmicni izvjestaj, ne samo CLI.
 
 function danasnjiDatum(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-// Kljuc protiv dvostrukog izvrsenja: dva paralelna pokretanja ne smiju naplatiti isti termin.
-function zauzmiKljuc(putanja: string): () => void {
-  const kljuc = `${putanja}.lock`;
-  try {
-    writeFileSync(kljuc, String(process.pid), { flag: "wx" });
-  } catch {
-    throw new Error(`Izvrsenje je vec u toku (postoji ${kljuc}). Ako je proces pao, obrisi taj fajl rucno.`);
-  }
-  return () => {
-    try {
-      rmSync(kljuc, { force: true });
-    } catch {
-      // ako se kljuc ne moze obrisati, sljedece pokretanje ce to prijaviti
-    }
-  };
 }
 
 function ispisiPlan(plan: SponsorPlan): void {
@@ -910,7 +887,7 @@ plan
         nalog: user,
       });
 
-      upisiPlan(opts.file, noviPlan);
+      upisiPlan(noviPlan, opts.file);
       ispisiPlan(noviPlan);
       console.error(`Plan je snimljen u ${opts.file}. Nista nije naplaceno.`);
       console.error(`Izvrsenje: node dist/cli/index.js sponsor plan izvrsi --yes`);
@@ -986,7 +963,7 @@ plan
             status: "neuspio",
             napomena: `cijena se ne moze dohvatiti: ${String(e instanceof Error ? e.message : e)}`,
           });
-          upisiPlan(opts.file, tekuci);
+          upisiPlan(tekuci, opts.file);
           ishodi.push({ id: termin.listing_id, status: "neuspio" });
           continue;
         }
@@ -996,7 +973,7 @@ plan
             status: "cijena_promijenjena",
             napomena: `planirano ${termin.cijena}, sada ${cijenaSada} kredita; nije naplaceno`,
           });
-          upisiPlan(opts.file, tekuci);
+          upisiPlan(tekuci, opts.file);
           ishodi.push({ id: termin.listing_id, status: "cijena_promijenjena", napomena: `${termin.cijena} -> ${cijenaSada}` });
           continue;
         }
@@ -1004,7 +981,7 @@ plan
         // Upis PRIJE poziva: ako proces padne, termin ostaje "u_toku" i sljedece pokretanje trazi
         // rucnu provjeru umjesto da naplati drugi put.
         tekuci = oznaciTermin(tekuci, termin.id, { status: "u_toku" });
-        upisiPlan(opts.file, tekuci);
+        upisiPlan(tekuci, opts.file);
 
         try {
           await c.sponsorListing(termin.listing_id, termin.opcije, true);
@@ -1021,7 +998,7 @@ plan
           });
           ishodi.push({ id: termin.listing_id, status: "neuspio", napomena: String(e instanceof Error ? e.message : e) });
         }
-        upisiPlan(opts.file, tekuci);
+        upisiPlan(tekuci, opts.file);
       }
 
       out({ danas, izvrseno: ishodi.filter((i) => i.status === "izvrsen").length, ishodi, sazetak: planSazetak(tekuci) });
@@ -1097,6 +1074,81 @@ stats
   });
 
 stats
+  .command("onboarding")
+  .description("Prva analiza za klijenta: neiskoristene obnove, higijena oglasa, ucinak i prvi potezi")
+  .option("--md", "markdown za slanje klijentu umjesto JSON-a")
+  .option("--telegram", "kratka verzija za jednu Telegram poruku")
+  .option("--bez-snapshota", "ne koristi dnevni snapshot (bez higijene i ucinka)")
+  .action(async (opts: { md?: boolean; telegram?: boolean; bezSnapshota?: boolean }) => {
+    try {
+      const c = await withAuth();
+      // Snapshot nosi slike, podnaslov, opis, atribute i preglede. Bez njega izvjestaj i dalje
+      // radi, samo je kraci, pa se nedostatak javlja na stderr umjesto da obori komandu.
+      let detalji: { oglasi: OnboardingDetalj[]; ts: number } | undefined;
+      if (!opts.bezSnapshota) {
+        const zadnji = zadnjiSnapshot();
+        if (zadnji) {
+          detalji = { oglasi: zadnji.oglasi, ts: zadnji.ts };
+        } else {
+          console.error("Nema snapshota u .olx-pik/snapshots; izvjestaj ide bez higijene i ucinka.");
+          console.error("Za punu sliku prvo pokreni: stats snapshot");
+        }
+      }
+      const rezultat = await c.statsOnboarding(detalji);
+      if (opts.telegram) out(onboardingTelegram(rezultat.izvjestaj));
+      else if (opts.md) out(onboardingMarkdown(rezultat.izvjestaj));
+      else out(rezultat);
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+stats
+  .command("konkurent-snimi <username>")
+  .description("Snimi stanje konkurenta u .olx-pik/konkurenti (za sedmicno poredjenje)")
+  .action(async (username: string) => {
+    try {
+      const c = await withAuth();
+      const { izvjestaj } = await c.statsKonkurent(username, 0);
+      const oglasi = (await c.listAllByState("active", username)).map((o) => ({
+        id: o.id,
+        title: o.title,
+        price: typeof o.price === "number" ? o.price : undefined,
+        sponsored: typeof o.sponsored === "number" ? o.sponsored : undefined,
+      }));
+      const putanja = upisiKonkurenta({
+        verzija: 1,
+        ts: Math.floor(Date.now() / 1000),
+        username,
+        izvjestaj,
+        oglasi,
+      });
+      out({ fajl: putanja, oglasa: oglasi.length });
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+stats
+  .command("konkurent-promjena <username>")
+  .description("Razlika izmedju dva zadnja snimka konkurenta")
+  .action(async (username: string) => {
+    try {
+      const snimci = ucitajKonkurenta(username);
+      if (snimci.length < 2) {
+        throw new Error(
+          `Za ${username} postoji ${snimci.length} snimak/snimaka. Trebaju bar dva; pokreni 'stats konkurent-snimi ${username}' pa probaj za koji dan.`,
+        );
+      }
+      const prije = snimci[snimci.length - 2]!;
+      const sada = snimci[snimci.length - 1]!;
+      out(promjenaKonkurenta(username, prije, sada));
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+stats
   .command("konkurent <username>")
   .description("Izvjestaj o tudjem nalogu iz javnih podataka")
   .option("--top-views <n>", "broj top oglasa za detaljni pregled", "0")
@@ -1148,6 +1200,16 @@ stats
         let obradjeno = 0;
         for (const o of aktivni) {
           const full = await c.getListing(o.id);
+          // Polja za higijenu se hvataju ovdje jer je puni oglas ionako vec dohvacen. Bez toga bi
+          // onboarding izvjestaj morao ponoviti isti prolaz kroz sve oglase, a to je minute.
+          const images = Array.isArray(full.images) ? (full.images as unknown[]) : [];
+          const attributes = Array.isArray(full.attributes)
+            ? (full.attributes as { value?: unknown }[]).filter(
+                (a) => a.value !== null && a.value !== undefined && a.value !== "",
+              )
+            : [];
+          const podnaslov = typeof full.short_description === "string" ? full.short_description.trim() : "";
+          const opis = typeof full.additional?.description === "string" ? full.additional.description.trim() : "";
           oglasi.push({
             id: full.id,
             title: full.title,
@@ -1158,12 +1220,19 @@ stats
             created_at: typeof full.created_at === "number" ? full.created_at : undefined,
             status: full.status,
             price: typeof full.price === "number" ? full.price : undefined,
+            slika_broj: images.length,
+            ima_podnaslov: podnaslov.length > 0,
+            opis_znakova: opis.length,
+            atributa: attributes.length,
+            category_id: typeof full.category_id === "number" ? full.category_id : undefined,
           });
           obradjeno += 1;
           if (obradjeno % 20 === 0) console.error(`Snapshot: ${obradjeno}/${aktivni.length} oglasa...`);
         }
         const snapshot = {
-          verzija: 1,
+          // Verzija 2 nosi i polja za higijenu. Citac ne gleda verziju nego prisustvo polja, pa
+          // se snapshoti verzije 1 i dalje ucitavaju normalno.
+          verzija: 2,
           ts: Math.floor(Date.now() / 1000),
           account: username,
           broj_poziva: aktivni.length + Math.max(1, Math.ceil(aktivni.length / 20)) + 1,
@@ -1262,6 +1331,137 @@ program
       } else {
         out(report);
       }
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+// ---- Zakazani poslovi ----
+//
+// Ovo pokrece launchd, ne covjek. Kljucno: nijedan model se ne poziva, brojeve racuna kod, pa
+// dnevni izvjestaj kosta nula tokena. Obnove unutar besplatne kvote se izvrsavaju bez pitanja
+// jer ne kostaju; nista sto trosi kredite se ovdje ne radi.
+const posao = program.command("posao").description("Zakazani poslovi za cron (bez modela, bez troska kredita)");
+
+// Greska u poslu ide administratoru, nikad klijentu. Klijent ne treba znati da je nesto puklo,
+// treba mu neko ko to popravi.
+async function posaoFail(ime: string, e: unknown): Promise<never> {
+  const poruka = `Posao "${ime}" nije prosao: ${String(e instanceof Error ? e.message : e)}`;
+  console.error(poruka);
+  await javiAdminu(poruka);
+  process.exit(1);
+}
+
+posao
+  .command("dnevni")
+  .description("Dnevna obnova unutar besplatne kvote i poruka klijentu na Telegram")
+  .option("--suho", "izracunaj i ispisi, ali ne obnavljaj i ne salji", false)
+  .option("--bez-slanja", "izvrsi obnove ali ne salji Telegram poruku", false)
+  .action(async (opts: { suho?: boolean; bezSlanja?: boolean }) => {
+    try {
+      const c = await withAuth();
+      const user = await c.resolveUsername();
+      const sadaTs = Math.floor(Date.now() / 1000);
+
+      const me = await c.me();
+      const limits = await c.refreshLimits();
+      const aktivni = await c.listAllActive(user);
+      const kandidati = aktivni.filter((l) => l.refresh_available === true);
+      const plan = dnevniPlanObnova(limits, kandidati.length, sadaTs);
+
+      let obnovljeno: number | null = null;
+      let neuspjelih = 0;
+      if (!opts.suho) {
+        obnovljeno = 0;
+        for (const l of kandidati.slice(0, plan.za_obnovu)) {
+          try {
+            await c.refreshListing(l.id);
+            obnovljeno += 1;
+          } catch {
+            neuspjelih += 1;
+          }
+        }
+      }
+
+      const istekli = await c.listExpired(user, 1);
+      const tekst = dnevniTekst({
+        username: user,
+        plan,
+        obnovljeno,
+        neuspjelih_obnova: neuspjelih,
+        alarmi: alarmiNaloga(me, limits, istekli.meta.total, sadaTs),
+        neodgovorena_pitanja: typeof me.new_questions_count === "number" ? me.new_questions_count : null,
+        // Dnevni prirast pregleda: dva zadnja snimka, pa raspon od 2 dana umjesto 7.
+        promjena: promjenaPregleda(ucitajSnapshote(), sadaTs, 2),
+      });
+
+      const poslano = opts.suho || opts.bezSlanja ? 0 : await posaljiPoruku(tekst);
+      out({ plan, obnovljeno, neuspjelih, poslano_poruka: poslano, tekst });
+    } catch (e) {
+      await posaoFail("dnevni", e);
+    }
+  });
+
+posao
+  .command("sedmicni")
+  .description("Sedmicni pregled: prirast pregleda, sta raste, sta miruje i prijedlozi")
+  .option("--suho", "ispisi ali ne salji", false)
+  .option("--dana <n>", "raspon poredjenja u danima", "7")
+  .action(async (opts: { suho?: boolean; dana: string }) => {
+    try {
+      const c = await withAuth();
+      const user = await c.resolveUsername();
+      const sadaTs = Math.floor(Date.now() / 1000);
+      const zadnji = zadnjiSnapshot();
+      const { izvjestaj } = await c.statsOnboarding(zadnji ? { oglasi: zadnji.oglasi, ts: zadnji.ts } : undefined);
+
+      // Plan izdvajanja nije obavezan: klijent koji ga nema dobija izvjestaj bez te sekcije.
+      const plan = citajPlanAkoPostoji();
+      const tekst = sedmicniTekst({
+        username: user,
+        promjena: promjenaPregleda(ucitajSnapshote(), sadaTs, Number(opts.dana) || 7),
+        onboarding: izvjestaj,
+        plan: plan ? planSazetak(plan) : null,
+        dospjelo: plan ? dospjeliTermini(plan, danasnjiDatum()).length : 0,
+      });
+
+      const poslano = opts.suho ? 0 : await posaljiPoruku(tekst);
+      out({ poslano_poruka: poslano, tekst });
+    } catch (e) {
+      await posaoFail("sedmicni", e);
+    }
+  });
+
+// Slanje gotovog teksta. Koristi ga AI runda (scripts/ai-runda.sh): headless sesija napise
+// poruku na stdout, a ova komanda je isporuci kroz bot i grupu OVOG klona. Namjerno ne salje
+// adminu na gresku (nema posaoFail): pozivalac odlucuje sta sa neuspjehom.
+posao
+  .command("posalji [tekst...]")
+  .description("Posalji tekst na Telegram: klijentu u grupu, ili adminu uz --admin")
+  .option("--stdin", "procitaj tekst sa standardnog ulaza umjesto iz argumenta", false)
+  .option("--admin", "posalji u admin DM umjesto u grupu klijenta", false)
+  .action(async (dijelovi: string[], opts: { stdin?: boolean; admin?: boolean }) => {
+    try {
+      let tekst = (dijelovi ?? []).join(" ");
+      if (opts.stdin) {
+        const komadi: Buffer[] = [];
+        for await (const komad of process.stdin) komadi.push(komad as Buffer);
+        tekst = Buffer.concat(komadi).toString("utf8");
+      }
+      tekst = tekst.trim();
+      if (!tekst) throw new Error("Nema teksta za slanje: daj argument ili --stdin.");
+      if (opts.admin) {
+        // javiAdminu nikad ne baca, pa se uspjeh ovdje ne moze garantovati; za admin kanal je
+        // to prihvatljivo, on je best-effort i u ostatku koda.
+        await javiAdminu(tekst);
+        out({ kanal: "admin", poslano_poruka: 1 });
+        return;
+      }
+      const poslano = await posaljiPoruku(tekst);
+      if (poslano === 0) {
+        throw new Error("Poruka nije poslana: TELEGRAM_BOT_TOKEN ili TELEGRAM_CHAT_ID nedostaje u .env.");
+      }
+      out({ kanal: "klijent", poslano_poruka: poslano });
     } catch (e) {
       fail(e);
     }

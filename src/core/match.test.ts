@@ -7,7 +7,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   buildIdf,
+  DEFAULTS,
   matchCatalog,
+  nadjiPoUpitu,
   modelTokens,
   normalizeTitle,
   scorePair,
@@ -237,4 +239,60 @@ test("precision na zlatnom setu: nula laznih pozitiva", () => {
   }
   const summary = summarizeMatches(results);
   assert.equal(summary.matched + summary.review, results.length, "nijedan poznati par ne smije pasti u no_match");
+});
+
+// ===== pretraga vlastitih oglasa po slobodnom upitu =====
+
+// Naslovi iz stvarnog MixBox kataloga, da kalibracija ne bude na izmisljenim primjerima.
+const KATALOG = [
+  { id: 1, title: "BASE radne cipele HTZ zastitna obuca" },
+  { id: 2, title: "ARDON Aero O1 - radne cipele HTZ obuca" },
+  { id: 3, title: "HTZ radne cipele i radne hlače - zaštitna obuća, komplet" },
+  { id: 4, title: "HTZ radno odijelo - radne hlače i radna jakna, komplet po izboru" },
+  { id: 5, title: "Baloni sa zviždaljkom, Perla Festa" },
+  { id: 6, title: "Rođendanski set - tanjiri, čaše, salvete, baloni, svijeće" },
+  { id: 7, title: "Adidas dresovi - mješoviti lot (veleprodaja), 700 komada" },
+  { id: 8, title: "Školski pribor Cars i Miraculous - pernice, flomasteri, bojice" },
+  { id: 9, title: "Kupaći šorcevi - Premium (3XL - 10X)" },
+  { id: 10, title: "Monte Karlo (3XL - 10XL)" },
+  { id: 11, title: "Polo majica - Monte Carlo (3XL - 10XL)" },
+  { id: 12, title: "EuroSan Burger Presa" },
+];
+
+test("nadjiPoUpitu stavlja tacan oglas na prvo mjesto za tipicne upite", () => {
+  const slucajevi: [string, number][] = [
+    ["radne cipele", 1],
+    ["htz odijelo", 4],
+    ["adidas dresovi", 7],
+    ["skolski pribor", 8],
+    ["kupaci sorc", 9],
+    ["monte karlo", 10],
+  ];
+  for (const [upit, ocekivanId] of slucajevi) {
+    const p = nadjiPoUpitu(upit, KATALOG, 3);
+    assert.equal(p[0]?.id, ocekivanId, `upit "${upit}" nije pogodio oglas ${ocekivanId}, nego ${p[0]?.id}`);
+  }
+});
+
+test("nadjiPoUpitu radi bez dijakritike u upitu", () => {
+  // Korisnik sa telefona rijetko pise kvacice. "skolski" mora naci "Školski", "kupaci" -> "Kupaći".
+  assert.equal(nadjiPoUpitu("skolski pribor", KATALOG, 1)[0]?.id, 8);
+  assert.equal(nadjiPoUpitu("kupaci sorcevi", KATALOG, 1)[0]?.id, 9);
+  assert.equal(nadjiPoUpitu("rodjendanski set", KATALOG, 1)[0]?.id, 6);
+});
+
+test("tacan pogodak zna imati skor daleko ispod praga za spajanje kataloga", () => {
+  // Ovo je razlog zasto olx_find_my_listing NEMA apsolutni prag. Pragovi u DEFAULTS
+  // (autoThreshold 0.72, reviewThreshold 0.5) kalibrirani su za poredjenje dva PUNA naslova.
+  // Kratak upit ima malu uniju tokena, pa Jaccard sistematski daje nizi skor.
+  const p = nadjiPoUpitu("baloni za rodjendan", KATALOG, 1)[0];
+  assert.ok(p, "mora vratiti pogodak");
+  assert.ok(p.skor < DEFAULTS.reviewThreshold, `skor ${p.skor} bi prosao prag ${DEFAULTS.reviewThreshold}`);
+  assert.ok(p.skor > 0.15, `skor ${p.skor} je prenizak, pretraga ne razlikuje nista`);
+});
+
+test("nadjiPoUpitu vraca najvise limit pogodaka i ne pada na praznom ulazu", () => {
+  assert.equal(nadjiPoUpitu("cipele", KATALOG, 2).length, 2);
+  assert.equal(nadjiPoUpitu("", KATALOG, 3).length, 0);
+  assert.equal(nadjiPoUpitu("bilo sta", [], 3).length, 0);
 });

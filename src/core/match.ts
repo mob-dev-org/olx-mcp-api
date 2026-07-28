@@ -70,7 +70,8 @@ export interface MatchOptions {
   overrides?: Record<string, OverrideEntry>;
 }
 
-const DEFAULTS = { autoThreshold: 0.72, reviewThreshold: 0.5, ambiguityMargin: 0.05 };
+// Izlozeno da testovi mogu dokazati da ovi pragovi NISU prenosivi na pretragu po slobodnom upitu.
+export const DEFAULTS = { autoThreshold: 0.72, reviewThreshold: 0.5, ambiguityMargin: 0.05 };
 
 // Dijakritike mapiramo eksplicitno PRIJE NFD normalizacije, jer dj/dz u nekim izvorima nisu
 // dekomponovani pa bi ih generican postupak propustio.
@@ -200,6 +201,38 @@ export function scorePair(a: string, b: string, idf?: Map<string, number>): numb
     }
   }
   return Math.min(1, base + bonus);
+}
+
+export interface PogodakPretrage {
+  id: number;
+  title: string;
+  skor: number;
+  price?: number;
+}
+
+/**
+ * Rangira vlastite oglase po slobodnom upitu ("crvene cipele", "onaj HTZ komplet").
+ *
+ * Zasto ne koristi pragove iz `DEFAULTS`: oni su kalibrirani za poredjenje dva PUNA naslova iz
+ * dva kataloga. Kratak upit kroz Jaccard dobija sistematski nizi skor, jer je unija skupova
+ * mala, pa bi prag 0.72 odbacio i tacan pogodak. Zato ovdje nema apsolutnog praga: vraca se top
+ * N sa skorovima, a odluku donose model i korisnik.
+ *
+ * IDF se gradi nad naslovima kataloga, pa rijec koja se ponavlja u svakom naslovu (ime brenda
+ * shopa, "veleprodaja") nosi manje tezine od rijeci koja razlikuje.
+ */
+export function nadjiPoUpitu(
+  upit: string,
+  oglasi: { id: number; title: string; price?: number }[],
+  limit = 3,
+): PogodakPretrage[] {
+  const cist = upit.trim();
+  if (!cist || oglasi.length === 0) return [];
+  const idf = buildIdf(oglasi.map((o) => o.title));
+  return oglasi
+    .map((o) => ({ id: o.id, title: o.title, price: o.price, skor: Number(scorePair(cist, o.title, idf).toFixed(3)) }))
+    .sort((a, b) => b.skor - a.skor)
+    .slice(0, Math.max(1, limit));
 }
 
 export function matchCatalog(

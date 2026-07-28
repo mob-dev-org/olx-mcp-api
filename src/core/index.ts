@@ -1,17 +1,21 @@
+import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { loadConfig, type OlxConfig } from "./config.js";
-import { auditSinkFromPath, currentAuditContext, type AuditSink } from "./audit.js";
+import { auditSinkFromPath, currentAuditContext, potrosenoNaDan, type AuditSink } from "./audit.js";
 import {
   alarmiNaloga,
   konkurentIzvjestaj,
   oglasIzvjestaj,
+  onboardingIzvjestaj,
   profilStatistika,
   type AlarmiNaloga,
   type AlarmiPragovi,
   type KonkurentIzvjestaj,
   type OglasIzvjestaj,
   type OglasPregledi,
+  type OnboardingDetalj,
+  type OnboardingIzvjestaj,
   type ProfilStatistika,
 } from "./stats.js";
 import type {
@@ -84,6 +88,9 @@ interface RequestOptions {
   // a u kategorijama sa listing_fee i dupli trosak). Mreznu gresku i timeout takodjer ne
   // ponavljamo za te pozive, jer se ne zna da li je zahtjev stigao do servera.
   retryOnServerError?: boolean;
+  // Trosak radnje u kreditima. Ulazi u audit zapis samo kad poziv uspije, pa se dnevna
+  // potrosnja moze sabrati iz loga.
+  krediti?: number;
 }
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
@@ -163,7 +170,7 @@ export class OlxClient {
 
   // Centralni request wrapper: throttle, retry/backoff na 429 i 5xx, relogin na 401 i audit zapis.
   private async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-    const { method = "GET", query, body, auth = true, retryOnServerError = true } = options;
+    const { method = "GET", query, body, auth = true, retryOnServerError = true, krediti } = options;
 
     // Kod multipart uploada (FormData) Content-Type postavlja fetch sam (sa boundary).
     const isForm = typeof FormData !== "undefined" && body instanceof FormData;
@@ -189,6 +196,9 @@ export class OlxClient {
         attempts: attempt,
         ...(this.cachedUsername ? { account: this.cachedUsername } : {}),
         ...(error ? { error } : {}),
+        // Trosak se biljezi samo na uspjesnom pozivu: neuspjeh nije naplacen, a kad bi usao u
+        // log, dnevni plafon bi se trosio na radnje koje se nikad nisu desile.
+        ...(ok && typeof krediti === "number" ? { krediti } : {}),
       });
     };
 
@@ -392,12 +402,46 @@ export class OlxClient {
   }
 
   // Bez retry-a na 5xx: ponovljen POST bi napravio duplikat oglasa (i dupli listing_fee).
-  async createListing(input: CreateListingInput): Promise<Listing> {
+  /**
+   * Kreira oglas kao nacrt.
+   *
+   * Objava nije besplatna u svim kategorijama: `listing_fee` je 0 za vecinu robe, ali Automobili
+   * kostaju 70, Stanovi 190, Poslovi 100, IPTV 600 kredita. Zato ovdje vazi isti spend-guard kao
+   * za izdvajanje: bez `confirm` se u naplatnoj kategoriji ne salje zahtjev, nego se javi cijena.
+   * U kategorijama bez naknade se nista ne mijenja i confirm nije potreban.
+   *
+   * Cijena se cita sa kategorije, ne pretpostavlja. Kad kategorija nije citljiva, radnja se
+   * propusta uz upozorenje na stderr: blokirati objavu zbog neuspjelog pomocnog poziva bi bilo
+   * gore od rizika, jer je velika vecina kategorija besplatna.
+   */
+  async createListing(input: CreateListingInput, opcije: { confirm?: boolean } = {}): Promise<Listing> {
+    let naknada = 0;
+    if (input.category_id !== undefined && input.category_id !== null) {
+      try {
+        // category() vraca omotac { data }, pa se listing_fee cita iz data, ne sa vrha.
+        const kat = await this.category(input.category_id);
+        naknada = naknadaKategorije(kat);
+      } catch (e) {
+        console.error(`Naknada kategorije nije procitana, objava ide bez provjere troska: ${String(e)}`);
+      }
+    }
+
+    if (naknada > 0) {
+      if (!opcije.confirm) {
+        this.zapisiOdbijeno("POST", "/listings", `objava u naplatnoj kategoriji, ${naknada} kredita`);
+        throw new OlxSpendError(
+          `Objava u ovoj kategoriji košta ${naknada} kredita. Potvrdi (confirm) da bi se naplatilo.`,
+        );
+      }
+      this.provjeriDnevniPlafon(naknada, "POST", "/listings");
+    }
+
     return this.unwrap(
       await this.request<Listing | { data: Listing }>("/listings", {
         method: "POST",
         body: input,
         retryOnServerError: false,
+        ...(naknada > 0 ? { krediti: naknada } : {}),
       }),
     );
   }
@@ -669,27 +713,36 @@ export class OlxClient {
   }
 
   // Spend-guard: bez confirm === true ne trosi kredite, nego dohvata cijenu i baca OlxSpendError.
+  //
+  // Kad je confirm postavljen, cijena se svejedno dohvata: treba za dnevni plafon i za zapis u
+  // audit log. To je jedan dodatan GET po naplati, sto je jeftino naspram toga da se ne zna
+  // koliko je potroseno.
   async sponsorListing(
     id: number | string,
     options: SponsorOptions,
     confirm: boolean,
   ): Promise<unknown> {
+    const price = await this.sponsorPrice(id, options);
     if (!confirm) {
-      const price = await this.sponsorPrice(id, options);
       this.zapisiOdbijeno("POST", `/listings/${id}/sponsore`, `izdvajanje za ${price.total} kredita`);
       throw new OlxSpendError(
         `Izdvajanje bi koštalo ${price.total} kredita. Potvrdi (confirm) da bi se naplatilo.`,
         price,
       );
     }
+    this.provjeriDnevniPlafon(price.total, "POST", `/listings/${id}/sponsore`);
     // Bez retry-a na 5xx: naplata je mogla proci prije nego je server pao na odgovoru.
     return this.request(`/listings/${id}/sponsore`, {
       method: "POST",
       body: { ...options, refresh_every: options.refresh_every ?? 0 },
       retryOnServerError: false,
+      krediti: price.total,
     });
   }
 
+  // Akcijska cijena nema endpoint za cijenu, pa se trosak ne moze unaprijed saznati. Zato se u
+  // log ne upisuje iznos i ne racuna se u dnevni plafon; plafon se svejedno provjerava sa 0 da
+  // radnja stane kad je plafon vec probijen izdvajanjima.
   async setDiscount(id: number | string, input: DiscountInput, confirm: boolean): Promise<unknown> {
     if (!confirm) {
       this.zapisiOdbijeno("POST", `/listings/${id}/discount`, `akcijska cijena ${input.price} na ${input.days} dana`);
@@ -697,8 +750,38 @@ export class OlxClient {
         `Akcijska cijena je premium opcija i troši kredite. Potvrdi (confirm) za izvršenje.`,
       );
     }
+    this.provjeriDnevniPlafon(0, "POST", `/listings/${id}/discount`);
     // Bez retry-a na 5xx: isti razlog kao kod izdvajanja (dupla naplata).
     return this.request(`/listings/${id}/discount`, { method: "POST", body: input, retryOnServerError: false });
+  }
+
+  /**
+   * Tvrdi dnevni plafon potrosnje. Zadnja brana kad je model ubijedjen da je dobio potvrdu.
+   *
+   * Cita se iz audit loga, ne iz memorije procesa, jer klijentska sesija i cron poslovi rade u
+   * odvojenim procesima nad istim nalogom. Kad log nije citljiv, plafon se NE primjenjuje i o
+   * tome ide upozorenje na stderr: tise bi bilo blokirati sve, ali bi to oborilo i legitimne
+   * radnje zbog problema sa fajlom.
+   */
+  private provjeriDnevniPlafon(trosak: number, method: Method, path: string): void {
+    const plafon = this.config.maxSpendPerDay;
+    if (!plafon || plafon <= 0) return;
+    const danas = new Date().toISOString().slice(0, 10);
+    let vecPotroseno: number;
+    try {
+      vecPotroseno = potrosenoNaDan(readFileSync(this.config.auditFile, "utf8"), danas);
+    } catch (e) {
+      const razlog = (e as NodeJS.ErrnoException)?.code === "ENOENT" ? null : e;
+      if (razlog) {
+        console.error(`Dnevni plafon se ne moze provjeriti (audit log nije citljiv): ${String(razlog)}`);
+        return;
+      }
+      vecPotroseno = 0; // log jos ne postoji, dakle danas nista nije potroseno
+    }
+    if (vecPotroseno + trosak <= plafon) return;
+    const razlog = `dnevni plafon ${plafon} kredita; danas potroseno ${vecPotroseno}, ova radnja trazi ${trosak}`;
+    this.zapisiOdbijeno(method, path, razlog);
+    throw new OlxSpendError(`Radnja je zaustavljena: ${razlog}. Javi administratoru.`);
   }
 
   finishDiscount(id: number | string): Promise<unknown> {
@@ -766,6 +849,60 @@ export class OlxClient {
     return { statistika, broj_poziva: pozivi, trajanje_ms: Date.now() - start };
   }
 
+  // Onboarding izvjestaj: prva analiza koja se pokazuje klijentu.
+  //
+  // Detalji o oglasima (slike, podnaslov, opis, atributi, pregledi) dolaze iz dnevnog snapshota
+  // i ne kostaju nijedan poziv. Kad snapshota nema, izvjestaj se svejedno pravi, samo bez
+  // sekcije ucinka i bez higijene koja trazi puni oglas. Svjez prolaz kroz sve oglase se ovdje
+  // namjerno ne radi: na shopu od par stotina oglasa to su minute, a za to postoji
+  // `stats snapshot` koji ionako radi nocu.
+  async statsOnboarding(
+    detalji?: { oglasi: OnboardingDetalj[]; ts: number },
+  ): Promise<{ izvjestaj: OnboardingIzvjestaj; broj_poziva: number; trajanje_ms: number }> {
+    const start = Date.now();
+    let pozivi = 0;
+    const me = await this.me();
+    pozivi += 1;
+    const username = await this.resolveUsername();
+    const limits = await this.refreshLimits();
+    pozivi += 1;
+    // Limit oglasa po paketu nije dokumentovan i na nekim nalozima vraca gresku, pa ne smije
+    // oboriti cijeli izvjestaj.
+    let listingLimits: unknown;
+    try {
+      listingLimits = await this.listingLimits();
+      pozivi += 1;
+    } catch {
+      listingLimits = undefined;
+    }
+    const aktivni = await this.listAllByState("active", username);
+    pozivi += Math.max(1, Math.ceil(aktivni.length / 20));
+    const [istekli, skriveni, neaktivni, zavrseni] = await Promise.all([
+      this.listExpired(username, 1),
+      this.listHidden(username, 1),
+      this.listInactive(username, 1),
+      this.listFinished(username, 1),
+    ]);
+    pozivi += 4;
+
+    const izvjestaj = onboardingIzvjestaj({
+      me,
+      refreshLimits: limits,
+      aktivni,
+      ukupno: {
+        istekli: istekli.meta.total,
+        skriveni: skriveni.meta.total,
+        neaktivni: neaktivni.meta.total,
+        zavrseni: zavrseni.meta.total,
+      },
+      listingLimits,
+      detalji: detalji?.oglasi,
+      detaljiTs: detalji?.ts,
+      sadaTs: Math.floor(Date.now() / 1000),
+    });
+    return { izvjestaj, broj_poziva: pozivi, trajanje_ms: Date.now() - start };
+  }
+
   // Izvjestaj o tudjem (ili svom) nalogu iz javnih podataka. topViews > 0 dodatno povlaci
   // pojedinacne oglase (najskorije obnovljene) radi pregleda po oglasu.
   async statsKonkurent(
@@ -827,6 +964,21 @@ function uzorakZaPreglede(aktivni: ListingSummary[], velicina: number): ListingS
     odabrani.set(o.id, o);
   }
   return [...odabrani.values()];
+}
+
+/**
+ * Naknada za objavu u kategoriji, u kreditima. 0 kad je nema ili se ne moze procitati.
+ *
+ * Tolerantno na oblik odgovora: `GET /category/:id` vraca omotac `{ data: {...} }`, ali se
+ * ista provjera koristi i tamo gdje je kategorija vec raspakovana. Bez ovoga bi se citalo
+ * `listing_fee` sa omotaca, uvijek dobijalo undefined, i spend-guard na objavi nikad ne bi
+ * opalio (provjereno na kategoriji Automobili, gdje je naknada 70 kredita).
+ */
+export function naknadaKategorije(odgovor: unknown): number {
+  const o = odgovor as { listing_fee?: unknown; data?: { listing_fee?: unknown } } | null;
+  const sirovo = o?.data?.listing_fee ?? o?.listing_fee;
+  const n = Number(sirovo);
+  return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
 function safeJson(text: string): unknown {
