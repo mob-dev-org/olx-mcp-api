@@ -41,8 +41,9 @@ Dodaje se povrh `CLAUDE.md` kroz `scripts/claude-olx.sh`. Klijentski runtime ovo
 - `scripts/ai-runda.sh` (launchd sablon `ADMIN.ai-runda`, nedjelja 21h, instalira se rucno i
   jednom): sedmicna AI analiza svih klonova kroz vlasnikovu Claude pretplatu, headless i strogo
   read-only. Rezultat ide klijentu u grupu, prijedlozi u `.olx-pik/prijedlozi/` klona, a
-  primjenjuje ih klijentski bot uz potvrdu (vidi skill olx-analiza-profila). Interaktivni
-  klijentski razgovor NIKAD ne ide preko pretplate, to je dijeljenje naloga.
+  primjenjuje ih klijentski bot uz potvrdu (vidi skill olx-analiza-profila). Pogon
+  interaktivnog klijentskog razgovora bira `OLX_KLIJENT_AI` u `.env` klona: pretplata je
+  svjesni default za fazu testiranja prvih klijenata, cilj je DeepSeek API po klijentu.
 
 ## Pravila po slojevima
 
@@ -50,6 +51,14 @@ Detaljna pravila za kod, pogon i promptove su u `.claude/rules/` i ucitavaju se 
 dotakne odgovarajuci fajl (`paths` frontmatter). Ne prepisuju se ovdje ni u skillove. Za
 pitanja o platformi i API-ju koristi podagenta `olx-korpus` umjesto ucitavanja velikih
 fajlova dokumentacije u razgovor.
+
+Jos dva podagenta za admina (rade i kroz admin bota, klijentska sesija ih ne vidi):
+
+- `olx-prodaja` — argumentacija za prospekta iz dokumentacije, sa granicama kao anti-izvorom
+  (nikad ne obecava ono sto platforma ne moze). Koristi kad treba uvjeriti ili odgovoriti na
+  prigovor.
+- `olx-dijagnostika` — simptom zivog pogona ("bot ne odgovara", "nema jutarnje poruke") u
+  nalaz + dokaz + komandu za popravku. Nista ne mijenja sam; kroz admin bota radi bez Bash-a.
 
 ## Serijski poslovi
 
