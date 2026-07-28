@@ -7,13 +7,22 @@
   "permissions": {
     "defaultMode": "acceptEdits",
 
+    "//3a": "Tajne su zabranjene i vlasniku KROZ BOTA: Telegram poruka je cisti tekst na",
+    "//3b": "tudjim serverima, pa token nikad ne smije zavrsiti u chatu. Za tajne: terminal.",
     "deny": [
       "Bash",
       "Write",
       "Edit",
       "NotebookEdit",
       "WebFetch",
-      "WebSearch"
+      "WebSearch",
+      "Read(./.env*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(//**/.env)",
+      "Read(//**/.env.*)",
+      "Read(./.claude-runtime/channels/telegram/.env)",
+      "Read(./.claude-runtime-admin/channels/telegram/.env)"
     ],
 
     "allow": [

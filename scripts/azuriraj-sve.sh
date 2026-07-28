@@ -27,7 +27,9 @@ fi
 uspjeli=()
 pali=()
 
-while IFS= read -r klon; do
+# Popis se cita kroz FD 3, ne kroz stdin: git/npm/node u tijelu petlje inace pojedu ostatak
+# popisa i skripta tiho obradi samo prvi klon.
+while IFS= read -r -u 3 klon; do
   klon="${klon%%#*}"
   klon="$(echo "$klon" | xargs)"
   [[ -z "$klon" ]] && continue
@@ -61,6 +63,8 @@ while IFS= read -r klon; do
   [[ -z "$greska" ]] && { (cd "$klon" && npm ci --silent) || greska="npm ci"; }
   [[ -z "$greska" ]] && { (cd "$klon" && npm run build --silent) || greska="build"; }
   [[ -z "$greska" ]] && { (cd "$klon" && npm test --silent >/dev/null 2>&1) || greska="testovi"; }
+  # Testovi pisu probni audit u radni folder; ne smije ostati u klijentovom .olx-pik.
+  rm -f "$klon/.olx-pik/test-audit.jsonl" 2>/dev/null || true
 
   if [[ -n "$greska" ]]; then
     pali+=("$klon: $greska")
@@ -68,23 +72,31 @@ while IFS= read -r klon; do
     continue
   fi
 
-  # Tek sada, kad je sve proslo, restart poslova. Ime posla prati ime foldera klona.
+  # Tek sada, kad je sve proslo, restart DUGOZIVIH poslova (sesija, admin-bot): oni jedini
+  # drze stari kod u memoriji. Kalendarski poslovi (snapshot/dnevno/sedmicno) se NE diraju:
+  # kickstart -k bi ih IZVRSIO odmah, pa bi klijent dobio jutarnji izvjestaj usred dana i
+  # potrosila bi se dnevna runda obnova van reda. Oni novi kod ionako uzmu na sljedecem
+  # zakazanom terminu, jer su jednokratni node procesi.
   ime="$(basename "$klon")"
-  for posao in dnevno sedmicno; do
+  for posao in sesija admin-bot; do
     oznaka="ba.codefactory.olx.$ime.$posao"
     if launchctl list | grep -q "$oznaka"; then
       launchctl kickstart -k "gui/$(id -u)/$oznaka" 2>/dev/null || true
+      echo "  restartovan posao: $posao"
     fi
   done
 
   uspjeli+=("$klon @ $(git -C "$klon" rev-parse --short HEAD)")
   echo "  ok"
-done < "$POPIS"
+done 3< "$POPIS"
 
 echo
 echo "=== zbir ==="
 echo "Proslo: ${#uspjeli[@]}"
-for u in "${uspjeli[@]}"; do echo "  $u"; done
+# macOS bash 3.2 + set -u: prazan niz u "${niz[@]}" je unbound variable, zato guard.
+if [[ ${#uspjeli[@]} -gt 0 ]]; then
+  for u in "${uspjeli[@]}"; do echo "  $u"; done
+fi
 if [[ ${#pali[@]} -gt 0 ]]; then
   echo "Palo: ${#pali[@]}"
   for p in "${pali[@]}"; do echo "  $p"; done

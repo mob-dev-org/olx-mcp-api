@@ -8,8 +8,10 @@
   "permissions": {
     "defaultMode": "acceptEdits",
 
-    "//5": "Klijent razgovara sa asistentom za oglase, ne sa racunarom. Sve sto nije OLX ili",
-    "//6": "odgovor na Telegram je zabranjeno, ukljucujuci citanje fajlova i pokretanje komandi.",
+    "//5": "VAZNO: allow lista NIJE whitelist. Sto nije u deny, klijent moze. Zato tajne",
+    "//6": "moraju biti izricito zabranjene: .env sa oba tokena, KLIJENT.md, audit trag,",
+    "//7": "telegram kredencijali, i .env* bilo gdje (drugi klonovi na istoj masini).",
+    "//8": "Grep/Glob/Skill su zabranjeni u cijelosti: klijentu ne trebaju, a zaobilaze Read deny.",
     "deny": [
       "Bash",
       "Write",
@@ -18,18 +20,35 @@
       "WebFetch",
       "WebSearch",
       "Task",
-      "Agent"
+      "Agent",
+      "Grep",
+      "Glob",
+      "Skill",
+      "Read(./.env*)",
+      "Read(./KLIJENT.md)",
+      "Read(./klijenti/**)",
+      "Read(./.olx-pik/**)",
+      "Read(./.mcp.json)",
+      "Read(./.claude-runtime/channels/telegram/.env)",
+      "Read(./.claude-runtime/channels/telegram/access.json)",
+      "Read(./.claude-runtime/settings.json)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(//**/.env)",
+      "Read(//**/.env.*)",
+      "Read(//**/KLIJENT.md)"
     ],
 
-    "//7": "Read je dozvoljen samo nad Telegram inboxom, jer objava artikla cita poslanu sliku.",
+    "//9": "Read nad inboxom je jedina potreba (objava artikla cita poslanu sliku).",
+    "//10": "Relativna putanja radi na macOS i Windows i ne zavisi od toga gdje klon zivi.",
     "allow": [
-      "Read(//Users/*/olx-klijenti/*/.claude-runtime/channels/telegram/inbox/**)",
+      "Read(./.claude-runtime/channels/telegram/inbox/**)",
       "mcp__olx-pik",
       "mcp__telegram"
     ]
   },
 
-  "//8": "Nijedan plugin osim Telegram kanala. Popis se drzi u koraku sa .claude/settings.json.",
+  "//11": "Nijedan plugin osim Telegram kanala. Popis se drzi u koraku sa .claude/settings.json.",
   "enabledPlugins": {
     "telegram@claude-plugins-official": true,
 

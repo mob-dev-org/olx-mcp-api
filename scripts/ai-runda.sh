@@ -2,9 +2,10 @@
 #
 # AI runda: sedmicna batch analiza svih klonova kroz vlasnikovu Claude Code pretplatu.
 #
-# Granica koristenja pretplate, da se ne zaboravi: interaktivni klijentski bot NIKAD ne ide
-# preko pretplate (to bi bilo dijeljenje naloga), on ostaje na API naplati. Ova runda je
-# vlasnikov vlastiti batch rad nad vlastitim repoima; klijent dobija samo gotov rezultat.
+# Granica koristenja pretplate: ova runda je vlasnikov vlastiti batch rad nad vlastitim
+# repoima; klijent dobija samo gotov rezultat. Klijentski interaktivni bot bira pogon kroz
+# OLX_KLIJENT_AI u .env klona (pretplata je svjesni default za fazu testiranja prvih
+# klijenata, poslije DeepSeek API po klijentu) — vidi .env.example i arhitektura.md.
 #
 # Sta radi po klonu: headless `claude -p` sa admin profilom izvrsi recept
 # runtime/recepti/ai-runda.md (analiza profila, SEO prijedlozi, trijaza mrtvih, konkurenti;
@@ -34,7 +35,11 @@ if [[ ! -f "$POPIS" ]]; then
 fi
 
 # Dvostruka brana povrh recepta: i da model u sesiji zaluta, mutirajuci alati su iskljuceni.
-ZABRANJENI="mcp__olx-pik__olx_update_listing,mcp__olx-pik__olx_create_listing,mcp__olx-pik__olx_publish_listing,mcp__olx-pik__olx_refresh_listing,mcp__olx-pik__olx_refresh_bulk,mcp__olx-pik__olx_sponsor_listing,mcp__olx-pik__olx_set_discount,mcp__olx-pik__olx_finish_discount,mcp__olx-pik__olx_finish_listing,mcp__olx-pik__olx_hide_listing,mcp__olx-pik__olx_unhide_listing,mcp__olx-pik__olx_bulk_price,mcp__olx-pik__olx_bulk_sklanjanje,mcp__olx-pik__olx_upload_images,mcp__olx-pik__olx_delete_image,mcp__olx-pik__olx_set_main_image"
+# Napomena odrzavanja: ovo je crna lista, pa je svaki NOVI mutirajuci alat po defaultu
+# dozvoljen dok se ovdje ne doda. Pri dodavanju alata u MCP server provjeri i ovu listu.
+# olx_sponsor_plan je tu jer pise plan-izdvajanja.json i zauzima lock (runda je read-only);
+# olx_opisi_sliku jer placa Anthropic API po pozivu, a runda ne radi sa slikama.
+ZABRANJENI="mcp__olx-pik__olx_update_listing,mcp__olx-pik__olx_create_listing,mcp__olx-pik__olx_publish_listing,mcp__olx-pik__olx_refresh_listing,mcp__olx-pik__olx_refresh_bulk,mcp__olx-pik__olx_sponsor_listing,mcp__olx-pik__olx_set_discount,mcp__olx-pik__olx_finish_discount,mcp__olx-pik__olx_finish_listing,mcp__olx-pik__olx_hide_listing,mcp__olx-pik__olx_unhide_listing,mcp__olx-pik__olx_bulk_price,mcp__olx-pik__olx_bulk_sklanjanje,mcp__olx-pik__olx_upload_images,mcp__olx-pik__olx_delete_image,mcp__olx-pik__olx_set_main_image,mcp__olx-pik__olx_sponsor_plan,mcp__olx-pik__olx_opisi_sliku"
 
 # U print modu nema koga da klikne na permission prompt, pa se sve sto sesija smije mora
 # dozvoliti unaprijed. Write je suzen na folder prijedloga.
@@ -68,28 +73,49 @@ while IFS= read -r klon; do
   fi
 
   echo "== $ime =="
+  # Klijentu smije otici SAMO stdout (zavrsni tekst sesije). stderr ide u fajl greske:
+  # tamo zavrsavaju upozorenja iz koda ("snapshot nije citljiv", "plafon se ne moze
+  # provjeriti") koja bi inace stigla klijentu u grupu. < /dev/null je obavezan: bez njega
+  # claude -p pojede ostatak popisa klonova iz while-read petlje i runda tiho stane.
+  greske="$(mktemp)"
   izlaz=""
-  if ! izlaz=$(cd "$klon" && claude -p "$(cat runtime/recepti/ai-runda.md)" \
+  status=0
+  izlaz=$(cd "$klon" && claude -p "$(cat runtime/recepti/ai-runda.md)" \
       --strict-mcp-config --mcp-config .mcp.json \
       --append-system-prompt-file runtime/SISTEM-admin.md \
       --setting-sources project \
       --allowedTools "$DOZVOLJENI" \
-      --disallowedTools "$ZABRANJENI" 2>&1); then
-    if echo "$izlaz" | grep -qiE "usage limit|rate limit|out of.*(credit|quota)|limit reached"; then
-      echo "Limit pretplate dostignut kod klona $ime, prekidam rundu." >&2
-      javi_adminu "AI runda prekinuta na klonu $ime: limit pretplate. Proslo do tada: $proslo."
-      exit 1
-    fi
+      --disallowedTools "$ZABRANJENI" 2>"$greske" < /dev/null) || status=$?
+
+  # Poruka o limitu moze biti i na stdout i na stderr, provjeri oba.
+  if { printf '%s\n' "$izlaz"; cat "$greske"; } | grep -qiE "usage limit|rate limit|out of.*(credit|quota)|limit reached"; then
+    echo "Limit pretplate dostignut kod klona $ime, prekidam rundu." >&2
+    javi_adminu "AI runda prekinuta na klonu $ime: limit pretplate. Proslo do tada: $proslo."
+    rm -f "$greske"
+    exit 1
+  fi
+
+  if [[ $status -ne 0 ]]; then
     pali+=("$ime: sesija pala")
-    echo "$izlaz" | tail -n 5 | sed 's/^/  | /'
+    tail -n 5 "$greske" | sed 's/^/  | /'
+    rm -f "$greske"
     continue
   fi
+  rm -f "$greske"
 
   if [[ -z "$(echo "$izlaz" | xargs 2>/dev/null || true)" ]]; then
     pali+=("$ime: prazan izlaz sesije")
     continue
   fi
 
+  # Zadnja brana prije klijenta: tehnicki ostaci ne idu u grupu.
+  if printf '%s' "$izlaz" | grep -qiE "^(API Error|Error:|TypeError|Traceback)|ANTHROPIC_|OLX_TOKEN"; then
+    pali+=("$ime: izlaz lici na tehnicku gresku, nije poslano")
+    printf '%s' "$izlaz" | head -n 5 | sed 's/^/  | /'
+    continue
+  fi
+
+  # Ovdje NEMA < /dev/null: stdin ovog poziva je pipe sa analizom, ne popis klonova.
   if printf '%s' "$izlaz" | (cd "$klon" && node dist/cli/index.js posao posalji --stdin >/dev/null); then
     proslo=$((proslo + 1))
     echo "$ime: analiza poslana klijentu"
@@ -100,7 +126,10 @@ done < "$POPIS"
 
 echo
 echo "AI runda: proslo $proslo, palo ${#pali[@]}"
-for p in "${pali[@]}"; do echo "  - $p"; done
+# macOS bash 3.2 + set -u: "${pali[@]}" na praznom nizu je unbound variable, zato guard.
+if [[ ${#pali[@]} -gt 0 ]]; then
+  for p in "${pali[@]}"; do echo "  - $p"; done
+fi
 
 if [[ $SUHO -eq 0 ]]; then
   if [[ ${#pali[@]} -gt 0 ]]; then

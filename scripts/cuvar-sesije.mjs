@@ -38,7 +38,7 @@
 //   OLX_SESIJA_IDLE_SATI     sati mirovanja prije restarta, default 2 (klijent) / 1 (admin-bot)
 //   OLX_SESIJA_INBOX_DANA    starost inbox fajlova koji se brisu, default 7
 
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -154,22 +154,131 @@ function aiPogon() {
 }
 
 // ---- zastita od dvostrukog pokretanja ----
-// Dva cuvara istog tipa znace dvije sesije na istom botu i dupli odgovori.
+// Dva cuvara istog tipa znace dvije sesije na istom botu i dupli odgovori. Upis je atomican
+// (flag wx, isti obrazac kao u src/core/plan-fajl.ts): dva cuvara pokrenuta u istoj sekundi
+// ne mogu oba proci. Odbijen start se javlja adminu, prigusen na jednom u 6 sati, jer
+// launchd/Scheduler vrte novi pokusaj svakih 30s pa bi alarm bez prigusenja bio spam.
+
+const ODBIJEN_ALARM_FAJL = join(KORIJEN, ".olx-pik", `cuvar-${TIP}-odbijen.alarm`);
+
+async function odbijStart(razlog) {
+  console.error(razlog);
+  let zadnji = 0;
+  try {
+    zadnji = statSync(ODBIJEN_ALARM_FAJL).mtimeMs;
+  } catch {
+    // alarma jos nije bilo
+  }
+  if (Date.now() - zadnji > 6 * 60 * 60 * 1000) {
+    try {
+      writeFileSync(ODBIJEN_ALARM_FAJL, `${new Date().toISOString()}\n`, "utf8");
+    } catch {
+      // bez markera ce alarm ici cesce, bolje i to nego nikako
+    }
+    await javiAdministratoru(`Cuvar (${TIP}) u ${KORIJEN} odbija start: ${razlog}`);
+  }
+  process.exit(1);
+}
 
 mkdirSync(dirname(PID_FAJL), { recursive: true });
-if (existsSync(PID_FAJL)) {
-  const stariPid = Number(readFileSync(PID_FAJL, "utf8").trim());
-  if (Number.isFinite(stariPid) && stariPid > 0) {
+
+async function zauzmiPidFajl() {
+  for (let pokusaj = 0; pokusaj < 2; pokusaj++) {
     try {
-      process.kill(stariPid, 0);
-      console.error(`Cuvar (${TIP}) vec radi (pid ${stariPid}). Izlazim.`);
-      process.exit(1);
+      writeFileSync(PID_FAJL, `${process.pid}\n`, { encoding: "utf8", flag: "wx" });
+      return;
+    } catch (e) {
+      if (e?.code !== "EEXIST") throw e;
+    }
+    let stariPid = 0;
+    try {
+      stariPid = Number(readFileSync(PID_FAJL, "utf8").trim());
     } catch {
-      // proces ne postoji, pid fajl je ostatak od pada
+      // fajl nestao izmedju pokusaja, sljedeca runda petlje ga pokusava upisati
+      continue;
+    }
+    let ziv = false;
+    if (Number.isFinite(stariPid) && stariPid > 0) {
+      try {
+        process.kill(stariPid, 0);
+        ziv = true;
+      } catch {
+        // proces ne postoji, pid fajl je ostatak od pada ili recikliran pid
+      }
+    }
+    if (ziv) {
+      await odbijStart(`vec radi cuvar pid ${stariPid}. Ako to NIJE cuvar (recikliran pid), obrisi ${PID_FAJL}.`);
+    }
+    try {
+      unlinkSync(PID_FAJL);
+    } catch {
+      // vec obrisan
+    }
+  }
+  await odbijStart(`ne mogu zauzeti ${PID_FAJL} ni iz drugog pokusaja.`);
+}
+
+await zauzmiPidFajl();
+
+// ---- ciscenje sirocadi ----
+// Kad cuvar umre nasilno (Task Scheduler "End task", kill -9), sesija ostane ziva bez
+// nadzora. Novi cuvar bi pokrenuo drugu sesiju na istom bot tokenu: dupli odgovori i 409
+// sukob na Telegramu. Zato cuvar pamti pid sesije u fajlu i pri startu ugasi ostatak.
+// Prije gasenja provjerava IME procesa: recikliran pid ne smije ubiti nevin tudji proces.
+
+const SESIJA_PID_FAJL = join(KORIJEN, ".olx-pik", JE_ADMIN ? "sesija-admin-bota.pid" : "sesija-klijent.pid");
+
+function imeProcesa(pid) {
+  try {
+    const r =
+      process.platform === "win32"
+        ? spawnSync("powershell", ["-NoProfile", "-Command", `(Get-Process -Id ${pid}).ProcessName`], {
+            encoding: "utf8",
+            timeout: 10_000,
+          })
+        : spawnSync("ps", ["-p", String(pid), "-o", "comm="], { encoding: "utf8", timeout: 10_000 });
+    return (r.stdout ?? "").trim().toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function ocistiSiroce() {
+  let pid = 0;
+  try {
+    pid = Number(readFileSync(SESIJA_PID_FAJL, "utf8").trim());
+  } catch {
+    return; // nema zapisa, nema sirocadi
+  }
+  try {
+    unlinkSync(SESIJA_PID_FAJL);
+  } catch {
+    // nebitno
+  }
+  if (!Number.isFinite(pid) || pid <= 0) return;
+  try {
+    process.kill(pid, 0);
+  } catch {
+    return; // proces vise ne postoji
+  }
+  const ime = imeProcesa(pid);
+  if (!/claude|node|cmd/.test(ime)) {
+    log(`Stari zapis sesije pokazuje na pid ${pid} (${ime || "nepoznat"}), nije nasa sesija, ne diram.`);
+    return;
+  }
+  log(`Gasim siroce prethodne sesije (pid ${pid}, ${ime}).`);
+  if (process.platform === "win32") {
+    spawnSync("taskkill", ["/pid", String(pid), "/T", "/F"], { stdio: "ignore", timeout: 15_000 });
+  } else {
+    try {
+      process.kill(pid, "SIGKILL");
+    } catch {
+      // vec mrtav
     }
   }
 }
-writeFileSync(PID_FAJL, `${process.pid}\n`, "utf8");
+
+ocistiSiroce();
 
 // ---- aktivnost sesije ----
 // Najsvjeziji mtime u transkriptima sesije i Telegram inboxu. Transkript se upisuje na svaki
@@ -231,6 +340,18 @@ async function javiAdministratoru(tekst) {
   }
 }
 
+// Jedna ljudska poruka u grupu klijenta kad bot stane: tisina je najgori odgovor za uslugu
+// koja se placa. Salje se najvise jednom po incidentu (flag se resetuje kad sesija prozivi).
+async function porukaKlijentu(tekst) {
+  if (JE_ADMIN) return; // admin bot je vlasnikov kanal, njemu ide javiAdministratoru
+  try {
+    const modul = await import(pathToFileURL(join(KORIJEN, "dist", "core", "telegram.js")).href);
+    await modul.posaljiPoruku(tekst);
+  } catch (e) {
+    console.error(`Poruka klijentu nije poslana (${String(e instanceof Error ? e.message : e)})`);
+  }
+}
+
 // ---- zivotni ciklus sesije ----
 
 let dijete = null;
@@ -240,6 +361,44 @@ let gasenje = false;
 let brzihPadova = 0;
 let zadnjiNocni = "";
 let javljenoBezKljuca = false;
+let zdravljeAlarmirano = false;
+let klijentObavijesten = false;
+
+// Gasenje djeteta koje stvarno gasi. Na Windowsu dijete je cmd.exe shim, pa bi kill() ubio
+// samo njega a claude bi preziveo kao siroce na istom bot tokenu (dvije sesije, dupli
+// odgovori); zato taskkill ubija cijelo stablo. Na macOS/Linux SIGTERM, pa SIGKILL poslije
+// 30s ako ga sesija ignorise (zaglavljen alat, mrtva mreza): bez eskalacije bi restartTrazen
+// ostao dignut zauvijek i cuvar bi postao mrtav nadzornik.
+function ugasiDijete() {
+  if (!dijete || dijete.exitCode !== null) return;
+  const d = dijete;
+  if (process.platform === "win32") {
+    try {
+      spawn("taskkill", ["/pid", String(d.pid), "/T", "/F"], { stdio: "ignore", shell: false });
+    } catch (e) {
+      console.error(`taskkill nije uspio: ${String(e)}`);
+    }
+  } else {
+    d.kill();
+    setTimeout(() => {
+      if (d.exitCode === null) {
+        log("Sesija ignorise SIGTERM 30s, saljem SIGKILL.");
+        try {
+          d.kill("SIGKILL");
+        } catch {
+          // vec mrtva
+        }
+      }
+    }, 30_000).unref();
+  }
+  setTimeout(() => {
+    if (d.exitCode === null) {
+      void javiAdministratoru(
+        `Sesija (${TIP}) u ${KORIJEN} se ne da ugasiti ni na SIGKILL (pid ${d.pid}). Treba rucna intervencija.`,
+      );
+    }
+  }, 120_000).unref();
+}
 
 function pokreni() {
   const ai = aiPogon();
@@ -276,6 +435,12 @@ function pokreni() {
     shell: process.platform === "win32",
   });
   startTs = Date.now();
+  zdravljeAlarmirano = false;
+  try {
+    writeFileSync(SESIJA_PID_FAJL, `${dijete.pid ?? ""}\n`, "utf8");
+  } catch {
+    // bez zapisa nema ciscenja sirocadi poslije nasilnog gasenja cuvara, ali sesija radi
+  }
   log(`Sesija pokrenuta (pid ${dijete.pid ?? "?"}, pogon ${ai.pogon}, profil ${MCP_PROFIL}).`);
 
   dijete.on("error", (e) => {
@@ -283,6 +448,11 @@ function pokreni() {
   });
 
   dijete.on("exit", async (code, signal) => {
+    try {
+      unlinkSync(SESIJA_PID_FAJL);
+    } catch {
+      // vec obrisan
+    }
     if (gasenje) process.exit(0);
 
     if (restartTrazen) {
@@ -293,13 +463,24 @@ function pokreni() {
 
     const trajanje = Date.now() - startTs;
     log(`Sesija pala (code ${code}, signal ${signal ?? "-"}) poslije ${Math.round(trajanje / 1000)}s.`);
-    brzihPadova = trajanje < BRZI_PAD_MS ? brzihPadova + 1 : 0;
+    if (trajanje < BRZI_PAD_MS) {
+      brzihPadova += 1;
+    } else {
+      brzihPadova = 0;
+      klijentObavijesten = false; // sesija je prozivjela, sljedeci incident je novi incident
+    }
 
     if (brzihPadova >= MAX_BRZIH_PADOVA) {
       brzihPadova = 0;
       await javiAdministratoru(
         `Sesija (${TIP}) u ${KORIJEN} pada odmah po pokretanju (${MAX_BRZIH_PADOVA}x zaredom). Pauza 10 minuta, pa novi pokusaj. Pogledaj .olx-pik/cron-${JE_ADMIN ? "admin-bot" : "sesija"}.log.`,
       );
+      if (!klijentObavijesten) {
+        klijentObavijesten = true;
+        await porukaKlijentu(
+          "Asistent trenutno nije dostupan zbog tehnickog problema. Radimo na tome. Ako nesto hitno treba, javite se direktno.",
+        );
+      }
       setTimeout(pokreni, PAUZA_POSLIJE_PADOVA_MS);
       return;
     }
@@ -311,19 +492,39 @@ function zatraziRestart(razlog) {
   if (!dijete || dijete.exitCode !== null || restartTrazen) return;
   log(`Restart sesije: ${razlog}.`);
   restartTrazen = true;
-  dijete.kill();
+  ugasiDijete();
 }
 
 function lokalniDatum(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+// Prag za "poruka stigla, sesija ne odgovara": inbox dobije fajl (klijent poslao sliku),
+// a transkript se ne pomjeri. To hvata zivu-ali-gluhu sesiju (plugin prestao pollovati,
+// model visi), koju provjera "proces ziv" ne vidi. Pokriva samo poruke koje ostave fajl u
+// inboxu; tekstualne poruke fajl ne ostavljaju, pa je ovo donja granica nadzora, ne potpun.
+const ZDRAVLJE_PRAG_MIN = 10;
+
 setInterval(() => {
   if (!dijete || dijete.exitCode !== null || restartTrazen || gasenje) return;
 
   const sad = new Date();
-  const aktivnost = zadnjaAktivnost();
+  const inboxTs = najnovijiMtime(INBOX);
+  const transkriptTs = najnovijiMtime(join(RUNTIME, "projects"));
+  const aktivnost = Math.max(inboxTs, transkriptTs);
   const mirnoMin = aktivnost > 0 ? (Date.now() - aktivnost) / 60_000 : Infinity;
+
+  // Health check bota, prije svega ostalog.
+  if (inboxTs > startTs && inboxTs - transkriptTs > ZDRAVLJE_PRAG_MIN * 60_000) {
+    if (!zdravljeAlarmirano) {
+      zdravljeAlarmirano = true;
+      void javiAdministratoru(
+        `Sesija (${TIP}) u ${KORIJEN} izgleda gluha: poruka u inboxu prije ${Math.round((Date.now() - inboxTs) / 60_000)} min, transkript se ne mice. Restartujem je.`,
+      );
+    }
+    zatraziRestart("poruka stigla a sesija ne odgovara");
+    return;
+  }
 
   // Nocni restart: jednom dnevno u zadati sat, ali tek kad sesija miruje.
   const danas = lokalniDatum(sad);
@@ -352,7 +553,7 @@ for (const sig of ["SIGINT", "SIGTERM"]) {
     } catch {
       // vec obrisan
     }
-    if (dijete && dijete.exitCode === null) dijete.kill();
+    if (dijete && dijete.exitCode === null) ugasiDijete();
     else process.exit(0);
     // Ako se dijete ne ugasi za 10s, izlazimo svakako; launchd/Scheduler ce pocistiti.
     setTimeout(() => process.exit(0), 10_000).unref();
@@ -361,7 +562,9 @@ for (const sig of ["SIGINT", "SIGTERM"]) {
 
 process.on("exit", () => {
   try {
-    unlinkSync(PID_FAJL);
+    // Brise se samo VLASTITI pid fajl: da izlazak odbijenog starta nikad ne obrise fajl
+    // cuvara koji stvarno radi.
+    if (Number(readFileSync(PID_FAJL, "utf8").trim()) === process.pid) unlinkSync(PID_FAJL);
   } catch {
     // vec obrisan
   }
