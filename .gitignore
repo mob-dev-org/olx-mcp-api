@@ -8,3 +8,7 @@ klijenti/
 KLIJENT.md
 .claude-runtime/
 .claude-runtime-admin/
+
+# Interni podaci o prospektima i tudjim shopovima: NIKAD u git, klonovi idu klijentima.
+interno/
+olx-dokumentacija/*.xlsx
