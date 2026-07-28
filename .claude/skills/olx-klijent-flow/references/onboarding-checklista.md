@@ -28,6 +28,8 @@ Redom, bez preskakanja. Svaki korak ima provjeru koja mora proci prije sljedeceg
 
 ## 4. Baseline izvjestaj (audit u 2 poziva)
 
+Baseline se PISE U FAJL. U razgovor ide samo sazetak od 3 do 5 redova.
+
 Snimi stanje na dan preuzimanja, da se kasnije moze dokazati sta se popravilo.
 
 - `olx_profile_stats views=sample` — JEDAN poziv vraca gotov audit: paket i istek, krediti,

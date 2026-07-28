@@ -22,46 +22,13 @@ okvir za svaki savjet: prvo naslov, pa svježina, pa tek onda plaćeno izdvajanj
 - **Zasićena kategorija:** izdvajanje daje slabiji relativni efekat i skuplje je. Naglasak na
   precizan naslov, konkurentnu cijenu, te premium izdvajanje uz autoobnovu ako se ide na to.
 
-## Kako pretraga radi (zašto je naslov presudan)
+## Naslov prije izdvajanja
 
-- Pretraga spaja cijele riječi iz naslova po AND logici: na pojam "Golf 7" izlaze oglasi koji u
-  naslovu imaju i "Golf" i "7". Redoslijed nije bitan, ali riječi se moraju potpuno podudarati
-  (padeži se broje).
-- U pretragu ulaze NASLOV i PODNASLOV. Detaljni opis NE ulazi u pretragu (bitan je za Google i za
-  povjerenje kupca, ali ne za internu pretragu).
-- Dijakritici se tretiraju jednako kao slova bez njih ("kuća" i "kuca" daju iste rezultate), ali
-  se preporučuje ispravno pisanje.
-- Posljedica: artikal koji izdvajaš mora imati tačan traženi pojam u naslovu, inače izdvajanje
-  troši kredite na poziciju u pretrazi na kojoj se oglas i ne pojavljuje.
+Izdvajanje plaća poziciju u pretrazi u kojoj se oglas možda uopšte ne pojavljuje. Prije nego
+potrošiš kredit, provjeri da naslov i podnaslov sadrže tačne riječi koje kupac kuca.
 
-## Sortiranje rezultata
-
-- Korisnik bira poredak: relevantnost, datum objave (najnoviji/najstariji), cijena
-  (najniža/najviša), lokacija. Podrazumijevani poredak među standardnim oglasima je svježina
-  (radna pretpostavka; nije doslovno dokumentovano, ali proizlazi iz toga što obnova mijenja
-  poziciju).
-- Oglasi sa cijenom "Po dogovoru" ISPADAJU iz sortiranja po cijeni i iz cjenovnih filtera, jer
-  nemaju broj. Zato uvijek unositi konkretnu cijenu.
-
-## Pravila naslova
-
-- Pisati u nominativu, sa ključnim riječima, redoslijedom brend pa model pa ključna specifikacija.
-  Test je jedna rečenica: da li bi kupac tačno ovo ukucao. Prodajno obraćanje u naslovu (prodajem,
-  povoljno, hitno, kao nov) troši znakove a ne donosi nijedan pogodak, jer to kupci ne kucaju.
-- Jedan artikal po oglasu; ne nabrajati više modela u jednom naslovu.
-- Pokriti jezičke varijante koje kupci kucaju. Domaći i strani naziv istog artikla su dva odvojena
-  pojma u pretrazi i oglas izlazi samo na onaj koji je zaista u naslovu. Isto važi za skraćenice,
-  oznake modela sa razmakom i bez njega, te za lokalne nazive. Ako artikal treba izaći na dvije
-  varijante, obje moraju stajati u naslovu ili podnaslovu.
-- Dodatne ključne riječi koje ne stanu u naslov staviti u podnaslov (i podnaslov ulazi u pretragu).
-- **Naslov je ograničen na 65 znakova.** Duži naslov API odbija sa 422
-  `"naslov ne može biti duži od 65 karaktera."` Podnaslov je u praksi prošao do 72 znaka.
-- **Padež je odvojen pojam, i to je najčešća skrivena greška.** Naslov "Radna jakna i hlače" NE
-  izlazi na upit "radne hlače", jer riječ "radne" nije prisutna. Prije izdvajanja provjeri da
-  naslov sadrži oblik koji kupac zaista kuca, u množini i padežu iz upita.
-- Provjera koja se isplati: sastavi spisak upita za koje želiš da oglas izlazi, pa za svaki
-  provjeri da su SVE riječi iz upita prisutne u naslovu ili podnaslovu. Ako nisu, izdvajanje
-  plaća poziciju na pretrazi u kojoj se oglas ne pojavljuje.
+Pravila naslova i podnaslova nisu ovdje nego u
+`.claude/skills/olx-seo-oglasa/references/seo-pravila.md`.
 
 ## Metoda izbora artikala iz statistike (ključni alat savjetnika)
 
@@ -96,25 +63,10 @@ izdvajanje. Prvo se popravi naslov, pa se mjeri ponovo.
 
 Ovo vrijedi jednako za dijelove, odjeću, vozila, nekretnine ili usluge. Metoda ne zavisi od robe.
 
-## Model uskog izbora (provjeren pristup iskusnog operatera)
+## Model uskog izbora
 
-- **Jedan artikal po skupini potražnje.** Skupina potražnje je grupa artikala koji se takmiče za
-  isti upit kupca. Dva artikla iz iste skupine se međusobno guše i cijepaju budžet na isti rezultat.
-  Bilo da su to dva slična modela, dvije veličine istog artikla ili dva stana u istoj ulici, izdvaja
-  se jedan.
-- **Skupine se prepoznaju iz upita, ne iz police.** Ako kupci kucaju isti pojam da bi došli do dva
-  različita artikla iz ponude, to je jedna skupina, makar bili u različitim odjeljcima.
-- **Broj skupina određuje broj izdvajanja.** Ne kreće se od budžeta pa naniže, nego od broja stvarno
-  različitih skupina potražnje pa naviše, dokle budžet stigne.
-- **Period sedam dana na početku**, jer nosi jedan gratis dan i dovoljno je kratak da se vidi
-  djeluje li. Kad se pokaže šta radi, ide se na duži period koji je jeftiniji po danu.
-- **Izbor artikla unutar skupine nije presudan,** osim kad se svjesno gura roba koja stoji na
-  zalihama.
-- **Obnavljanje prije izdvajanja.** Besplatna svježina se troši prva jer ne košta ništa. Krediti idu
-  samo na ono što svježina ne može podići. Ne trošiti cijeli kreditni budžet na izdvajanje.
-- **Na početku ne žuriti.** Nekoliko skupina, pa mjerenje, pa širenje.
-- **Prioritet obnove:** ono što je na stanju i što se traži ide na najkraći dozvoljeni ciklus,
-  ostatak kataloga na duži, koliko stvarna kvota pokrije. Kvota se čita sa naloga.
+Jedan artikal po skupini potraznje umjesto cijelog kataloga. Obrazloženje i brojevi su u
+`olx://pravila-brojeva`.
 
 ## Faze za nov shop
 

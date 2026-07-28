@@ -1,14 +1,9 @@
 ---
 name: pik-olx-kreditni-savjetnik
 description: >-
-  Savjetnik za promociju oglasa i potrošnju kredita na PIK.ba / OLX.ba (bosanskohercegovačka
-  oglasna platforma; OLX.ba se u junu 2026. rebrandira u Pik.ba). Koristi OBAVEZNO kad god se
-  spomene izdvajanje oglasa, promocija, PIK ili OLX krediti, obnavljanje oglasa, "koliko da
-  izdvojim", "koliko kredita", Gold ili Platinum shop, besplatne obnove i mjesečna kvota, automatsko
-  obnavljanje (8h/24h), naslovi oglasa i pozicija u pretrazi, ili kad korisnik pita kako
-  rasporediti budžet kredita na artikle. Pokriva model cijene izdvajanja, matematiku potrošnje,
-  strategiju izbora artikala iz statistike pretrage, te korištenje olx-pik MCP alata. Pomaže
-  donijeti isplativu odluku umjesto nagađanja, i nikad ne troši kredite bez potvrde korisnika.
+  Raspored kredita i izdvajanje oglasa na PIK/OLX: koje artikle, koji period, autoobnova, koliko
+  kosta. Okidaci: "izdvajanje", "koliko kredita", "koliko da izdvojim", "promocija oglasa", "Gold
+  ili Platinum".
 ---
 
 # PIK/OLX kreditni savjetnik
@@ -63,8 +58,9 @@ besplatno; krediti su za uzak izbor prioritetnih artikala.
 4. **Dohvati dnevnu cijenu, pa računaj.** Za svaku kategoriju u igri dohvati cijenu izdvajanja na
    7 dana bez obnove preko `olx_sponsor_price` (ne troši kredite), podijeli sa 6 i dalje računaj po
    modelu iz `references/cjenovnik-i-krediti.md`. Bez tog jednog dohvaćenog broja nema računice.
-5. **Ponudi varijante i preporuči.** Pokaži širinu (više artikala kraće) vs dubinu (manje
-   artikala duže) vs agresiju (8h obnova), uporedi i preporuči najpraktičniju za tu fazu.
+5. **Ponudi varijante i preporuči.** Širina (više artikala kraće), dubina (manje artikala duže)
+   i agresija (8h obnova). **Jedan red po varijanti sa cijenom, pa jedna rečenica preporuke.**
+   Razrađuje se samo ona koju korisnik izabere; tri razrađene opcije niko ne pročita.
 6. **Provjeri stanje prije izvršenja.** Ako su MCP alati dostupni, provjeri šta je već izdvojeno
    da se ne duplira. Vidi `references/mcp-alati.md`.
 7. **Izvršenje samo uz potvrdu.** Vidi sigurnosna pravila niže.
@@ -115,20 +111,14 @@ besplatno; krediti su za uzak izbor prioritetnih artikala.
   (type, days, refresh_every, locations), životni ciklus oglasa, sigurno izvršenje. Čitaj kad su
   MCP/API alati u igri ili kad treba provjeriti stanje naloga.
 
-## Sigurnosna pravila (uvijek, bez izuzetka)
+## Sigurnosna pravila
 
-- **Nikad ne pokreći radnju koja troši kredite bez izričite potvrde korisnika.** To uključuje
-  izdvajanje (sponsor) i akcijsku cijenu. Pripremi plan, pokaži trošak, sačekaj jasno "izvrši"
-  ili "izdvoji".
-- **Potvrdi koji je nalog aktivan prije bilo kakvog upisa,** da se radnja ne izvrši na pogrešnom
-  klijentu.
-- **Ne briši oglase** radi dolaska na vrh; to je nepovratno i gubi historiju/dojmove. Za vrh
-  koristi obnovu ili izdvajanje; kad nema na stanju koristi sakrivanje ili završavanje.
-- **Ne tvrdi cijenu napamet.** Ako nije potvrđena za tu kategoriju, reci da je dinamična i traži
-  stvarni broj sa koraka "Izdvoji".
-- **Budi objektivan.** Ne povlađuj automatski; ako korisnikova pretpostavka ne stoji (npr. da
-  mjesečni bonus kredita može pokriti izdvajanje cijelog kataloga), reci jasno i pokaži zašto,
-  na osnovu dohvaćene cijene a ne procjene.
+Vrijede tvrde granice iz `olx-dokumentacija/granice.md`; one su vec u kontekstu i ne ponavljaju se
+ovdje. Jedino sto je specificno za ovaj skill:
+
+- **Budi objektivan.** Ako korisnikova pretpostavka ne stoji (npr. da mjesecni bonus kredita moze
+  pokriti izdvajanje cijelog kataloga), reci jasno i pokazi zasto, na osnovu dohvacene cijene a
+  ne procjene.
 
 ## Napomena o brendu
 

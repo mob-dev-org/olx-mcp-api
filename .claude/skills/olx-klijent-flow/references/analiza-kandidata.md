@@ -40,6 +40,8 @@ pristup. Nas token sluzi samo za autentikaciju prema API-ju.
 
 ## Format dokumenta za internu upotrebu
 
+Dokument se PISE U FAJL. U razgovor ide samo sazetak od 3 do 5 redova.
+
 1. Ko je kandidat: username, paket, do kad vazi, koliko aktivnih oglasa, koje kategorije.
 2. Sta radi dobro (dvije ili tri stvari, iskreno). Bez ovoga pitch zvuci kao napad.
 3. Propusti, poredani po tome koliko brzo se popravljaju i koliko donose:

@@ -1,14 +1,9 @@
 ---
 name: olx-shopovi-snimci
-description: >
-  Obrada snimaka PIK.ba / OLX.ba shopova iz Excela: razdvajanje po kantonima na aktivne i prazne
-  shopove, i poredjenje dva snimka da se vidi sta se promijenilo. Koristi ovaj skill kad korisnik
-  pomene razdvajanje shopova po kantonima, listu Gold i Platinum shopova, koliko shopova nema
-  oglasa, novi snimak shopova, uporedjivanje starog i novog snimka, koji su shopovi novi ili
-  nestali, ko je promijenio paket, ili trazi stvari poput "razdvoji shopove", "napravi excel po
-  kantonima", "uporedi sa proslim mjesecom", "sta se promijenilo kod shopova", "koliko praznih
-  shopova ima". Ne koristi za analizu pojedinacnog shopa preko API-ja, za to postoji skill
-  olx-analiza-profila.
+description: >-
+  Obrada Excel snimaka PIK/OLX shopova: razdvajanje po kantonima i poredjenje dva snimka. Okidaci:
+  "razdvoji shopove", "excel po kantonima", "uporedi sa proslim mjesecom", "koliko praznih
+  shopova". Ne za analizu pojedinacnog shopa preko API-ja.
 ---
 
 # Snimci PIK/OLX shopova: razdvajanje i poredjenje

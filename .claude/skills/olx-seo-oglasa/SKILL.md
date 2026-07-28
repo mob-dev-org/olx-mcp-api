@@ -1,13 +1,8 @@
 ---
 name: olx-seo-oglasa
 description: >-
-  SEO oglasa na OLX.ba / PIK.ba: naslov, podnaslov i format opisa. Koristi ovaj skill kad
-  korisnik trazi da se naslovi optimizuju za pretragu, kad pita zasto ga nema u rezultatima
-  iako oglas postoji, ili kad trazi da se opisi srede i ujednace. Okidaci: "seo", "optimizuj
-  naslove", "popravi naslove", "kljucne rijeci", "zasto me nema u pretrazi", "sredi opise",
-  "formatiraj opise", "napisi bolji naslov", "podnaslov". Radi analizu pa izvjestaj, i mijenja
-  oglase tek nakon sto korisnik potvrdi koje redove primjenjuje. Za raspored kredita i
-  izdvajanje koristi pik-olx-kreditni-savjetnik; za sirok pregled profila olx-analiza-profila.
+  Naslov, podnaslov i format opisa za pretragu. Okidaci: "optimizuj naslove", "kljucne rijeci",
+  "zasto me nema u pretrazi", "sredi opise", "napisi bolji naslov".
 ---
 
 # SEO oglasa: naslov, podnaslov, opis
@@ -49,7 +44,9 @@ Pravila nisu prepisana u ovom fajlu. Zive u:
    kategorije provjeri kroz `olx_category_attributes`, inace API vraca 422).
 6. Predlozi novi naslov i novi podnaslov. Podnaslov nosi ono sto nije stalo u naslov: sinonimi,
    mnozina ili jednina kljucnog pojma, namjena, varijante. Prazan podnaslov je propustena pretraga.
-7. Izvjestaj kao tabela, sortiran po prioritetu:
+7. Izvjestaj kao tabela, sortiran po prioritetu, **najvise 15 redova po potezu** uz broj
+   preostalih. Katalog od 150 oglasa se ne ispisuje odjednom: to je najskuplji izlaz u cijelom
+   toolkitu i korisnik ga svejedno ne procita. Ostatak ide u sljedecu turu ili u fajl.
 
    | id | trenutni naslov | problem | prijedlog naslova | prijedlog podnaslova | prioritet |
 

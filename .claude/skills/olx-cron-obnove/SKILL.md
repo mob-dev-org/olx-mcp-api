@@ -1,13 +1,8 @@
 ---
 name: olx-cron-obnove
 description: >-
-  Dnevni pregled i obnova oglasa na OLX/PIK nalogu ovog klona, sa ravnomjernim trosenjem mjesecne
-  kvote obnova. Koristi ovaj skill kad korisnik trazi dnevnu ili automatsku obnovu, pita koliko
-  obnova da potrosi danas, hoce dnevni pregled stanja, ili trazi da se obnova zakaze.
-  Okidaci: "obnovi oglase", "dnevna obnova", "koliko obnova danas", "zakazi obnove", "cron
-  obnove", "pregled naloga", "iskoristi kvotu obnova". Obnove unutar besplatne kvote se
-  izvrsavaju bez pitanja jer ne kostaju; izdvajanje i akcijska cijena nikad automatski, samo kao
-  preporuka u izvjestaju.
+  Dnevna obnova oglasa uz ravnomjerno trosenje mjesecne kvote. Okidaci: "obnovi oglase", "dnevna
+  obnova", "koliko obnova danas", "zakazi obnove", "iskoristi kvotu".
 ---
 
 # Dnevna obnova kroz sve naloge
@@ -42,11 +37,14 @@ Na kraju ispisi izvjestaj.
 
 ## Izvjestaj
 
-| obnovljeno danas | neuspjelo | preostala kvota | dana do kraja mjeseca | upozorenja |
+Jedan red brojeva, pa samo alarmi koji su STVARNO aktivni. Prazne rubrike se ne ispisuju: red
+"upozorenja: nema" ne govori nista a placa se svaki dan.
+
+| obnovljeno danas | neuspjelo | preostala kvota | dana do kraja mjeseca |
 
 Upozorenja: pozovi `olx_account_alerts` (jedan poziv pokriva neodgovorena pitanja, paket pri
-isteku, saldo kredita, kvotu koja propada i istekle oglase) i prenesi njegove alarme u
-izvjestaj. Dodatno rucno provjeri i samo prijavi, nikad ne izvrsavaj:
+isteku, saldo kredita, kvotu koja propada i istekle oglase) i prenesi samo one alarme koje je
+vratio. Dodatno rucno provjeri i prijavi samo ako se desilo, nikad ne izvrsavaj:
 
 - izdvajanje na oglasu istice danas ili sutra (`sponsor_active.sponsored_until` na oglasu),
 - oglasi koji stalno padaju na obnovi (isti id vise dana zaredom),

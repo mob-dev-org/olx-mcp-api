@@ -1,13 +1,9 @@
 ---
 name: olx-mcp-setup
 description: >-
-  Postavljanje i koristenje OLX.ba / PIK.ba toolkita (MCP server i CLI) iz repozitorija
-  olx-mcp-api. Koristi ovaj skill kad god korisnik hoce da konfigurise OLX/PIK pristup,
-  postavi token, registruje MCP server u Claude Code, pokrene build, rijesi 403/AUTH probleme,
-  generise snapshot kategorija i lokacija, ili pita stvari poput "kako da pokrenem olx",
-  "kako dodati olx mcp", "ne radi mi olx token", "olx vraca 403". Takodjer kad treba brzi
-  podsjetnik koja CLI komanda ili koji MCP alat radi sta. Ne koristi za samu analizu oglasa
-  (za to postoji skill olx-analiza-profila).
+  Postavljanje OLX/PIK toolkita: token, build, registracija MCP servera, 403 i AUTH problemi,
+  snapshoti kategorija i lokacija. Okidaci: "kako da pokrenem olx", "ne radi mi token", "olx vraca
+  403", "dodaj olx mcp".
 ---
 
 # OLX/PIK toolkit: setup i koristenje
@@ -95,34 +91,11 @@ bez API poziva: `category index` i `location index`. Commitaj sve fajlove.
 Vazno: forme i opcije pojedine kategorije NISU u snapshotima. Za njih pozovi live alat
 `olx_category_attributes <id>`. Tok: nadji kategoriju u CSV indexu -> uzmi opcije preko atributa.
 
-## Brzi izbor alata (sta za sta)
+## Popis alata
 
-Ovo je samo podsjetnik za mapiranje CLI komandi na MCP alate. Puni popis svih 35 alata sa
-parametrima, troskom i nepovratnoscu je u `olx-dokumentacija/API-INVENTAR.md` (jedini izvor
-istine za alate); brojevi i pravila platforme su u `olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md`.
-
-Sigurno (citanje, bez troska):
-- `whoami` / `olx_whoami` — test pristupa i ko je ulogovan.
-- `listings ls` / `olx_list_listings` — oglasi po stanju (active, finished, inactive, expired, hidden).
-- `listings get` / `olx_get_listing` — detalji jednog oglasa.
-- `category suggest|find|list|children|get|brands|models|attributes` / `olx_suggest_category`,
-  `olx_find_category`, `olx_categories`, `olx_category`, `olx_category_brands`, `olx_category_models`,
-  `olx_category_attributes` — kategorije, brendovi/modeli i forme/opcije. Za samo pronalazak kategorije
-  radije citaj resource `olx://categories-index` nego da listas preko API-ja.
-- `location countries|cities|city` / `olx_countries`, `olx_cities`, `olx_city` — `country_id` i `city_id` za create.
-- Nalog: `whoami` / `olx_whoami` — jedini nalog ovog klona; provjeri ga prije svakog upisa.
-- `refresh limits` / `olx_refresh_limits` i `listings limits` / `olx_listing_limits` — limiti.
-- `sponsor price` / `olx_sponsor_price` — cijena izdvajanja u kreditima (ne trosi).
-
-Upis (mijenja stanje, trazi potvrdu):
-- create, publish, update, refresh (one/all), hide, unhide, finish, slike (images add/main/rm).
-- Kreiranje trazi OBAVEZNO `title` i `category_id` (API vraca 422 bez kategorije). category_id nadji u
-  `olx://categories-index`, obavezne atribute (required: true) preko `olx_category_attributes <id>`.
-- Tok kreiranja: kreiraj (DRAFT) -> dodaj slike -> postavi glavnu -> publish. Bez publish oglas nije vidljiv.
-
-Trosak kredita (dupla potvrda, prvo cijena):
-- sponsor apply / `olx_sponsor_listing` i discount set / `olx_set_discount`. CLI trazi `--yes`,
-  MCP trazi `confirm: true`. Bez toga vracaju samo cijenu.
+Nije ovdje, jer zastarijeva svaki put kad se doda alat. Puni popis sa parametrima je u
+`olx-dokumentacija/API-INVENTAR.md`. Broj alata zavisi od `OLX_MCP_PROFILE` i cita se sa
+servera, ne pamti se.
 
 ## Troubleshooting
 

@@ -47,6 +47,9 @@ Za svaki slab naslov predlozi konkretno prepravljen naslov, ne uopsten savjet.
 
 ## 6. Sablon izvjestaja (prosirena verzija)
 
+Ovaj dokument se PISE U FAJL. U razgovor ide samo sazetak od 3 do 5 redova i pitanje hoce
+li korisnik puni izvjestaj.
+
 ```
 # Analiza profila: <username>
 Datum: <YYYY-MM-DD>  |  Aktivnih oglasa: <n>  |  Preostalo besplatnih obnova: <m>

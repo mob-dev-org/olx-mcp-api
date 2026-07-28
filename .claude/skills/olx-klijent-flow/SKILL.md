@@ -1,13 +1,9 @@
 ---
 name: olx-klijent-flow
 description: >-
-  Zivotni ciklus klijenta za OLX/PIK uslugu CodeFactory: interna analiza kandidata iz javnih
-  podataka, onboarding kad potpise, i prvi potezi po redoslijedu isplativosti. Koristi ovaj skill
-  kad korisnik pominje potencijalnog klijenta ili kandidata, trazi pitch ili analizu tudjeg shopa,
-  preuzima novi nalog, ili pita odakle poceti sa svjezim klijentom. Okidaci: "analiziraj
-  kandidata", "potencijalni klijent", "pitch za klijenta", "onboarding klijenta", "novi klijent",
-  "prvi potezi za klijenta", "trazi token od klijenta", "preuzeli smo shop". Za sam SEO naslova
-  koristi olx-seo-oglasa, za raspored kredita pik-olx-kreditni-savjetnik.
+  Zivotni ciklus klijenta CodeFactory usluge: analiza kandidata iz javnih podataka, onboarding sa
+  tokenom, prvi potezi po isplativosti. Okidaci: "analiziraj kandidata", "potencijalni klijent",
+  "onboarding klijenta", "novi klijent", "preuzeli smo shop".
 ---
 
 # Klijent flow: kandidat, onboarding, prvi potezi
@@ -64,11 +60,9 @@ za mjesec dana moze uporediti sa polaznim stanjem.
 
 ## Tvrda pravila
 
-- Prije svakog upisa i svakog troska: `olx_whoami`, i reci korisniku na kojem si nalogu. Jedan
-  klon radi za jedan nalog, pa promjena naloga kroz bota ne postoji.
-- Nista se ne trosi bez izricite potvrde. Obnove unutar besplatne kvote su izuzetak i njih
-  radimo bez pitanja, jer ne kostaju.
-- Bot ne brise oglase. Na "obrisi" predlozi `olx_finish_listing`.
+Opste granice su u `olx-dokumentacija/granice.md` i vec su u kontekstu. Specificno za rad sa
+klijentima:
+
 - Podaci klijenata ostaju lokalno: `.env` za token, `klijenti/` za dokumente, oboje u
   `.gitignore`.
 - Analiza kandidata ne dira tudji nalog. Samo citanje javnih podataka.

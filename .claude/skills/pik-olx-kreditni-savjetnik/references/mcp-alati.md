@@ -1,4 +1,11 @@
-# Korištenje olx-pik MCP alata i sigurno izvršenje
+# Korištenje olx-pik MCP alata za izdvajanje
+
+Ovdje je samo ono što je specifično za planiranje izdvajanja. Ostalo ne prepisujemo:
+
+- popis alata i parametara: `olx-dokumentacija/API-INVENTAR.md`
+- pravila o trošku, potvrdi i brisanju: `olx-dokumentacija/granice.md` (već u kontekstu)
+- koji broj se smije izgovoriti a koji se čita s API-ja: `olx://pravila-brojeva`
+- životni ciklus oglasa draft pa slike pa publish: skill `olx-objava-artikla`
 
 Ako je `olx-pik` MCP server dostupan, koristi ga da provjeriš stvarno stanje naloga umjesto da
 nagađaš (koji su oglasi aktivni, šta je već izdvojeno, cijene). Alati se učitavaju preko
@@ -14,42 +21,6 @@ pretrage alata; svi nazivi počinju sa `olx_`.
 3. **Provjeri šta je već izdvojeno** prije nego predložiš nova izdvajanja, da se ne duplira.
 4. **Izvrši samo uz potvrdu** (vidi niže).
 
-## Glavni alati
-
-| Alat | Šta radi | Troši kredite / nepovratno |
-|---|---|---|
-| `olx_whoami` | Nalog ovog klona (i saldo kredita) | Ne |
-| `olx_list_listings` | Lista oglasa po stanju | Ne |
-| `olx_get_listing` | Pojedinačni oglas po ID-u | Ne |
-| `olx_category` | Pravila i cijene kategorije | Ne |
-| `olx_sponsor_price` | Cijena izdvajanja u kreditima, razbijena na komponente (search, refresh, locations, extras) | Ne (samo upit) |
-| `olx_listing_report` | Izračunata analiza oglasa: pregledi dnevno, dana od obnove, slike, atributi | Ne |
-| `olx_sponsor_effect` | Efekat izdvajanja iz dnevnih snapshota: pregledi dnevno prije/tokom + faktor | Ne |
-| `olx_profile_stats` | Statistika cijelog naloga u jednom pozivu (krediti, kvota, sponzorisani...) | Ne |
-| `olx_sponsor_listing` | Izdvaja oglas | DA, troši kredite |
-| `olx_set_discount` | Postavlja akcijsku cijenu | DA, troši kredite |
-| `olx_finish_discount` | Završava akcijsku cijenu | Ne |
-| `olx_refresh_listing` | Obnavlja jedan oglas | Besplatno do kvote |
-| `olx_refresh_bulk` | Obnavlja više aktivnih | Besplatno do kvote |
-| `olx_hide_listing` / `olx_unhide_listing` | Sakriva / vraća oglas | Ne |
-| `olx_finish_listing` | Završava oglas (prodano) | Ne |
-
-Imena se mogu malo razlikovati po verziji servera; ako alat ne postoji, pretraži dostupne alate
-ponovo prije nego zaključiš da ga nema.
-
-## Sigurno izvršenje (obavezno)
-
-- **Akcije koje troše kredite** (`olx_sponsor_listing`, `olx_set_discount`) NIKAD ne pokreći bez
-  izričite potvrde korisnika. Prvo pripremi plan sa ID-evima, periodom, tipom obnove i ukupnim
-  troškom, pa sačekaj jasno "izvrši". Za raspored kroz dane postoji CLI `sponsor plan`, koji plan
-  snima u fajl i izvršava samo termine dospjele taj dan, uz `--yes`.
-- **Prije izdvajanja provjeri stvarnu cijenu** preko `olx_sponsor_price`, jer je
-  cijena dinamična; ne oslanjaj se samo na statički cjenovnik.
-- **Za dolazak na vrh koristi obnovu, ne brisanje.** Kad nema na stanju, koristi sakrivanje ili
-  završavanje, da se sačuva historija i dojmovi.
-- **Ako server ne odgovara** (timeout), reci to korisniku i predloži restart lokalnih MCP
-  servera, pa nastavi sa savjetom na osnovu dostupnih podataka umjesto da blokiraš.
-
 ## Tipičan zadatak: "pripremi N artikala za izdvajanje da se ne dupliraju"
 
 1. `olx_list_listings` (active) i izdvoji koji su već promovisani (kompaktan odgovor nosi
@@ -61,67 +32,12 @@ ponovo prije nego zaključiš da ga nema.
    dnevne snapshote, CLI `stats snapshot`, vidi skill olx-cron-obnove).
 2. Spoji sa metodom izbora iz `strategija.md` (pojmovi u pretrazi × najgledaniji).
 3. Predloži artikle koji nisu već izdvojeni, sa ID-evima i obrazloženjem.
-4. Pokaži trošak iz `cjenovnik-i-krediti.md` (ili `olx_sponsor_price`).
-5. Sačekaj potvrdu prije `olx_sponsor_listing`.
-
-## API referenca (za alat: CLI/MCP) i parametri izdvajanja
-
-Ako alat radi direktno preko API-ja, baza je `https://api.olx.ba` (drži kao konfigurabilnu
-varijablu, jer uz rebrand može doći `api.pik.ba`; nepotvrđeno kada). Svi pozivi preko HTTPS, uz
-`Authorization: Bearer {token}`. Login: `POST /auth/login` (username/email, password,
-device_name), pa `GET /me` za provjeru pristupa (403 znači da treba odobrenje shop podrške).
-
-### Ključni endpointi
-
-- Oglasi: `GET /listings/:id`, `POST /listings` (kreira DRAFT), `PUT /listings/:id`,
-  `POST /listings/:id/publish`, `DELETE /listings/:id`.
-- Obnova: `GET /listing/refresh/limits` (vraća `free_limit`, `free_count`, `paid_count`; `free_limit`
-  NIJE fiksno 750, na Gold shopu izmjereno 1.800, a `free_count` je ISKORISTENO a ne preostalo),
-  `PUT /listings/:id/refresh`.
-- Slike: `POST /listings/:id/image-upload`, `image-delete`, `image-main`.
-- Status: `POST /listings/:id/finish`, `hide`, `unhide`.
-- Katalog korisnika (paginirano, `per_page` 20, svaka stavka ima `refresh_available`, `sponsored`,
-  `status`, `visible`): `GET /users/:username/listings?page=N` i varijante finished/inactive/
-  expired/hidden.
-- Kategorije: `GET /categories`, `GET /category/:id` (ima `listing_fee`, `base_listing_price`,
-  `brand_required`, `model_required`, `show_map`, `show_condition`), `GET /categories/:id/
-  attributes`, `.../brands`, `.../brands/:brand_id/models`, `GET /categories/suggest?keyword=`,
-  `GET /categories/find?name=`.
-- Lokacije: `GET /countries` (BiH = 49, code BA), `GET /cities`, `GET /cities/:id`.
-- Izdvajanje: `GET /listings/:id/sponsore/price` (vrati PRVO; odgovor `{search, refresh, locations,
-  extras, total}`), `POST /listings/:id/sponsore` (troši kredite). Akcijska cijena:
-  `POST /listings/:id/discount` (`{price, days}`, days 3/7/30), `.../discount/finish`.
-
-### Parametri izdvajanja (sponsore)
-
-- `type`: 0 bez izdvajanja, 1 klasično, 2 premium.
-- `days`: 1, 2, 3, 5, 7, 14, 21, 30. Provjereno na živom API-ju: 15 vraća 422
-  `"Broj dana nije validan"`, a 14 i 21 rade normalno.
-- `refresh_every`: 0, 3, 6, 8, 24 (sati). Provjereno: interval od 6 sati RADI, a 12 vraća 422
-  `"Razmak obnavljanja nije validan"`.
-- **`refresh_every` je OBAVEZAN.** Bez njega svaki poziv na `sponsore/price` vraća 422
-  `"Polje obnavljanje svakih je obavezno."` Za izdvajanje bez autoobnove pošalji 0.
-- `locations`: `["homepage"]` za prikaz i na naslovnici.
-
-### DOKAZ da cijena varira po kategoriji (NIJE cjenovnik, ne citirati)
-
-Ovo NIJE cjenovnik i ne smije se koristiti kao izvor cijene ni za jednu kategoriju.
-Svrha tabele je samo da dokaze dvije stvari: (1) dnevna cijena se razlikuje po kategoriji i
-do tri i po puta, (2) faktori perioda i obnove su isti u svim izmjerenim kategorijama, pa se
-cijeli cjenovnik izvodi iz jednog dohvacenog broja. Model je u
-`references/cjenovnik-i-krediti.md`. Za oglas
-`70073750` (kategorija 1918) i `77556842` (kategorija 1920):
-
-| Kategorija | 7 dana bez obnove | 7 dana + 24h | 14 dana + 24h | 30 dana bez obnove | 30 dana + 24h |
-|---|---|---|---|---|---|
-| Pernice (2045) | 12 | 18 | | 42 | 63 |
-| Zaštita tijela (1918) | 36 | 54 | 99 | 126 | 189 |
-| Party (754) | 36 | 54 | | 126 | 189 |
-| Zaštita nogu (1920) | 42 | 63 | | 147 | 220 |
-
-Obnova na 24h dodaje pola osnovne cijene, obnova na 8h dodaje 150 posto. Duži period je
-jeftiniji po danu: 30 dana izlazi 4,2 kredita dnevno naprema 5,14 za 7 dana. Premium (type 2)
-je oko 2,7 puta skuplji od klasičnog.
+4. Cijeli plan (kandidati, cijene, raspored po danima, budžet) računa `olx_sponsor_plan`,
+   NE ti: proslijedi budžet i opcije (i ID-eve iz koraka 3 ako ih imaš), pa rezultat objasni.
+   Nikad ne sklapaj plan ručnim množenjem cijena. `sacuvaj: true` tek kad korisnik prihvati
+   plan, da ga prate sedmični izvještaj i izvršenje.
+5. Pojedinačnu cijenu za brzo pitanje daje `olx_sponsor_price`.
+6. Sačekaj potvrdu prije `olx_sponsor_listing` (plan NIJE potvrda; svaki termin se potvrđuje).
 
 ### Izdvajanje na oglas koji je VEC izdvojen (bitno za planiranje)
 
@@ -162,31 +78,4 @@ Prakticne posljedice:
 - Ako ti treba drukcija konfiguracija SADA (npr. dodati autoobnovu odmah), zakazivanje to ne
   rjesava, jer novi parametri stupaju na snagu tek kad tekuci period istekne.
 
-### Polja koja se lako pogrešno protumače
-
-- **`available` NE znači zalihu.** Na PIK-u stoji `false` na oglasima čiji artikli imaju
-  stotine komada u Shopify-u, a i tuđi oglasi po platformi masovno imaju `false`. Zvanična
-  dokumentacija ga ne definiše. Ne koristi ga kao signal o stanju robe.
-- **`free_count` je iskorišteno, ne preostalo.** Provjereno: nakon jedne obnove otišlo je sa
-  300 na 301. Preostalo se računa kao `free_limit - free_count`.
-- **Obnova isteklog oglasa ne vraća vidljivost.** Status pređe sa `expired` na `active` i
-  datum se osvježi, ali `visible` ostaje `false` i oglas se ne pojavi u katalogu.
-- **`sku_number` postoji samo na pojedinačnom oglasu** (`GET /listings/:id`), nijedna lista ga
-  ne vraća. Na provjerenom nalogu ga ima manjina oglasa, u tri oblika (šema zavisi od dobavljača):
-  kratki kod modela, puna šifra dobavljača, i šifra sa veličinom na kraju.
-- **Aktivni katalog je `/users/:username/listings` bez sufiksa.** Varijanta sa `/active` vraća
-  prazan niz, a `/users/:id/listings` sa numeričkim id-em vraća 404. Za ostala stanja
-  (finished, inactive, expired, hidden) prolaze i username i id.
-
-### Životni ciklus oglasa (DRAFT zamka)
-
-Kreiraj (`POST /listings` daje DRAFT, nevidljiv) → upload slika → postavi glavnu sliku →
-`publish`. Ako se preskoči publish, oglas ostaje nevidljiv. Uvijek provjeri da je oglas objavljen.
-
-### Zaštite u alatu (obavezno)
-
-- Prije `sponsore` i `discount` uvijek dohvati cijenu (`sponsore/price`) i traži potvrdu.
-- Prije bulk obnove provjeri `refresh/limits` i ne prelazi PROCITANI `free_limit`. Kvota nije fiksna.
-- Ne briši radi re-rankinga; koristi refresh ili hide.
-- Tokeni u env varijablama ili keychainu, po korisniku, nikad u kodu ili gitu.
 - Ne logiraj lične podatke kupaca; ne izvozi cijene kredita ni marže u materijale za klijente.

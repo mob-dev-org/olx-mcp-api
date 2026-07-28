@@ -4,5 +4,33 @@
       "mcp__olx-pik__olx_sponsor_listing",
       "mcp__olx-pik__olx_set_discount"
     ]
+  },
+
+  "//": "Vazi SAMO za ovaj folder. Globalna konfiguracija u ~/.claude ostaje netaknuta.",
+  "//2": "Ide u git, pa svaki klijentski klon dobija istu izolaciju bez rucnog podesavanja.",
+  "enabledPlugins": {
+    "telegram@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+
+    "caveman@caveman": false,
+    "claude-image-generation@hex-plugins": false,
+    "claude-md-management@claude-plugins-official": false,
+    "cli-anything@cli-anything": false,
+    "code-review@claude-plugins-official": false,
+    "codex@openai-codex": false,
+    "context7@claude-plugins-official": false,
+    "expo@claude-plugins-official": false,
+    "figma@claude-plugins-official": false,
+    "frontend-design@claude-plugins-official": false,
+    "github@claude-plugins-official": false,
+    "playwright-skill@playwright-skill": false,
+    "pyright-lsp@claude-plugins-official": false,
+    "ralph-loop@claude-plugins-official": false,
+    "react-native-best-practices@callstack-agent-skills": false,
+    "shopify-ai-toolkit@claude-plugins-official": false,
+    "skill-creator@claude-plugins-official": false,
+    "supabase@claude-plugins-official": false,
+    "vercel@claude-plugins-official": false,
+    "warp@claude-code-warp": false
   }
 }

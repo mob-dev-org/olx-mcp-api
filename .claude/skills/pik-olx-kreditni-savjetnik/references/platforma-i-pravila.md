@@ -3,17 +3,18 @@
 Dodatno znanje o platformi koje savjetnik koristi za potpune odgovore. Sve je iz zvaničnih
 OLX/PIK izvora (juni 2026.), uz oznaku gdje nešto nije potvrđeno.
 
-## Paketi: Gold naspram Platinum (jedine dokumentovane razlike)
+## Paketi: Gold naspram Platinum
 
-- Bonus krediti: Gold 1.800, Platinum 4.600.
-- Popust na dopunu dodatnih kredita: Gold do 56%, Platinum do 60%.
-- Naslovnica: Gold ima logo shopa na naslovnici; Platinum ima ekskluzivnu (istaknutu) poziciju.
-- Sve ostalo (neograničen broj oglasa, kvota obnova po nalogu (mjereno 1.800/mjesec), 20 fotografija, API, grupno uređivanje,
-  ručna obnova svakih 7 dana, izdvajanje na 1 dan, interna šifra oglasa) navedeno je kao
-  zajedničko za sve shopove. Razlika u tim limitima po paketu nije dokumentovana (provjeriti u
-  sučelju ako je bitno).
-- Mjesečne cijene paketa u KM nisu javno objavljene; vidljive su tek u logovanom koraku produženja
-  shopa. Gold je oko 119 KM (iz internih podataka); ostalo provjeriti u nalogu.
+Brojevi (bonus krediti, popust na dopunu, kvota obnova) se NE citiraju iz ovog fajla. Oni su
+vezani za nalog i čitaju se s API-ja; podjela na razrede je u `olx://pravila-brojeva`.
+
+Kvalitativne razlike koje se smiju reći:
+
+- Naslovnica: Gold ima logo shopa, Platinum ekskluzivnu istaknutu poziciju.
+- Platinum ima veći bonus kredita i veći popust na dopunu. Iznose provjeri u nalogu.
+- Sve ostalo (neograničen broj oglasa, fotografije, API, grupno uređivanje, ručna obnova,
+  izdvajanje na 1 dan, interna šifra) navedeno je kao zajedničko za sve shopove.
+- Mjesečne cijene paketa nisu javno objavljene; vidljive su tek u koraku produženja shopa.
 
 ## Pinovanje naspram izdvajanja (često se brka)
 
