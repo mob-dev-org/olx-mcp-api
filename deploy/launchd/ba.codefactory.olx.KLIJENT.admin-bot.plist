@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sablon. Instalira ga scripts/instaliraj-cron.sh, ali SAMO ako u klonu postoji
+  .claude-runtime-admin/ (admin bot je opcion po klonu).
+
+  Cuvar ADMIN bot sesije: vlasnikov privatni Telegram kanal za ovaj shop, na vlasnikovoj
+  pretplati. Ista mehanika kao klijentski cuvar (KeepAlive, nocni restart, idle restart sa
+  kracim pragom od 1h), samo drugi tip: cuvar-sesije.mjs admin-bot.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>ba.codefactory.olx.KLIJENT.admin-bot</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>cd KORIJEN &amp;&amp; node scripts/cuvar-sesije.mjs admin-bot</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>KORIJEN</string>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+
+  <key>ThrottleInterval</key>
+  <integer>30</integer>
+
+  <key>StandardOutPath</key>
+  <string>KORIJEN/.olx-pik/cron-admin-bot.log</string>
+  <key>StandardErrorPath</key>
+  <string>KORIJEN/.olx-pik/cron-admin-bot.log</string>
+</dict>
+</plist>

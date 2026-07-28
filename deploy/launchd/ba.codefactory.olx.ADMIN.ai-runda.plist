@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sablon. Za razliku od KLIJENT sablona, ovaj se NE instalira kroz instaliraj-cron.sh (taj
+  instalira poslove po klonu), nego RUCNO i samo JEDNOM na admin masini, jer runda sama obilazi
+  sve klonove iz ~/.olx-klijenti.txt.
+
+  Instalacija (KORIJEN je putanja glavnog repoa):
+    sed "s|KORIJEN|$PWD|g" deploy/launchd/ba.codefactory.olx.ADMIN.ai-runda.plist \
+      > ~/Library/LaunchAgents/ba.codefactory.olx.ADMIN.ai-runda.plist
+    launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/ba.codefactory.olx.ADMIN.ai-runda.plist
+
+  Nedjelja 21:00: termin razmaknut od nocnih snapshota (02:40) i jutarnjih poruka (07:20), a
+  dovoljno kasno da ne jede dnevni limit pretplate koji admin koristi za rad.
+
+  bash -lc zbog PATH-a: claude i node dolaze iz login profila.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>ba.codefactory.olx.ADMIN.ai-runda</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>cd KORIJEN &amp;&amp; scripts/ai-runda.sh</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>KORIJEN</string>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Weekday</key><integer>0</integer>
+    <key>Hour</key><integer>21</integer>
+    <key>Minute</key><integer>0</integer>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>KORIJEN/.olx-pik/cron-ai-runda.log</string>
+  <key>StandardErrorPath</key>
+  <string>KORIJEN/.olx-pik/cron-ai-runda.log</string>
+</dict>
+</plist>

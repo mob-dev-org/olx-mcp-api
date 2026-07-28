@@ -1,15 +1,26 @@
 // Mjeri sta se salje modelu u svakom potezu i sta se salje samo po potrebi.
 // Sluzi da se odluci sta vrijedi trimovati, umjesto da se nagadja.
-// Pokretanje: npm run kontekst
+// Pokretanje: npm run kontekst          (samo ovaj repo, bez pokretanja tudjih procesa)
+//             npm run kontekst -- --sa-globalnim   (mjeri i globalne MCP servere)
 //
 // Podjela je vazna:
 //   uvijek  = MCP seme alata, CLAUDE.md, opisi skillova iz frontmattera
 //   po potrebi = tijela skillova, reference, MCP resursi
+//
+// Drugi dio izvjestaja mjeri ono STO NIJE u ovom repou a ipak ulazi u svaki potez: globalne MCP
+// servere iz ~/.claude.json i opise skillova iz instaliranih plugina. To je ono sto gasi
+// izolacija (.claude/settings.json kljuc enabledPlugins i scripts/claude-olx.sh).
+//
+// Globalni MCP serveri se mjere samo uz --sa-globalnim, jer mjerenje znaci pokretanje tih
+// procesa (pencil recimo pokrece binarni fajl aplikacije). Bez zastavice se samo nabroje.
 
 import { spawn } from "node:child_process";
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { CIJENE } from "./ai-cijene.mjs";
+
+const SA_GLOBALNIM = process.argv.includes("--sa-globalnim");
 
 const ZNAKOVA_PO_TOKENU = 3.6; // gruba procjena za bosanski i engleski tekst pomijesano
 const tok = (znakova) => Math.round(znakova / ZNAKOVA_PO_TOKENU);
@@ -22,6 +33,27 @@ function velicina(putanja) {
   }
 }
 
+/**
+ * Velicina fajla plus svih fajlova koje ubacuje kroz `@putanja` na pocetku linije.
+ * Bez toga bi CLAUDE.md izgledao manji nego sto stvarno jeste, jer granice.md ulazi u kontekst
+ * ali se ne broji. Prati includove u dubinu, sa zastitom od kruga.
+ */
+function velicinaSaIncludovima(putanja, vidjeni = new Set()) {
+  if (vidjeni.has(putanja) || !existsSync(putanja)) return 0;
+  vidjeni.add(putanja);
+  let tekst;
+  try {
+    tekst = readFileSync(putanja, "utf8");
+  } catch {
+    return 0;
+  }
+  let ukupno = tekst.length;
+  for (const m of tekst.matchAll(/^@([^\s]+)$/gm)) {
+    ukupno += velicinaSaIncludovima(m[1], vidjeni);
+  }
+  return ukupno;
+}
+
 /** Cita opis iz YAML frontmattera skilla, to je dio koji je uvijek u kontekstu. */
 function opisSkilla(putanja) {
   const tekst = readFileSync(putanja, "utf8");
@@ -31,9 +63,23 @@ function opisSkilla(putanja) {
   return { opis: opis.length, tijelo: tekst.length - fm[0].length };
 }
 
-function dohvatiAlate() {
+/**
+ * Pokrene stdio MCP server i procita mu popis alata i resursa.
+ * Vraca prazne liste ako server ne odgovori u zadatom roku, umjesto da baci.
+ */
+function dohvatiAlate({ command = "node", args = ["dist/mcp/server.js"], env, cekaj = 2500 } = {}) {
   return new Promise((resolve) => {
-    const child = spawn("node", ["dist/mcp/server.js"], { stdio: ["pipe", "pipe", "ignore"] });
+    let child;
+    try {
+      child = spawn(command, args, {
+        stdio: ["pipe", "pipe", "ignore"],
+        env: env ? { ...process.env, ...env } : process.env,
+      });
+    } catch {
+      resolve({ alati: [], resursi: [], greska: "pokretanje nije uspjelo" });
+      return;
+    }
+    child.on("error", () => resolve({ alati: [], resursi: [], greska: "pokretanje nije uspjelo" }));
     const alati = [];
     const resursi = [];
     let buf = "";
@@ -66,11 +112,28 @@ function dohvatiAlate() {
     setTimeout(() => {
       child.kill();
       resolve({ alati, resursi });
-    }, 2500);
+    }, cekaj);
   });
 }
 
-const { alati, resursi } = await dohvatiAlate();
+/** Zbir znakova sema alata, isti oblik racunanja kao za olx-pik. */
+function semaZnakova(alati) {
+  return alati.reduce(
+    (a, t) => a + JSON.stringify({ name: t.name, description: t.description, input_schema: t.inputSchema }).length,
+    0,
+  );
+}
+
+function citajJson(putanja) {
+  try {
+    return JSON.parse(readFileSync(putanja, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+const { alati, resursi } = await dohvatiAlate({ env: { OLX_MCP_PROFILE: "admin" } });
+const { alati: alatiKlijent } = await dohvatiAlate({ env: { OLX_MCP_PROFILE: "klijent" } });
 
 const semeSvih = alati.map((t) => ({
   name: t.name,
@@ -78,7 +141,12 @@ const semeSvih = alati.map((t) => ({
 }));
 const mcpZnakova = semeSvih.reduce((a, t) => a + t.znakova, 0);
 
-const claudeMd = velicina("CLAUDE.md");
+// CLAUDE.md se ucitava automatski u OBA runtimea, jer se obje sesije pokrecu iz korijena klona.
+// Zato ulazi i u admin i u klijentski zbir. Prompt fajlovi profila se dodaju povrh njega i cine
+// se doslovno (bez razrjesavanja @ importa), pa se mjere kakvi jesu.
+const claudeMd = velicinaSaIncludovima("CLAUDE.md");
+const adminPrompt = velicina("runtime/SISTEM-admin.md");
+const klijentPrompt = velicina("runtime/SISTEM-klijent.md");
 
 const skillDir = ".claude/skills";
 const skillovi = existsSync(skillDir)
@@ -94,11 +162,21 @@ const skillovi = existsSync(skillDir)
       })
   : [];
 
+// Popis podagenata se, kao i popis skillova, ubacuje u sistemski prompt u SVAKOM potezu.
+// Mjeri se da se vidi placa li se izolacija konteksta vise nego sto donosi.
+const agentDir = ".claude/agents";
+const agenti = existsSync(agentDir)
+  ? readdirSync(agentDir)
+      .filter((f) => f.endsWith(".md"))
+      .map((f) => ({ ime: f.replace(/\.md$/, ""), ...opisSkilla(join(agentDir, f)) }))
+  : [];
+const agentiOpisa = agenti.reduce((a, x) => a + x.opis, 0);
+
 const opisiUkupno = skillovi.reduce((a, s) => a + s.opis, 0);
 const tijelaUkupno = skillovi.reduce((a, s) => a + s.tijelo, 0);
 const referenceUkupno = skillovi.reduce((a, s) => a + s.reference, 0);
 
-const uvijek = mcpZnakova + claudeMd + opisiUkupno;
+const uvijek = mcpZnakova + claudeMd + adminPrompt + opisiUkupno + agentiOpisa;
 
 function cijena(znakova, model) {
   const c = CIJENE[model];
@@ -113,10 +191,27 @@ const red = (ime, znakova) =>
   );
 
 red(`MCP seme (${alati.length} alata)`, mcpZnakova);
-red("CLAUDE.md", claudeMd);
+red("CLAUDE.md sa includovima", claudeMd);
+red("SISTEM-admin.md", adminPrompt);
 red(`opisi skillova (${skillovi.length})`, opisiUkupno);
+if (agenti.length > 0) red(`opisi podagenata (${agenti.length})`, agentiOpisa);
 console.log("-".repeat(96));
-red("UKUPNO iz ovog repoa", uvijek);
+red("UKUPNO profil admin", uvijek);
+
+// Klijentski profil: uze MCP seme i drugi prompt profila, ali ISTI CLAUDE.md i isti skillovi.
+const mcpKlijent = semaZnakova(alatiKlijent);
+// Klijent ima Task u permissions.deny, pa podagente ne moze pokrenuti. Opisi mu ipak ulaze
+// u kontekst, jer se popis agenata gradi iz .claude/agents bez obzira na dozvole.
+const ukupnoKlijent = mcpKlijent + claudeMd + klijentPrompt + opisiUkupno + agentiOpisa;
+if (klijentPrompt > 0 && alatiKlijent.length > 0) {
+  console.log("\n  isti zbir za profil klijent:");
+  red(`  MCP seme (${alatiKlijent.length} alata)`, mcpKlijent);
+  red("  CLAUDE.md sa includovima", claudeMd);
+  red("  SISTEM-klijent.md", klijentPrompt);
+  red(`  opisi skillova (${skillovi.length})`, opisiUkupno);
+  if (agenti.length > 0) red(`  opisi podagenata (${agenti.length}, klijent ih ne moze zvati)`, agentiOpisa);
+  red("  UKUPNO profil klijent", ukupnoKlijent);
+}
 console.log(
   "\nNapomena: ovo je samo dio prefiksa. Claude Code dodaje svoj sistemski prompt, ugradjene alate\n" +
     "i popis svih skillova sa masine, sto ovaj repo ne kontrolise i ovdje se ne mjeri.",
@@ -151,6 +246,101 @@ console.log(
     `  ovi podaci postoje i kao CSV snapshot (olx://categories-index, olx://locations-index)\n` +
     `  i mijenjaju se rijetko, pa mogu ici iza prekidaca umjesto u svaki zahtjev`,
 );
+
+// ---------------------------------------------------------------------------------------------
+// Izvan repoa: globalni MCP serveri i plugin skillovi. Ovo gasi izolacija.
+// ---------------------------------------------------------------------------------------------
+
+console.log("\n=== izvan repoa, ono sto gasi izolacija ===\n");
+
+const globalniServeri = Object.entries(citajJson(join(homedir(), ".claude.json"))?.mcpServers ?? {}).filter(
+  ([ime]) => ime !== "olx-pik",
+);
+
+let globalniZnakova = 0;
+let globalniMjereno = 0;
+
+if (globalniServeri.length === 0) {
+  console.log("  globalni MCP serveri: nema ih u ~/.claude.json");
+} else if (!SA_GLOBALNIM) {
+  console.log(`  globalni MCP serveri (${globalniServeri.length}): ${globalniServeri.map(([i]) => i).join(", ")}`);
+  console.log("  nisu izmjereni. Za mjerenje: npm run kontekst -- --sa-globalnim");
+  console.log("  (mjerenje ih stvarno pokrece, pa se ne radi bez trazenja)");
+} else {
+  for (const [ime, spec] of globalniServeri) {
+    if (spec.type && spec.type !== "stdio") {
+      console.log(`  ${ime.padEnd(18)} tip ${spec.type}, ne mjeri se ovom skriptom`);
+      continue;
+    }
+    const { alati, greska } = await dohvatiAlate({
+      command: spec.command,
+      args: spec.args ?? [],
+      env: spec.env,
+      cekaj: 5000,
+    });
+    if (greska || alati.length === 0) {
+      console.log(`  ${ime.padEnd(18)} nije odgovorio, ne racuna se`);
+      continue;
+    }
+    const zn = semaZnakova(alati);
+    globalniZnakova += zn;
+    globalniMjereno += 1;
+    red(`  ${ime} (${alati.length} alata)`, zn);
+  }
+}
+
+// Opisi skillova iz instaliranih plugina. Cita se samo verzija na koju pokazuje
+// installed_plugins.json, ne sve zaostale verzije u kesu.
+const instalirani = citajJson(join(homedir(), ".claude", "plugins", "installed_plugins.json"))?.plugins ?? {};
+const projektniPlugini = citajJson(".claude/settings.json")?.enabledPlugins ?? {};
+
+let pluginOpisa = 0;
+let pluginSkillova = 0;
+let ugasenoOpisa = 0;
+let ugasenoSkillova = 0;
+
+for (const [kljuc, unosi] of Object.entries(instalirani)) {
+  const putanja = unosi?.[0]?.installPath;
+  if (!putanja) continue;
+  const skillDirPlugina = join(putanja, "skills");
+  if (!existsSync(skillDirPlugina)) continue;
+  const ugasen = projektniPlugini[kljuc] === false;
+  for (const d of readdirSync(skillDirPlugina)) {
+    const sm = join(skillDirPlugina, d, "SKILL.md");
+    if (!existsSync(sm)) continue;
+    const { opis } = opisSkilla(sm);
+    pluginOpisa += opis;
+    pluginSkillova += 1;
+    if (ugasen) {
+      ugasenoOpisa += opis;
+      ugasenoSkillova += 1;
+    }
+  }
+}
+
+console.log("");
+red(`opisi skillova iz plugina (${pluginSkillova})`, pluginOpisa);
+red(`  od toga ugaseno u ovom repou (${ugasenoSkillova})`, ugasenoOpisa);
+
+const izvanRepoa = globalniZnakova + pluginOpisa;
+const ustedjeno = globalniZnakova + ugasenoOpisa;
+
+console.log("-".repeat(96));
+red("UKUPNO izvan repoa", izvanRepoa);
+red("od toga gasi izolacija", ustedjeno);
+
+if (!SA_GLOBALNIM && globalniServeri.length > 0) {
+  console.log("\n  Brojka za globalne servere fali. Pokreni sa --sa-globalnim za punu sliku.");
+} else if (globalniMjereno > 0) {
+  console.log(`\n  Izmjereno ${globalniMjereno} od ${globalniServeri.length} globalnih servera.`);
+}
+
+console.log("\n=== zbir po scenariju, uvijek u kontekstu ===\n");
+red("bez izolacije", uvijek + izvanRepoa);
+red("sa izolacijom", uvijek + izvanRepoa - ustedjeno);
+if (ustedjeno > 0) {
+  console.log(`\n  usteda ${((ustedjeno / (uvijek + izvanRepoa)) * 100).toFixed(1)}% na svakom potezu`);
+}
 
 console.log("\n=== projekcija na 100 poteza dnevno, samo ovaj prefiks ===\n");
 for (const model of ["deepseek-v4-flash", "deepseek-v4-pro"]) {

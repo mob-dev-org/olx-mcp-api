@@ -17,8 +17,10 @@
     "dev:mcp": "tsc && node dist/mcp/server.js",
     "typecheck": "tsc --noEmit",
     "test": "tsc && node --test dist/core/*.test.js",
+    "chat": "bash scripts/claude-olx.sh",
     "deepseek:proba": "tsc && node scripts/deepseek-proba.mjs",
     "ai:usage": "node scripts/ai-usage.mjs",
+    "tokeni": "node scripts/tokeni-izvjestaj.mjs",
     "kontekst": "tsc && node scripts/kontekst-izvjestaj.mjs"
   },
   "dependencies": {

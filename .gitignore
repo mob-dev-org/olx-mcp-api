@@ -6,3 +6,5 @@ dist/
 .DS_Store
 klijenti/
 KLIJENT.md
+.claude-runtime/
+.claude-runtime-admin/

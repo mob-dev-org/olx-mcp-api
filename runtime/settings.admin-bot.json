@@ -1,0 +1,54 @@
+{
+  "//": "Settings za ADMIN bot sesiju (vlasnikov kanal). Kopira ga scripts/pripremi-admin-runtime.mjs u .claude-runtime-admin/settings.json.",
+  "//1": "Kao i klijentski settings: NEMA permissions.ask, jer preko Telegrama nema ko kliknuti prompt.",
+  "//2": "Razlika od klijentskog: Read svuda, Task i Agent dozvoljeni (podagenti za serijske poslove su read-only).",
+  "//3": "Bash, Write i Edit ostaju zabranjeni: Telegram nalog ne smije biti kljuc od cijele masine.",
+
+  "permissions": {
+    "defaultMode": "acceptEdits",
+
+    "deny": [
+      "Bash",
+      "Write",
+      "Edit",
+      "NotebookEdit",
+      "WebFetch",
+      "WebSearch"
+    ],
+
+    "allow": [
+      "Read",
+      "Task",
+      "Agent",
+      "mcp__olx-pik",
+      "mcp__telegram"
+    ]
+  },
+
+  "//4": "Nijedan plugin osim Telegram kanala. Popis se drzi u koraku sa runtime/settings.klijent.json.",
+  "enabledPlugins": {
+    "telegram@claude-plugins-official": true,
+
+    "caveman@caveman": false,
+    "claude-image-generation@hex-plugins": false,
+    "claude-md-management@claude-plugins-official": false,
+    "cli-anything@cli-anything": false,
+    "code-review@claude-plugins-official": false,
+    "codex@openai-codex": false,
+    "context7@claude-plugins-official": false,
+    "expo@claude-plugins-official": false,
+    "figma@claude-plugins-official": false,
+    "frontend-design@claude-plugins-official": false,
+    "github@claude-plugins-official": false,
+    "playwright-skill@playwright-skill": false,
+    "pyright-lsp@claude-plugins-official": false,
+    "ralph-loop@claude-plugins-official": false,
+    "react-native-best-practices@callstack-agent-skills": false,
+    "shopify-ai-toolkit@claude-plugins-official": false,
+    "skill-creator@claude-plugins-official": false,
+    "supabase@claude-plugins-official": false,
+    "typescript-lsp@claude-plugins-official": false,
+    "vercel@claude-plugins-official": false,
+    "warp@claude-code-warp": false
+  }
+}

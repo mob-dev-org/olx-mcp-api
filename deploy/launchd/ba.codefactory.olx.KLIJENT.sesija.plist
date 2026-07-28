@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sablon. Instalira ga scripts/instaliraj-cron.sh.
+
+  Cuvar klijentske Telegram sesije. Launchd ovdje samo drzi cuvara zivim; sve pametno radi
+  scripts/cuvar-sesije.mjs (restart sesije na pad, nocni restart, restart na neaktivnost,
+  ciscenje inboxa), pa isti kod radi i na Windowsu preko Task Schedulera.
+
+  bash -lc zbog PATH-a: claude i node dolaze iz login profila, a launchd okruzenje ih nema.
+
+  KeepAlive na SuccessfulExit false: pad cuvara ga vraca, a uredno gasenje (bootout, SIGTERM)
+  se postuje. RunAtLoad true jer bot mora ziv cim se racunar digne.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>ba.codefactory.olx.KLIJENT.sesija</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>cd KORIJEN &amp;&amp; node scripts/cuvar-sesije.mjs</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>KORIJEN</string>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+
+  <key>ThrottleInterval</key>
+  <integer>30</integer>
+
+  <key>StandardOutPath</key>
+  <string>KORIJEN/.olx-pik/cron-sesija.log</string>
+  <key>StandardErrorPath</key>
+  <string>KORIJEN/.olx-pik/cron-sesija.log</string>
+</dict>
+</plist>
