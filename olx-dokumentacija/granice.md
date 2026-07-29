@@ -69,3 +69,6 @@ Granice API-ja, ne propusti toolkita. Ne obecavati ni u kojem obliku:
 - Nema statistike po danu ni po kategoriji. Pregledi su kumulativni, pa se vremenska serija
   gradi vlastitim snapshotima (`stats snapshot`).
 - `sku_number` se postavlja samo pri kreiranju i poslije se ne mijenja.
+- Kategorija objavljenog oglasa se ne mijenja: izmjena tiho ignorise `category_id` (izmjereno
+  u praksi 29.07.2026). Jedini put je zavrsiti oglas i kreirati novi u pravoj kategoriji, sto
+  gubi preglede i historiju, pa se kategorija bira pazljivo PRIJE objave.

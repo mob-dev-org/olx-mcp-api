@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sablon. Instalira se RUCNO i samo JEDNOM na admin masini (kao i ADMIN.ai-runda), jer
+  skripta sama obilazi sve klonove iz ~/.olx-klijenti.txt.
+
+  Instalacija (KORIJEN je putanja glavnog repoa):
+    sed "s|KORIJEN|$PWD|g" deploy/launchd/ba.codefactory.olx.ADMIN.saznanja.plist \
+      > ~/Library/LaunchAgents/ba.codefactory.olx.ADMIN.saznanja.plist
+    launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/ba.codefactory.olx.ADMIN.saznanja.plist
+
+  Jutro 08:00: poslije nocnih snapshota i jutarnjih poruka, pa dan pocinje sa svjezim
+  materijalom iz terena. Bez modela i bez troska: cisto citanje fajlova.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>ba.codefactory.olx.ADMIN.saznanja</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>cd KORIJEN &amp;&amp; scripts/saznanja-pokupi.sh</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>KORIJEN</string>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>8</integer>
+    <key>Minute</key><integer>0</integer>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>KORIJEN/.olx-pik/cron-saznanja.log</string>
+  <key>StandardErrorPath</key>
+  <string>KORIJEN/.olx-pik/cron-saznanja.log</string>
+</dict>
+</plist>

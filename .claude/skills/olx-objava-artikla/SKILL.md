@@ -43,7 +43,8 @@ Ako slike nema, objava je i dalje moguca, ali reci da oglasi bez slike prakticno
 
 `olx_suggest_category` sa kljucnim rijecima sa slike. Ponudi jednu, najvise dvije mogucnosti i
 trazi potvrdu. Nikad ne biraj kategoriju u tisini: pogresna kategorija znaci da oglas ne postoji
-za kupca koji pretrazuje.
+za kupca koji pretrazuje. I nema popravke poslije: kategorija objavljenog oglasa se ne moze
+promijeniti (granice.md), pa je ovo jedini trenutak da bude tacna.
 
 ### 3. Obavezni podaci
 

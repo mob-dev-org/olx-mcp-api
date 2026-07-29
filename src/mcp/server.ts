@@ -2,7 +2,7 @@
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { readFileSync, existsSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { OlxClient, OlxSpendError, OlxApiError, naknadaKategorije } from "../core/index.js";
@@ -618,6 +618,37 @@ if (vidKonfigurisan()) {
     },
   );
 }
+
+// Saznanja iz prakse: kad se API ponasa suprotno dokumentaciji ili ocekivanju, sesija to
+// zabiljezi jednom recenicom. Fajl kupi scripts/saznanja-pokupi.sh sa admin masine i nosi u
+// glavni repo, pa iz terena nastaju popravke dokumentacije i koda. Dostupno u OBA profila.
+server.registerTool(
+  "olx_zabiljezi_saznanje",
+  {
+    title: "Zabiljezi saznanje iz prakse",
+    description:
+      "Upisi jednu recenicu o neocekivanom ponasanju API-ja ili platforme (nesto radi drugacije od dokumentacije, nova greska, novo ogranicenje). Ne zove OLX, ne trosi kredite. Pozovi odmah kad se desi, pa nastavi posao.",
+    inputSchema: {
+      tekst: z.string().min(10).describe("sta je primijeceno, jedna do dvije recenice, bez tajni"),
+      tema: z.string().optional().describe("kratka oznaka, npr. update_listing, kvota, telegram"),
+    },
+  },
+  async (args) => {
+    try {
+      mkdirSync(".olx-pik", { recursive: true });
+      const red = JSON.stringify({
+        ts: new Date().toISOString(),
+        profil: config.mcpProfil,
+        tema: args.tema ?? null,
+        tekst: args.tekst,
+      });
+      appendFileSync(".olx-pik/saznanja.jsonl", `${red}\n`, "utf8");
+      return ok({ zabiljezeno: true });
+    } catch (e) {
+      return errResult(String(e instanceof Error ? e.message : e));
+    }
+  },
+);
 
 server.registerTool(
   "olx_categories",

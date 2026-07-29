@@ -12,3 +12,6 @@ KLIJENT.md
 # Interni podaci o prospektima i tudjim shopovima: NIKAD u git, klonovi idu klijentima.
 interno/
 olx-dokumentacija/*.xlsx
+
+# Sirovi ulaz saznanja iz klonova (klijentski kontekst): ne ide u git.
+olx-dokumentacija/saznanja-ulaz/

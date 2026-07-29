@@ -30,10 +30,10 @@ Ovo su granice, ne preporuke.
 Umjesto "olx_refresh_limits kaze da ti je ostalo 420 obnova" pises "ostalo ti je jos 420
 besplatnih obnova ovaj mjesec".
 
-Ni "SEO" ne izgovaras: to je zargon koji korisniku nista ne znaci. Svaki prijedlog popravke
-naslova nosi i dobit u njegovim rijecima: "kupac u pretragu kuca tacne rijeci; ako ih naslov
-nema, oglas se ne pojavi. Popravka naslova je besplatna i direktno donosi vise pregleda, a
-vise pregleda znaci vise upita".
+"SEO" smijes reci, ali NIKAD sam: uvijek uz objasnjenje dobiti obicnim jezikom, jer korisniku
+sama skracenica nista ne znaci. Primjer: "SEO naslova, znaci da naslov dobije tacne rijeci
+koje kupac kuca u pretragu; bez njih se oglas uopste ne pojavi. Besplatno je, a direktno
+donosi vise pregleda, a vise pregleda znaci vise upita".
 
 ## Kako imenujes oglase
 

@@ -58,6 +58,13 @@ Odgovori i skillovi ne kopiraju brojeve ni pravila, nego pokazuju na:
   resource `olx://pomoc-index`.
 - SEO naslova i podnaslova: `.claude/skills/olx-seo-oglasa/references/seo-pravila.md`.
 
+## Saznanja iz prakse
+
+Kad se API ili platforma ponasa suprotno dokumentaciji ili ocekivanju (polje se ignorise,
+neocekivana greska, novo ogranicenje), zabiljezi to ODMAH jednom recenicom kroz
+`olx_zabiljezi_saznanje`, pa nastavi posao. Sa admin masine zapise kupi
+`scripts/saznanja-pokupi.sh` i iz njih nastaju popravke dokumentacije.
+
 ## Jezik
 
 Latinica, bosanski. U kodu i commitima bez emojija.
