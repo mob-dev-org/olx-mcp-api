@@ -877,7 +877,7 @@ server.registerTool(
   {
     title: "Nadji svoj oglas po opisu",
     description:
-      "Pronalazi oglase po slobodnom opisu kad korisnik ne zna ID (\"prodao sam crvene cipele\"). Vraca najbolje pogotke sa skorom slicnosti 0 do 1. Skor NIJE dokaz: uvijek pokazi naslov korisniku i trazi potvrdu prije bilo kakve radnje, pogotovo prije zavrsavanja oglasa.",
+      "Pronalazi JEDAN poznat oglas po slobodnom opisu kad korisnik ne zna ID (\"prodao sam crvene cipele\"). Poredi RIJECI naslova, ne znacenje, pa NE garantuje potpunost: artikal cije ime ne dijeli rijeci sa upitom nece biti nadjen. Za \"svi artikli grupe\" NIJE dovoljan alat: tada olx_list_listings all:true pa sam odaberi sta pripada grupi. Skor NIJE dokaz: uvijek pokazi naslov korisniku i trazi potvrdu prije bilo kakve radnje, pogotovo prije zavrsavanja oglasa.",
     inputSchema: {
       upit: z.string().min(2),
       state: z.enum(["active", "finished", "inactive", "expired", "hidden"]).default("active"),
@@ -894,7 +894,14 @@ server.registerTool(
         oglasi.map((o) => ({ id: o.id, title: o.title, price: typeof o.price === "number" ? o.price : undefined })),
         args.limit,
       );
-      return { upit: args.upit, pretrazeno: oglasi.length, pogodci };
+      // Napomena ide u REZULTAT namjerno: opis alata slabiji model zna preskociti, a ovo
+      // procita uz svaki odgovor. Prag 0.35 samo mijenja formulaciju, nista ne filtrira
+      // (zasto alat nema apsolutni prag: match.test.ts, test o pragovima).
+      const najbolji = pogodci[0]?.skor ?? 0;
+      const napomena =
+        (najbolji < 0.35 ? `Najbolji skor je svega ${najbolji}: ovo su kandidati, ne nalaz. ` : "") +
+        "Pretraga poredi rijeci naslova, pa artikli drugacijeg imena (npr. samo model) nisu obuhvaceni; za potpun popis grupe koristi olx_list_listings all:true pa sam odaberi.";
+      return { upit: args.upit, pretrazeno: oglasi.length, pogodci, napomena };
     }),
 );
 
