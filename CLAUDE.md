@@ -75,6 +75,13 @@ Jedan klon = jedan klijent, pa i SVA njegova konfiguracija: bot tokeni, allowlis
 cijelu masinu, nas pogon ga ne cita, i mijesao bi klijente. `/telegram:configure` se u ovom
 repou ne koristi ni u jednom runtimeu.
 
+Razgovor nije skladiste: sto je covjek poslao u poruci, poslije restarta sesije ne postoji.
+Svaki podatak za postavku (OLX token, bot token, ID, odluka) upisi u njegovo konacno mjesto
+ISTOG TRENA kad stigne, pa tek onda odgovori: OLX token u `.env` (`OLX_TOKEN=`, fajl napravi
+iz `.env.example` ako ne postoji), bot tokene kroz pripremi skripte, kontekst o klijentu u
+`KLIJENT.md`. Ako konacno mjesto jos ne moze da se popuni (fale drugi argumenti), privremeno
+u `.olx-pik/onboarding-stanje.md` i pocisti kad postavka zavrsi.
+
 ## Saznanja iz prakse
 
 Kad se API ili platforma ponasa suprotno dokumentaciji ili ocekivanju (polje se ignorise,
