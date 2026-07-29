@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
-import { dirname } from "node:path";
+import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from "node:fs";
+import { dirname, resolve as resolvePath } from "node:path";
+import { fileURLToPath } from "node:url";
 import { OlxClient, OlxApiError, OlxAuthError, OlxSpendError } from "../core/index.js";
 import { loadConfig } from "../core/config.js";
 import { setAuditContext } from "../core/audit.js";
@@ -20,9 +21,14 @@ import { javiAdminu, posaljiPoruku } from "../core/telegram.js";
 import { SNAPSHOT_DIR, ucitajSnapshote, upisiSnapshot, zadnjiSnapshot } from "../core/snapshoti.js";
 import type { CreateListingInput, SponsorOptions, SponsorType, SponsorDays, RefreshEvery, CategoryNode, Country, City } from "../core/types.js";
 
-// Ucitaj .env ako postoji (Node 20.12+/22). Bez vanjske zavisnosti.
+// Ucitaj .env ako postoji (Node 20.12+/22). Bez vanjske zavisnosti. Prvo .env iz radnog
+// direktorija; ako ga tamo nema, iz korijena klona kojem pripada OVAJ build, da CLI radi
+// ispravno i kad ga proces pokrene iz drugog direktorija (Task Scheduler, MCP klijent).
 try {
-  (process as unknown as { loadEnvFile?: (p?: string) => void }).loadEnvFile?.(".env");
+  const loadEnv = (process as unknown as { loadEnvFile?: (p?: string) => void }).loadEnvFile;
+  const korijenskiEnv = resolvePath(dirname(fileURLToPath(import.meta.url)), "../../.env");
+  if (existsSync(".env")) loadEnv?.(".env");
+  else if (existsSync(korijenskiEnv)) loadEnv?.(korijenskiEnv);
 } catch {
   // .env nije obavezan
 }

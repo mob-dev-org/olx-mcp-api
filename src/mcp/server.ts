@@ -25,10 +25,14 @@ import { PLAN_FILE, upisiPlan, zauzmiKljuc } from "../core/plan-fajl.js";
 import { buildPlan, planSazetak, type PlanKandidat } from "../core/plan.js";
 import { opisiSliku, vidKonfigurisan } from "../core/vid.js";
 
-// Ucitaj .env iz radnog direktorija ako postoji (Node 20.12+), da OLX_TOKEN bude dostupan i kad
-// server pokrene MCP klijent. Token ostaje u .env fajlu koji je u .gitignore.
+// Ucitaj .env ako postoji (Node 20.12+), da OLX_TOKEN bude dostupan i kad server pokrene MCP
+// klijent. Prvo iz radnog direktorija; ako ga tamo nema, iz korijena klona kojem pripada OVAJ
+// build, da server radi i kad ga klijent pokrene sa drugim cwd. Token ostaje u .env (gitignore).
 try {
-  (process as unknown as { loadEnvFile?: (p?: string) => void }).loadEnvFile?.(".env");
+  const loadEnv = (process as unknown as { loadEnvFile?: (p?: string) => void }).loadEnvFile;
+  const korijenskiEnv = resolve(dirname(fileURLToPath(import.meta.url)), "../../.env");
+  if (existsSync(".env")) loadEnv?.(".env");
+  else if (existsSync(korijenskiEnv)) loadEnv?.(korijenskiEnv);
 } catch {
   // .env nije obavezan
 }
