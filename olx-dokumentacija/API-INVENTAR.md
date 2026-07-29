@@ -183,7 +183,7 @@ Gdje korisnik generise token: u repozitoriju nema URL-a ni ekrana na kojem se to
 
 - **ISPRAVKA 27.07.2026.: pregledi oglasa POSTOJE.** `GET /listings/:id` vraca polje `views` (broj pregleda), i to i za VLASTITE i za TUDJE oglase (zivo provjereno: vlastiti oglas 100 pregleda, tudji Platinum oglas 4.798 pregleda). Uz `views` dolaze i `questions` (broj pitanja na oglasu) i `feedbacks`. Ranija tvrdnja da nema pregleda vazila je samo za listu oglasa; pojedinacni oglas ih nosi. Nema klikova, nema pojmova na pretrazi, nema agregata po kategoriji ni vremenskog perioda, ali se vremenska serija pregleda moze graditi vlastitim snimcima (cron).
 - Saldo kredita JESTE dostupan. `GET /me` vraca polje `credits` (potvrdjeno zivim pozivom 26.07.2026. na Gold nalogu, saldo se vraca kao broj). Polje nije u tipu `OlxUser` (`core/types.ts:4`), ali prolazi kroz index potpis, pa ga `olx_whoami` vec vraca. Ranija tvrdnja u sekciji 6 da se saldo ne moze procitati je netacna.
-- `GET /me` vraca i paket shopa (`shop.package`, npr. Gold), datum isteka paketa `shop.ends_at`, prosjecno vrijeme odgovora `avg_response_time` i brojac neodgovorenih pitanja `new_questions_count`.
+- `GET /me` vraca i paket shopa (`shop.package`, npr. Gold), datum isteka paketa `shop.ends_at`, prosjecno vrijeme odgovora `avg_response_time` i brojac `new_questions_count`. **Brojac je NEPOUZDAN** (u praksi 07.2026. vratio 0 uz postojeca pitanja na nalogu): ne koristiti ga za izvjestaje ni alarme dok se semantika ne izmjeri poredjenjem weba i API-ja.
 - Jedina brojka blizu statistike je `count` u prijedlogu kategorije, koji pokazuje broj oglasa uz predlozenu kategoriju (`core/types.ts:172`, `olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md:87`).
 - Iz liste vlastitih oglasa dolaze polja koja se mogu koristiti kao gruba interna metrika: `sponsored`, `date`, `refresh_available`, `status`, `visible` (`core/types.ts:105` do `:91`).
 - Interna dokumentacija spominje da statistika oglasa i "pojmovi na pretrazi" postoje na platformi (`olx-dokumentacija/OLX_PIK_Rangiranje_Pretraga_Sortiranje.md`, dio 6 i Faza 2), ali za njih u dokumentaciji nema API endpointa, pa se ne mogu dohvatiti kroz ovaj MCP.
@@ -203,7 +203,7 @@ procitano iz stvarnih odgovora na Gold nalogu (MixBox) i javnom Platinum shopu.
 
 **`GET /me` (olx_whoami)** nosi, pored poznatog `credits` i `shop.package`:
 
-- `new_questions_count` — broj neodgovorenih pitanja kupaca (jedini API prozor u upite!)
+- `new_questions_count` — brojac pitanja, NEPOUZDAN (07.2026. vratio 0 uz postojeca pitanja); ne graditi nista na njemu
 - `active_deliveries_count`, `unconfirmed_deliveries_count` — dostava
 - `feedbacks.positive` / `feedbacks.negative` — ocjene naloga
 - `avg_response_time` — prosjecno vrijeme odgovora u minutama
@@ -254,9 +254,9 @@ Sta se iz ovoga izvodi bez ijednog novog endpointa:
 3. **Analiza konkurenta po username-u.** Profil (aktivnost, ocjene, paket) + oglasi (broj,
    cijene, akcije, udio sponzorisanih, kadenca obnove iz `date`) + pojedini artikl
    (`views` njihovog top oglasa protiv naseg ekvivalenta, broj slika, popunjenost atributa).
-4. **Alarmi za nalog.** `new_questions_count` > 0 (kupac ceka odgovor), `shop.ends_at` blizu
-   (paket istice), `credits` ispod praga, broj `expired` oglasa (mrtvi inventar koji se moze
-   reaktivirati).
+4. **Alarmi za nalog.** `shop.ends_at` blizu (paket istice), `credits` ispod praga, broj
+   `expired` oglasa (mrtvi inventar koji se moze reaktivirati). `new_questions_count` je
+   iskljucen iz alarma kao nepouzdan (vidi napomenu uz `GET /me`).
 
 ---
 

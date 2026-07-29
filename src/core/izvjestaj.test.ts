@@ -22,9 +22,11 @@ test("dan bez icega novog se ne salje", () => {
   assert.equal(dnevniVrijedanSlanja(podaci()), false);
 });
 
-test("obnovljeni oglasi, pitanja, alarmi ili rast pregleda cine poruku vrijednom", () => {
+test("obnovljeni oglasi, alarmi ili rast pregleda cine poruku vrijednom", () => {
   assert.equal(dnevniVrijedanSlanja(podaci({ obnovljeno: 3 })), true);
-  assert.equal(dnevniVrijedanSlanja(podaci({ nova_pitanja: 1 })), true);
+  // nova_pitanja NE cini poruku vrijednom: brojac sa API-ja je neprovjeren (na zivom nalogu
+  // pokazao 0 uz postojeca pitanja), pa se klijentu o pitanjima nista ne javlja.
+  assert.equal(dnevniVrijedanSlanja(podaci({ nova_pitanja: 5 })), false);
   assert.equal(
     dnevniVrijedanSlanja(podaci({ alarmi: { ok: false, alarmi: [{ tip: "krediti", poruka: "x", vrijednost: 1 }] } })),
     true,

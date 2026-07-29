@@ -6,7 +6,7 @@ Ovo je detaljni vodic koji dopunjava SKILL.md. Procitaj ga kad radis kompletnu a
 
 - `olx_profile_stats` -> PRVI poziv, umjesto rucnog prelistavanja: paket, krediti, kvota obnova
   (budzet obnova = preostalo), brojevi po svim stanjima, cijene, udio sponzorisanih,
-  neobnovljeni oglasi, nova pitanja. `views: "snapshot"` dodaje preglede iz danasnjeg
+  neobnovljeni oglasi. `views: "snapshot"` dodaje preglede iz danasnjeg
   snapshota bez dodatnih poziva; `views: "sample"` ih mjeri na uzorku.
 - `olx_list_listings` state=active, all=true -> spisak naslova za SEO prolaz (kompaktan default
   je dovoljan: id, naslov, cijena, sponsored, date, refresh_available).

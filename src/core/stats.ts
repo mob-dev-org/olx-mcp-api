@@ -1035,14 +1035,9 @@ export function alarmiNaloga(
 
   const alarmi: Alarm[] = [];
 
-  // "Nova" a ne "neodgovorena": polje sa API-ja je new_questions_count i nije potvrdjeno da
-  // znaci neodgovorena (moze biti samo neprocitana). Dok se semantika ne izmjeri, poruka
-  // tvrdi samo ono sto sigurno zna.
-  const pitanja = broj(me.new_questions_count) ?? 0;
-  if (pitanja > 0) {
-    alarmi.push({ tip: "pitanja", poruka: `${pitanja} novih pitanja kupaca na nalogu.`, vrijednost: pitanja });
-  }
-
+  // Alarm o pitanjima kupaca NAMJERNO ne postoji: new_questions_count sa API-ja je na zivom
+  // nalogu pokazao 0 uz postojeca pitanja, pa se iz njega nista ne alarmira dok se semantika
+  // ne izmjeri (uporediti web i API na istom nalogu). Sirova vrijednost ostaje u podacima.
   const shop = (me.shop ?? null) as { ends_at?: number } | null;
   if (shop?.ends_at) {
     const danaDoIsteka = Math.floor((shop.ends_at - sadaTs) / SEKUNDI_U_DANU);

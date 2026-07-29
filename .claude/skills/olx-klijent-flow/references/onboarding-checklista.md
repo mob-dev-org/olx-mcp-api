@@ -39,8 +39,8 @@ Snimi stanje na dan preuzimanja, da se kasnije moze dokazati sta se popravilo.
 
 - `olx_profile_stats views=sample` — JEDAN poziv vraca gotov audit: paket i istek, krediti,
   kvota obnova, brojevi po svim stanjima, cijene, udio sponzorisanih, neobnovljeni oglasi,
-  nova pitanja, pregledi na uzorku oglasa.
-- `olx_account_alerts` — sta je odmah opasno (pitanja bez odgovora, paket pri isteku, krediti,
+  pregledi na uzorku oglasa.
+- `olx_account_alerts` — sta je odmah opasno (paket pri isteku, krediti,
   kvota koja propada, istekli oglasi).
 - Po potrebi jos: `olx_listing_limits` (limiti broja oglasa po grupama) i CLI `stats snapshot`
   (prvi dnevni snimak pregleda, temelj za kasnije mjerenje izdvajanja).

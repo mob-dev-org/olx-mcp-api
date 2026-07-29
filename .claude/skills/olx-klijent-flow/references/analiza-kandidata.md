@@ -48,7 +48,7 @@ Dokument se PISE U FAJL. U razgovor ide samo sazetak od 3 do 5 redova.
    | propust | dokaz (id oglasa ili broj) | sta se dobija ispravkom | koliko traje |
 4. Sta CodeFactory konkretno radi u prvih 30 dana (vezati na faze iz SKILL.md).
 5. Granice nalaza: sta se iz javnih podataka NE vidi (krediti, koliko placa izdvajanja,
-   pojmovi pretrage, nova pitanja, stvarna prodaja). Pregledi po oglasu SE vide javno.
+   pojmovi pretrage, stvarna prodaja). Pregledi po oglasu SE vide javno.
    Ostalo se dobija tek sa tokenom, i to je jedan od argumenata.
 
 ## Granice i posteno ponasanje

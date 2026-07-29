@@ -60,9 +60,8 @@ export function onboardingMarkdown(i: OnboardingIzvjestaj): string {
       (n.limit_oglasa !== null ? ` od ${n.limit_oglasa} koliko paket dozvoljava (${n.popunjenost_procenat}%)` : ""),
   );
   r.push(`- Krediti na nalogu: ${broj(n.krediti)}`);
-  if ((n.nova_pitanja ?? 0) > 0) {
-    r.push(`- Novih pitanja kupaca: ${n.nova_pitanja}`);
-  }
+  // nova_pitanja se NE iznosi: brojac new_questions_count sa API-ja nije potvrdjen u praksi
+  // (na zivom nalogu pokazao 0 uz postojeca pitanja), pa se klijentu o pitanjima ne tvrdi nista.
   r.push("");
 
   const o = i.besplatne_obnove;
@@ -195,14 +194,13 @@ export interface DnevniPodaci {
 
 /**
  * Da li dnevna poruka uopste ima sta korisno reci. Kad nema (nista obnovljeno, nista nije
- * ni bilo dostupno, bez alarma, pitanja i pomaka pregleda), poruka se NE salje: prazan
+ * ni bilo dostupno, bez alarma i pomaka pregleda), poruka se NE salje: prazan
  * "sve isto kao juce" izvjestaj svako jutro trenira klijenta da poruke ignorise.
  */
 export function dnevniVrijedanSlanja(d: DnevniPodaci): boolean {
   return (
     (d.obnovljeno ?? 0) > 0 ||
     d.neuspjelih_obnova > 0 ||
-    (d.nova_pitanja ?? 0) > 0 ||
     d.alarmi.alarmi.length > 0 ||
     (d.promjena !== null && d.promjena.rastu.length > 0) ||
     // Kandidata ima a nista nije obnovljeno: to je kvar vrijedan poruke, ne tisina.
@@ -248,10 +246,6 @@ export function dnevniTekst(d: DnevniPodaci): string {
     for (const p of d.promjena.rastu.slice(0, 3)) {
       r.push(`- ${skrati(p.title ?? String(p.id))}: ${p.prirast}`);
     }
-  }
-
-  if ((d.nova_pitanja ?? 0) > 0) {
-    r.push("", `Na nalogu stoji ${d.nova_pitanja} novih pitanja kupaca.`);
   }
 
   const vazni = d.alarmi.alarmi.filter((a) => a.tip !== "kvota_obnova");

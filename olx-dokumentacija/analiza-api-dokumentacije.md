@@ -120,7 +120,7 @@ Dokumentacija nema, a ni zivi testovi nisu nasli:
   `questions`, i za tudje oglase (zivo provjereno 27.07.2026., vidi API-INVENTAR sekciju
   "Propertiji odgovora"); efekat izdvajanja se mjeri vlastitim snimcima pregleda
 - citanje i slanje poruka i upita kupaca — postoji samo brojac `new_questions_count` na
-  GET `/me`
+  GET `/me`, a i on se u praksi pokazao nepouzdan (07.2026. vratio 0 uz postojeca pitanja)
 - zakazivanje promocije (nas planer izdvajanja to rjesava lokalnim plan fajlom; polje
   `sponsor_scheduled` na oglasu pokazuje da platforma interno ima zakazivanje)
 - zaseban endpoint za saldo kredita — saldo ipak stize kroz GET `/me`, polje `credits`

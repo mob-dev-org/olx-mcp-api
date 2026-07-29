@@ -1179,7 +1179,7 @@ stats
 
 stats
   .command("alarmi")
-  .description("Brza provjera naloga: pitanja, paket, krediti, kvota, istekli")
+  .description("Brza provjera naloga: paket, krediti, kvota, istekli")
   .option("--krediti-min <n>", "prag salda kredita", "500")
   .option("--paket-dana <n>", "alarm kad paket istice za manje od N dana", "14")
   .action(async (opts: { kreditiMin: string; paketDana: string }) => {

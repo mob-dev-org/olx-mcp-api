@@ -766,7 +766,7 @@ server.registerTool(
   {
     title: "Statistika profila",
     description:
-      "Pregled vlastitog naloga u jednom pozivu: paket i istek, krediti, kvota obnova, oglasi po stanjima, cijene, udio sponzorisanih, neobnovljeni oglasi, nova pitanja.",
+      "Pregled vlastitog naloga u jednom pozivu: paket i istek, krediti, kvota obnova, oglasi po stanjima, cijene, udio sponzorisanih, neobnovljeni oglasi. Polje nova_pitanja je neprovjeren brojac sa API-ja: ne iznositi ga korisniku kao cinjenicu.",
     inputSchema: {
       views: z
         .enum(["none", "sample", "snapshot"])
@@ -830,7 +830,7 @@ server.registerTool(
   {
     title: "Alarmi naloga",
     description:
-      "Brza provjera naloga (3 API poziva): nova pitanja kupaca, paket pri isteku, saldo kredita ispod praga, kvota obnova koja propada pred kraj mjeseca, istekli oglasi za reaktivaciju. Vraca ok: true kad je sve cisto. Pragovi su podesivi.",
+      "Brza provjera naloga (3 API poziva): paket pri isteku, saldo kredita ispod praga, kvota obnova koja propada pred kraj mjeseca, istekli oglasi za reaktivaciju. Vraca ok: true kad je sve cisto. Pragovi su podesivi.",
     inputSchema: {
       krediti_min: z.number().int().min(0).optional().describe("prag salda kredita, default 500"),
       paket_dana: z.number().int().min(1).optional().describe("alarm kad paket istice za manje od N dana, default 14"),

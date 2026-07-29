@@ -212,11 +212,12 @@ test("alarmiNaloga pali alarme na pragovima i ok kad je sve cisto", () => {
   assert.equal(cisto.ok, true);
   assert.equal(cisto.alarmi.length, 0);
 
+  // new_questions_count NE pravi alarm: brojac je neprovjeren (0 na nalogu sa pitanjima).
   const losMe = me({ new_questions_count: 3, credits: 100, shop: { package: "Gold", ends_at: SADA + 5 * DAN } });
   const r = alarmiNaloga(losMe, limits(), 21, SADA);
   assert.equal(r.ok, false);
   const tipovi = r.alarmi.map((a) => a.tip).sort();
-  assert.deepEqual(tipovi, ["istekli", "krediti", "paket", "pitanja"]);
+  assert.deepEqual(tipovi, ["istekli", "krediti", "paket"]);
   assert.equal(r.alarmi.find((a) => a.tip === "krediti")?.vrijednost, 100);
   assert.equal(r.alarmi.find((a) => a.tip === "paket")?.vrijednost, 5);
 });
