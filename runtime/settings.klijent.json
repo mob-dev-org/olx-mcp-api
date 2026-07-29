@@ -12,6 +12,8 @@
     "//6": "moraju biti izricito zabranjene: .env sa oba tokena, KLIJENT.md, audit trag,",
     "//7": "telegram kredencijali, i .env* bilo gdje (drugi klonovi na istoj masini).",
     "//8": "Grep/Glob/Skill su zabranjeni u cijelosti: klijentu ne trebaju, a zaobilaze Read deny.",
+    "//8a": "CronCreate/CronDelete: model ne zakazuje vlastite poslove. Obnove i izvjestaji idu",
+    "//8b": "kroz deterministicki CLI cron (nula tokena); modelov zakazani posao bi to duplirao.",
     "deny": [
       "Bash",
       "Write",
@@ -24,6 +26,8 @@
       "Grep",
       "Glob",
       "Skill",
+      "CronCreate",
+      "CronDelete",
       "Read(./.env*)",
       "Read(./KLIJENT.md)",
       "Read(./klijenti/**)",

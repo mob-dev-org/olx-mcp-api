@@ -194,6 +194,23 @@ export interface DnevniPodaci {
 }
 
 /**
+ * Da li dnevna poruka uopste ima sta korisno reci. Kad nema (nista obnovljeno, nista nije
+ * ni bilo dostupno, bez alarma, pitanja i pomaka pregleda), poruka se NE salje: prazan
+ * "sve isto kao juce" izvjestaj svako jutro trenira klijenta da poruke ignorise.
+ */
+export function dnevniVrijedanSlanja(d: DnevniPodaci): boolean {
+  return (
+    (d.obnovljeno ?? 0) > 0 ||
+    d.neuspjelih_obnova > 0 ||
+    (d.nova_pitanja ?? 0) > 0 ||
+    d.alarmi.alarmi.length > 0 ||
+    (d.promjena !== null && d.promjena.rastu.length > 0) ||
+    // Kandidata ima a nista nije obnovljeno: to je kvar vrijedan poruke, ne tisina.
+    (d.obnovljeno === 0 && d.plan.za_obnovu > 0)
+  );
+}
+
+/**
  * Dnevna poruka klijentu. Sastavlja je kod, ne model, pa ne kosta nijedan token.
  * Pravilo: samo ono sto trazi potez ili potvrdjuje da je posao odradjen.
  */

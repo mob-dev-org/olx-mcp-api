@@ -15,7 +15,7 @@ import { loadKatalog } from "../core/katalog.js";
 import { alarmiNaloga, dnevniPlanObnova, efekatIzdvajanja, promjenaKonkurenta, promjenaPregleda } from "../core/stats.js";
 import { ucitajKonkurenta, upisiKonkurenta } from "../core/konkurenti.js";
 import type { OnboardingDetalj } from "../core/stats.js";
-import { dnevniTekst, onboardingMarkdown, onboardingTelegram, sedmicniTekst } from "../core/izvjestaj.js";
+import { dnevniTekst, dnevniVrijedanSlanja, onboardingMarkdown, onboardingTelegram, sedmicniTekst } from "../core/izvjestaj.js";
 import { javiAdminu, posaljiPoruku } from "../core/telegram.js";
 import { SNAPSHOT_DIR, ucitajSnapshote, upisiSnapshot, zadnjiSnapshot } from "../core/snapshoti.js";
 import type { CreateListingInput, SponsorOptions, SponsorType, SponsorDays, RefreshEvery, CategoryNode, Country, City } from "../core/types.js";
@@ -1387,7 +1387,7 @@ posao
       }
 
       const istekli = await c.listExpired(user, 1);
-      const tekst = dnevniTekst({
+      const podaci = {
         username: user,
         plan,
         obnovljeno,
@@ -1396,7 +1396,15 @@ posao
         nova_pitanja: typeof me.new_questions_count === "number" ? me.new_questions_count : null,
         // Dnevni prirast pregleda: dva zadnja snimka, pa raspon od 2 dana umjesto 7.
         promjena: promjenaPregleda(ucitajSnapshote(), sadaTs, 2),
-      });
+      };
+      const tekst = dnevniTekst(podaci);
+
+      // Jutarnja poruka ide samo kad ima sta korisno reci; "sve isto kao juce" se preskace
+      // da klijent ne nauci ignorisati poruke. Preskok NIJE greska.
+      if (!opts.suho && !opts.bezSlanja && !dnevniVrijedanSlanja(podaci)) {
+        out({ plan, obnovljeno, neuspjelih, poslano_poruka: 0, preskoceno: "nista novo za javiti" });
+        return;
+      }
 
       const poslano = opts.suho || opts.bezSlanja ? 0 : await posaljiPoruku(tekst);
       // 0 poslanih van suhog rezima znaci da token ili chat NISU postavljeni: klijent bi bez
