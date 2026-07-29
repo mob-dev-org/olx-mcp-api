@@ -19,10 +19,17 @@ cd "$KORIJEN"
 
 IME="${1:-$(basename "$KORIJEN")}"
 CILJ="$HOME/Library/LaunchAgents"
-POSLOVI=(snapshot dnevno sedmicno sesija)
+POSLOVI=(snapshot dnevno sedmicno)
 
-# Admin bot je opcion po klonu: posao se instalira samo kad je runtime pripremljen
-# (node scripts/pripremi-admin-runtime.mjs).
+# Sesijski poslovi se instaliraju SAMO kad je njihov runtime pripremljen: cuvar bez
+# .claude-runtime odmah izlazi, pa bi KeepAlive vrtio pad svakih 30 sekundi u nedogled.
+if [[ -d .claude-runtime ]]; then
+  POSLOVI+=(sesija)
+else
+  echo "PRESKACEM posao sesija: nema .claude-runtime (scripts/pripremi-runtime.sh). Bez njega nema klijentskog bota." >&2
+fi
+
+# Admin bot je opcion po klonu (node scripts/pripremi-admin-runtime.mjs).
 if [[ -d .claude-runtime-admin ]]; then
   POSLOVI+=(admin-bot)
 fi
