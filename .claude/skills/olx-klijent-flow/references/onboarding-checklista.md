@@ -9,6 +9,9 @@ Redom, bez preskakanja. Svaki korak ima provjeru koja mora proci prije sljedeceg
   budući put koristi link.
 - Provjera: token je niz znakova, ne sadrzi lozinku, i nije prazan.
 
+Tehnicka postavka klona (kloniranje, .env, Telegram runtime, cron, preflight) je skill
+`olx-novi-klijent` i radi se PRIJE ovih koraka ili paralelno sa njima.
+
 ## 2. Upis tokena lokalno
 
 - Ako ovaj klon repozitorija vec radi za drugog klijenta, prvo kloniraj repo za novog. Jedan klon

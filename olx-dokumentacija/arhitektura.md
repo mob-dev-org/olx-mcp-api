@@ -155,7 +155,12 @@ dobiju polovicne analize.
 
 ## 6. Onboarding novog klijenta (rucni koraci, redom)
 
-1. Kloniraj repo u novi folder (jedan klon = jedan nalog).
+**Izvrsna verzija ove liste je skill `olx-novi-klijent`**: otvori Claude Code i reci
+"postavi novog klijenta", sesija vodi kroz sve korake i sama izvrsava sto moze. Lista ispod
+je referenca istog redoslijeda. Na kraju UVIJEK `node scripts/provjeri-klon.mjs`: dok ijedna
+stavka FALI, sa klijentom se ne pocinje.
+
+1. Kloniraj repo u novi folder (jedan klon = jedan nalog), pa `git checkout --detach stabilno`.
 2. `.env`: `OLX_TOKEN`, `OLX_MCP_PROFILE=klijent`, `OLX_MAX_SPEND_PER_DAY`, Telegram varijable.
 3. BotFather: novi bot, pa `/setprivacy` na Disable.
 4. `scripts/pripremi-runtime.sh <bot_token> <id_grupe> <telegram_id>` — pravi izolovani

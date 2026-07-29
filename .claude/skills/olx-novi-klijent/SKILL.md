@@ -1,0 +1,115 @@
+---
+name: olx-novi-klijent
+description: >-
+  Kompletna tehnicka postavka novog klijentskog klona, od kloniranja do zivog bota: .env,
+  KLIJENT.md, Telegram runtime za oba bota, cron poslovi, preflight. Okidaci: "novi klijent",
+  "postavi klijenta", "postavi sistem za", "onboarding klona", "kloniraj za klijenta".
+---
+
+# Postavka novog klijenta, od nule do zivog bota
+
+Vodis covjeka (admina ili kolegu) kroz postavku i SAM izvrsavas sve sto se moze izvrsiti;
+od covjeka trazis samo ono sto masina ne zna (tokeni, ID-evi, odluke). Jedno pitanje
+odjednom. Nista se ne preskace: redoslijed je ovakav jer svaki korak zavisi od prethodnog.
+
+Ovo je TEHNICKA postavka. Poslovni dio (kako od klijenta traziti token, baseline analiza,
+dogovor o granicama) je u skillu `olx-klijent-flow` i radi se poslije ovoga.
+
+## 0. Sta treba prikupiti prije pocetka
+
+Trazi od covjeka redom, objasni gdje se sta dobija:
+
+1. **Kratko ime klijenta** — malim slovima, bez razmaka (npr. `mixbox`). Postaje ime
+   foldera i ime zakazanih poslova.
+2. **OLX token klijenta** — kako se trazi od klijenta objasnjava
+   `olx-klijent-flow` (poruka za klijenta je u references tog skilla).
+3. **Dva Telegram bota iz BotFathera** (`@BotFather`, komanda `/newbot`, jedan pa drugi):
+   - KLIJENTOV bot: u BotFatheru `/setprivacy` -> **Disable** (mora vidjeti sve poruke grupe).
+   - ADMIN bot: privacy se NE dira (ostaje Enable; u grupi prima samo mention i reply).
+   Od oba treba bot token.
+4. **ID klijentske grupe** (negativan broj) i **Telegram ID-evi** klijenta i njegovih ljudi
+   koji smiju pisati botu. Najlakse: covjek posalje poruku botu `@userinfobot` (za svoj ID),
+   a ID grupe se vidi kad se bot doda u grupu (ili kroz `@getidsbot`).
+5. **Adminov Telegram ID** (za alarme i admin bota) i, opciono, ID admin grupe.
+6. **Dnevni plafon kredita** (`OLX_MAX_SPEND_PER_DAY`) — odluka admina, ne ostavljati 0.
+7. **Pogon klijentske sesije**: pretplata (faza testiranja) ili DeepSeek (tada treba i
+   DeepSeek API kljuc).
+
+## 1. Kloniranje
+
+```
+git clone <url-repoa> ~/olx-klijenti/<ime>
+cd ~/olx-klijenti/<ime>
+git checkout --detach stabilno
+```
+
+- Tag `stabilno` je jedina verzija koja ide klijentima; grana main je radionica.
+- Pristup repou sa tudje masine: deploy key sa read pravima, NIKAD licni SSH kljuc admina.
+- Jedan klon = jedan klijent. Za drugog klijenta novi klon, uvijek.
+
+## 2. Konfiguracija klona
+
+```
+cp .env.example .env     # Windows: copy .env.example .env
+cp KLIJENT.primjer.md KLIJENT.md
+```
+
+U `.env` popuni: `OLX_TOKEN`, `OLX_MCP_PROFILE=klijent`, `OLX_MAX_SPEND_PER_DAY`,
+`TELEGRAM_BOT_TOKEN` (klijentov bot), `TELEGRAM_CHAT_ID` (grupa), `TELEGRAM_ADMIN_CHAT_ID`.
+Za DeepSeek pogon jos `OLX_KLIJENT_AI=deepseek` i `OLX_DEEPSEEK_*` (vidi komentare u
+`.env.example`). `KLIJENT.md` popuni sa adminom: ostaje u KORIJENU klona.
+
+## 3. Build
+
+```
+npm ci && npm run build && npm test
+```
+
+## 4. Telegram runtime, oba bota
+
+```
+scripts/pripremi-runtime.sh <klijentov_bot_token> <id_grupe> <id1,id2,...>
+node scripts/pripremi-admin-runtime.mjs <admin_bot_token> <admin_telegram_id> [id_admin_grupe]
+```
+
+- Prva komanda pravi `.claude-runtime/` (klijentska sesija), druga `.claude-runtime-admin/`
+  (adminova sesija). Token svakog bota zivi u SVOM runtime folderu i sesije se ne mogu
+  pomijesati: cuvar svakoj kaze njen folder kroz CLAUDE_CONFIG_DIR.
+- Windows: poslije pripreme admin runtime-a jos jednom
+  `CLAUDE_CONFIG_DIR=.claude-runtime-admin claude login` (macOS to ne treba, Keychain).
+- Dodaj oba bota u odgovarajuce grupe na Telegramu.
+
+## 5. Zakazani poslovi (snapshot, jutarnja poruka, sedmicni pregled, obje sesije)
+
+```
+scripts/instaliraj-cron.sh
+```
+
+Windows: `powershell -ExecutionPolicy Bypass -File deploy/windows/instaliraj-zadatke.ps1`
+
+## 6. Preflight, kapija bez izuzetka
+
+```
+node scripts/provjeri-klon.mjs
+```
+
+Dok ijedna stavka pise FALI, sa klijentom se NE pocinje: svaka stavka nosi tacnu komandu za
+popravku, radi ih redom pa pokreni provjeru ponovo.
+
+## 7. Probe uzivo
+
+- U klijentskoj grupi covjek napise "zdravo": bot mora odgovoriti.
+- U admin grupi (ako postoji) mention admin bota: mora odgovoriti; poruka BEZ mentiona ne
+  smije dobiti odgovor.
+- Posalji sliku u klijentsku grupu i trazi objavu: prolazi kroz skill objave do potvrde.
+
+## 8. Upis u flotu
+
+Na ADMIN masini dodaj putanju klona u `~/.olx-klijenti.txt` (jedna putanja po liniji). Bez
+toga klon ne dobija azuriranja (`azuriraj-sve.sh`), sedmicnu AI rundu ni jutarnje kupljenje
+saznanja.
+
+## 9. Dalje
+
+Poslovni onboarding: skill `olx-klijent-flow` (baseline analiza, dogovor o granicama,
+evidencija). Mapa cijelog sistema: `olx-dokumentacija/arhitektura.md`.
