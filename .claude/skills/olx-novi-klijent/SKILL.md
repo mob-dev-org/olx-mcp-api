@@ -35,10 +35,17 @@ Trazi od covjeka redom, objasni gdje se sta dobija:
 7. **Pogon klijentske sesije**: pretplata (faza testiranja) ili DeepSeek (tada treba i
    DeepSeek API kljuc).
 
-## 1. Kloniranje
+## 1. Kloniranje (NIKAD se ne preskace)
+
+Postavka se NE radi u glavnom/razvojnom repou, ni kad klijentovi podaci (KLIJENT.md, token
+u .env) vec stoje u njemu od testiranja: razvoj i klijentski pogon se ne miješaju, jer
+azuriranje preskace klonove sa lokalnim izmjenama, a klijentski state (audit, snapshoti)
+zagadi dev okruzenje. Ako se skill pokrene u glavnom repou: kloniraj u novi folder,
+prekopiraj `.env` i `KLIJENT.md` (i `.olx-pik/` ako vec ima istorije za tog klijenta) u
+novi klon, pa SVE dalje korake radi TAMO. Kloniranje radi i sa lokalne putanje:
 
 ```
-git clone <url-repoa> ~/olx-klijenti/<ime>
+git clone <url-repoa-ili-lokalna-putanja-glavnog-repoa> ~/olx-klijenti/<ime>
 cd ~/olx-klijenti/<ime>
 git checkout --detach stabilno
 ```
