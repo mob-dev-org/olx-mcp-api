@@ -1,0 +1,17 @@
+# Bez ovoga Git na Windowsu (core.autocrlf=true) pri checkoutu pretvara LF u CRLF,
+# pa bash skripte u Git Bashu pucaju sa ": command not found" (nevidljivi \r na kraju
+# reda), a .env.example i JSON dobiju CRLF. Zato: sve tekstualno ostaje LF svuda.
+* text=auto eol=lf
+
+# PowerShell na Windowsu: CRLF je konvencija, PowerShell 5.1 ocekuje CRLF u nekim
+# rubnim slucajevima (potpisivanje, here-string kraj fajla).
+*.ps1 text eol=crlf
+
+# Binarno, da ih tekstualna pravila ne diraju.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pptx binary
+*.xlsx binary
+*.pdf binary

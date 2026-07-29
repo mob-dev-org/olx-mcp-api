@@ -163,7 +163,7 @@ stavka FALI, sa klijentom se ne pocinje.
 1. Kloniraj repo u novi folder (jedan klon = jedan nalog), pa `git checkout --detach stabilno`.
 2. `.env`: `OLX_TOKEN`, `OLX_MCP_PROFILE=klijent`, `OLX_MAX_SPEND_PER_DAY`, Telegram varijable.
 3. BotFather: novi bot, pa `/setprivacy` na Disable.
-4. `scripts/pripremi-runtime.sh <bot_token> <id_grupe> <telegram_id>` — pravi izolovani
+4. `node scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>` — pravi izolovani
    runtime (svoj bot, svoj allowlist, bez globalnih servera).
 5. `npm ci && npm run build && npm test`.
 6. `scripts/instaliraj-cron.sh` (macOS) ili `deploy/windows/instaliraj-zadatke.ps1` (Windows):

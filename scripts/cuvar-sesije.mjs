@@ -100,7 +100,7 @@ if (!existsSync(RUNTIME)) {
   console.error(
     JE_ADMIN
       ? `Nema ${RUNTIME}. Pokreni prvo: node scripts/pripremi-admin-runtime.mjs <bot_token> <admin_telegram_id> [id_grupe]`
-      : `Nema ${RUNTIME}. Pokreni prvo: scripts/pripremi-runtime.sh <bot_token> <id_grupe> <telegram_id>`,
+      : `Nema ${RUNTIME}. Pokreni prvo: node scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>`,
   );
   process.exit(1);
 }

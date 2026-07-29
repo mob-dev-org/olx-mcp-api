@@ -29,6 +29,9 @@ if (-not (Test-Path (Join-Path $Korijen ".env"))) {
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
   throw "node nije u PATH-u."
 }
+if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {
+  throw "claude nije u PATH-u. Cuvar sesije bez njega ne moze dici sesiju."
+}
 if (-not (Test-Path (Join-Path $Korijen "dist\cli\index.js"))) {
   Write-Host "Nema dist\. Pokrecem build."
   Push-Location $Korijen
@@ -52,13 +55,18 @@ function Registruj {
     -Argument "/c $Komanda >> `"$Log`" 2>&1" `
     -WorkingDirectory $Korijen
 
+  # AllowStartIfOnBatteries + DontStop: Scheduler po defaultu NE pokrece zadatke na bateriji
+  # i gasi ih kad se laptop iskljuci iz struje. Bez ovoga bi na laptopu nocni snapshot i
+  # jutarnje obnove tiho preskakali, a bot sesija umirala cim se izvuce kabal.
   if ($Trajni) {
     # Cuvar sesije: bez vremenskog limita, a ako sam padne, Scheduler ga vrati.
     $Postavke = New-ScheduledTaskSettingsSet -StartWhenAvailable `
+      -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
       -ExecutionTimeLimit (New-TimeSpan -Seconds 0) `
       -RestartCount 10 -RestartInterval (New-TimeSpan -Minutes 1)
   } else {
     $Postavke = New-ScheduledTaskSettingsSet -StartWhenAvailable `
+      -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
       -ExecutionTimeLimit (New-TimeSpan -Hours 2)
   }
 
@@ -87,8 +95,11 @@ Registruj -Sufiks "dnevno" -Komanda "node dist\cli\index.js posao dnevni" `
 Registruj -Sufiks "sedmicno" -Komanda "node dist\cli\index.js posao sedmicni" `
   -Trigger (New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday -At 07:40)
 
-# Sesija ne ceka sljedecu prijavu korisnika, krece odmah.
+# Sesije ne cekaju sljedecu prijavu korisnika, krecu odmah.
 Start-ScheduledTask -TaskName "ba.codefactory.olx.$Ime.sesija"
+if (Test-Path (Join-Path $Korijen ".claude-runtime-admin")) {
+  Start-ScheduledTask -TaskName "ba.codefactory.olx.$Ime.admin-bot"
+}
 
 Write-Host ""
 Write-Host "Provjera:   Get-ScheduledTask -TaskName 'ba.codefactory.olx.$Ime.*'"

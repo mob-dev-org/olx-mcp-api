@@ -26,7 +26,7 @@ POSLOVI=(snapshot dnevno sedmicno)
 if [[ -d .claude-runtime ]]; then
   POSLOVI+=(sesija)
 else
-  echo "PRESKACEM posao sesija: nema .claude-runtime (scripts/pripremi-runtime.sh). Bez njega nema klijentskog bota." >&2
+  echo "PRESKACEM posao sesija: nema .claude-runtime (node scripts/pripremi-runtime.mjs). Bez njega nema klijentskog bota." >&2
 fi
 
 # Admin bot je opcion po klonu (node scripts/pripremi-admin-runtime.mjs).

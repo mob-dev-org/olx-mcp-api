@@ -8,7 +8,7 @@
 # (kljuc enabledPlugins), pa se time ovdje ne bavimo.
 #
 # Namjena je RAZVOJNI rad na ovom repou. Za klijentski runtime se ne koristi ova skripta, nego
-# CLAUDE_CONFIG_DIR po klonu (vidi scripts/pripremi-runtime.sh): tamo globalnih servera nema pa
+# CLAUDE_CONFIG_DIR po klonu (vidi scripts/pripremi-runtime.mjs): tamo globalnih servera nema pa
 # strict rezim nije ni potreban. Bitno je da se to ne mijesa, jer --strict-mcp-config gasi i MCP
 # server Telegram plugina, a njegov .mcp.json koristi ${CLAUDE_PLUGIN_ROOT} koji se izvan plugin
 # loadera ne zamjenjuje.

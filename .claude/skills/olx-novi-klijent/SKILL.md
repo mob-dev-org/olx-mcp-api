@@ -75,15 +75,17 @@ npm ci && npm run build && npm test
 ## 4. Telegram runtime, oba bota
 
 ```
-scripts/pripremi-runtime.sh <klijentov_bot_token> <id_grupe> <id1,id2,...>
+node scripts/pripremi-runtime.mjs <klijentov_bot_token> <id_grupe> <id1,id2,...>
 node scripts/pripremi-admin-runtime.mjs <admin_bot_token> <admin_telegram_id> [id_admin_grupe]
 ```
 
 - Prva komanda pravi `.claude-runtime/` (klijentska sesija), druga `.claude-runtime-admin/`
   (adminova sesija). Token svakog bota zivi u SVOM runtime folderu i sesije se ne mogu
   pomijesati: cuvar svakoj kaze njen folder kroz CLAUDE_CONFIG_DIR.
-- Windows: poslije pripreme admin runtime-a jos jednom
-  `CLAUDE_CONFIG_DIR=.claude-runtime-admin claude login` (macOS to ne treba, Keychain).
+- Windows: kredencijali pretplate zive u config diru, pa jednom po runtime-u
+  `set CLAUDE_CONFIG_DIR=.claude-runtime-admin` pa `claude login`. Isto i za
+  `.claude-runtime` AKO klijentska sesija ide na pretplatu; na DeepSeeku ne treba
+  (auth ide kroz `OLX_DEEPSEEK_AUTH_TOKEN` iz `.env`). macOS to ne treba, Keychain.
 - Dodaj oba bota u odgovarajuce grupe na Telegramu.
 
 ## 5. Zakazani poslovi (snapshot, jutarnja poruka, sedmicni pregled, obje sesije)

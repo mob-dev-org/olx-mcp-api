@@ -118,7 +118,7 @@ else fali("KLIJENT.md", "pogon (AI runda, skillovi) ne zna ko je klijent", `${WI
   const rt = ".claude-runtime";
   const tg = join(rt, "channels", "telegram");
   if (!existsSync(rt)) {
-    fali("Telegram runtime", "sesija se ne moze pokrenuti bez .claude-runtime", "scripts/pripremi-runtime.sh <bot_token> <id_grupe> <telegram_id>  # (Windows port jos ne postoji, vidi plan)");
+    fali("Telegram runtime", "sesija se ne moze pokrenuti bez .claude-runtime", "node scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>");
   } else if (!existsSync(join(tg, ".env")) || !existsSync(join(tg, "access.json"))) {
     fali("Telegram runtime", ".claude-runtime postoji ali fali telegram .env ili access.json", "ponovi pripremu runtime-a");
   } else {

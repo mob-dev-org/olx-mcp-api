@@ -16,7 +16,7 @@ Dodaje se povrh `CLAUDE.md` kroz `scripts/claude-olx.sh`. Klijentski runtime ovo
 
 ## Klijentski pogon
 
-- `scripts/pripremi-runtime.sh <bot_token> <id_grupe> <telegram_id>` pravi `.claude-runtime/`:
+- `node scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>` pravi `.claude-runtime/`:
   vlastiti `CLAUDE_CONFIG_DIR` i `TELEGRAM_STATE_DIR`, pa svaki klon ima svoj bot i nijedan
   globalni MCP server. U BotFatheru obavezno `/setprivacy` pa `Disable`.
 - `scripts/pokreni-klijenta.sh` pokrece klijentsku sesiju rucno (prvi test pri onboardingu).

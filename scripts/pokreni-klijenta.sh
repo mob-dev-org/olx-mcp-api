@@ -18,7 +18,7 @@ cd "$KORIJEN"
 RUNTIME="$KORIJEN/.claude-runtime"
 
 if [[ ! -d "$RUNTIME" ]]; then
-  echo "Nema $RUNTIME. Pokreni prvo: scripts/pripremi-runtime.sh <bot_token> <id_grupe> <telegram_id>" >&2
+  echo "Nema $RUNTIME. Pokreni prvo: node scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>" >&2
   exit 1
 fi
 
