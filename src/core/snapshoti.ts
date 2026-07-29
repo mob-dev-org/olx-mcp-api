@@ -9,13 +9,20 @@ import type { ViewsSnapshot } from "./stats.js";
 
 export const SNAPSHOT_DIR = ".olx-pik/snapshots";
 
-// Svi snapshoti sa diska, hronoloski. Neispravni fajlovi se preskacu uz poruku na stderr
-// (stdout MCP servera je JSON-RPC).
+// Nijedan potrosac ne gleda dalje od mjesec-dva unazad (promjena pregleda 2-7 dana, efekat
+// izdvajanja do ~30), a fajlovi po danu rastu godinama. Ucitava se zato samo zadnjih 120
+// dana; stariji fajlovi ostaju na disku kao arhiva i ne placaju se parsiranjem u svakom
+// pozivu statistike.
+const MAX_SNAPSHOTA = 120;
+
+// Snapshoti sa diska (zadnjih MAX_SNAPSHOTA), hronoloski. Neispravni fajlovi se preskacu uz
+// poruku na stderr (stdout MCP servera je JSON-RPC).
 export function ucitajSnapshote(dir: string = SNAPSHOT_DIR): ViewsSnapshot[] {
   if (!existsSync(dir)) return [];
   const fajlovi = readdirSync(dir)
     .filter((f) => f.startsWith("views-") && f.endsWith(".json"))
-    .sort();
+    .sort()
+    .slice(-MAX_SNAPSHOTA);
   const snapshoti: ViewsSnapshot[] = [];
   for (const f of fajlovi) {
     try {

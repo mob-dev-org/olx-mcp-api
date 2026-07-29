@@ -22,3 +22,6 @@ olx-dokumentacija/saznanja-ulaz/
 .claude/scheduled_tasks.lock
 .serena/
 *.pid
+
+# Izlazi mjerenja i testiranja u dokumentaciji: lokalno, ne u git.
+olx-dokumentacija/izdvajanje-provjera-*

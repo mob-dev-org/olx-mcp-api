@@ -312,6 +312,37 @@ function zadnjaAktivnost() {
   return Math.max(najnovijiMtime(join(RUNTIME, "projects")), najnovijiMtime(INBOX));
 }
 
+// Cron logovi rastu bez granice (launchd i Scheduler samo apenduju; petlja padova zna
+// napisati megabajte za noc). Nocni ciklus ih skrati na zadnjih ~1 MB: dovoljno za svaku
+// dijagnostiku, a fajl nikad ne postane problem. Radi i dok launchd drzi otvoren fd, jer
+// je fd u append modu pa nastavlja pisati na novi kraj.
+const LOG_MAX_BAJTA = 1_000_000;
+
+function skratiLogove() {
+  const dir = join(KORIJEN, ".olx-pik");
+  let stavke;
+  try {
+    stavke = readdirSync(dir);
+  } catch {
+    return;
+  }
+  for (const ime of stavke) {
+    if (!ime.startsWith("cron-") || !ime.endsWith(".log")) continue;
+    const putanja = join(dir, ime);
+    try {
+      const st = statSync(putanja);
+      if (st.size <= LOG_MAX_BAJTA) continue;
+      const sadrzaj = readFileSync(putanja, "utf8");
+      const rep = sadrzaj.slice(-LOG_MAX_BAJTA);
+      const odReda = rep.indexOf("\n") + 1; // ne pocinji od presjecenog reda
+      writeFileSync(putanja, `[skraceno na zadnjih ~1MB]\n${rep.slice(odReda)}`, "utf8");
+      log(`Log ${ime} skracen sa ${Math.round(st.size / 1024)} KB.`);
+    } catch {
+      // log koji se ne da skratiti nije razlog za pad cuvara
+    }
+  }
+}
+
 function ocistiInbox() {
   if (!existsSync(INBOX)) return;
   const prag = Date.now() - INBOX_DANA * 24 * 60 * 60 * 1000;
@@ -532,6 +563,7 @@ setInterval(() => {
     if (mirnoMin >= MIRNO_PRIJE_RESTARTA_MIN) {
       zadnjiNocni = danas;
       ocistiInbox();
+      skratiLogove();
       zatraziRestart("nocno ciscenje konteksta");
     }
     return;
