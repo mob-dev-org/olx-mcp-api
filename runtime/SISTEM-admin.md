@@ -52,6 +52,9 @@ dotakne odgovarajuci fajl (`paths` frontmatter). Ne prepisuju se ovdje ni u skil
 pitanja o platformi i API-ju koristi podagenta `olx-korpus` umjesto ucitavanja velikih
 fajlova dokumentacije u razgovor.
 
+Prije rada prema klijentu na klonu prvo `node scripts/provjeri-klon.mjs`: dok ijedna stavka
+FALI, klijent se ne dira (detalji u CLAUDE.md, sekcija "Spremnost klona").
+
 Jos dva podagenta za admina (rade i kroz admin bota, klijentska sesija ih ne vidi):
 
 - `olx-prodaja` — argumentacija za prospekta iz dokumentacije, sa granicama kao anti-izvorom

@@ -11,6 +11,9 @@ mogao provjeriti.
 
 ## Checklista, redom
 
+0. **Preflight**: `node scripts/provjeri-klon.mjs` — jedan potez pokrije konfiguraciju,
+   build, runtime, zakazane poslove, cuvara i snapshot. Cesto je cijela dijagnoza vec tu;
+   dalje korake radi za ono sto preflight ne vidi (zivi procesi u kvaru, logovi, audit).
 1. **Procesi**: zive li cuvar i sesija?
    - macOS/Linux: `pgrep -fl "cuvar-sesije|claude"`; Windows: `tasklist | findstr /i "node claude"`
    - PID fajlovi: `.olx-pik/cuvar-sesije.pid`, `.olx-pik/cuvar-admin-bota.pid`,

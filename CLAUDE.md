@@ -58,6 +58,14 @@ Odgovori i skillovi ne kopiraju brojeve ni pravila, nego pokazuju na:
   resource `olx://pomoc-index`.
 - SEO naslova i podnaslova: `.claude/skills/olx-seo-oglasa/references/seo-pravila.md`.
 
+## Spremnost klona
+
+Prije bilo kakvog rada PREMA KLIJENTU na klonu (pokretanje sesije, poslova, onboarding,
+probne poruke) pokreni `node scripts/provjeri-klon.mjs` i prikazi rezultat: ona kaze sta
+fali i tacnu komandu za popravku. Dok ijedna stavka FALI, ne krece se sa klijentom, prvo se
+sredi klon. Vrijedi za terminalske sesije (gdje Bash postoji); Telegram sesije to ne rade,
+za njih je klon vec pripremljen.
+
 ## Saznanja iz prakse
 
 Kad se API ili platforma ponasa suprotno dokumentaciji ili ocekivanju (polje se ignorise,

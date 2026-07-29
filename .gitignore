@@ -15,3 +15,10 @@ olx-dokumentacija/*.xlsx
 
 # Sirovi ulaz saznanja iz klonova (klijentski kontekst): ne ide u git.
 olx-dokumentacija/saznanja-ulaz/
+
+# Lokalno stanje masine: instalirano/podeseno po racunaru, nikad u git.
+# (launchd plistovi i Task Scheduler zadaci su ionako van repoa; ovo su njihovi tragovi u repou)
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+.serena/
+*.pid

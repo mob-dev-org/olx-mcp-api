@@ -65,6 +65,9 @@ Reci klijentu u jednoj poruci, pa to zapisi u baseline:
 
 ## Provjera na kraju
 
+- **`node scripts/provjeri-klon.mjs` prolazi bez ijedne FALI stavke.** To je jedina potpuna
+  provjera spremnosti (konfiguracija, runtime, zakazani poslovi, cuvar, snapshot) i dok ona
+  ne prodje, sa klijentom se ne pocinje.
 - `olx_whoami` vraca klijentov nalog.
 - Baseline fajl postoji i ima datum.
 - U `.env` je token, u gitu nije nista od klijentovih podataka (`git status` cist).
