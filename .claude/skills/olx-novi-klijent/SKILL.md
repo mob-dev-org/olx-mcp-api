@@ -15,6 +15,24 @@ odjednom. Nista se ne preskace: redoslijed je ovakav jer svaki korak zavisi od p
 Ovo je TEHNICKA postavka. Poslovni dio (kako od klijenta traziti token, baseline analiza,
 dogovor o granicama) je u skillu `olx-klijent-flow` i radi se poslije ovoga.
 
+## Upis odmah, ne u glavi (pravilo cijelog skilla)
+
+Razgovor NIJE skladiste: restart ili kompaktovanje sesije brise sve sto je covjek poslao,
+a onboarding zna trajati i preko vise sesija. Zato:
+
+- Na samom pocetku napravi `.olx-pik/onboarding-stanje.md` (folder je van gita) i u njega
+  upisi checklistu koraka. SVAKI podatak koji covjek posalje (token, ID, odluka) upisi u
+  taj fajl ISTOG TRENA kad stigne, prije nego odgovoris. Tek onda nastavi razgovor.
+- Cim je podatku poznato konacno mjesto, odmah ga i tamo upisi (OLX token u `.env`,
+  bot tokeni kroz pripremi skripte cim su svi argumenti poznati), pa u stanje fajlu
+  vrijednost tokena zamijeni sa "upisano u <mjesto>". Na kraju postavke fajl obrisi.
+- Nova sesija koja zatekne `.olx-pik/onboarding-stanje.md` PRVO ga procita i nastavlja
+  od prvog nezavrsenog koraka, ne ispocetka.
+- Bot tokeni idu ISKLJUCIVO kroz `pripremi-runtime.mjs` / `pripremi-admin-runtime.mjs`.
+  NIKAD `/telegram:configure`: on pise u globalni `~/.claude/channels/telegram/`, koji
+  ovaj sistem ne cita (svaki bot zivi u svom `.claude-runtime*/channels/telegram/`), pa
+  token zavrsi na pogresnom mjestu i curi van klona.
+
 ## 0. Sta treba prikupiti prije pocetka
 
 Trazi od covjeka redom, objasni gdje se sta dobija:
@@ -41,7 +59,8 @@ Postavka se NE radi u glavnom/razvojnom repou, ni kad klijentovi podaci (KLIJENT
 u .env) vec stoje u njemu od testiranja: razvoj i klijentski pogon se ne miješaju, jer
 azuriranje preskace klonove sa lokalnim izmjenama, a klijentski state (audit, snapshoti)
 zagadi dev okruzenje. Ako se skill pokrene u glavnom repou: kloniraj u novi folder,
-prekopiraj `.env` i `KLIJENT.md` (i `.olx-pik/` ako vec ima istorije za tog klijenta) u
+prekopiraj `.env` i `KLIJENT.md` (i `.olx-pik/` ako vec ima istorije za tog klijenta,
+ukljucujuci `onboarding-stanje.md`) u
 novi klon, pa SVE dalje korake radi TAMO. Kloniranje radi i sa lokalne putanje:
 
 ```
