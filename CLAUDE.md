@@ -66,6 +66,15 @@ fali i tacnu komandu za popravku. Dok ijedna stavka FALI, ne krece se sa klijent
 sredi klon. Vrijedi za terminalske sesije (gdje Bash postoji); Telegram sesije to ne rade,
 za njih je klon vec pripremljen.
 
+## Sve o klijentu zivi u klonu
+
+Jedan klon = jedan klijent, pa i SVA njegova konfiguracija: bot tokeni, allowlist i grupe u
+`.claude-runtime*/channels/telegram/` (pisu se kroz `pripremi-runtime.mjs` i
+`pripremi-admin-runtime.mjs`), OLX token u `.env`, kontekst u `KLIJENT.md`, stanje u
+`.olx-pik/`. Globalni `~/.claude/channels/` se NE dira (deny u projektnim settings): vazi za
+cijelu masinu, nas pogon ga ne cita, i mijesao bi klijente. `/telegram:configure` se u ovom
+repou ne koristi ni u jednom runtimeu.
+
 ## Saznanja iz prakse
 
 Kad se API ili platforma ponasa suprotno dokumentaciji ili ocekivanju (polje se ignorise,
