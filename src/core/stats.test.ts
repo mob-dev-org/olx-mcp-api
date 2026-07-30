@@ -7,6 +7,7 @@ import {
   alarmiNaloga,
   efekatIzdvajanja,
   konkurentIzvjestaj,
+  kompaktCsv,
   kompaktList,
   kompaktListing,
   dnevniPlanObnova,
@@ -306,6 +307,37 @@ test("kompaktList zadrzava kljucna polja i izbacuje balast", () => {
   ]);
   assert.equal(stavka.sponsored, 2);
   assert.equal(stavka.has_discount, true);
+});
+
+test("kompaktCsv nosi ista polja kao kompaktList, uz zaglavlje i jedan red po oglasu", () => {
+  const items = [
+    oglas({ id: 9, title: "Kompakt", price: 50, sponsored: 2, has_discount: true }),
+    oglas({ id: 10, title: "Drugi", price: 70 }),
+  ];
+  const csv = kompaktCsv(items);
+  const redovi = csv.split("\n");
+  assert.equal(redovi.length, 3, "zaglavlje plus dva oglasa");
+  assert.equal(redovi[0], "id,title,price,sponsored,date,refresh_available,status,visible,has_discount");
+  // Isti broj kolona u svakom redu, inace bi CSV bio neupotrebljiv.
+  const kolona = redovi[0]!.split(",").length;
+  for (const r of redovi) assert.equal(r.split(",").length, kolona);
+  assert.ok(redovi[1]!.startsWith("9,Kompakt,50,2,"));
+  // boolean ide kao 1/0, ne true/false
+  assert.ok(redovi[1]!.endsWith(",1"), "has_discount true mora biti 1");
+  assert.ok(redovi[2]!.endsWith(",0"), "has_discount false mora biti 0");
+});
+
+test("kompaktCsv citira naslov sa zapetom i navodnikom, da red ne pukne", () => {
+  const csv = kompaktCsv([oglas({ id: 1, title: 'Golf 7, "GTD" varijanta', price: 100 })]);
+  const red = csv.split("\n")[1]!;
+  assert.ok(red.includes('"Golf 7, ""GTD"" varijanta"'), `naslov nije ispravno citiran: ${red}`);
+  // Poslije citiranja red i dalje ima tacno onoliko kolona koliko zaglavlje.
+  const bezCitata = red.replace(/"(?:[^"]|"")*"/g, "X");
+  assert.equal(bezCitata.split(",").length, csv.split("\n")[0]!.split(",").length);
+});
+
+test("kompaktCsv na praznoj listi vraca samo zaglavlje", () => {
+  assert.equal(kompaktCsv([]), "id,title,price,sponsored,date,refresh_available,status,visible,has_discount");
 });
 
 test("kompaktListing izbacuje user i puni category blok, a zadrzava views i sponzor polja", () => {

@@ -1189,6 +1189,38 @@ export interface KompaktStavka {
   has_discount: boolean;
 }
 
+/**
+ * Ista polja kao kompaktList, ali kao CSV sa zaglavljem.
+ *
+ * Zasto: u JSON obliku se imena polja ponavljaju za svaki oglas i to je vise od pola payloada.
+ * Izmjereno na shopu od 120 oglasa (30.07.2026., zapisano u deepseek-nalazi.md): JSON 6.135
+ * tokena, CSV 2.474, dakle 60% manje BEZ izbacivanja ijednog polja. Isti obrazac koji repo
+ * vec koristi za katalog kategorija (`olx://categories-index`), i tamo izabran iz istog razloga.
+ *
+ * Boolean ide kao 1/0, null kao prazno polje. Naslovi se citiraju kad nose zapetu ili navodnik.
+ */
+export function kompaktCsv(items: ListingSummary[]): string {
+  const kompakt = kompaktList(items);
+  const polja: (keyof KompaktStavka)[] = [
+    "id",
+    "title",
+    "price",
+    "sponsored",
+    "date",
+    "refresh_available",
+    "status",
+    "visible",
+    "has_discount",
+  ];
+  const celija = (v: unknown): string => {
+    if (v === null || v === undefined) return "";
+    if (typeof v === "boolean") return v ? "1" : "0";
+    const s = String(v);
+    return /[",\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s;
+  };
+  return [polja.join(","), ...kompakt.map((o) => polja.map((p) => celija(o[p])).join(","))].join("\n");
+}
+
 export function kompaktList(items: ListingSummary[]): KompaktStavka[] {
   return items.map((o) => ({
     id: o.id,

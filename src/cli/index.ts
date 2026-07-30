@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from "node
 import { dirname, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
 import { OlxClient, OlxApiError, OlxAuthError, OlxSpendError } from "../core/index.js";
+import { odvojiIzuzete, ucitajIzuzeca } from "../core/izuzeca.js";
 import { loadConfig } from "../core/config.js";
 import { setAuditContext } from "../core/audit.js";
 import { parseSponsorOptions, SPONSOR_DAYS, REFRESH_EVERY } from "../core/sponsor-options.js";
@@ -477,9 +478,20 @@ refresh
       const cap = Math.min(limit, remaining);
 
       const all = await c.listAllActive(user);
-      const candidates = all.filter((l) => l.refresh_available === true).slice(0, cap);
+      // Izuzeci se sklanjaju PRIJE capa, da obnovu koju je vlasnik zabranio ne potrosi mjesto
+      // nekome kome obnova treba. Broj preskocenih se uvijek javlja: tiho preskakanje izgleda
+      // kao da obnova ne radi.
+      const { prolaze, preskoceni } = odvojiIzuzete(
+        all.filter((l) => l.refresh_available === true),
+        ucitajIzuzeca(),
+        "obnova",
+      );
+      const candidates = prolaze.slice(0, cap);
 
-      console.error(`Kandidata za obnovu: ${candidates.length} (besplatno preostalo: ${remaining}, cap: ${cap}).`);
+      console.error(
+        `Kandidata za obnovu: ${candidates.length} (besplatno preostalo: ${remaining}, cap: ${cap})` +
+          `${preskoceni.length > 0 ? `, izuzeto po zelji vlasnika: ${preskoceni.length}` : ""}.`,
+      );
       if (!opts.yes) {
         console.error("Probni prikaz (dry-run). Dodaj --yes da izvrsis obnovu.");
         out(candidates.map((l) => ({ id: l.id, title: l.title })));

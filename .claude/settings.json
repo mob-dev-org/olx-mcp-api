@@ -13,6 +13,20 @@
     ]
   },
 
+  "//hooks": "Brana za tisinu bota: kad poruka dodje sa Telegram kanala a sesija je odgovorila samo u transkript, potez se blokira i model dobije priliku poslati reply. Pravilo o tome stoji i u SISTEM promptovima, ali se u praksi preskakalo, a zastita ide u harness a ne u prompt. Sesije bez kanala hook ne dira.",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/hook-telegram-odgovor.mjs"
+          }
+        ]
+      }
+    ]
+  },
+
   "//": "Vazi SAMO za ovaj folder. Globalna konfiguracija u ~/.claude ostaje netaknuta.",
   "//2": "Ide u git, pa svaki klijentski klon dobija istu izolaciju bez rucnog podesavanja.",
   "enabledPlugins": {

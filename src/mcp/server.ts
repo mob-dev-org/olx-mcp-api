@@ -12,6 +12,7 @@ import { parseSponsorOptions } from "../core/sponsor-options.js";
 import {
   efekatIzdvajanja,
   izracunajNoveCijene,
+  kompaktCsv,
   kompaktList,
   kompaktListing,
   mrtviOglasi,
@@ -24,6 +25,7 @@ import { nadjiPoUpitu } from "../core/match.js";
 import { PLAN_FILE, upisiPlan, zauzmiKljuc } from "../core/plan-fajl.js";
 import { buildPlan, planSazetak, type PlanKandidat } from "../core/plan.js";
 import { opisiSliku, vidKonfigurisan } from "../core/vid.js";
+import { OPSEZI, bezSklonjenog, odvojiIzuzete, saDodatim, spisak, ucitajIzuzeca, upisiIzuzeca } from "../core/izuzeca.js";
 import { ODNOSI, RECEPTI, ZADANI_ODNOS, generisiSliku, maxDnevno, slikaKonfigurisana, type Odnos } from "../core/slika.js";
 import { brojPozivaDanas } from "../core/ai-dnevnik.js";
 
@@ -395,7 +397,7 @@ server.registerTool(
   {
     title: "Lista oglasa",
     description:
-      "Lista oglasa po stanju, svojih ili tudjih. Vraca kompaktne stavke. all i full se ne mogu kombinovati.",
+      "Lista oglasa po stanju, svojih ili tudjih. Po stranici vraca kompaktne stavke, a all vraca cijeli katalog kao CSV sa zaglavljem (ista polja, 60% manje tokena). all i full se ne mogu kombinovati.",
     inputSchema: {
       state: z.enum(["active", "finished", "inactive", "expired", "hidden"]).default("active"),
       user: z.string().optional().describe("username ili id; default je ulogovani korisnik"),
@@ -421,8 +423,11 @@ server.registerTool(
     return run(async (c) => {
       const user = args.user ?? (await c.resolveUsername());
       if (args.all) {
+        // Cijeli katalog ide kao CSV, ne kao niz objekata: imena polja ponovljena po oglasu su
+        // vise od pola payloada, a CSV nosi ista polja uz 60% manje tokena (izmjereno, vidi
+        // kompaktCsv). Na jednoj stranici razlika je mala pa tamo ostaje JSON.
         const sve = await c.listAllByState(args.state, user);
-        return { data: kompaktList(sve), ukupno: sve.length };
+        return { csv: kompaktCsv(sve), ukupno: sve.length };
       }
       const stranica =
         args.state === "active"
@@ -547,9 +552,15 @@ server.registerTool(
           kandidati.push({ id: Number(id), naslov: oglas.title, vec_izdvojen: Boolean(oglas.sponsored) });
         }
       } else {
+        // Automatski odabir preskace oglase koje je vlasnik izuzeo od izdvajanja. Kad ID-eve
+        // navede sam (grana iznad), to je izricita zelja i izuzece se ne primjenjuje.
         const aktivni = await c.listAllActive(user);
-        kandidati = aktivni
-          .filter((l) => !l.sponsored)
+        const { prolaze } = odvojiIzuzete(
+          aktivni.filter((l) => !l.sponsored),
+          ucitajIzuzeca(),
+          "izdvajanje",
+        );
+        kandidati = prolaze
           .sort((a, b) => (a.date ?? 0) - (b.date ?? 0))
           .slice(0, args.broj_oglasa)
           .map((l) => ({ id: l.id, naslov: l.title }));
@@ -1237,9 +1248,21 @@ server.registerTool(
       const remaining = Math.max(0, limits.free_limit - limits.free_count);
       const cap = Math.min(args.limit, remaining);
       const all = await c.listAllActive(user);
-      const candidates = all.filter((l) => l.refresh_available === true).slice(0, cap);
+      // Izuzeci PRIJE capa, da zabranjena obnova ne potrosi mjesto onome kome obnova treba.
+      const { prolaze, preskoceni } = odvojiIzuzete(
+        all.filter((l) => l.refresh_available === true),
+        ucitajIzuzeca(),
+        "obnova",
+      );
+      const candidates = prolaze.slice(0, cap);
+      const izuzeto = preskoceni.length > 0 ? { izuzeto: preskoceni.map((l) => ({ id: l.id, title: l.title })) } : {};
       if (!args.confirm) {
-        return { dry_run: true, remaining_free: remaining, candidates: candidates.map((l) => ({ id: l.id, title: l.title })) };
+        return {
+          dry_run: true,
+          remaining_free: remaining,
+          candidates: candidates.map((l) => ({ id: l.id, title: l.title })),
+          ...izuzeto,
+        };
       }
       const results: { id: number; ok: boolean }[] = [];
       for (const l of candidates) {
@@ -1250,8 +1273,51 @@ server.registerTool(
           results.push({ id: l.id, ok: false });
         }
       }
-      return { refreshed: results.filter((r) => r.ok).length, total: results.length, results };
+      return { refreshed: results.filter((r) => r.ok).length, total: results.length, results, ...izuzeto };
     }),
+);
+
+// Oglasi koje vlasnik ne zeli automatski dizati. Iz prakse: neki artikli mu se ne isplati
+// obnavljati ni izdvajati, a bez spiska ih dnevna obnova svaki put ponovo pokupi. Spisak zivi u
+// klonu (.olx-pik/izuzeca.json) i cita ga i CLI cron obnova, ne samo ovaj alat.
+server.registerTool(
+  "olx_izuzeca",
+  {
+    title: "Oglasi koje ne dizati automatski",
+    description:
+      "Spisak oglasa koje vlasnik ne zeli da se automatski obnavljaju i/ili izdvajaju. Dnevna obnova ih preskace. Opseg: 'obnova', 'izdvajanje' ili 'sve'. Radnja 'lista' ne trazi ids.",
+    inputSchema: {
+      radnja: z.enum(["lista", "dodaj", "skloni"]),
+      ids: z.array(z.number().int()).optional().describe("id-evi oglasa; obavezno za dodaj i skloni"),
+      opseg: z.enum(OPSEZI).default("sve"),
+      razlog: z.string().optional().describe("kratko zasto, da se poslije zna"),
+    },
+  },
+  async (args) => {
+    try {
+      const izuzeca = ucitajIzuzeca();
+      if (args.radnja === "lista") {
+        const s = spisak(izuzeca);
+        return ok({ ukupno: s.length, oglasi: s });
+      }
+      if (!args.ids || args.ids.length === 0) {
+        return errResult(`Radnja '${args.radnja}' trazi ids.`);
+      }
+      const kada = new Date().toISOString();
+      let novo = izuzeca;
+      for (const id of args.ids) {
+        novo =
+          args.radnja === "dodaj"
+            ? saDodatim(novo, id, args.opseg, args.razlog ?? null, kada)
+            : bezSklonjenog(novo, id, args.opseg);
+      }
+      upisiIzuzeca(novo);
+      const s = spisak(novo);
+      return ok({ radnja: args.radnja, opseg: args.opseg, dodirnuto: args.ids.length, ukupno: s.length, oglasi: s });
+    } catch (e) {
+      return errResult(String(e instanceof Error ? e.message : e));
+    }
+  },
 );
 
 server.registerTool(

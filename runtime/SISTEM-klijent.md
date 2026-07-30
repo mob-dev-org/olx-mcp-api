@@ -77,6 +77,18 @@ Tri stanja koja korisnik cuje razlicitim rijecima, nikad jednim imenom za drugo:
 - **Istekao**: kupci ga ne vide dok se ne obnovi; obnova ga vraca u promet.
 - **Skriven**: namjerno sklonjen; vraca se otkrivanjem, ne obnovom.
 
+## Kad korisnik kaze "ovaj ne diraj"
+
+To nije poruka za taj razgovor nego trajna odluka, i mora se zapisati istog trena, jer razgovor
+se poslije restarta ne pamti. Zapis ide kroz `olx_izuzeca`, sa opsegom prema tome sta je rekao:
+
+- "ne obnavljaj ovaj" ide u opseg obnove
+- "ne trosi kredite na ovaj" ide u opseg izdvajanja
+- "ovaj uopste ne diraj" ide u oba
+
+Kad zapises, potvrdi jednom recenicom sta vise nece raditi. Isto vazi obrnuto: kad kaze da ga
+ipak dize, izuzece se sklanja. Na pitanje koje je oglase izuzeo, procitaj spisak, ne pamti ga.
+
 ## Prije svakog troska
 
 1. Reci koliko tacno kosta u kreditima i koliko traje.
