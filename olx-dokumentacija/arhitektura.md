@@ -145,7 +145,7 @@ dobiju polovicne analize.
 | Automatski, ne diras | Rucno, admin |
 | --- | --- |
 | dnevne obnove i jutarnja poruka | onboarding novog klijenta (lista ispod) |
-| nocni snapshot pregleda | `azuriraj-sve.sh` kad izadje nova verzija |
+| nocni snapshot pregleda | `azuriraj-sve.sh` / `deploy\windows\azuriraj.ps1` kad izadje nova verzija |
 | sedmicni pregled ponedjeljkom | `ai-runda.sh` dok se ne instalira plist |
 | cuvari obje sesije: padovi, restarti, inbox | `provjeri-prompt.sh` poslije izmjene promptova |
 | AI runda kad se plist instalira | serijski poslovi po zelji (SEO prolaz, ciscenje) |
@@ -168,9 +168,47 @@ stavka FALI, sa klijentom se ne pocinje.
 5. `npm ci && npm run build && npm test`.
 6. `scripts/instaliraj-cron.sh` (macOS) ili `deploy/windows/instaliraj-zadatke.ps1` (Windows):
    instalira sva 4 posla, ukljucujuci cuvara koji odmah digne sesiju.
-7. Dodaj putanju klona u `~/.olx-klijenti.txt` (azuriranja i AI runda).
+7. Dodaj putanju klona u `~/.olx-klijenti.txt` NA MASINI GDJE KLON ZIVI (azuriranja i AI runda).
 8. Test iz grupe: pitanje, objava sa slikom, i jedan trosak da se vidi tok potvrde.
 9. Opcion, admin bot: novi bot u BotFatheru (privacy NE dirati, ostaje ukljucen), pa
    `node scripts/pripremi-admin-runtime.mjs <bot_token> <tvoj_id> [id_admin_grupe]`, pa ponovo
    instalater poslova iz koraka 6. Na Windowsu jos i jedan `claude login` sa
    `CLAUDE_CONFIG_DIR=.claude-runtime-admin` (na macOS-u ne treba, pretplata je u Keychainu).
+
+## 7. Kako nova verzija dolazi do klijenata
+
+Klijentski klonovi NE prate granu. Oni stoje na tagu `stabilno`, u detached stanju. To je
+kapija: los commit fizicki ne moze doci do klijenta dok ga administrator ne propusti.
+
+```
+rad na main  ->  test na svom klonu  ->  pomjeri tag  ->  azuriraj flotu
+```
+
+1. Rad ide na `main`. Feature grana se spoji u `main` kad je gotova.
+2. Na svom klonu: `npm test`, `npm run typecheck`, `scripts/provjeri-prompt.sh`. Tag se ne
+   pomjera na neprovjereno stanje.
+3. Pomjeri tag: `git tag -f stabilno && git push -f origin stabilno`.
+4. Azuriraj klonove. **Skripta se pokrece na masini gdje klonovi zive**, jer restartuje njihove
+   poslove: klonovi na Windowsu se ne mogu azurirati sa macOS-a ni obrnuto.
+
+| Masina | Komanda | Prikaz bez izmjene |
+| --- | --- | --- |
+| macOS, Linux | `scripts/azuriraj-sve.sh` | `scripts/azuriraj-sve.sh --suho` |
+| Windows | `powershell -ExecutionPolicy Bypass -File deploy\windows\azuriraj.ps1` | isto uz `-Suho` |
+
+Oba rade isto, po klonu iz `~/.olx-klijenti.txt`: fetch tagova, checkout `stabilno`, `npm ci`,
+build, testovi, pa restart samo DUGOZIVIH poslova (`sesija`, `admin-bot`).
+
+Tri pravila koja su u obje skripte i nisu slucajna:
+
+- **Klon sa lokalnim izmjenama se preskace.** Neko je rucno nesto mijenjao; pregaziti to je gore
+  od neazuriranog klona.
+- **Kad build ili testovi padnu, zadaci tog klona se NE diraju.** Klijent na staroj radnoj
+  verziji je bolji od klijenta na polovicno azuriranoj.
+- **Kalendarski poslovi (snapshot, dnevno, sedmicno) se ne restartuju.** Njihov "restart" bi ih
+  IZVRSIO odmah, pa bi klijent dobio jutarnji izvjestaj usred dana i potrosila bi se dnevna
+  runda obnova van reda. Oni novi kod uzmu sami na sljedecem terminu, jer su jednokratni node
+  procesi. Restart treba samo sesijama, jer one jedine drze stari kod i stari prompt u memoriji.
+
+Vracanje na prethodnu verziju je pomjeranje taga natrag pa ponovo azuriranje; samo pomjeranje
+taga ne mijenja nista ni na jednoj masini, jer nema posla koji automatski povlaci.

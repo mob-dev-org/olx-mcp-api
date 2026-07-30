@@ -37,7 +37,10 @@ Dodaje se povrh `CLAUDE.md` kroz `scripts/claude-olx.sh`. Klijentski runtime ovo
   `posao sedmicni`, bez modela. Windows ekvivalent svih poslova:
   `deploy/windows/instaliraj-zadatke.ps1` (Task Scheduler).
 - `scripts/azuriraj-sve.sh` povlaci tag `stabilno` u sve klonove iz `~/.olx-klijenti.txt`. Klon
-  kod kojeg build ili test padne se preskace i njegovi servisi se ne restartuju.
+  kod kojeg build ili test padne se preskace i njegovi servisi se ne restartuju. Windows
+  ekvivalent: `deploy/windows/azuriraj.ps1` (isti popis, Task Scheduler umjesto launchd).
+  Skripta se pokrece na masini gdje klonovi ZIVE, pa klonovi na Windowsu ne mogu biti azurirani
+  sa macOS-a i obrnuto. Oba imaju `--suho` / `-Suho` za prikaz bez ikakve izmjene.
 - `scripts/ai-runda.sh` (launchd sablon `ADMIN.ai-runda`, nedjelja 21h, instalira se rucno i
   jednom): sedmicna AI analiza svih klonova kroz vlasnikovu Claude pretplatu, headless i strogo
   read-only. Rezultat ide klijentu u grupu, prijedlozi u `.olx-pik/prijedlozi/` klona, a

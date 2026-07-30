@@ -133,9 +133,13 @@ popravku, radi ih redom pa pokreni provjeru ponovo.
 
 ## 8. Upis u flotu
 
-Na ADMIN masini dodaj putanju klona u `~/.olx-klijenti.txt` (jedna putanja po liniji). Bez
-toga klon ne dobija azuriranja (`azuriraj-sve.sh`), sedmicnu AI rundu ni jutarnje kupljenje
-saznanja.
+Dodaj putanju klona u `~/.olx-klijenti.txt` (jedna putanja po liniji) NA MASINI GDJE KLON ZIVI.
+Bez toga klon ne dobija azuriranja, sedmicnu AI rundu ni jutarnje kupljenje saznanja.
+
+Azuriranje se pokrece tamo gdje su klonovi, jer restartuje njihove poslove: `azuriraj-sve.sh`
+na macOS-u i Linuxu, `deploy\windows\azuriraj.ps1` na Windowsu. Klon na Windowsu se ne moze
+azurirati sa macOS-a. Tok od commita do klijenta je opisan u `olx-dokumentacija/arhitektura.md`,
+sekcija 7.
 
 ## 9. Dalje
 

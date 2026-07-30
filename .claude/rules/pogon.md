@@ -16,6 +16,9 @@ Ucitava se samo kad se diraju skripte ili deploy. Mapa cijelog pogona:
   masini (`azuriraj-sve.sh`, `ai-runda.sh`, `provjeri-prompt.sh`).
 - Svaki posao postoji na obje platforme: launchd sablon u `deploy/launchd/` I zadatak u
   `deploy/windows/instaliraj-zadatke.ps1`. Ko doda jedno bez drugog, nije zavrsio posao.
+- Isto vazi i za rucne admin komande koje diraju klonove: `azuriraj-sve.sh` ima blizanca
+  `deploy/windows/azuriraj.ps1`. Skripta se pokrece na masini gdje klonovi zive, jer restartuje
+  njihove poslove; klonovi na Windowsu se ne mogu azurirati sa macOS-a.
 - Nista se ne konfigurise globalno po masini (zshrc, globalni exporti): sva konfiguracija
   zivi u repou i `.env` klona.
 
