@@ -4,7 +4,7 @@
 // citanja moraju biti isti za CLI (koji pise) i MCP server (koji cita), pa zive na jednom
 // mjestu. Racunanje nad snapshotima je u stats.ts (ciste funkcije).
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import type { ViewsSnapshot } from "./stats.js";
 
 export const SNAPSHOT_DIR = ".olx-pik/snapshots";
@@ -46,6 +46,10 @@ export function upisiSnapshot(snapshot: ViewsSnapshot, dir: string = SNAPSHOT_DI
   const datum = new Date(snapshot.ts * 1000).toISOString().slice(0, 10);
   const putanja = `${dir}/views-${datum}.json`;
   mkdirSync(dir, { recursive: true });
-  writeFileSync(putanja, `${JSON.stringify(snapshot)}\n`, "utf8");
+  // tmp + rename, isti obrazac kao plan-fajl.ts i pamcenje.ts: backup stanja kopira ovaj folder
+  // dok pogon radi, pa polovicno upisan snapshot ne smije biti vidljiv ni jednu sekundu.
+  const tmp = `${putanja}.tmp`;
+  writeFileSync(tmp, `${JSON.stringify(snapshot)}\n`, "utf8");
+  renameSync(tmp, putanja);
   return putanja;
 }

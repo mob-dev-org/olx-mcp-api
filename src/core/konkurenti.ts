@@ -9,7 +9,7 @@
 // Cuva se i kompaktna lista ID-jeva sa naslovima, jer agregat sam ne moze reci KOJI su oglasi
 // novi, samo koliko ih je.
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import type { KonkurentIzvjestaj } from "./stats.js";
 
 export const KONKURENTI_DIR = ".olx-pik/konkurenti";
@@ -39,7 +39,11 @@ export function upisiKonkurenta(snimak: KonkurentSnimak, dir: string = KONKURENT
   const datum = new Date(snimak.ts * 1000).toISOString().slice(0, 10);
   const putanja = `${dir}/${sigurnoIme(snimak.username)}-${datum}.json`;
   mkdirSync(dir, { recursive: true });
-  writeFileSync(putanja, `${JSON.stringify(snimak)}\n`, "utf8");
+  // tmp + rename, isti obrazac kao plan-fajl.ts: snimak konkurenta se pravi na zahtjev, u bilo
+  // koje doba, pa se moze poklopiti sa backupom stanja koji ovaj folder kopira.
+  const tmp = `${putanja}.tmp`;
+  writeFileSync(tmp, `${JSON.stringify(snimak)}\n`, "utf8");
+  renameSync(tmp, putanja);
   return putanja;
 }
 
