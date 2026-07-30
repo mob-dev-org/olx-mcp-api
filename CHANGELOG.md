@@ -12,12 +12,16 @@ sekcija 7.
 
 Prvo izdanje provjereno na obje platforme, i prvo koje popravlja nalaz sa Windowsa.
 
-- Popravljen `npm test` na Windowsu: `node --test dist/core/` tamo ne silazi u direktorijum nego ga
-  izvrsi kao jedan test koji lazno prijavi "1 pass", pa je citav paket od 235 testova bio tiho
-  preskocen. Skripta sada eksplicitno navodi `"dist/core/**/*.test.js"`, sto radi identicno na obje
-  platforme jer glob resava sam Node, a ne shell. Posljedica je bila teza od same greske: `npm test`
-  je kapija u `azuriraj.ps1` i `azuriraj-ovaj-klon.mjs`, pa je na Windowsu propustao svako izdanje
-  kao da je provjereno. Nadjeno na Windows masini pri provjeri izdanja 0.6.0.
+- Popravljen `npm test`, koji je na Windowsu tiho preskakao SVE testove. `node --test dist/core/`
+  tamo ne silazi u direktorijum nego ga izvrsi kao jedan test i lazno prijavi "1 pass". Posljedica je
+  teza od same greske: `npm test` je kapija u `azuriraj.ps1` i `azuriraj-ovaj-klon.mjs`, pa je na
+  Windowsu propustao svako izdanje kao da je provjereno. Nadjeno na Windows masini pri provjeri
+  izdanja 0.6.0.
+- Popis test fajlova sada pravi `scripts/testovi.mjs`, ne shell ni Node glob. Prva popravka je bila
+  `node --test "dist/core/**/*.test.js"`, sto rjesava Windows ali na Node 20 javi "Could not find" i
+  ne nadje NI JEDAN test, dakle zamjena jedne tihe greske drugom (izmjereno na macOS-u, Node
+  20.19.5). Runner nabraja fajlove sam i predaje ih eksplicitno, pa ne zavisi ni od shella ni od
+  verzije Node-a, i PADA kad fajlova nema umjesto da prijavi uspjeh.
 
 ## 0.7.0 — 2026-07-30
 

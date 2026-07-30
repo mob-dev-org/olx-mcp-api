@@ -16,7 +16,7 @@
     "dev:cli": "tsc && node dist/cli/index.js",
     "dev:mcp": "tsc && node dist/mcp/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "tsc && node --test \"dist/core/**/*.test.js\"",
+    "test": "tsc && node scripts/testovi.mjs",
     "preversion": "npm test",
     "version": "node scripts/upisi-verziju.mjs && git add src/core/verzija.ts",
     "postversion": "npm run build",
