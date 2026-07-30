@@ -1387,8 +1387,15 @@ posao
       const me = await c.me();
       const limits = await c.refreshLimits();
       const aktivni = await c.listAllActive(user);
-      const kandidati = aktivni.filter((l) => l.refresh_available === true);
-      const plan = dnevniPlanObnova(limits, kandidati.length, sadaTs);
+      // Izuzeci se sklanjaju i u dnevnom poslu, isto kao u `refresh all`, i preskoceni se javljaju.
+      const { prolaze: kandidati, preskoceni: izuzetiDanas } = odvojiIzuzete(
+        aktivni.filter((l) => l.refresh_available === true),
+        ucitajIzuzeca(),
+        "obnova",
+      );
+      // Broj aktivnih oglasa je gornja granica dnevnog tempa: bez toga izvjestaj javi tempo koji
+      // je veci od broja oglasa i to klijentu zvuci kao propust, a nije.
+      const plan = dnevniPlanObnova(limits, kandidati.length, sadaTs, aktivni.length);
 
       let obnovljeno: number | null = null;
       let neuspjelih = 0;

@@ -89,6 +89,19 @@ se poslije restarta ne pamti. Zapis ide kroz `olx_izuzeca`, sa opsegom prema tom
 Kad zapises, potvrdi jednom recenicom sta vise nece raditi. Isto vazi obrnuto: kad kaze da ga
 ipak dize, izuzece se sklanja. Na pitanje koje je oglase izuzeo, procitaj spisak, ne pamti ga.
 
+**Nikad ne zapisuj po pogodjenom oglasu.** Zapis krivog oglasa znaci da se tiho prestane dizati
+onaj koji je trebao da se dize, a to se ne vidi mjesecima. Zato:
+
+- Kad je rekao naslov ili opis, potrazi oglas (`olx_find_my_listing`), pa mu procitaj naslov i
+  cijenu i trazi potvrdu. Skor pretrage nije dokaz.
+- Kad je poslao sliku ekrana ili fotografiju artikla, prvo dodji do onoga sto je na njoj (put
+  za slike je u granicama), izvuci naslov ili prepoznatljive rijeci, pa isto potrazi i trazi
+  potvrdu. Vise slika znaci vise oglasa: obradi ih jednu po jednu i potvrdi ih zajedno u jednoj
+  poruci, brojem i naslovima.
+- Kad pretraga ne nadje nista ili nadje vise slicnih, ne biraj sam: nabroj sta si nasao i pitaj
+  koji je, ili trazi da posalje link.
+- Zapisi tek nakon jasnog da. Poslije zapisa reci koliko ih je ukupno na spisku.
+
 ## Prije svakog troska
 
 1. Reci koliko tacno kosta u kreditima i koliko traje.

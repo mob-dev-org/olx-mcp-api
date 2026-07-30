@@ -788,11 +788,16 @@ export interface DnevniPlanObnova {
   preostalo: number;
   dana_do_kraja_mjeseca: number;
   // Koliko bi trebalo obnoviti danas da se kvota ravnomjerno potrosi do kraja mjeseca.
+  // Ogranicen brojem aktivnih oglasa kad je poznat: oglas se ne moze obnoviti dvaput isti dan,
+  // pa cilj veci od broja oglasa nije cilj nego besmislica u izvjestaju.
   cilj_danas: number;
   // Koliko oglasa je uopste dostupno za obnovu (refresh_available).
   kandidata: number;
   // Stvarni broj za danas: manji od cilja i broja kandidata.
   za_obnovu: number;
+  // true kad se preostala kvota ne moze potrositi do kraja mjeseca ni kad bi se svaki oglas
+  // obnavljao svaki dan. Tada nema smisla javljati tempo, jer ga niko ne moze ispuniti.
+  kvota_neostvariva: boolean;
 }
 
 /**
@@ -805,11 +810,16 @@ export function dnevniPlanObnova(
   refreshLimits: RefreshLimits,
   kandidata: number,
   sadaTs: number,
+  aktivnihOglasa?: number,
 ): DnevniPlanObnova {
   const kvota = refreshLimits.free_limit ?? 0;
   const preostalo = Math.max(0, kvota - (refreshLimits.free_count ?? 0));
   const dana = danaDoKrajaMjeseca(sadaTs);
-  const cilj = preostalo === 0 ? 0 : Math.ceil(preostalo / dana);
+  const ravnomjerno = preostalo === 0 ? 0 : Math.ceil(preostalo / dana);
+  // Gornja granica je broj oglasa: isti oglas se ne obnavlja dvaput u istom danu. Bez ovoga
+  // izvjestaj klijentu javi tempo tipa "741 dnevno" na shopu od 120 oglasa (viđeno 30.07.2026).
+  const strop = typeof aktivnihOglasa === "number" && aktivnihOglasa >= 0 ? aktivnihOglasa : Number.POSITIVE_INFINITY;
+  const cilj = Math.min(ravnomjerno, strop);
   return {
     kvota,
     preostalo,
@@ -817,6 +827,7 @@ export function dnevniPlanObnova(
     cilj_danas: cilj,
     kandidata,
     za_obnovu: Math.min(cilj, kandidata),
+    kvota_neostvariva: preostalo > 0 && strop !== Number.POSITIVE_INFINITY && preostalo > strop * dana,
   };
 }
 

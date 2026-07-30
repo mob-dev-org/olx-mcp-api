@@ -8,7 +8,7 @@ import { dnevniVrijedanSlanja, type DnevniPodaci } from "./izvjestaj.js";
 function podaci(overrides: Partial<DnevniPodaci> = {}): DnevniPodaci {
   return {
     username: "test",
-    plan: { kvota: 1800, preostalo: 1500, dana_do_kraja_mjeseca: 10, cilj_danas: 0, kandidata: 0, za_obnovu: 0 },
+    plan: { kvota: 1800, preostalo: 1500, dana_do_kraja_mjeseca: 10, cilj_danas: 0, kandidata: 0, za_obnovu: 0, kvota_neostvariva: false },
     obnovljeno: 0,
     neuspjelih_obnova: 0,
     alarmi: { ok: true, alarmi: [] },
@@ -43,7 +43,7 @@ test("obnovljeni oglasi, alarmi ili rast pregleda cine poruku vrijednom", () => 
 
 test("kvar obnove (kandidata ima, nista obnovljeno) je vrijedan poruke, ne tisina", () => {
   assert.equal(
-    dnevniVrijedanSlanja(podaci({ obnovljeno: 0, plan: { kvota: 1800, preostalo: 1500, dana_do_kraja_mjeseca: 10, cilj_danas: 5, kandidata: 5, za_obnovu: 5 } })),
+    dnevniVrijedanSlanja(podaci({ obnovljeno: 0, plan: { kvota: 1800, preostalo: 1500, dana_do_kraja_mjeseca: 10, cilj_danas: 5, kandidata: 5, za_obnovu: 5, kvota_neostvariva: false } })),
     true,
   );
   assert.equal(dnevniVrijedanSlanja(podaci({ neuspjelih_obnova: 2 })), true);

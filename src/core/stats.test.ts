@@ -309,6 +309,28 @@ test("kompaktList zadrzava kljucna polja i izbacuje balast", () => {
   assert.equal(stavka.has_discount, true);
 });
 
+test("dnevniPlanObnova ne trazi vise obnova nego sto shop ima oglasa", () => {
+  // Pravi slucaj sa MixBoxa 30.07.2026: 1482 preostale obnove, 2 dana do kraja mjeseca, 120
+  // oglasa. Bez gornje granice izvjestaj je klijentu javio "tempo oko 741 dnevno".
+  // SADA je 31.07., dakle sam kraj mjeseca: ostaje jos jedan dan za 1482 obnove.
+  const limits: RefreshLimits = { free_limit: 1800, free_count: 318, paid_count: 0, listing_count: 0 };
+
+  const bezGranice = dnevniPlanObnova(limits, 0, SADA);
+  const saGranicom = dnevniPlanObnova(limits, 0, SADA, 120);
+  assert.ok(saGranicom.cilj_danas <= 120, `cilj ${saGranicom.cilj_danas} ne smije preci broj oglasa`);
+  assert.ok(bezGranice.cilj_danas >= saGranicom.cilj_danas, "bez granice cilj je veci ili isti");
+  assert.equal(saGranicom.kvota_neostvariva, true, "1482 obnove se ne mogu potrositi sa 120 oglasa");
+});
+
+test("dnevniPlanObnova ne javlja neostvarivu kvotu kad je ona ostvariva", () => {
+  const limits: RefreshLimits = { free_limit: 1800, free_count: 0, paid_count: 0, listing_count: 0 };
+  // Pocetak mjeseca: SADA je 31.07., pa 29 dana ranije daje 02.07.
+  const pocetakMjeseca = SADA - 29 * DAN;
+  const p = dnevniPlanObnova(limits, 50, pocetakMjeseca, 500);
+  assert.equal(p.kvota_neostvariva, false, "500 oglasa kroz cijeli mjesec lako pokrije 1800");
+  assert.equal(p.za_obnovu, Math.min(p.cilj_danas, 50), "za_obnovu ostaje manji od cilja i kandidata");
+});
+
 test("kompaktCsv nosi ista polja kao kompaktList, uz zaglavlje i jedan red po oglasu", () => {
   const items = [
     oglas({ id: 9, title: "Kompakt", price: 50, sponsored: 2, has_discount: true }),

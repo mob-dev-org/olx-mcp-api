@@ -229,14 +229,22 @@ export function dnevniTekst(d: DnevniPodaci): string {
 
   if (d.plan.kvota > 0) {
     r.push(`Preostalo besplatnih obnova: ${d.plan.preostalo} od ${d.plan.kvota}.`);
-    if (d.plan.preostalo > 0) {
-      r.push(`Do kraja mjeseca ${d.plan.dana_do_kraja_mjeseca} dana, tempo oko ${d.plan.cilj_danas} dnevno.`);
-    } else {
+    if (d.plan.preostalo === 0) {
       r.push("Mjesecna kvota je potrosena do kraja.");
-    }
-    // Kandidata manje nego sto tempo trazi znaci da se kvota nece stici potrositi.
-    if (d.plan.kandidata < d.plan.cilj_danas && d.plan.preostalo > 0) {
-      r.push(`Napomena: danas je bilo dostupno samo ${d.plan.kandidata} oglasa za obnovu, manje nego sto tempo trazi.`);
+    } else if (d.plan.kvota_neostvariva) {
+      // Kad kvota nadmasi ono sto se fizicki moze obnoviti do kraja mjeseca, tempo se ne javlja:
+      // broj koji niko ne moze ispuniti zvuci kao propust, a nije. Kvota se ne prenosi u novi
+      // mjesec, pa nema sta da se popravlja.
+      r.push(
+        `Do kraja mjeseca ${d.plan.dana_do_kraja_mjeseca} dana. Ostatak kvote se nece stici ` +
+          "potrositi jer nemate toliko oglasa, i to je normalno.",
+      );
+    } else {
+      r.push(`Do kraja mjeseca ${d.plan.dana_do_kraja_mjeseca} dana, tempo oko ${d.plan.cilj_danas} dnevno.`);
+      // Kandidata manje nego sto tempo trazi znaci da se kvota nece stici potrositi.
+      if (d.plan.kandidata < d.plan.cilj_danas) {
+        r.push(`Napomena: danas je bilo dostupno samo ${d.plan.kandidata} oglasa za obnovu, manje nego sto tempo trazi.`);
+      }
     }
   }
 
