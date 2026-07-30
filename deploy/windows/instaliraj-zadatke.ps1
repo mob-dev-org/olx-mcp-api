@@ -95,6 +95,16 @@ Registruj -Sufiks "dnevno" -Komanda "node dist\cli\index.js posao dnevni" `
 Registruj -Sufiks "sedmicno" -Komanda "node dist\cli\index.js posao sedmicni" `
   -Trigger (New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday -At 07:40)
 
+# Backup stanja u 08:10, poslije dnevnog posla, da uhvati sve sto je taj dan upisano.
+# Instalira se samo kad je repo stanja podesen: inace bi posao svako jutro pao i slao alarm.
+$EnvFajl = Join-Path $Korijen ".env"
+if ((Test-Path $EnvFajl) -and (Select-String -Path $EnvFajl -Pattern '^OLX_STANJE_REPO=.+' -Quiet)) {
+  Registruj -Sufiks "backup" -Komanda "node dist\cli\index.js posao backup" `
+    -Trigger (New-ScheduledTaskTrigger -Daily -At 08:10)
+} else {
+  Write-Host "PRESKACEM posao backup: OLX_STANJE_REPO nije podesen u .env. Klijentsko stanje ostaje samo na ovom disku."
+}
+
 # Sesije ne cekaju sljedecu prijavu korisnika, krecu odmah.
 Start-ScheduledTask -TaskName "ba.codefactory.olx.$Ime.sesija"
 if (Test-Path (Join-Path $Korijen ".claude-runtime-admin")) {

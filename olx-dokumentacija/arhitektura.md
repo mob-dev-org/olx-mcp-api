@@ -97,9 +97,11 @@ flowchart TB
         s1["02:40 snapshot<br/>snimi preglede svih oglasa u fajl<br/>bez ovoga nema trendova"]
         s2["03:00 nocni restart sesije<br/>kontekst na nulu, ciscenje inboxa<br/>radi cuvar-sesije.mjs"]
         s3["07:20 dnevni posao<br/>obnove unutar besplatne kvote<br/>pa jutarnja poruka u grupu"]
+        s8["08:10 backup stanja<br/>pamcenje, izuzeca, audit, snapshoti<br/>na privatnu granu klijenta"]
     end
     subgraph sedmica["Sedmicno"]
         s4["ponedjeljak 07:40<br/>sedmicni pregled u grupu:<br/>sta raste, sta miruje"]
+        s9["ponedjeljak 09:00 nadzor backupa<br/>pita daljinski repo za svaki klon<br/>javi samo sto kasni"]
         s5["nedjelja 21:00 AI runda<br/>analiza + prijedlozi po klijentu<br/>admin pretplata, read-only"]
     end
     subgraph stalno["Stalno"]
@@ -108,14 +110,20 @@ flowchart TB
     end
 
     s1 --> s3
+    s3 --> s8
     s1 --> s4
     s1 --> s5
+    s8 --> s9
 ```
 
 Zakazivanje: macOS launchd (instalira `scripts/instaliraj-cron.sh`, po klonu), Windows Task
-Scheduler (`deploy/windows/instaliraj-zadatke.ps1`). AI runda je izuzetak: jedan globalni posao
-na admin masini (`deploy/launchd/ba.codefactory.olx.ADMIN.ai-runda.plist`, instalira se rucno
-jednom), jer sama obilazi sve klonove.
+Scheduler (`deploy/windows/instaliraj-zadatke.ps1`). Dva posla su izuzetak i zive globalno na
+admin masini, jer sami obilaze sve klonove iz `~/.olx-klijenti.txt`: AI runda
+(`ADMIN.ai-runda.plist`) i nadzor backupa (`ADMIN.backup-nadzor.plist`), oba se instaliraju rucno
+jednom.
+
+Backup je jedini posao koji je uslovan: instalira se samo kad je `OLX_STANJE_REPO` popunjen u
+`.env`. Bez toga bi svako jutro pao i slao alarm, a klon bi imao jedan pokvaren zadatak vise.
 
 ## 4. AI runda i primjena prijedloga
 
@@ -169,13 +177,15 @@ je referenca istog redoslijeda. Na kraju UVIJEK `node scripts/provjeri-klon.mjs`
 stavka FALI, sa klijentom se ne pocinje.
 
 1. Kloniraj repo u novi folder (jedan klon = jedan nalog), pa `git checkout --detach stabilno`.
-2. `.env`: `OLX_TOKEN`, `OLX_MCP_PROFILE=klijent`, `OLX_MAX_SPEND_PER_DAY`, Telegram varijable.
+2. `.env`: `OLX_TOKEN`, `OLX_MCP_PROFILE=klijent`, `OLX_MAX_SPEND_PER_DAY`, Telegram varijable,
+   pa `OLX_KLIJENT` i `OLX_STANJE_REPO` za backup stanja (bez njih klijentovo pamcenje, izuzeca i
+   snapshoti postoje samo na disku te masine).
 3. BotFather: novi bot, pa `/setprivacy` na Disable.
 4. `node scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>` — pravi izolovani
    runtime (svoj bot, svoj allowlist, bez globalnih servera).
 5. `npm ci && npm run build && npm test`.
 6. `scripts/instaliraj-cron.sh` (macOS) ili `deploy/windows/instaliraj-zadatke.ps1` (Windows):
-   instalira sva 4 posla, ukljucujuci cuvara koji odmah digne sesiju.
+   instalira poslove, ukljucujuci cuvara koji odmah digne sesiju, i backup kad je podesen.
 7. Dodaj putanju klona u `~/.olx-klijenti.txt` NA MASINI GDJE KLON ZIVI (azuriranja i AI runda).
 8. Test iz grupe: pitanje, objava sa slikom, i jedan trosak da se vidi tok potvrde.
 9. Opcion, admin bot: novi bot u BotFatheru (privacy NE dirati, ostaje ukljucen), pa
@@ -220,3 +230,44 @@ Tri pravila koja su u obje skripte i nisu slucajna:
 
 Vracanje na prethodnu verziju je pomjeranje taga natrag pa ponovo azuriranje; samo pomjeranje
 taga ne mijenja nista ni na jednoj masini, jer nema posla koji automatski povlaci.
+
+## 8. Gdje zivi klijentsko stanje i kako se spasava
+
+Kod i stanje se NIKAD ne mijesaju. To su dva odvojena repoa i dva odvojena toka:
+
+```
+kod:     mob-dev-org/olx-mcp-api   tag stabilno   ->  svi klonovi, ista verzija
+stanje:  <org>/olx-stanje          grana po klijentu  <-  svaki klon salje svoje
+```
+
+**Zasto stanje ne moze u repo koda**, iako grana po klijentu na prvi pogled zvuci uredno:
+
+- `azuriraj-sve.sh` preskace klon koji ima lokalne izmjene. Svaki upis pamcenja bio bi lokalna
+  izmjena, pa se nijedan klon vise nikad ne bi azurirao.
+- Azuriranje radi `git checkout --detach stabilno`. Fajlovi koji postoje na klijentskoj grani a
+  ne u tagu bi se pri tome obrisali iz radnog foldera, dakle pamcenje bi nestajalo pri svakom
+  azuriranju.
+- Danas svi klijenti rade bit za bit isti kod, pa jedan prolaz testova pokriva flotu. Grana po
+  klijentu u repou koda bi to ukinula.
+
+**Zasto grana po klijentu u repou stanja jeste ispravna:** na jedan ref pise samo jedna masina,
+pa je push uvijek fast forward i spajanja nema. Folder po klijentu na jednoj grani bi znacio da
+svaki klon svaki dan pise na isti ref, dakle pull i rebase petlja u automatskom poslu.
+
+Tri pravila koja backup nikad ne krsi:
+
+- **Bijeli spisak, ne crni.** Salje se samo ono sto je izricito navedeno. Crni spisak bi tiho
+  objavio svaki novi fajl koji neko kasnije doda. Sto nije ni na jednom spisku, prijavi se adminu
+  kao nepoznato, pa spisak ne moze ostati ustajao a da se to ne primijeti.
+- **Nikad force, nikad merge, nikad rebase.** Na razilazenje stanje ide na granu
+  `<grana>-sudar-<masina>-<datum>` i javi se adminu. Prije toga se dvije masine na istoj grani
+  zaustave preko `MASINA.json`, jos prije ijednog commita.
+- **Nijedan token ne izlazi.** Uz bijeli spisak radi i provjera sadrzaja: fajl u kojem se nadje
+  oblik tokena se ne salje nego se prijavi. Bijeli spisak stiti od novih fajlova, ali ne od
+  sadrzaja, a `saznanja.jsonl` i prijedloge pise model.
+
+Backup nikad ne brise iz kopije ono cega vise nema u klonu. Nestanak fajla je ili uredno ciscenje
+ili nesreca, a backup koji prati nesrecu nije backup.
+
+Oporavak na novoj masini: `.claude/skills/olx-novi-klijent/references/oporavak.md`. Vazno je da
+backup vraca PODATKE, ne radni klon: tokeni se unose rucno, i to je namjerno.

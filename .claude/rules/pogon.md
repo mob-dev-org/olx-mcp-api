@@ -35,6 +35,12 @@ Ucitava se samo kad se diraju skripte ili deploy. Mapa cijelog pogona:
   Telegram kanal. Izolaciju tamo daje CLAUDE_CONFIG_DIR po runtime-u.
 - launchd sabloni: `KLIJENT.*` instalira `instaliraj-cron.sh` po klonu, `ADMIN.*` se instalira
   rucno jednom na masini. Logovi uvijek u `.olx-pik/cron-<posao>.log`.
+- Backup stanja pise VAN klona (`~/olx-stanje/<grana>`) i to nije stvar ukusa: `azuriraj-sve.sh`
+  preskace svaki klon sa lokalnim izmjenama, pa bi radna kopija unutar klona trajno iskljucila
+  tog klijenta iz azuriranja, bez ijedne greske. Brana je u `postavkeStanja`, ne uklanjati je.
+- Novo stanje koje se pise u `.olx-pik/` treba i odluku ide li u backup: dodaj ga na bijeli ili
+  crni spisak u `src/core/backup-spisak.ts`. Dok nije ni na jednom, posao ga svakodnevno
+  prijavljuje adminu kao nepoznato.
 - Poslovi koji rade bez modela (CLI `posao ...`) to i ostaju: u njih se model ne uvodi.
 
 ## Telegram botovi

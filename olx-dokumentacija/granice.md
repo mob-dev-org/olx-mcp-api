@@ -70,7 +70,8 @@ naglas.
 
 - Svaka izmjena stanja i svaki trosak idu u audit log (`.olx-pik/audit.jsonl`). Na pitanje sta
   je radjeno i kada, odgovor se cita iz tog fajla, ne iz pamcenja.
-- Token nikad u git, u odgovor ni u poruku.
+- Token nikad u git, u odgovor ni u poruku. To vrijedi i za backup stanja: on salje samo ono sto
+  je na bijelom spisku, a fajl u kojem se nadje oblik tokena se zaustavlja i prijavljuje.
 
 ## Izlaz
 

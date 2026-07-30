@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sablon. Instalira ga scripts/instaliraj-cron.sh.
+
+  Salje klijentsko stanje na daljinu: pamcenje, izuzeca, audit trag, snapshoti pregleda, profil
+  klijenta. Tokeni namjerno NE idu, oni se na novoj masini unose rucno.
+
+  Ide u 08:10, poslije dnevnog posla u 07:20 i snapshota u 02:40, da uhvati sve sto je taj dan
+  upisano. Ranije bi znacilo da dan koji se spasava jos nije ni zavrsen.
+
+  Bez ovog posla klijentsko stanje postoji samo na ovom disku. Snapshoti su nezamjenjivi
+  retroaktivno: OLX ne daje istorijske preglede, pa vremenska serija zivi samo u ovim fajlovima.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>ba.codefactory.olx.KLIJENT.backup</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>cd KORIJEN &amp;&amp; node dist/cli/index.js posao backup</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>KORIJEN</string>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>8</integer>
+    <key>Minute</key><integer>10</integer>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>KORIJEN/.olx-pik/cron-backup.log</string>
+  <key>StandardErrorPath</key>
+  <string>KORIJEN/.olx-pik/cron-backup.log</string>
+</dict>
+</plist>

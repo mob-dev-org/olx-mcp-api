@@ -15,6 +15,10 @@ odjednom. Nista se ne preskace: redoslijed je ovakav jer svaki korak zavisi od p
 Ovo je TEHNICKA postavka. Poslovni dio (kako od klijenta traziti token, baseline analiza,
 dogovor o granicama) je u skillu `olx-klijent-flow` i radi se poslije ovoga.
 
+Kad se klijent podize na NOVOJ masini a vec ima backup stanja (selidba, pokvaren disk), redoslijed
+je drugaciji i pise u `references/oporavak.md`: vracanje stanja mora doci poslije pripreme
+Telegram runtimea, jer se dio stanja upisuje preko onoga sto pripremna skripta sama generise.
+
 ## Upis odmah, ne u glavi (pravilo cijelog skilla)
 
 Razgovor NIJE skladiste: restart ili kompaktovanje sesije brise sve sto je covjek poslao,
@@ -84,6 +88,10 @@ U `.env` popuni: `OLX_TOKEN`, `OLX_MCP_PROFILE=klijent`, `OLX_MAX_SPEND_PER_DAY`
 `TELEGRAM_BOT_TOKEN` (klijentov bot), `TELEGRAM_CHAT_ID` (grupa), `TELEGRAM_ADMIN_CHAT_ID`.
 Za DeepSeek pogon jos `OLX_KLIJENT_AI=deepseek` i `OLX_DEEPSEEK_*` (vidi komentare u
 `.env.example`). `KLIJENT.md` popuni sa adminom: ostaje u KORIJENU klona.
+
+Popuni i `OLX_KLIJENT` (kratko ime, postaje grana stanja) i `OLX_STANJE_REPO` (privatan repo za
+backup). Bez njih se posao `backup` ne instalira, pa pamcenje, izuzeca i snapshoti tog klijenta
+postoje samo na disku ove masine, a snapshoti se retroaktivno ne mogu vratiti.
 
 ## 3. Build
 

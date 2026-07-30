@@ -114,7 +114,7 @@ Gdje korisnik generise token: u repozitoriju nema URL-a ni ekrana na kojem se to
   radi sa `OLX_TOKEN`; kredencijali za ponovni login idu u keychain, ne u fajl.
 - MCP server ucitava `.env` iz radnog direktorija na startu (`server.ts:15`).
 - `.mcp.json` ne sadrzi token, nego referencu `${OLX_TOKEN:-}` (`.mcp.json`, polje `env`).
-- `.gitignore` iskljucuje `.env`, `KLIJENT.md`, folder `klijenti/` i `.olx-pik/` (audit log i plan izdvajanja) iz gita.
+- `.gitignore` iskljucuje `.env`, `KLIJENT.md`, folder `klijenti/` i `.olx-pik/` (audit log i plan izdvajanja) iz gita. Klijentsko stanje iz `.olx-pik/` ide u ODVOJEN repo stanja, granom po klijentu, kroz `posao backup`; u repo koda ne ide nikad.
 
 ### Tajne vrijednosti u cistom tekstu
 

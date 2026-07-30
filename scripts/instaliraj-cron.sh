@@ -34,6 +34,14 @@ if [[ -d .claude-runtime-admin ]]; then
   POSLOVI+=(admin-bot)
 fi
 
+# Backup stanja se instalira samo kad je repo stanja podesen. Bez toga bi posao svako jutro pao
+# i slao alarm adminu, a klijent bi imao jedan pokvaren zadatak vise.
+if [[ -f .env ]] && grep -qE '^OLX_STANJE_REPO=.+' .env; then
+  POSLOVI+=(backup)
+else
+  echo "PRESKACEM posao backup: OLX_STANJE_REPO nije podesen u .env. Klijentsko stanje ostaje samo na ovom disku." >&2
+fi
+
 if [[ ! -f dist/cli/index.js ]]; then
   echo "Nema dist/. Pokrecem build." >&2
   npm run build

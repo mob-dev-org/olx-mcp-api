@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from "node:fs";
-import { dirname, resolve as resolvePath } from "node:path";
+import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, rmSync, existsSync } from "node:fs";
+import { dirname, join, resolve as resolvePath } from "node:path";
+import { homedir, tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { OlxClient, OlxApiError, OlxAuthError, OlxSpendError } from "../core/index.js";
 import { odvojiIzuzete, ucitajIzuzeca } from "../core/izuzeca.js";
@@ -20,6 +21,9 @@ import type { OnboardingDetalj } from "../core/stats.js";
 import { dnevniTekst, dnevniVrijedanSlanja, onboardingMarkdown, onboardingTelegram, sedmicniTekst } from "../core/izvjestaj.js";
 import { javiAdminu, posaljiPoruku } from "../core/telegram.js";
 import { SNAPSHOT_DIR, ucitajSnapshote, upisiSnapshot, zadnjiSnapshot } from "../core/snapshoti.js";
+import { razvrstaj } from "../core/backup-spisak.js";
+import { kopirajURadnu, popisiStanje, uporediSaKopijom, vratiIzRadne } from "../core/stanje-kopija.js";
+import { bootstrap, commitIPush, danaDoIsteka, masinaSePoklapa, postavkeStanja, zadnjiUpis } from "../core/git-stanje.js";
 import type { CreateListingInput, SponsorOptions, SponsorType, SponsorDays, RefreshEvery, CategoryNode, Country, City } from "../core/types.js";
 
 // Ucitaj .env ako postoji (Node 20.12+/22). Bez vanjske zavisnosti. Prvo .env iz radnog
@@ -1475,6 +1479,99 @@ posao
       out({ poslano_poruka: poslano, tekst });
     } catch (e) {
       await posaoFail("sedmicni", e);
+    }
+  });
+
+posao
+  .command("backup")
+  .description("Posalji klijentsko stanje na daljinu (pamcenje, izuzeca, audit, snapshoti)")
+  .option("--suho", "ispisi sta bi islo i sta se preskace, bez ijednog upisa", false)
+  .option("--nadzor", "samo javi kad je zadnji put stvarno poslano na daljinski", false)
+  .option("--samo-provjeri", "uporedi klon sa onim sto je stvarno na daljinskom", false)
+  .option("--vrati", "vrati stanje sa daljinskog u ovaj klon", false)
+  .option("--potvrdi", "obavezno uz --vrati", false)
+  .option("--pregazi", "uz --vrati: prepisi i fajlove koji vec postoje", false)
+  .action(async (opts: { suho?: boolean; nadzor?: boolean; samoProvjeri?: boolean; vrati?: boolean; potvrdi?: boolean; pregazi?: boolean }) => {
+    try {
+      const korijen = process.cwd();
+      const p = postavkeStanja(process.env, homedir(), korijen);
+
+      // Nadzor se pita SA DALJINSKOG, ne iz lokalnog loga: ugasen posao, ugasena masina i istekao
+      // token svi izgledaju isto lokalno, a na daljinskom se vidi kao stara grana.
+      if (opts.nadzor) {
+        if (!existsSync(join(p.radna, ".git"))) {
+          out({ grana: p.grana, zadnji_upis: null, dana: null, napomena: "radna kopija ne postoji, backup jos nije radio" });
+          return;
+        }
+        const kada = zadnjiUpis(p.radna, p.grana, p.token);
+        const dana = kada ? Math.floor((Date.now() - Date.parse(kada)) / 86_400_000) : null;
+        out({ grana: p.grana, zadnji_upis: kada, dana });
+        return;
+      }
+
+      const svePutanje = popisiStanje(korijen);
+      const { uzmi, preskoci, nepoznato } = razvrstaj(svePutanje);
+      const zaKopiju = uzmi.map((u) => u.putanja);
+
+      if (opts.suho) {
+        out({
+          grana: p.grana,
+          radna: p.radna,
+          ide: uzmi,
+          preskace_se: preskoci,
+          nepoznato,
+          napomena: nepoznato.length > 0 ? "Nepoznato stanje se NE salje dok se ne doda na spisak." : "",
+        });
+        return;
+      }
+
+      if (opts.vrati) {
+        if (!opts.potvrdi) throw new Error("Vracanje gazi stanje u ovom klonu. Ponovi sa --potvrdi.");
+        bootstrap(p.radna, p.url, p.grana, korijen, p.token);
+        const spisakZaVracanje = popisiStanje(p.radna).length > 0 ? popisiStanje(p.radna) : zaKopiju;
+        const r = vratiIzRadne(p.radna, korijen, spisakZaVracanje, Boolean(opts.pregazi));
+        out({ vraceno: r.vraceno.length, preskoceno: r.preskoceno, iz: p.radna });
+        return;
+      }
+
+      if (opts.samoProvjeri) {
+        // Svjez klon grane, da se poredi sa onim sto je STVARNO na daljinskom, a ne sa lokalnom
+        // radnom kopijom koja moze imati necommitovanih izmjena.
+        const privremena = mkdtempSync(join(tmpdir(), "olx-provjera-"));
+        try {
+          bootstrap(join(privremena, "kopija"), p.url, p.grana, korijen, p.token);
+          const razlike = uporediSaKopijom(korijen, join(privremena, "kopija"), zaKopiju);
+          out({ grana: p.grana, provjereno: zaKopiju.length, razlike });
+        } finally {
+          rmSync(privremena, { recursive: true, force: true });
+        }
+        return;
+      }
+
+      // Dvije masine na istoj grani se zaustavljaju PRIJE ijednog commita, umjesto da se
+      // razilazenje hvata poslije.
+      bootstrap(p.radna, p.url, p.grana, korijen, p.token);
+      const masina = masinaSePoklapa(p.radna, p.grana, korijen, p.token);
+      if (!masina.ok) {
+        throw new Error(`Granu "${p.grana}" vec vodi druga masina (${masina.tudja?.hostname}, klon ${masina.tudja?.klon}). Ugasi poslove tamo prije nego sto ovdje krene backup.`);
+      }
+
+      const { upisano, sumnjivi } = kopirajURadnu(korijen, p.radna, zaKopiju);
+      const ishod = commitIPush(p.radna, p.grana, `stanje ${p.grana} ${new Date().toISOString().slice(0, 10)}`, korijen, p.token);
+
+      const upozorenja: string[] = [];
+      if (sumnjivi.length > 0) {
+        upozorenja.push(`Zaustavljeno zbog sumnjivog sadrzaja: ${sumnjivi.map((s) => `${s.putanja} (${s.nalazi.join(", ")})`).join("; ")}`);
+      }
+      if (nepoznato.length > 0) upozorenja.push(`Nije ni na jednom spisku, pa se ne salje: ${nepoznato.join(", ")}`);
+      if (ishod.vrsta === "sudar") upozorenja.push(`Razilazenje na grani ${p.grana}: stanje je spaseno na ${ishod.grana}, spoji rucno.`);
+      const dana = danaDoIsteka(p.isticeTokena, new Date());
+      if (dana !== null && dana <= 14) upozorenja.push(`Token za repo stanja istice za ${dana} dana (${p.isticeTokena}).`);
+      if (upozorenja.length > 0) await javiAdminu(`Backup stanja "${p.grana}":\n${upozorenja.join("\n")}`);
+
+      out({ grana: p.grana, ishod: ishod.vrsta, upisano: upisano.length, sumnjivi, nepoznato });
+    } catch (e) {
+      await posaoFail("backup", e);
     }
   });
 

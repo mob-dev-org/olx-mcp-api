@@ -137,8 +137,12 @@ Puna mapa sa dijagramima je u `olx-dokumentacija/arhitektura.md` — nju procita
   restart u 03h uz ciscenje inboxa, restart poslije mirovanja (klijent 2h, admin 1h) da
   kontekst i trosak ne rastu kroz dan.
 - **Cron poslovi bez modela** (nula tokena): snapshot pregleda 02:40, dnevne obnove i jutarnja
-  poruka 07:20, sedmicni pregled ponedjeljkom 07:40. Vrti ih CLI (`posao dnevni`,
-  `posao sedmicni`, `stats snapshot`).
+  poruka 07:20, backup stanja 08:10, sedmicni pregled ponedjeljkom 07:40. Vrti ih CLI
+  (`posao dnevni`, `posao sedmicni`, `posao backup`, `stats snapshot`).
+- **Backup klijentskog stanja** (`posao backup`): pamcenje, izuzeca, audit trag i snapshoti
+  pregleda idu na privatnu granu po klijentu u odvojenom repou stanja. Tokeni namjerno ne idu.
+  Snapshoti su nezamjenjivi retroaktivno, jer OLX ne daje istorijske preglede. Nadzor sa admin
+  strane: `scripts/backup-nadzor.sh` (ponedjeljak 09h) javi svaki klon koji kasni.
 - **AI runda** (nedjelja 21h, jednom za cijelu masinu): headless analiza svih klonova iz
   `~/.olx-klijenti.txt` kroz vlasnikovu pretplatu, strogo read-only; izvjestaj ide klijentu u
   grupu, prijedlozi u `.olx-pik/prijedlozi/`, odakle ih klijentski bot cita alatom `olx_prijedlozi` i

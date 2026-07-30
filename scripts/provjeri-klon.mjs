@@ -173,8 +173,12 @@ else paznja("KLIJENT-javno.md", "bot ne zna ton, footer ni granice klijenta", `$
       // launchctl nedostupan (linux?)
     }
     const nasi = izlaz.split("\n").filter((r) => r.includes(`ba.codefactory.olx.${IME}.`));
-    if (nasi.length >= 4) ok("Zakazani poslovi (launchd)", `${nasi.length} poslova`);
-    else if (nasi.length > 0) paznja("Zakazani poslovi", `samo ${nasi.length} od ocekivana 4+ (snapshot, dnevno, sedmicno, sesija)`, "scripts/instaliraj-cron.sh");
+    // Backup je uslovni posao: instalira se samo kad je repo stanja podesen, pa i ocekivani broj
+    // zavisi od toga. Fiksna 4 bi tvrdila da je sve u redu na klonu kojem backup nedostaje.
+    const ocekivano = process.env.OLX_STANJE_REPO ? 5 : 4;
+    const imena = ocekivano === 5 ? "snapshot, dnevno, sedmicno, sesija, backup" : "snapshot, dnevno, sedmicno, sesija";
+    if (nasi.length >= ocekivano) ok("Zakazani poslovi (launchd)", `${nasi.length} poslova`);
+    else if (nasi.length > 0) paznja("Zakazani poslovi", `samo ${nasi.length} od ocekivanih ${ocekivano}+ (${imena})`, "scripts/instaliraj-cron.sh");
     else fali("Zakazani poslovi", "nista nije instalirano: nema snapshota, jutarnje poruke ni cuvara", "scripts/instaliraj-cron.sh");
   }
 }
@@ -208,6 +212,24 @@ else paznja("KLIJENT-javno.md", "bot ne zna ton, footer ni granice klijenta", `$
   if (!zadnji) paznja("Dnevni snapshot", "jos nijedan: mjerenje pregleda i izdvajanja ne moze poceti", "node dist/cli/index.js stats snapshot");
   else if (Date.now() - zadnji > 48 * 60 * 60 * 1000) paznja("Dnevni snapshot", `zadnji je stariji od 48h (${new Date(zadnji).toISOString().slice(0, 10)})`, "provjeri posao snapshot; rucno: node dist/cli/index.js stats snapshot");
   else ok("Dnevni snapshot svjez");
+}
+
+// 10. Backup stanja (jedina kopija van ove masine)
+{
+  if (!process.env.OLX_STANJE_REPO) {
+    paznja("Backup stanja", "nije podesen: pamcenje, izuzeca i snapshoti postoje SAMO na ovom disku", "popuni OLX_KLIJENT i OLX_STANJE_REPO u .env, pa scripts/instaliraj-cron.sh");
+  } else {
+    const log = join(".olx-pik", "cron-backup.log");
+    let zadnji = 0;
+    try {
+      zadnji = statSync(log).mtimeMs;
+    } catch {
+      // posao jos nije radio
+    }
+    if (!zadnji) paznja("Backup stanja", "podesen, ali jos nijednom nije radio", "node dist/cli/index.js posao backup --suho  # pa bez --suho");
+    else if (Date.now() - zadnji > 48 * 60 * 60 * 1000) paznja("Backup stanja", `zadnji je stariji od 48h (${new Date(zadnji).toISOString().slice(0, 10)})`, "provjeri posao backup; rucno: node dist/cli/index.js posao backup");
+    else ok("Backup stanja svjez");
+  }
 }
 
 // ---- ispis ----

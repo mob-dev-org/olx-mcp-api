@@ -20,8 +20,8 @@ export interface AiPoziv {
   greska?: string;
 }
 
-export function putanjaDnevnika(): string {
-  return process.env.OLX_AI_USAGE_FILE || ".olx-pik/ai-usage.jsonl";
+export function putanjaDnevnika(env: NodeJS.ProcessEnv = process.env): string {
+  return env.OLX_AI_USAGE_FILE || ".olx-pik/ai-usage.jsonl";
 }
 
 export function zapisiAiPoziv(poziv: AiPoziv): void {
