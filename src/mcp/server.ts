@@ -8,6 +8,7 @@ import { dirname, resolve } from "node:path";
 import { OlxClient, OlxSpendError, OlxApiError, naknadaKategorije } from "../core/index.js";
 import { loadConfig } from "../core/config.js";
 import { linkOglasa } from "../core/link.js";
+import { POLJA, bezNapomene, bezPolja, saNapomenom, saPoljem, ucitajPamcenje, upisiPamcenje } from "../core/pamcenje.js";
 import { withAuditContext } from "../core/audit.js";
 import { parseSponsorOptions } from "../core/sponsor-options.js";
 import {
@@ -1304,6 +1305,56 @@ server.registerTool(
       }
       return { refreshed: results.filter((r) => r.ok).length, total: results.length, results, ...izuzeto };
     }),
+);
+
+// Pamcenje o klijentu. Klijentska sesija se resetuje svaku noc i ne nastavlja se, a KLIJENT.md
+// joj je zabranjen za citanje, pa je do sada svaka informacija iz razgovora nestajala u 3h. Ovaj
+// alat je jedini nacin da bot sam zapise nesto o klijentu. Procitano ne treba: sadrzaj pamcenja
+// ulazi u sistemski prompt pri svakom startu (scripts/sastavi-prompt.mjs), pa bot vec zna.
+server.registerTool(
+  "olx_zapamti",
+  {
+    title: "Zapamti o klijentu",
+    description:
+      "Trajno zapise sto klijent kaze o sebi i svojim navikama, da se poslije restarta ne izgubi. Polja su fiksna: " +
+      `${POLJA.join(", ")}. Sve ostalo ide kao napomena. Zapisano samo dodaj kad je klijent to zaista rekao, nikad iz pretpostavke. ` +
+      "Citanje ti ne treba: zapisano sam dolazi u tvoja pravila na pocetku sljedeceg razgovora.",
+    inputSchema: {
+      radnja: z.enum(["zapisi", "zabravi", "lista"]),
+      polje: z.enum(POLJA).optional().describe("koje imenovano polje se postavlja ili brise"),
+      vrijednost: z.string().optional().describe("vrijednost polja; prazna vrijednost brise polje"),
+      napomena: z.string().optional().describe("slobodan zapis kad ne pripada nijednom polju"),
+    },
+  },
+  async (args) => {
+    try {
+      const p = ucitajPamcenje();
+      if (args.radnja === "lista") {
+        return ok({ polja: p.polja, napomene: p.napomene });
+      }
+      const kada = new Date().toISOString();
+      let novo = p;
+      if (args.radnja === "zapisi") {
+        if (args.polje) novo = saPoljem(novo, args.polje, args.vrijednost ?? "", kada);
+        if (args.napomena) novo = saNapomenom(novo, args.napomena, kada);
+        if (!args.polje && !args.napomena) return errResult("Zadaj polje sa vrijednoscu ili napomenu.");
+      } else {
+        if (args.polje) novo = bezPolja(novo, args.polje);
+        if (args.napomena) novo = bezNapomene(novo, args.napomena);
+        if (!args.polje && !args.napomena) return errResult("Zadaj polje ili napomenu koja se sklanja.");
+      }
+      upisiPamcenje(novo);
+      return ok({
+        radnja: args.radnja,
+        polja: novo.polja,
+        napomena_ukupno: novo.napomene.length,
+        napomena:
+          "Zapisano. Vazi od sljedeceg razgovora, jer se pravila sesije sastavljaju pri pokretanju.",
+      });
+    } catch (e) {
+      return errResult(String(e instanceof Error ? e.message : e));
+    }
+  },
 );
 
 // Oglasi koje vlasnik ne zeli automatski dizati. Iz prakse: neki artikli mu se ne isplati

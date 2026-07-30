@@ -24,8 +24,11 @@ Ucitava se samo kad se diraju skripte ili deploy. Mapa cijelog pogona:
 
 ## Ugovori koji se lako zaborave
 
-- `scripts/cuvar-sesije.mjs` i `scripts/pokreni-klijenta.sh` ponavljaju iste argumente i isto
-  AI mapiranje: izmjena jednog povlaci izmjenu drugog.
+- `scripts/cuvar-sesije.mjs` i `scripts/pokreni-klijenta.sh` ponavljaju iste argumente, isto AI
+  mapiranje I sastavljanje prompta: izmjena jednog povlaci izmjenu drugog.
+- Sistemski prompt sesije se SASTAVLJA (`scripts/sastavi-prompt.mjs`), ne predaje se direktno:
+  `--append-system-prompt-file` nije aditivan, sa dva fajla vazi samo zadnji (izmjereno
+  30.07.2026). Ko doda novi dio prompta, dodaje ga u sastavljac.
 - Headless `claude -p` nema koga da klikne permission prompt: bez `--allowedTools` sesija
   visi. Mutirajuce alate uvijek stavi i u `--disallowedTools` (uzor: `ai-runda.sh`).
 - `--strict-mcp-config` gasi i MCP server Telegram plugina: ne koristiti u sesijama koje drze

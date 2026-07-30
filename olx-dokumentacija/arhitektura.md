@@ -41,6 +41,14 @@ flowchart LR
     runda --> mcp
 ```
 
+Prompt sesije se SASTAVLJA pri svakom pokretanju (`scripts/sastavi-prompt.mjs`): pravila
+razgovora, pa javni profil klijenta (`KLIJENT-javno.md`), pa pamcenje koje je bot sam zapisao
+(`.olx-pik/pamcenje.json`, alat `olx_zapamti`). Razlog je tehnicki:
+`--append-system-prompt-file` nije aditivan, sa dva fajla vazi samo zadnji. Posljedica je da
+sistem raste uz klijenta: sesija se resetuje svaku noc, a pamcenje se tada ponovo ubaci u prompt,
+pa bot od prve poruke zna ton, footer i navike bez ijednog poziva alata. `KLIJENT.md` u tome NE
+ucestvuje: on nosi tokene i komercijalni dogovor i ostaje zabranjen klijentskoj sesiji.
+
 Granice pogona:
 
 - Klijentsku sesiju pogoni ono sto kaze `OLX_KLIJENT_AI` u `.env` klona: `pretplata` dok prvih

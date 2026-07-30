@@ -304,6 +304,22 @@ sto je za ovaj posao ispravan izbor: dupli odgovor je neugodan, propusten je izg
 
 Allowlist se ne duplira: most cita isti `access.json` koji pripremi skripte vec pisu.
 
+### append-system-prompt-file NIJE aditivan. Izmjereno 30.07.2026.
+
+Sa dva `--append-system-prompt-file` sesija vidi samo ZADNJI fajl. Provjereno markerima: prvi
+marker se u odgovoru ne pojavi, drugi se pojavi.
+
+Posljedica za pogon: profil klijenta i pamcenje se NE mogu dodati kao drugi fajl. Prompt se zato
+sastavlja u jedan (`scripts/sastavi-prompt.mjs`) pri svakom startu sesije, iz tri dijela: pravila
+razgovora, `KLIJENT-javno.md` i pamcenje iz `.olx-pik/pamcenje.json`.
+
+To je ispalo bolje nego dva fajla: sesija se restartuje svaku noc, pa se pamcenje osvjezava samo
+po sebi i botu ne treba nijedan poziv alata da bi znao sta je zapisano. Dokazano zivim testom na
+DeepSeeku: sesija bez ijednog alata je tacno navela ton i footer koji su bili samo u pamcenju.
+
+Uz to je vazno za kes: sastavljeni prompt je dio prefiksa koji DeepSeek kesira, a mijenja se samo
+izmedju sesija, nikad usred razgovora.
+
 ### Sta je od svega ovoga bio pravi uzrok
 
 Prica je pocela od pretpostavke da `--channels` ne radi na modelima koji nisu Anthropicovi.

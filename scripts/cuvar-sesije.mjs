@@ -73,6 +73,30 @@ const TELEGRAM_DIR = join(RUNTIME, "channels", "telegram");
 const INBOX = join(TELEGRAM_DIR, "inbox");
 const PID_FAJL = join(KORIJEN, ".olx-pik", JE_ADMIN ? "cuvar-admin-bota.pid" : "cuvar-sesije.pid");
 const PROMPT_FAJL = JE_ADMIN ? "runtime/SISTEM-admin-bot.md" : "runtime/SISTEM-klijent.md";
+
+/**
+ * Sastavi prompt sesije: pravila razgovora + profil klijenta + pamcenje u JEDAN fajl.
+ *
+ * Zasto sastavljanje a ne dva fajla: `--append-system-prompt-file` nije aditivan, sa dva fajla
+ * vazi samo zadnji (izmjereno 30.07.2026). Radi se pri SVAKOM pokretanju, pa nocni restart sam
+ * osvjezi pamcenje bez ijednog poziva alata.
+ *
+ * Kad sastavljanje padne, vraca se na gola pravila: bot bez pamcenja je bolji od mrtvog bota.
+ */
+function sastaviPrompt() {
+  const r = spawnSync(process.execPath, ["scripts/sastavi-prompt.mjs", JE_ADMIN ? "admin-bot" : "klijent"], {
+    cwd: KORIJEN,
+    encoding: "utf8",
+  });
+  if (r.status === 0) {
+    // Na stdout ide samo putanja; stderr nosi eventualna upozorenja i ne smije je zagaditi.
+    const putanja = (r.stdout ?? "").trim().split("\n").pop() ?? "";
+    if (putanja && existsSync(putanja)) return putanja;
+  }
+  const zasto = r.error ? r.error.message : (r.stderr ?? "").trim().split("\n").pop() || `kod ${r.status}`;
+  log(`Sastavljanje prompta nije proslo (${zasto}), idem na ${PROMPT_FAJL} bez pamcenja.`);
+  return PROMPT_FAJL;
+}
 const MCP_PROFIL = JE_ADMIN ? "admin" : "klijent";
 
 const RESTART_SAT = broj(process.env.OLX_SESIJA_RESTART_SAT, 3);
@@ -455,7 +479,7 @@ function pokreni() {
 
   const argv = [
     "--channels", "plugin:telegram@claude-plugins-official",
-    "--append-system-prompt-file", PROMPT_FAJL,
+    "--append-system-prompt-file", sastaviPrompt(),
     "--setting-sources", "user,project",
   ];
   dijete = spawn("claude", argv, {

@@ -62,8 +62,14 @@ export TELEGRAM_STATE_DIR="$RUNTIME/channels/telegram"
 
 # setting-sources mora ukljucivati user: pod CLAUDE_CONFIG_DIR to je .claude-runtime/settings.json,
 # gdje su permissions.deny i ugaseni plugini za klijenta. Bez toga bi ta pravila bila preskocena.
+# Prompt se SASTAVLJA prije pokretanja: pravila razgovora + profil klijenta + pamcenje u jedan
+# fajl. Razlog: --append-system-prompt-file nije aditivan, sa dva fajla vazi samo zadnji
+# (izmjereno 30.07.2026). Ako sastavljanje padne, ide se na gola pravila, da bot ne ostane mrtav.
+PROMPT="$(node scripts/sastavi-prompt.mjs klijent)" || PROMPT="runtime/SISTEM-klijent.md"
+[ -f "$PROMPT" ] || PROMPT="runtime/SISTEM-klijent.md"
+
 exec claude \
   --channels plugin:telegram@claude-plugins-official \
-  --append-system-prompt-file runtime/SISTEM-klijent.md \
+  --append-system-prompt-file "$PROMPT" \
   --setting-sources user,project \
   "$@"

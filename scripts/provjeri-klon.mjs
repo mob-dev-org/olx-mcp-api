@@ -112,6 +112,11 @@ if (!existsSync(".env")) {
 if (existsSync("KLIJENT.md")) ok("KLIJENT.md u korijenu");
 else fali("KLIJENT.md", "pogon (AI runda, skillovi) ne zna ko je klijent", `${WIN ? "copy" : "cp"} KLIJENT.primjer.md KLIJENT.md  # pa popuni`);
 
+// 4b. Javni profil klijenta: ulazi u sistemski prompt, pa bot od prve poruke zna ton i footer.
+//     Nije obavezan (klon bez njega radi kao prije), ali bez njega bot ne zna nista o klijentu.
+if (existsSync("KLIJENT-javno.md")) ok("KLIJENT-javno.md (bot zna ton i footer)");
+else paznja("KLIJENT-javno.md", "bot ne zna ton, footer ni granice klijenta", `${WIN ? "copy" : "cp"} KLIJENT-javno.primjer.md KLIJENT-javno.md  # pa popuni`);
+
 // 5. Build postoji i nije stariji od src/
 {
   const cli = join("dist", "cli", "index.js");
