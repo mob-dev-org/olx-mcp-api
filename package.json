@@ -19,6 +19,8 @@
     "test": "tsc && node --test dist/core/",
     "chat": "bash scripts/claude-olx.sh",
     "deepseek:proba": "tsc && node scripts/deepseek-proba.mjs",
+    "kanal:proba": "node scripts/proba-kanala.mjs",
+    "most": "node scripts/telegram-most.mjs",
     "ai:usage": "node scripts/ai-usage.mjs",
     "tokeni": "node scripts/tokeni-izvjestaj.mjs",
     "kontekst": "tsc && node scripts/kontekst-izvjestaj.mjs"

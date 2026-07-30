@@ -1,21 +1,30 @@
-// Vision proxy: opis slike preko jeftinog vision modela (Claude Haiku), za sesije ciji glavni
-// model nema vid (DeepSeek endpoint slike ignorise, izmjereno u deepseek-nalazi.md).
+// Vision proxy: opis slike preko jeftinog vision modela, za sesije ciji glavni model nema vid
+// (DeepSeek endpoint slike ignorise, izmjereno u deepseek-nalazi.md).
 //
 // Tok: klijent posalje sliku -> sesija bez vida pozove olx_opisi_sliku -> ovaj modul posalje
-// sliku Haiku modelu -> tekstualni opis se vrati sesiji koja nastavi razgovor. Vid se placa
-// samo po slici (red velicine desetinke centa), ne cijeli razgovor.
+// sliku vision modelu -> tekstualni opis se vrati sesiji koja nastavi razgovor. Vid se placa
+// samo po slici, ne cijeli razgovor.
+//
+// Dva provajdera, jer generisanje slika (slika.ts) svakako trazi Gemini kljuc:
+//   anthropic  claude-haiku-4-5, oko $0.003 po slici
+//   gemini     gemini-3.1-flash-lite, red velicine deset puta jeftinije, i jedan kljuc za
+//              cijeli put slike (opis + generisanje), pa i jedan provajder kojem idu
+//              fotografije klijenta
 //
 // Konfiguracija iz .env klona (vidi .env.example):
-//   OLX_VID_API_KEY    Anthropic API kljuc; bez njega se MCP alat uopste ne registruje
-//   OLX_VID_MODEL      default claude-haiku-4-5 (user izbor: najjeftiniji Claude sa vidom)
-//   OLX_VID_BASE_URL   opciono, za kompatibilan endpoint drugog provajdera
+//   OLX_VID_PROVAJDER  anthropic (default) ili gemini
+//   OLX_VID_API_KEY    kljuc; kad je provajder gemini pada na OLX_SLIKA_API_KEY
+//   OLX_VID_MODEL      default po provajderu
+//   OLX_VID_BASE_URL   opciono, za kompatibilan endpoint drugog provajdera (samo anthropic)
 //
-// Svaki poziv se biljezi u .olx-pik/ai-usage.jsonl, isti format kao scripts/ai-cijene.mjs
-// (zapisiPotrosnju), pa ga npm run ai:usage vidi zajedno sa ostalim AI pozivima.
+// Svaki poziv se biljezi u .olx-pik/ai-usage.jsonl kroz zapisiAiPoziv, pa ga npm run ai:usage
+// vidi zajedno sa ostalim AI pozivima.
 
 import Anthropic from "@anthropic-ai/sdk";
-import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
-import { dirname, extname } from "node:path";
+import { readFileSync } from "node:fs";
+import { extname } from "node:path";
+import { zapisiAiPoziv } from "./ai-dnevnik.js";
+import { pozoviGemini } from "./gemini.js";
 
 const PODRZANI_TIPOVI: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -30,8 +39,29 @@ export const PODRAZUMIJEVANO_PITANJE =
   "ako se vide, boja, stanje, vidljiva ostecenja, natpisi i sve sto pomaze da se artikal tacno " +
   "opise. Ne izmisljaj nista sto se ne vidi; kad nesto nije jasno, reci da se ne vidi.";
 
+export type VidProvajder = "anthropic" | "gemini";
+
+const PODRAZUMIJEVANI_MODEL: Record<VidProvajder, string> = {
+  anthropic: "claude-haiku-4-5",
+  gemini: "gemini-3.1-flash-lite",
+};
+
+export function vidProvajder(env: NodeJS.ProcessEnv = process.env): VidProvajder {
+  return (env.OLX_VID_PROVAJDER ?? "").trim().toLowerCase() === "gemini" ? "gemini" : "anthropic";
+}
+
+/** Kljuc za vid. Na Geminiju pada na kljuc za generisanje slika, da se isti ne upisuje dvaput. */
+export function vidKljuc(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  if (env.OLX_VID_API_KEY) return env.OLX_VID_API_KEY;
+  return vidProvajder(env) === "gemini" ? env.OLX_SLIKA_API_KEY : undefined;
+}
+
+export function vidModel(env: NodeJS.ProcessEnv = process.env): string {
+  return env.OLX_VID_MODEL || PODRAZUMIJEVANI_MODEL[vidProvajder(env)];
+}
+
 export function vidKonfigurisan(env: NodeJS.ProcessEnv = process.env): boolean {
-  return Boolean(env.OLX_VID_API_KEY);
+  return Boolean(vidKljuc(env));
 }
 
 /** Media type iz ekstenzije fajla; null kad format nije podrzan za vid. */
@@ -46,34 +76,17 @@ export interface OpisSlike {
   izlaz_tokena: number;
 }
 
-// Isti format reda kao zapisiPotrosnju u scripts/ai-cijene.mjs (namjerno dupliran umjesto
-// importa .mjs u TS): jedan red po pozivu, samo brojevi, nikad sadrzaj.
 function zabiljezi(model: string, usage: { input_tokens: number; output_tokens: number }, trajanjeMs: number, ok: boolean, greska?: string): void {
-  const dnevnik = process.env.OLX_AI_USAGE_FILE || ".olx-pik/ai-usage.jsonl";
-  const red = {
-    ts: new Date().toISOString(),
+  zapisiAiPoziv({
     izvor: "vid",
     zadatak: "opis_slike",
-    model_trazen: model,
-    model_dobijen: model,
-    ulaz_miss: usage.input_tokens,
-    ulaz_hit: 0,
-    ulaz_write: 0,
-    izlaz: usage.output_tokens,
-    ulaz_ukupno: usage.input_tokens,
-    cijena_usd: null,
-    stop_reason: null,
-    alata_poslano: null,
-    trajanje_ms: trajanjeMs,
+    model,
+    ulazTokena: usage.input_tokens,
+    izlazTokena: usage.output_tokens,
+    trajanjeMs,
     ok,
-    greska: greska ?? null,
-  };
-  try {
-    mkdirSync(dirname(dnevnik), { recursive: true });
-    appendFileSync(dnevnik, `${JSON.stringify(red)}\n`, "utf8");
-  } catch {
-    // dnevnik je best-effort, opis slike ne smije pasti zbog njega
-  }
+    greska,
+  });
 }
 
 /**
@@ -81,7 +94,7 @@ function zabiljezi(model: string, usage: { input_tokens: number; output_tokens: 
  * postavljen, fajl ne postoji ili format nije podrzan.
  */
 export async function opisiSliku(putanja: string, pitanje?: string): Promise<OpisSlike> {
-  const kljuc = process.env.OLX_VID_API_KEY;
+  const kljuc = vidKljuc();
   if (!kljuc) {
     throw new Error("OLX_VID_API_KEY nije postavljen u .env, opis slike preko vision modela nije dostupan.");
   }
@@ -90,7 +103,25 @@ export async function opisiSliku(putanja: string, pitanje?: string): Promise<Opi
     throw new Error(`Nepodrzan format slike: ${putanja}. Podrzano: ${Object.keys(PODRZANI_TIPOVI).join(", ")}.`);
   }
   const podaci = readFileSync(putanja).toString("base64");
-  const model = process.env.OLX_VID_MODEL || "claude-haiku-4-5";
+  const model = vidModel();
+  const upit = pitanje?.trim() || PODRAZUMIJEVANO_PITANJE;
+
+  if (vidProvajder() === "gemini") {
+    const pocetak = Date.now();
+    try {
+      const r = await pozoviGemini({
+        kljuc,
+        model,
+        dijelovi: [{ inline_data: { mime_type: mediaType, data: podaci } }, { text: upit }],
+      });
+      if (!r.tekst) throw new Error("Vision model nije vratio tekst.");
+      zabiljezi(model, { input_tokens: r.ulazTokena, output_tokens: r.izlazTokena }, Date.now() - pocetak, true);
+      return { opis: r.tekst, model, ulaz_tokena: r.ulazTokena, izlaz_tokena: r.izlazTokena };
+    } catch (e) {
+      zabiljezi(model, { input_tokens: 0, output_tokens: 0 }, Date.now() - pocetak, false, String(e instanceof Error ? e.message : e));
+      throw e;
+    }
+  }
 
   const klijent = new Anthropic({
     apiKey: kljuc,
@@ -110,7 +141,7 @@ export async function opisiSliku(putanja: string, pitanje?: string): Promise<Opi
               type: "image",
               source: { type: "base64", media_type: mediaType as "image/jpeg" | "image/png" | "image/gif" | "image/webp", data: podaci },
             },
-            { type: "text", text: pitanje?.trim() || PODRAZUMIJEVANO_PITANJE },
+            { type: "text", text: upit },
           ],
         },
       ],

@@ -80,6 +80,29 @@ if (!existsSync(".env")) {
     else fali("DeepSeek pogon", "OLX_KLIJENT_AI=deepseek a OLX_DEEPSEEK_* nije popunjen: cuvar odbija start", "popuni OLX_DEEPSEEK_BASE_URL i OLX_DEEPSEEK_AUTH_TOKEN u .env");
   }
 
+  // Kanal je eksperimentalna funkcija Claude Code-a i registruje se samo ako smije provjeriti
+  // sta je dostupno. CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC tu provjeru gasi, pa poruke sa
+  // Telegrama tiho ne dodju u sesiju: nema greske, bot samo ne odgovara. Izmjereno 30.07.2026.
+  // (olx-dokumentacija/deepseek-nalazi.md). U .env je fatalno, jer loadEnvFile to daje sesiji.
+  {
+    const IME = "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC";
+    let uEnvFajlu = false;
+    try {
+      uEnvFajlu = readFileSync(".env", "utf8")
+        .split("\n")
+        .some((red) => red.trim().startsWith(`${IME}=`) && !red.trim().startsWith("#"));
+    } catch {
+      // .env je vec provjeren iznad
+    }
+    if (uEnvFajlu) {
+      fali(IME, "postavljen u .env: Telegram kanal se nece registrovati i bot nece odgovarati", `izbrisi red ${IME} iz .env`);
+    } else if (process.env[IME]) {
+      paznja(IME, "postavljen u okruzenju: gdje god se sesija tako pokrene, Telegram kanal tiho ne radi", `izbrisi ${IME} iz ~/.claude/deepseek.env i shell profila`);
+    } else {
+      ok("Kanal nije ugasen varijablom okruzenja");
+    }
+  }
+
   if (!Number(process.env.OLX_MAX_SPEND_PER_DAY)) {
     paznja("OLX_MAX_SPEND_PER_DAY", "0 znaci BEZ dnevnog plafona kredita", "postavi plafon u .env prije prvog klijenta");
   } else ok("Dnevni plafon kredita", process.env.OLX_MAX_SPEND_PER_DAY);

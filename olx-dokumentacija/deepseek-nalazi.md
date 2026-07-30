@@ -95,13 +95,189 @@ manje alata znaci manje pogresnih izbora slabijeg modela. Redoslijed po isplativ
 5. **Skracivanje opisa alata.** Dva najveca alata su petina MCP prefiksa. Njihovi opisi se mogu
    stegnuti bez gubitka znacenja.
 
+## Telegram kanal, izmjereno 29.07.2026. na claude 2.1.220
+
+Kanal ne zavisi od modela, ali **zavisi od jedne varijable okruzenja**, i to je bio pravi
+uzrok price da kanal na DeepSeeku ne radi.
+
+Telegram plugin je obican MCP server: dolaznu poruku salje kao notifikaciju
+`notifications/claude/channel`, a nju obradjuje Claude Code klijent i ubacuje je u sesiju kao
+potez. Model u tome ne ucestvuje, isto kao sa MCP alatima.
+
+### CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC gasi kanal
+
+Izmjereno 30.07.2026., tri sesije istog trena, jedina razlika je okruzenje. Nalaz je linija iz
+`--debug-file` loga koja se pojavi u prve tri sekunde starta, pa se provjera radi bez ikakve
+poruke sa Telegrama:
+
+| Okruzenje | Linija u debug logu |
+|---|---|
+| DeepSeek, sa `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` | `channels feature is not currently available` |
+| DeepSeek, bez te varijable | `Channel notifications registered` |
+| Pretplata | `Channel notifications registered` |
+
+Kanal je eksperimentalna funkcija, a ta varijabla gasi upravo saobracaj kojim Claude Code
+provjerava sta je od eksperimentalnih funkcija dostupno. Bez te provjere kanal se tiho ne
+registruje: TUI ispise samo `Channels are not currently available`, poruke sa Telegrama nikad
+ne dodju u sesiju, a nista ne izgleda kao greska.
+
+Posljedica: `~/.claude/deepseek.env` (licna komanda `claude-ds`) tu varijablu ima, pa rucne
+DeepSeek sesije kanal ne mogu koristiti dok se ona ne izbaci. Pogon je nikad nije postavljao,
+jer `aiPogon()` mapira samo `OLX_DEEPSEEK_*` varijable, ali je zato razlika izmedju rucnog i
+pogonskog ponasanja izgledala kao da je problem u provajderu.
+
+### Disciplina reply-a: izmjereno, i popravljeno u promptu
+
+Model MORA pozvati alat `reply`. Ako samo prica, klijent ne vidi nista, jer transkript sesije
+ne ide na Telegram. Ovo nije teorija, izmjereno je 30.07.2026. na istom botu, dva prolaza koji
+se razlikuju samo po sistemskom promptu:
+
+| Prolaz | Sta je model uradio |
+|---|---|
+| DeepSeek, bez `SISTEM-klijent.md` | poruka isporucena, pozvao `olx_whoami` i `olx_profile_stats` oba uspjesno, pa **stao bez `reply`**. Covjek na Telegramu nije dobio nista. |
+| DeepSeek, sa `SISTEM-klijent.md` | `Calling MCP tool: reply` i `Tool 'reply' completed successfully`. Odgovor je stigao na telefon. |
+
+Dakle posao je model radio ispravno i prije, samo ga nije dostavio. Instrukcije Telegram
+plugina ("anything you want them to see must go through the reply tool") slabijem modelu nisu
+bile dovoljne. Zato je pravilo o `reply` sada PRVA sekcija u `runtime/SISTEM-klijent.md`, prije
+svih pravila o stilu: kod slabijeg modela mjesto pravila u promptu mijenja ishod.
+
+Dvije stvari izmjerene laznim probnim kanalom:
+
+- `--channels` prima dva oblika: `plugin:<ime>@<marketplace>` za kanale sa odobrene liste, i
+  `server:<ime>` za rucno konfigurisan MCP server. Drugi oblik trazi jos i
+  `--dangerously-load-development-channels`, pa je samo za razvoj.
+- **Sesija bez TTY-a ne radi.** Bez terminala Claude Code prelazi u `--print` rezim i odmah
+  izadje sa `Input must be provided either through stdin or as a prompt argument when using
+  --print`. Isto se desi i kad je stdin cijev koja ne salje nista. Kanal se isporucuje samo u
+  interaktivnoj sesiji.
+
+Zadnja tacka je rizik za pogon: `scripts/cuvar-sesije.mjs` spawna `claude` sa `stdio: "inherit"`,
+a pod launchd je stdin `/dev/null` (plist nema `StandardInPath`), dakle bez TTY-a. Na ovoj
+verziji bi sesija pala u startu, cuvar bi to vidio kao brzi pad i alarmirao. Na ovoj masini se
+to nikad nije pokazalo jer ovdje nijedan klijentski klon nema `.claude-runtime` ni instalirane
+launchd poslove.
+
+Razmatrana su dva izlaza. Drugi je probom ispod odbacen, pa ostaje samo prvi:
+
+1. **Dati sesiji pty.** Node to iz jezgra ne umije (`node-pty` je nativna zavisnost, a `script`
+   na macOS-u trazi da i sam ima terminal), pa je ovo skuplje nego sto izgleda. Radna
+   zaobilaznica za probu je bio mali Python pty pokretac, ali Windows pty nema.
+2. ~~Ne ici u interaktivni rezim nego u `-p --input-format stream-json`.~~ Takva sesija ostaje
+   ziva i ne izlazi, ali kanal u njoj ne radi (izmjereno, vidi ispod).
+
+### Izmjereno pravim botom, 30.07.2026.
+
+Probni bot iz BotFathera, izolovan `TELEGRAM_STATE_DIR`, poruka poslana sa telefona:
+
+- **`-p --input-format stream-json` NE isporucuje kanal u potez.** Plugin je poruku primio i
+  propustio kroz kontrolu pristupa (na Telegramu se vidio typing indikator, a njega plugin
+  salje neposredno prije nego posalje notifikaciju), ali sesija na nju nije reagovala i `reply`
+  nije pozvan. Dakle rezim koji radi bez terminala kanal ne obradjuje.
+- **Interaktivna sesija na pravom pty radi cijeli krug.** Iz debug loga
+  (`--debug-file`): `Channel notifications registered`, pa `notifications/claude/channel: reci
+  samo KANAL-RADI`, pa `Calling MCP tool: reply` i `Tool 'reply' completed successfully`.
+  Odgovor je stigao na telefon.
+
+Cetiri nusnalaza iz istog testa, svaki od njih moze pojesti sate:
+
+- `/start` i `/help` su komande bota sa vlastitim handlerom u pluginu i **do sesije ne dolaze**,
+  nego vrate ugradjeni tekst o uparivanju. Proba mora ici obicnom porukom, inace izgleda kao da
+  kanal ne radi.
+- Poruka koja nije prosla kroz kontrolu pristupa se tiho ispusta, bez ikakvog traga u sesiji.
+  Kad se debugira tisina bota, prvo se gleda `access.json` u `TELEGRAM_STATE_DIR`, a ne model.
+- **Sesija pokrenuta iz druge Claude Code sesije kanal ne obradjuje.** Dijete naslijedi
+  `CLAUDE_CODE_SESSION_ID` i `CLAUDE_CODE_CHILD_SESSION` i vlada se kao ugnijezdjeno dijete
+  (Claude Code sam javi da je cuvanje transkripta ugaseno). Prva proba je zbog toga izgledala
+  kao da kanal ne radi. Ne dira pogon (launchd ne nosi te varijable), ali svako rucno testiranje
+  iz Claude sesije mora ih obrisati.
+- Ime alata je `mcp__plugin_telegram_telegram__reply`, ne `mcp__telegram__reply`. Krace ime u
+  `--allowedTools` ne uhvati nista, pa sesija stane na potvrdu koju preko Telegrama nema ko
+  kliknuti. Isto vazi za `allow` liste u settings fajlovima.
+
+Zakljucak za pogon: interaktivna sesija je jedini rezim u kojem kanal radi, a ona trazi TTY.
+Znaci `cuvar-sesije.mjs` mora dobiti pty; prelazak na stream-json nije izlaz. To je jedina
+stavka iz ovog poglavlja koja je i dalje otvorena.
+
+### Izlaz koji ne zavisi od kanala: Telegram most
+
+`scripts/telegram-most.mjs` (`npm run most`). Umjesto da Telegram visi na zivoj interaktivnoj
+sesiji, most sam vodi razgovor:
+
+```
+Telegram getUpdates -> red na disku -> ziva `claude -p` sesija (stdin) -> sendMessage
+```
+
+Sesija je JEDAN dugozivi proces u `-p --input-format stream-json` rezimu. Izmjereno 30.07.2026.
+da takva sesija prima poruke kroz stdin kad god se posalju, odgovara, i pamti kontekst izmedju
+poruka, sve bez terminala: poslano "zapamti broj 4731", pa 32 sekunde kasnije "koji broj sam ti
+rekao", odgovor 4731. Isti transport koristi i zvanicni Agent SDK (`query()` sa `AsyncIterable`
+promptom; `unstable_v2_createSession` je ukinut u 0.3.142).
+
+Sta se time rjesava odjednom:
+
+- nema TTY-a, dakle radi pod launchd i pod Windows Task Schedulerom
+- ne zavisi ni od jedne eksperimentalne funkcije koju varijabla okruzenja moze ugasiti
+- nema problema sa disciplinom `reply`: sto model napise, to covjek dobije
+- nema troska pokretanja po poruci, kes prefiksa ostaje topao
+
+Sta se gubi naspram kanala: reakcije emojijem i naknadna izmjena poslane poruke. Typing
+indikator i dolazne fotografije su rijeseni rucno (fotografija pada u isti inbox koji klijentski
+settings vec dozvoljavaju citati).
+
+**Nijedna poruka se ne gubi**, i to nosi red na disku, ne transport: Telegram offset se pomjera
+samo nakon sto je poruka zapisana u red, a stavka izlazi iz reda samo nakon sto je odgovor
+poslan. Izmjereno: proces ubijen 10 sekundi nakon prijema poruke, poruka ostala u redu, i
+odgovorena 16 sekundi nakon restarta bez ikakve ljudske radnje. Isporuka je najmanje jednom,
+sto je za ovaj posao ispravan izbor: dupli odgovor je neugodan, propusten je izgubljen klijent.
+
+Allowlist se ne duplira: most cita isti `access.json` koji pripremi skripte vec pisu.
+
+### Sta je od svega ovoga bio pravi uzrok
+
+Prica je pocela od pretpostavke da `--channels` ne radi na modelima koji nisu Anthropicovi.
+Ispalo je da su u igri bila tri odvojena problema, i nijedan nije bio DeepSeek:
+
+1. `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` u okruzenju gasi kanal bez ikakve greske.
+2. Bez pravila u promptu model uradi posao ali ga ne posalje kroz `reply`.
+3. Sesija bez TTY-a se ne pokrene, pa pogon pod launchd treba pty.
+
+Kad se prva dva srede, DeepSeek vozi Telegram kanal cijelim krugom. Alternativni Telegram most
+se ne pise.
+
+### Skripta za ponavljanje testa
+
+Oba pitanja rjesava jedan test, i za njega postoji skripta. Trazi PROBNI bot iz BotFathera,
+nikad klijentov, jer dva pollera na istom tokenu daju 409 i obaraju ziv bot:
+
+```
+( set -a; . ~/.claude/deepseek.env; set +a; npm run kanal:proba -- <bot_token> <telegram_id> )
+```
+
+Skripta pokrene sesiju u `-p --input-format stream-json` rezimu, dakle bez terminala, sa
+izolovanim `TELEGRAM_STATE_DIR` pod `.olx-pik/`, i javi dvije stvari odvojeno: da li je dolazna
+poruka stigla do sesije i da li je sesija pozvala `reply`. Bez pogona u okruzenju istu skriptu
+pokrenutu golu mjeri pretplatu, sto je koristan kontrolni prolaz.
+
 ## Granice koje ostaju
 
 - Podaci klijenata idu na DeepSeek servere. Racunati na to kod obecanja diskrecije.
 - Slike i dokumenti se ignorisu na tom endpointu. Zaobilaznica za pogon: vision proxy alat
-  `olx_opisi_sliku` (pali se sa `OLX_VID_API_KEY` u .env, vidi `.env.example` i
-  `src/core/vid.ts`) opise sliku jeftinim Claude Haiku modelom pa DeepSeek sesija nastavi sa
-  tekstom.
+  `olx_opisi_sliku` (`src/core/vid.ts`) opise sliku jeftinim vision modelom, pa DeepSeek sesija
+  nastavi sa tekstom. Dva provajdera, `OLX_VID_PROVAJDER`:
+
+  | Provajder | Model | Po slici | Napomena |
+  |---|---|---|---|
+  | anthropic (default) | claude-haiku-4-5 | oko $0.003 | trazi vlastiti Anthropic kljuc |
+  | gemini | gemini-3.1-flash-lite | oko $0.0007 (izmjereno 1147 ulaznih, 294 izlazna tokena) | koristi ISTI kljuc kao generisanje slika |
+
+  Gemini je izabran kao preporuka jer generisanje slika (`olx_generiraj_sliku`) svakako trazi
+  Gemini kljuc, pa jedan adapter (`src/core/gemini.ts`) pokriva oba posla, i fotografije
+  klijenta idu samo jednom vanjskom servisu umjesto dvama. Oba imena modela su provjerena
+  pozivom `/v1beta/models` 30.07.2026.
+- Vazno uz to: instrukcije Telegram plugina same govore sesiji da procita fajl slike, a to na
+  ovom endpointu obara potez. Zato je pravilo o slikama tvrda granica u `granice.md`, ne
+  preporuka u skillu (skill se u klijentskoj sesiji i ne otvara, `Skill` je tamo zabranjen).
 - Flash u testu discipline nije pozvao nijedan alat na zahtjev za izdvajanje, samo je pricao.
   Pro je pozvao `olx_sponsor_price`, sto je ispravan prvi korak. Za radnje koje trose kredite
   koristiti pro, ili ostaviti na Claudeu.

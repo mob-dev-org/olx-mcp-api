@@ -24,6 +24,8 @@ import { nadjiPoUpitu } from "../core/match.js";
 import { PLAN_FILE, upisiPlan, zauzmiKljuc } from "../core/plan-fajl.js";
 import { buildPlan, planSazetak, type PlanKandidat } from "../core/plan.js";
 import { opisiSliku, vidKonfigurisan } from "../core/vid.js";
+import { ODNOSI, RECEPTI, ZADANI_ODNOS, generisiSliku, maxDnevno, slikaKonfigurisana, type Odnos } from "../core/slika.js";
+import { brojPozivaDanas } from "../core/ai-dnevnik.js";
 
 // Ucitaj .env ako postoji (Node 20.12+), da OLX_TOKEN bude dostupan i kad server pokrene MCP
 // klijent. Prvo iz radnog direktorija; ako ga tamo nema, iz korijena klona kojem pripada OVAJ
@@ -616,6 +618,64 @@ if (vidKonfigurisan()) {
     async (args) => {
       try {
         return ok(await opisiSliku(args.putanja, args.pitanje));
+      } catch (e) {
+        return errResult(String(e instanceof Error ? e.message : e));
+      }
+    },
+  );
+}
+
+// Generisanje slike oglasa. Registruje se SAMO kad je OLX_SLIKA_API_KEY postavljen, isto kao
+// vision proxy. Kosta vanjski AI racun (ne OLX kredite), pa nosi confirm branu i dnevni plafon.
+if (slikaKonfigurisana()) {
+  server.registerTool(
+    "olx_generiraj_sliku",
+    {
+      title: "Napravi sliku oglasa iz fotografije",
+      description:
+        "Iz poslane fotografije napravi novu sliku artikla: cist prostor i ravno svjetlo, artikal ostaje isti " +
+        "(stanje, boja i ostecenja se ne popravljaju). Ne trosi OLX kredite nego vanjski AI racun, pa bez " +
+        "confirm true samo vrati sta bi radio i stanje dnevnog plafona. Vraca putanju nove slike, spremnu za " +
+        "olx_upload_images ili za slanje korisniku na odobrenje.",
+      inputSchema: {
+        recept: z
+          .string()
+          .min(3)
+          .describe(`ime recepta (${Object.keys(RECEPTI).join(", ")}) ili slobodna uputa na engleskom`),
+        slike: z
+          .array(z.string().min(1))
+          .optional()
+          .describe("putanje do poslanih fotografija, npr. iz Telegram inboxa; prva je glavna"),
+        logo: z.string().optional().describe("ime firme koje ide na tablu u pozadini, samo za recepte koji ga koriste"),
+        odnos: z.enum(ODNOSI).optional().describe(`odnos strana, default ${ZADANI_ODNOS} jer je kartica oglasa pejzazna`),
+        confirm: z.boolean().optional().describe("true tek nakon sto korisnik potvrdi"),
+      },
+    },
+    async (args) => {
+      const plafon = maxDnevno();
+      const danas = brojPozivaDanas("slika");
+      if (!args.confirm) {
+        return ok({
+          napravljeno: false,
+          trazi_potvrdu: true,
+          recept: args.recept,
+          ulaznih_slika: args.slike?.length ?? 0,
+          odnos: args.odnos ?? ZADANI_ODNOS,
+          danas_generisano: danas,
+          plafon,
+          napomena:
+            "Nista nije napravljeno. Generisanje ne trosi OLX kredite. Ponovi poziv sa confirm: true kad korisnik potvrdi.",
+        });
+      }
+      try {
+        return ok(
+          await generisiSliku({
+            recept: args.recept,
+            ulazneSlike: args.slike,
+            logo: args.logo,
+            odnos: args.odnos as Odnos | undefined,
+          }),
+        );
       } catch (e) {
         return errResult(String(e instanceof Error ? e.message : e));
       }

@@ -1,8 +1,9 @@
 // Slanje poruka na Telegram preko Bot API-ja.
 //
 // Namjerno malen i bez zavisnosti: koriste ga cron poslovi koji rade BEZ modela, pa cijeli
-// dnevni izvjestaj kosta nula tokena. Interaktivni bot ne koristi ovo, on ide kroz Telegram
-// plugin Claude Code-a.
+// dnevni izvjestaj kosta nula tokena. Koristi ga i `scripts/telegram-most.mjs` za izlazni
+// smjer bota. Sesija koja ide kroz Telegram plugin (`--channels`) ovo ne koristi, ona ima
+// vlastiti `reply` alat.
 //
 // Dvije adrese, dvije publike:
 //   TELEGRAM_CHAT_ID        grupa klijenta, tu ide izvjestaj
@@ -63,6 +64,41 @@ export async function posaljiPoruku(
     }
   }
   return dijelovi.length;
+}
+
+/**
+ * Salje sliku sa diska. Koristi ga Telegram most kad je sesija napravila novu sliku oglasa
+ * (`olx_generiraj_sliku`), da je covjek vidi i odobri prije objave.
+ *
+ * `sendPhoto` je multipart, ne JSON, pa ide preko FormData. Telegram slike komprimuje; za
+ * original bi trebao `sendDocument`, ali za pregled na telefonu je slika ono sto covjek ocekuje.
+ *
+ * Ne baca kad chatId nije postavljen, nego vraca false: isti ugovor kao posaljiPoruku.
+ */
+export async function posaljiSliku(
+  putanja: string,
+  opcije: { botToken?: string; chatId?: string; opis?: string } = {},
+): Promise<boolean> {
+  const cfg = telegramConfig();
+  const token = opcije.botToken ?? cfg.botToken;
+  const chat = opcije.chatId ?? cfg.chatId;
+  if (!token || !chat) return false;
+
+  const { readFile } = await import("node:fs/promises");
+  const { basename } = await import("node:path");
+  const podaci = await readFile(putanja);
+  const forma = new FormData();
+  forma.append("chat_id", chat);
+  // Telegram caption ima svoj limit oko 1024 znaka; duzi tekst ide odvojenom porukom.
+  if (opcije.opis) forma.append("caption", opcije.opis.slice(0, 1000));
+  forma.append("photo", new Blob([new Uint8Array(podaci)]), basename(putanja));
+
+  const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: "POST", body: forma });
+  if (!res.ok) {
+    const tijelo = await res.text().catch(() => "");
+    throw new TelegramError(`Telegram je odbio sliku (HTTP ${res.status}): ${tijelo.slice(0, 200)}`, res.status);
+  }
+  return true;
 }
 
 /**

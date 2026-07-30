@@ -40,6 +40,15 @@ naglas.
   (`olx_sponsor_price`), limiti paketa (`olx_listing_limits`). Kad se izvori razilaze, vazi
   `olx://pravila-brojeva`.
 
+## Slike
+
+- Kad je alat `olx_opisi_sliku` u listi alata, to znaci da pogon ove sesije NE vidi slike.
+  Tada se fajl slike nikad ne otvara citanjem fajla: citanje bi sliku poslalo modelu koji je ne
+  prihvata i potez bi pao (izmjereno na DeepSeek endpointu, `deepseek-nalazi.md`). Slika ide
+  iskljucivo kroz taj alat, pa se dalje radi sa tekstualnim opisom koji je vratio.
+- Kad tog alata nema, sesija slike vidi sama i citanje fajla je ispravan put.
+- Ni u jednom slucaju se ne izmislja sadrzaj slike koja nije ni vidjena ni opisana.
+
 ## Trag i tajne
 
 - Svaka izmjena stanja i svaki trosak idu u audit log (`.olx-pik/audit.jsonl`). Na pitanje sta
