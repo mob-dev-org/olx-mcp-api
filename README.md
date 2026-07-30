@@ -247,8 +247,10 @@ handshake, polje `version` u audit logu i prva stavka `node scripts/provjeri-klo
 izdanju klon: `git describe --tags`.
 
 Izdanje se pravi sa `node scripts/izdanje.mjs <broj>` (provjeri preduslove, pa `npm version` vrti
-testove i prepise konstantu), nosi anotiran tag `vX.Y.Z`, a `stabilno` je prekidac koji kaze koje
-izdanje vozi flota. Sta je uslo po izdanju: `CHANGELOG.md`. Puna procedura izdanja i vracanja:
+testove, prepise konstantu i izgradi), nosi anotiran tag `vX.Y.Z`. Pustanje u flotu je
+`node scripts/pusti-u-flotu.mjs [--pomjeri-stabilno]`: bez zastavice sve je povratno, sa njom se
+pomjera prekidac `stabilno` (koji kaze koje izdanje flota vozi) i azurira flota. Cijeli tok vodi
+skill `olx-izdanje`. Sta je uslo po izdanju: `CHANGELOG.md`. Zasto dva taga:
 `olx-dokumentacija/arhitektura.md`, sekcija 7.
 
 Zaostaje li ovaj klon: `node scripts/provjeri-izdanje.mjs` (isto javi i hook pri pokretanju

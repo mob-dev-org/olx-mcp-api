@@ -216,12 +216,16 @@ rad na main  ->  test na svom klonu  ->  npm version  ->  tag vX.Y.Z  ->  stabil
    `package.json` i `package-lock.json`, hook `version` prepise `src/core/verzija.ts` kroz
    `scripts/upisi-verziju.mjs`, i npm napravi commit i anotiran tag `vX.Y.Z`. Prije toga upisi
    sekciju u `CHANGELOG.md`: test pada ako izdanje nema zapis.
-4. `git push --follow-tags origin main`. Izdanje je od ovog trenutka dokaziv, nepomican ref.
-5. **Zadnje** pomjeri prekidac: `git tag -f stabilno vX.Y.Z && git push -f origin stabilno`.
-   Zadnje je namjerno: `stabilno` je jedini ref koji flota prati, pa se pomjera samo kad je sve
-   ostalo vec na remoteu.
-6. Azuriraj klonove. **Skripta se pokrece na masini gdje klonovi zive**, jer restartuje njihove
-   poslove: klonovi na Windowsu se ne mogu azurirati sa macOS-a ni obrnuto.
+4. `node scripts/pusti-u-flotu.mjs` gura commit i tagove na remote i tu STANE. Do ove tacke je sve
+   povratno.
+5. Nepovratni dio, iza eksplicitne zastavice: `node scripts/pusti-u-flotu.mjs --pomjeri-stabilno`
+   pomjeri prekidac na izdanje i sam pokrene azuriranje flote. Prekidac ide zadnji namjerno:
+   `stabilno` je jedini ref koji flota prati, pa se pomjera samo kad je sve ostalo vec na remoteu.
+   **Pokrece se na masini gdje klonovi zive**, jer restartuje njihove poslove: klonovi na Windowsu
+   se ne mogu azurirati sa macOS-a ni obrnuto.
+
+Cijeli tok od "posao je gotov" do "flota vozi novo", ukljucujuci changelog i evidenciju, vodi skill
+`olx-izdanje`. Rucne komande ispod su ono sto on izvrsava, ne alternativa njemu.
 
 | Masina | Komanda | Prikaz bez izmjene |
 | --- | --- | --- |
@@ -265,11 +269,11 @@ Tri pravila koja su u obje skripte i nisu slucajna:
   runda obnova van reda. Oni novi kod uzmu sami na sljedecem terminu, jer su jednokratni node
   procesi. Restart treba samo sesijama, jer one jedine drze stari kod i stari prompt u memoriji.
 
-Vracanje na prethodnu verziju je pomjeranje prekidaca na prethodno izdanje pa ponovo azuriranje:
+Vracanje na prethodnu verziju je pomjeranje prekidaca na prethodno izdanje pa ponovo azuriranje, i
+to je jedan potez:
 
 ```
-git tag -f stabilno v0.3.0 && git push -f origin stabilno
-scripts/azuriraj-sve.sh
+node scripts/pusti-u-flotu.mjs --izdanje v0.3.0 --pomjeri-stabilno
 ```
 
 Samo pomjeranje taga ne mijenja nista ni na jednoj masini, jer nema posla koji automatski povlaci.

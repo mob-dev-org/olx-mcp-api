@@ -44,9 +44,11 @@ Dodaje se povrh `CLAUDE.md` kroz `scripts/claude-olx.sh`. Klijentski runtime ovo
 - Izdanje nosi anotiran tag `vX.Y.Z`, a `stabilno` je prekidac koji kaze koje izdanje flota vozi.
   Izdanje se pravi sa `node scripts/izdanje.mjs <broj>` (skill `olx-izdanje`): skripta provjeri
   granu, cistu kopiju, sinhron sa remoteom, slobodan tag i sekciju u `CHANGELOG.md`, pa pusti
-  `npm version` koji vrti testove i prepise `src/core/verzija.ts`. Push i pomjeranje `stabilno`
-  ostaju rucni, u tom redu, jer ih flota odmah osjeti. Vracanje: `stabilno` na prethodni `v` tag pa
-  ponovo azuriranje. Puna procedura: `arhitektura.md` sekcija 7; sta je uslo: `CHANGELOG.md`.
+  `npm version` koji vrti testove, prepise `src/core/verzija.ts` i izgradi. Pustanje u flotu je
+  `node scripts/pusti-u-flotu.mjs`: bez zastavice gura commit i tagove i stane (sve povratno), a uz
+  `--pomjeri-stabilno` pomjeri prekidac i sam azurira flotu. Vracanje je isti potez sa
+  `--izdanje v0.3.0 --pomjeri-stabilno`. Cijeli tok, sa changelogom i evidencijom, vodi skill
+  `olx-izdanje`; sta je uslo po izdanju: `CHANGELOG.md`.
 - Zaostaje li klon: `node scripts/provjeri-izdanje.mjs` (isto javi i `SessionStart` hook pri
   pokretanju sesije, osim u klijentskoj bot sesiji gdje je namjerno tih). Povlacenje jednog klona:
   `node scripts/azuriraj-ovaj-klon.mjs [--restart]`; pri padu builda ili testova sam vraca klon na

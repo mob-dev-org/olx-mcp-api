@@ -45,9 +45,11 @@ Ucitava se samo kad se diraju skripte ili deploy. Mapa cijelog pogona:
   crni spisak u `src/core/backup-spisak.ts`. Dok nije ni na jednom, posao ga svakodnevno
   prijavljuje adminu kao nepoznato.
 - Poslovi koji rade bez modela (CLI `posao ...`) to i ostaju: u njih se model ne uvodi.
-- Izdanja: kod do klijenta ide samo kroz tag, i to kroz `scripts/izdanje.mjs` (skill
-  `olx-izdanje`). Ni jedna skripta ne pomjera prekidac `stabilno` sama i ni jedna ne pusha; to su
-  potezi koje flota odmah osjeti, pa ostaju ljudska odluka.
+- Izdanja: kod do klijenta ide samo kroz tag, i to kroz `scripts/izdanje.mjs`, a u flotu kroz
+  `scripts/pusti-u-flotu.mjs` (skill `olx-izdanje` vodi oba). Granica je namjerna: `izdanje.mjs`
+  radi samo povratne stvari i nikad ne pusha, a nepovratni dio (prekidac `stabilno`, azuriranje
+  flote) trazi eksplicitnu zastavicu `--pomjeri-stabilno`. Nova skripta koja dira flotu drzi isto
+  pravilo: nepovratno iza zastavice, nikad kao default.
 - Klon ne povlaci kod sam. `SessionStart` hook (`provjeri-izdanje.mjs --samo-zaostajanje`) samo
   JAVI da klon zaostaje i da komandu. Dva razloga: zamjena koda ispod zive sesije ostavlja MCP
   server na starom buildu, a automatsko povlacenje u 03:00 zaobilazi kapiju i moze ostaviti

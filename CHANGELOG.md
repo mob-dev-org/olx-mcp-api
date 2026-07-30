@@ -8,6 +8,18 @@ Kako se cita broj verzije: `node dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
+## 0.6.0 — 2026-07-30
+
+Zatvaranje posla je sada jedan tok koji ide do kraja, umjesto niza komandi koje se pamte.
+
+- `scripts/pusti-u-flotu.mjs`: zadnji dio izdanja u jednom potezu. Bez zastavice radi samo povratno
+  (push commita i tagova) i stane; `--pomjeri-stabilno` pomjeri prekidac i sam azurira flotu.
+  Provjerava i da je izdanje anotiran tag, jer lightweight `v` tag pokvari `git describe` na
+  klonovima. Vracanje na staro izdanje je isti potez sa `--izdanje`.
+- Skill `olx-izdanje` prepisan u izvrsni tok od "posao je gotov" do "flota vozi novo": testovi,
+  changelog iz git loga, broj po sadrzaju izmjena, izdanje, pustanje, provjera da je proslo, pa
+  evidencija u clipboard. Ima dva rezima: povratni (do taga) i do kraja.
+
 ## 0.5.1 — 2026-07-30
 
 - `npm version` sada na kraju gradi (`postversion` hook). Bez toga je `dist` ostajao na starom
