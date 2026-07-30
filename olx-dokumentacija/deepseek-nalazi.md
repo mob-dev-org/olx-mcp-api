@@ -62,6 +62,40 @@ Mjereno na 14 probnih poziva: prosjek $0.000513 po pozivu, sto je oko $1.54 mjes
 poteza dnevno. Isti broj ulaznih tokena na `claude-opus-5` bio bi oko $33.82 mjesecno samo
 na ulazu.
 
+## Sta stvarno kosta u sesiji, izmjereno 30.07.2026.
+
+Mjereno na `deepseek-v4-pro` citanjem `usage` iz `result` poruke po potezu, u zivoj sesiji:
+
+| Potez | Ulaz ukupno | Promasaj | Iz kesa | Kes |
+|---|---|---|---|---|
+| 1 | 39.513 | 39.513 | 0 | 0% |
+| 2 | 39.526 | 102 | 39.424 | 100% |
+| 3 | 39.539 | 115 | 39.424 | 100% |
+
+Iz toga slijedi jedan zakljucak koji je suprotan intuiciji:
+
+- **Rastuca historija je prakticno besplatna.** Od drugog poteza kes hvata sve. Novi potez je
+  oko $0.0002, dakle blizu sto puta jeftinije od prvog.
+- **Trosak nosi POKRETANJE sesije**, oko 34 do 40 hiljada tokena punom cijenom, oko $0.015 na
+  pro i oko $0.005 na flash.
+- **Nova sesija NE hvata kes** za svoj prefiks: izmjereno 0% na prvom potezu, i to i sa
+  `--exclude-dynamic-system-prompt-sections` (ta zastava mijenja prefiks za samo 84 tokena, pa
+  nije ono cemu se nadamo).
+
+Prakticne posljedice:
+
+- Duga ziva sesija je jeftinija od mnogo kratkih. Zato Telegram most drzi JEDNU sesiju, a ne
+  proces po poruci.
+- Nocni restart cuvara kosta jedan prefiks, dakle oko pola centa. Nije vrijedno dirati.
+- Broj tokena na DeepSeek dashboardu nije mjera troska, jer se tokeni iz kesa broje a placaju
+  oko 120 puta manje. Gleda se kolona troska.
+- Skracivanje prefiksa vrijedi malo: od 34 do 40 hiljada tokena ovaj repo kontrolise oko 6.300
+  (tabela ispod), ostalo je ugradjeni sistemski prompt Claude Code-a sa njegovim alatima.
+  Gasenje grupe od 12 alata za kategorije i lokacije stedi 1.000 tokena po SESIJI, dakle pola
+  centa. Optimizacija ima smisla zbog manje pogresnih izbora slabijeg modela, ne zbog cijene.
+- Sto stvarno stedi: manje poteza za isti posao. Grupni alati umjesto petlje pojedinacnih
+  (pravilo je u `granice.md`, sekcija Grupne radnje).
+
 ## Sta ide u svaki potez iz ovog repoa
 
 | Dio | Znakova | Tokena |

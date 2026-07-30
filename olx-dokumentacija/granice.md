@@ -27,6 +27,16 @@ naglas.
   `olx_hide_listing` (artikal se vraca na stanje). Pravo brisanje je samo CLI `listings rm`,
   za ljudsku ruku.
 
+## Grupne radnje
+
+- Radnja nad VISE od jednog oglasa ide grupnim alatom, nikad pojedinacnim u petlji:
+  zavrsavanje i sakrivanje kroz `olx_bulk_sklanjanje`, obnove kroz `olx_refresh_bulk`, cijene
+  kroz `olx_bulk_price`. Grupni alat je jedan potez sa jednom potvrdom i jednim spiskom greska.
+- Petlja od N pojedinacnih poziva je N puta cekanja i N prilika da se pogrijesi ID, a korisnik
+  za to vrijeme ne vidi nista. Izmjereno u praksi 29.07.2026: 47 poziva `olx_finish_listing`
+  gdje je trebao jedan `olx_bulk_sklanjanje`.
+- Pojedinacni alat ostaje ispravan izbor za jedan oglas.
+
 ## Vidljivost
 
 - Na vrh se dolazi obnovom ili izdvajanjem, nikad brisanjem i ponovnim objavljivanjem. Ponovna
