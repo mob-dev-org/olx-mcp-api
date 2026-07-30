@@ -11,4 +11,4 @@
 // Broj se NE mijenja rucno usred rada. Mijenja ga `npm version <broj>`: npm podigne
 // `package.json`, pa hook `version` pozove `scripts/upisi-verziju.mjs` koji prepise liniju nize,
 // i oboje ulazi u isti commit. Parnost sa `package.json` cuva `verzija.test.ts`.
-export const VERZIJA = "0.5.1";
+export const VERZIJA = "0.6.0";
