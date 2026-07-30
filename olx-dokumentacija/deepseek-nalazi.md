@@ -96,6 +96,43 @@ Prakticne posljedice:
 - Sto stvarno stedi: manje poteza za isti posao. Grupni alati umjesto petlje pojedinacnih
   (pravilo je u `granice.md`, sekcija Grupne radnje).
 
+## Koliko tezi lista oglasa, izmjereno 30.07.2026.
+
+Mjereno na pravom shopu od 120 aktivnih oglasa, kroz `kompaktList` iz `core/stats.ts`
+(tokeni procijenjeni kao znakovi/3.6):
+
+| Oblik | Znakova | Tokena |
+|---|---|---|
+| sirovo, `full: true` | 110.894 | 30.804 |
+| kompaktno, 9 polja (default) | 22.085 | **6.135** |
+| samo 4 polja za svjezinu (id, title, date, refresh_available) | 12.539 | 3.483 |
+| 3 polja, bez naslova | 7.201 | 2.000 |
+
+Po oglasu kompaktno: 184 znaka, oko 51 token. Naslovi su skupa stavka: izbacivanje naslova iz
+uzeg oblika stedi 1.483 tokena na 120 oglasa.
+
+Kompaktan oblik dakle vec skida 80% naspram sirovog. Zato **dinamicki izbor polja nije uveden**,
+i to je odluka a ne propust:
+
+- Usteda je mala: dodatnih 2.600 tokena je oko $0.001 na `pro`, i to samo prvi put, poslije ide
+  iz kesa.
+- Izbor polja je dodatna odluka za slabiji model. Isti model u tabeli discipline gore nije umio
+  ni pozvati alat za cijenu prije troska; da mu komponuje listu polja znaci da ce zatraziti sve,
+  ili zatraziti pogresan podskup pa napraviti drugi poziv.
+- Promjenljiv oblik izlaza kvari sve poslije: kad alat nekad vraca `date` a nekad ne, model ne
+  moze imati stabilnu naviku sta gdje gleda.
+
+Ako uza lista ikad zatreba, ide kao **imenovani oblik** (jedan parametar sa nekoliko fiksnih
+vrijednosti, npr. sazetak/svjezina/cijene), nikad kao slobodna lista polja: model tada bira
+jedno ime, izlaz ostaje predvidljiv, a usteda je ista.
+
+Kako katalog raste, lista raste linearno: 120 oglasa je 6.135 tokena, 500 bi bilo oko 25.000,
+sto je skoro cijeli danasnji prefiks sesije. Tvrda granica na broj oglasa se NE uvodi, jer se
+zabija u pravilo iz `SISTEM-klijent.md` da potpunost daje samo pun popis: rez bi tiho lagao o
+potpunosti. Put za velik katalog je da posao ide na agregirane alate koji racunaju u kodu
+(`olx_profile_stats`, `olx_mrtvi_oglasi`, `olx_listing_report`, `olx_sponsor_plan`,
+`olx_account_alerts`), pa lista modelu ne ide uopste.
+
 ## Sta ide u svaki potez iz ovog repoa
 
 | Dio | Znakova | Tokena |
