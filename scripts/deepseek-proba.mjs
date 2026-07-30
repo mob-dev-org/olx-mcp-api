@@ -30,9 +30,15 @@ function kljuc() {
   const iz_env = process.env.OLX_DEEPSEEK_AUTH_TOKEN?.trim();
   if (iz_env && !iz_env.includes("POPUNI")) return iz_env;
 
+  // Stari fajl je kroz vrijeme nosio kljuc pod dva imena: ANTHROPIC_AUTH_TOKEN (kako ga zove
+  // DeepSeek dokumentacija i sto je u praksi tamo) i ANTHROPIC_API_KEY. Prihvataju se oba, jer je
+  // ovo ispomoc za staru postavku; novo se podesava u .env klona.
   const putanja = process.env.DEEPSEEK_ENV_FILE || `${homedir()}/.claude/deepseek.env`;
   try {
-    const k = readFileSync(putanja, "utf8").match(/^ANTHROPIC_API_KEY=(.+)$/m)?.[1]?.trim();
+    const tekst = readFileSync(putanja, "utf8");
+    const k = (tekst.match(/^ANTHROPIC_AUTH_TOKEN=(.+)$/m) ?? tekst.match(/^ANTHROPIC_API_KEY=(.+)$/m))?.[1]
+      ?.trim()
+      ?.replace(/^["']|["']$/g, "");
     if (k && !k.includes("POPUNI")) return k;
   } catch {
     // fajl ne postoji: poruka nize kaze sta je pravo mjesto
