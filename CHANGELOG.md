@@ -8,6 +8,12 @@ Kako se cita broj verzije: `node dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
+## 0.5.1 — 2026-07-30
+
+- `npm version` sada na kraju gradi (`postversion` hook). Bez toga je `dist` ostajao na starom
+  broju odmah poslije izdanja, pa je `olx --version` govorio jedno a `package.json` drugo. Preflight
+  je to hvatao kao "src noviji od dist", ali izdanje ne treba ostavljati posao za preflight.
+
 ## 0.5.0 — 2026-07-30
 
 Upravljanje izdanjima prestaje biti popis koraka u dokumentu i postaje alat koji ne moze zaboraviti
