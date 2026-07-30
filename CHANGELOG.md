@@ -8,6 +8,13 @@ Kako se cita broj verzije: `node dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
+## 0.6.1 — 2026-07-30
+
+- Popravljen `npm test` na Windowsu: `node --test dist/core/` na Windowsu ne silazi u
+  direktorijum nego ga izvrsi kao jedan test koji lazno prijavi "1 pass", pa je citav paket od
+  235 testova tiho preskocen. Skripta sada eksplicitno navodi `"dist/core/**/*.test.js"`, sto
+  radi identicno na macOS-u i Windowsu jer glob resava sam Node, ne shell.
+
 ## 0.6.0 — 2026-07-30
 
 Zatvaranje posla je sada jedan tok koji ide do kraja, umjesto niza komandi koje se pamte.
