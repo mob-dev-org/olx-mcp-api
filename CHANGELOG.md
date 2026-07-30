@@ -8,6 +8,22 @@ Kako se cita broj verzije: `node dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
+## 0.5.0 — 2026-07-30
+
+Upravljanje izdanjima prestaje biti popis koraka u dokumentu i postaje alat koji ne moze zaboraviti
+redoslijed.
+
+- `scripts/izdanje.mjs` i skill `olx-izdanje`: izdanje se odbija ako bi bilo polovicno (pogresna
+  grana, prljava radna kopija, klon iza remotea, zauzet tag, nedostajuca sekcija u ovom fajlu).
+- Klon sam javi da zaostaje: `SessionStart` hook zove `scripts/provjeri-izdanje.mjs`, poredi klon sa
+  daljinskim prekidacem i da komandu. Ne povlaci nista sam, i tih je u klijentskoj bot sesiji da
+  verzija ne dodje u kontekst bota.
+- `scripts/azuriraj-ovaj-klon.mjs`: azuriranje jednog klona iz njega samog, na obje platforme. Pri
+  padu builda ili testova VRACA klon na prethodno izdanje i ponovo ga izgradi, pa nema stanja sa
+  novim `src` i starim `dist`.
+- Agent `olx-dijagnostika` gleda izdanje rano, jer simptom "od jucer" na klonu koji zaostaje cesto
+  ima popravku koja postoji ali nije dosla.
+
 ## 0.4.0 — 2026-07-30
 
 Prvo oznaceno izdanje. Sve prije ovoga se u audit logu i u `--version` prijavljuje kao `0.1.0`,

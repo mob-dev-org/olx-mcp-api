@@ -19,6 +19,9 @@ Ucitava se samo kad se diraju skripte ili deploy. Mapa cijelog pogona:
 - Isto vazi i za rucne admin komande koje diraju klonove: `azuriraj-sve.sh` ima blizanca
   `deploy/windows/azuriraj.ps1`. Skripta se pokrece na masini gdje klonovi zive, jer restartuje
   njihove poslove; klonovi na Windowsu se ne mogu azurirati sa macOS-a.
+- `azuriraj-ovaj-klon.mjs` i `provjeri-izdanje.mjs` su Node bez blizanaca, jer rade NA klonu
+  klijenta: jedan fajl mora raditi na obje platforme. Ko doda platformski specifican poziv, radi
+  ga kroz granu po `process.platform`, kako je vec radjeno za launchctl i schtasks.
 - Nista se ne konfigurise globalno po masini (zshrc, globalni exporti): sva konfiguracija
   zivi u repou i `.env` klona.
 
@@ -42,6 +45,18 @@ Ucitava se samo kad se diraju skripte ili deploy. Mapa cijelog pogona:
   crni spisak u `src/core/backup-spisak.ts`. Dok nije ni na jednom, posao ga svakodnevno
   prijavljuje adminu kao nepoznato.
 - Poslovi koji rade bez modela (CLI `posao ...`) to i ostaju: u njih se model ne uvodi.
+- Izdanja: kod do klijenta ide samo kroz tag, i to kroz `scripts/izdanje.mjs` (skill
+  `olx-izdanje`). Ni jedna skripta ne pomjera prekidac `stabilno` sama i ni jedna ne pusha; to su
+  potezi koje flota odmah osjeti, pa ostaju ljudska odluka.
+- Klon ne povlaci kod sam. `SessionStart` hook (`provjeri-izdanje.mjs --samo-zaostajanje`) samo
+  JAVI da klon zaostaje i da komandu. Dva razloga: zamjena koda ispod zive sesije ostavlja MCP
+  server na starom buildu, a automatsko povlacenje u 03:00 zaobilazi kapiju i moze ostaviti
+  klijenta bez bota ako build padne. Hook je uz to TIH u klijentskoj bot sesiji
+  (`CLAUDE_CONFIG_DIR` na `.claude-runtime`), jer bi mu izlaz usao u kontekst i bot bi verziju
+  mogao spomenuti klijentu.
+- Hook pri pokretanju sesije ne smije pasti ni visjeti: bez mreze, gita ili remotea izlazi tiho
+  sa kodom 0, a mrezni poziv ima rok (`OLX_PROVJERA_IZDANJA_ROK_MS`). Pad hooka je pad pokretanja
+  sesije, dakle klijent bez bota zbog kozmeticke provjere.
 
 ## Telegram botovi
 

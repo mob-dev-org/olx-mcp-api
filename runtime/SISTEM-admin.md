@@ -42,9 +42,16 @@ Dodaje se povrh `CLAUDE.md` kroz `scripts/claude-olx.sh`. Klijentski runtime ovo
   starom kodu. Windows ekvivalent: `deploy/windows/azuriraj.ps1` (isti popis, Task Scheduler
   umjesto launchd).
 - Izdanje nosi anotiran tag `vX.Y.Z`, a `stabilno` je prekidac koji kaze koje izdanje flota vozi.
-  Izdanje se pravi sa `npm version <broj>` (sam vrti testove i prepise `src/core/verzija.ts`), pa
-  se `stabilno` pomjeri na taj tag ZADNJE. Puna procedura i vracanje: `arhitektura.md` sekcija 7,
-  sta je uslo po izdanju: `CHANGELOG.md`. Verzija klona: prva stavka `provjeri-klon.mjs`.
+  Izdanje se pravi sa `node scripts/izdanje.mjs <broj>` (skill `olx-izdanje`): skripta provjeri
+  granu, cistu kopiju, sinhron sa remoteom, slobodan tag i sekciju u `CHANGELOG.md`, pa pusti
+  `npm version` koji vrti testove i prepise `src/core/verzija.ts`. Push i pomjeranje `stabilno`
+  ostaju rucni, u tom redu, jer ih flota odmah osjeti. Vracanje: `stabilno` na prethodni `v` tag pa
+  ponovo azuriranje. Puna procedura: `arhitektura.md` sekcija 7; sta je uslo: `CHANGELOG.md`.
+- Zaostaje li klon: `node scripts/provjeri-izdanje.mjs` (isto javi i `SessionStart` hook pri
+  pokretanju sesije, osim u klijentskoj bot sesiji gdje je namjerno tih). Povlacenje jednog klona:
+  `node scripts/azuriraj-ovaj-klon.mjs [--restart]`; pri padu builda ili testova sam vraca klon na
+  prethodno izdanje. Sesija to ne pokrece sama od sebe, ni jedna: zamjena koda ispod zive sesije
+  ostavlja MCP server na starom buildu.
   Skripta se pokrece na masini gdje klonovi ZIVE, pa klonovi na Windowsu ne mogu biti azurirani
   sa macOS-a i obrnuto. Oba imaju `--suho` / `-Suho` za prikaz bez ikakve izmjene.
 - `scripts/ai-runda.sh` (launchd sablon `ADMIN.ai-runda`, nedjelja 21h, instalira se rucno i

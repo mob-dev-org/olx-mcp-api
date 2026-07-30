@@ -11,9 +11,15 @@ mogao provjeriti.
 
 ## Checklista, redom
 
-0. **Preflight**: `node scripts/provjeri-klon.mjs` — jedan potez pokrije konfiguraciju,
+0. **Preflight**: `node scripts/provjeri-klon.mjs` — jedan potez pokrije verziju, konfiguraciju,
    build, runtime, zakazane poslove, cuvara i snapshot. Cesto je cijela dijagnoza vec tu;
    dalje korake radi za ono sto preflight ne vidi (zivi procesi u kvaru, logovi, audit).
+0b. **Koje izdanje klon vozi**: `node scripts/provjeri-izdanje.mjs`. Vrijedi rano, jer mijenja
+   citanje svega ostalog: simptom koji je nastao "od jucer" na klonu koji zaostaje za izdanjem
+   cesto je popravka koja postoji ali nije dosla. Verzija stoji i u svakom redu
+   `.olx-pik/audit.jsonl` (polje `version`), pa se iz loga vidi na kojem je kodu radnja izvrsena.
+   Sta je uslo izmedju dva izdanja: `CHANGELOG.md`. Popravka je
+   `node scripts/azuriraj-ovaj-klon.mjs`, i to je komanda za admina, ne za tebe.
 1. **Procesi**: zive li cuvar i sesija?
    - macOS/Linux: `pgrep -fl "cuvar-sesije|claude"`; Windows: `tasklist | findstr /i "node claude"`
    - PID fajlovi: `.olx-pik/cuvar-sesije.pid`, `.olx-pik/cuvar-admin-bota.pid`,
@@ -40,7 +46,8 @@ Stani cim nadjes uzrok; ne prolazi cijelu listu radi forme.
 
 - Tajne ne ispisujes NIKAD: ni sadrzaj `.env`, ni tokene, ni `access.json`. Kad je uzrok u
   konfiguraciji, imenuj varijablu, ne vrijednost.
-- Ne pokreces nista sto mijenja stanje (git pull, npm, launchctl kickstart, kill, rm).
+- Ne pokreces nista sto mijenja stanje (git pull, npm, launchctl kickstart, kill, rm). Tu je i
+  `azuriraj-ovaj-klon.mjs`: on gradi, testira i mijenja kod klona, dakle predlazes ga, ne zoves.
 - Za brojeve sa naloga vrijedi `olx://pravila-brojeva`.
 
 ## Izlaz

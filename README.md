@@ -246,9 +246,14 @@ Verzija sistema stoji u `src/core/verzija.ts` i vidi se na cetiri mjesta: `olx -
 handshake, polje `version` u audit logu i prva stavka `node scripts/provjeri-klon.mjs`. Na kojem je
 izdanju klon: `git describe --tags`.
 
-Izdanje se pravi sa `npm version <broj>` (hook sam vrti testove i prepise konstantu), nosi anotiran
-tag `vX.Y.Z`, a `stabilno` je prekidac koji kaze koje izdanje vozi flota. Sta je uslo po izdanju:
-`CHANGELOG.md`. Puna procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`, sekcija 7.
+Izdanje se pravi sa `node scripts/izdanje.mjs <broj>` (provjeri preduslove, pa `npm version` vrti
+testove i prepise konstantu), nosi anotiran tag `vX.Y.Z`, a `stabilno` je prekidac koji kaze koje
+izdanje vozi flota. Sta je uslo po izdanju: `CHANGELOG.md`. Puna procedura izdanja i vracanja:
+`olx-dokumentacija/arhitektura.md`, sekcija 7.
+
+Zaostaje li ovaj klon: `node scripts/provjeri-izdanje.mjs` (isto javi i hook pri pokretanju
+sesije). Povlacenje jednog klona: `node scripts/azuriraj-ovaj-klon.mjs [--restart]`, koji pri padu
+builda ili testova sam vraca klon na prethodno izdanje. Sesija kod ne povlaci sama od sebe.
 
 ### Podaci klijenata
 

@@ -13,7 +13,7 @@
     ]
   },
 
-  "//hooks": "Brana za tisinu bota: kad poruka dodje sa Telegram kanala a sesija je odgovorila samo u transkript, potez se blokira i model dobije priliku poslati reply. Pravilo o tome stoji i u SISTEM promptovima, ali se u praksi preskakalo, a zastita ide u harness a ne u prompt. Sesije bez kanala hook ne dira.",
+  "//hooks": "Stop: brana za tisinu bota, kad poruka dodje sa Telegram kanala a sesija je odgovorila samo u transkript, potez se blokira i model dobije priliku poslati reply. Pravilo o tome stoji i u SISTEM promptovima, ali se u praksi preskakalo, a zastita ide u harness a ne u prompt. Sesije bez kanala hook ne dira. SessionStart: klon stoji detached na tagu i ne prati nista sam, pa bez ovoga ne zna da je izdanje u medjuvremenu pomjereno; skripta samo javi i da komandu, nikad ne povlaci sama, i u klijentskoj bot sesiji je tiha.",
   "hooks": {
     "Stop": [
       {
@@ -21,6 +21,17 @@
           {
             "type": "command",
             "command": "node scripts/hook-telegram-odgovor.mjs"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/provjeri-izdanje.mjs --samo-zaostajanje",
+            "timeout": 15
           }
         ]
       }

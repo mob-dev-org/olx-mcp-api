@@ -165,7 +165,8 @@ dobiju polovicne analize.
 | sedmicni pregled ponedjeljkom | `ai-runda.sh` dok se ne instalira plist |
 | cuvari obje sesije: padovi, restarti, inbox | `provjeri-prompt.sh` poslije izmjene promptova |
 | AI runda kad se plist instalira | serijski poslovi po zelji (SEO prolaz, ciscenje) |
-| audit log svake izmjene i troska | pravo brisanje oglasa (`listings rm`) |
+| audit log svake izmjene i troska (nosi i verziju) | pravo brisanje oglasa (`listings rm`) |
+| prijava da klon zaostaje za izdanjem (hook pri startu sesije) | izdanje i pustanje u flotu (`izdanje.mjs`, skill `olx-izdanje`) |
 | admin bot: nadzor i rad preko Telegrama | priprema admin runtime-a (jednom po klonu) |
 | biljezenje tokena u transkriptima sesija | `npm run tokeni -- --upisi` sedmicno (trajni dnevnik) |
 
@@ -226,6 +227,22 @@ rad na main  ->  test na svom klonu  ->  npm version  ->  tag vX.Y.Z  ->  stabil
 | --- | --- | --- |
 | macOS, Linux | `scripts/azuriraj-sve.sh` | `scripts/azuriraj-sve.sh --suho` |
 | Windows | `powershell -ExecutionPolicy Bypass -File deploy\windows\azuriraj.ps1` | isto uz `-Suho` |
+| jedan klon, iz njega samog | `node scripts/azuriraj-ovaj-klon.mjs [--restart]` | isto uz `--suho` |
+
+Verzija ne mora biti napravljena rucno: `node scripts/izdanje.mjs <broj>` odbija izdanje koje bi
+bilo polovicno (pogresna grana, prljava kopija, klon iza remotea, zauzet tag, nedostajuca sekcija u
+`CHANGELOG.md`), pa pusti `npm version` da vrti testove i tagira. Skill: `olx-izdanje`.
+
+Klon ne prati nista sam, pa ne zna kad se prekidac pomjeri. To rjesava `SessionStart` hook
+(`provjeri-izdanje.mjs --samo-zaostajanje`): pri pokretanju sesije javi da klon zaostaje i da
+komandu, ali NIKAD ne povlaci sam. Dva razloga: zamjena koda ispod zive sesije ostavlja MCP server
+na starom buildu, a automatsko povlacenje u 03:00 zaobilazi kapiju i moze ostaviti klijenta bez
+bota. U klijentskoj bot sesiji je hook tih, jer bi mu izlaz usao u kontekst bota.
+
+`azuriraj-ovaj-klon.mjs` ima jednu razliku prema flotnim skriptama koja je namjerna: kad build ili
+testovi padnu, klon se VRACA na izdanje sa kojeg je krenuo i ponovo se izgradi. Flotne skripte tu
+ostavljaju checkout, pa klon zavrsi sa novim `src` i starim `dist`. Vrijedi ih na to poravnati kad
+se budu dirale.
 
 Oba rade isto, po klonu iz `~/.olx-klijenti.txt`: fetch tagova **sa `--force`**, checkout
 `stabilno`, `npm ci`, build, testovi, pa restart samo DUGOZIVIH poslova (`sesija`, `admin-bot`).
