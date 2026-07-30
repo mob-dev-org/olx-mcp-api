@@ -374,6 +374,51 @@ je najjeftiniji: `gemini-2.5-flash-image` $0.039, `gemini-3.1-flash-image` $0.06
 
 Batch cijena je pola ($15/M, oko $0.017 po slici), ali batch je asinhron i ne moze u razgovor
 na Telegramu.
+
+### Model sliku PRECRTAVA, ne retusira. Izmjereno 30.07.2026.
+
+Ovo je najvazniji nalaz o generisanju slika i mijenja gdje se alat smije koristiti.
+
+Proba na dvije vrste ulaza, istim receptom `proizvod-bijela`:
+
+| Ulaz | Rezultat |
+|---|---|
+| jedan jednostavan predmet (solja) | odlicno: cista bijela pozadina, meka sjena, predmet vjeran |
+| stvarna slika sa oglasa: paleta od ~30 party artikala sa brendiranim pakovanjima | **neupotrebljivo**: raspored artikala promijenjen, neki nestali, natpisi na pakovanjima izmisljeni i necitljivi |
+
+Uzrok je u prirodi modela: on ne mijenja piksele postojece slike nego crta novu sliku po njoj.
+Na jednom predmetu to je nevidljivo, na slozenoj fotografiji izmislja sve cega se ne moze
+"sjetiti", a to su upravo natpisi i broj artikala. Takva slika laze kupca o tome sta dobija.
+
+Pravila koja iz toga slijede:
+
+- Alat je za JEDAN prepoznatljiv predmet (jedan artikal, jedno vozilo), ne za palete, komplete
+  ni police.
+- Korisnik UVIJEK uporedi staru i novu sliku prije objave. Ovo se ne moze automatizovati, jer
+  jedini koji zna sta je na slici je onaj koji je artikal drzao u ruci.
+- Masovni prolaz kroz postojeci katalog se NE radi. I bez pitanja tacnosti, 120 oglasa je oko
+  $5 i 12 dana pri dnevnom plafonu, ali glavni razlog je da bi dio slika tiho postao netacan.
+
+### Sta API dopusta oko slika, izmjereno 30.07.2026.
+
+Za tok "uzmi staru sliku sa oglasa, obradi je, vrati na oglas" tri koraka rade, cetvrti ne:
+
+| Korak | Stanje |
+|---|---|
+| citanje starih slika | radi: pun oglas ima `images` kao niz URL-ova |
+| obrada kroz Gemini | radi: `olx_generiraj_sliku` prima i URL, sam ga skine (`skiniUlaznuSliku`) |
+| upload nove slike | radi: `olx_upload_images` sa `urls` ili `file_paths` |
+| brisanje starih slika | **ne moze** |
+
+Zasto ne moze: `image-delete` i `image-main` traze `imageId` u tijelu, a **nema GET endpointa
+koji vraca slike sa ID-evima**. Pun oglas daje samo URL-ove (`images`) i prazan `images_old`.
+`imageId` se dobija ISKLJUCIVO kao povratna vrijednost uploada. Znaci za slike koje je klijent
+sam dodao kroz aplikaciju mi nemamo ID, pa ih ne mozemo ni obrisati ni postaviti kao glavnu.
+
+Posljedica je dobra: umjesto brisanja, nova slika se doda i postavi kao glavna (njen ID imamo),
+a originalna fotografija ostaje na oglasu kao druga po redu. Kupac tako i dalje vidi pravu
+fotografiju artikla, a cista slika nosi karticu na kojoj se klika. Brisanje starih, ako ga
+klijent zeli, radi on sam u aplikaciji.
 - Vazno uz to: instrukcije Telegram plugina same govore sesiji da procita fajl slike, a to na
   ovom endpointu obara potez. Zato je pravilo o slikama tvrda granica u `granice.md`, ne
   preporuka u skillu (skill se u klijentskoj sesiji i ne otvara, `Skill` je tamo zabranjen).

@@ -123,8 +123,41 @@ export interface GenerisanaSlika {
   plafon: number;
 }
 
+/** Prepoznaje ulaz koji treba prvo skinuti sa interneta (slika sa objavljenog oglasa). */
+export function jeUrl(putanjaIliUrl: string): boolean {
+  return /^https?:\/\//i.test(putanjaIliUrl.trim());
+}
+
+/**
+ * Skine sliku sa oglasa na disk i vrati lokalnu putanju.
+ *
+ * Zasto: oglasi vracaju slike kao URL-ove, a Gemini prima bajtove. Ovo je jedini nacin da se
+ * postojeca slika sa objavljenog oglasa provuce kroz obradu.
+ */
+export async function skiniUlaznuSliku(url: string, dir?: string): Promise<string> {
+  const odgovor = await fetch(url);
+  if (!odgovor.ok) throw new Error(`Slika se ne moze skinuti (${odgovor.status}): ${url}`);
+  const tip = (odgovor.headers.get("content-type") ?? "").split(";")[0]?.trim() ?? "";
+  const ekst = EKSTENZIJE[tip] ?? (url.match(/\.[a-z0-9]+(?=$|\?)/i)?.[0]?.toLowerCase() ?? ".jpg");
+  const mapa = dir || process.env.OLX_SLIKA_DIR || ".olx-pik/slike";
+  mkdirSync(mapa, { recursive: true });
+  const putanja = resolve(mapa, `ulaz-${Date.now()}-${Math.abs(hashUrl(url))}${ekst}`);
+  writeFileSync(putanja, Buffer.from(await odgovor.arrayBuffer()));
+  return putanja;
+}
+
+// Kratak stabilan hash imena, da dvije slike istog oglasa ne dobiju isto ime u istoj sekundi.
+function hashUrl(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return h;
+}
+
 export interface OpcijeGenerisanja {
-  /** Putanje do ulaznih slika, npr. iz Telegram inboxa. Bez njih model slika iz niceg. */
+  /**
+   * Ulazne slike: lokalne putanje (Telegram inbox) ILI URL-ovi sa objavljenog oglasa.
+   * URL se prvo skine na disk. Bez ulaza model slika iz niceg.
+   */
   ulazneSlike?: string[];
   /** Ime recepta iz RECEPTI ili slobodna uputa na engleskom. */
   recept: string;
@@ -153,7 +186,12 @@ export async function generisiSliku(opcije: OpcijeGenerisanja): Promise<Generisa
     );
   }
 
-  const ulazne = (opcije.ulazneSlike ?? []).slice(0, MAX_ULAZNIH);
+  const zadane = (opcije.ulazneSlike ?? []).slice(0, MAX_ULAZNIH);
+  // URL-ovi (slike sa objavljenog oglasa) se prvo skinu na disk; lokalne putanje ostaju kakve su.
+  const ulazne: string[] = [];
+  for (const ulaz of zadane) {
+    ulazne.push(jeUrl(ulaz) ? await skiniUlaznuSliku(ulaz) : ulaz);
+  }
   const dijelovi: GeminiDioZahtjeva[] = [{ text: sastaviUputu(opcije.recept, opcije.logo) }];
   for (const putanja of ulazne) {
     const mime = medijskiTip(putanja);

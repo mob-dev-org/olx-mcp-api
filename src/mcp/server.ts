@@ -644,10 +644,12 @@ if (slikaKonfigurisana()) {
     {
       title: "Napravi sliku oglasa iz fotografije",
       description:
-        "Iz poslane fotografije napravi novu sliku artikla: cist prostor i ravno svjetlo, artikal ostaje isti " +
-        "(stanje, boja i ostecenja se ne popravljaju). Ne trosi OLX kredite nego vanjski AI racun, pa bez " +
-        "confirm true samo vrati sta bi radio i stanje dnevnog plafona. Vraca putanju nove slike, spremnu za " +
-        "olx_upload_images ili za slanje korisniku na odobrenje.",
+        "Iz poslane fotografije ili slike sa objavljenog oglasa napravi novu sliku artikla: cist prostor i " +
+        "ravno svjetlo. VAZNO: model sliku PRECRTAVA, ne retusira, pa na slozenoj fotografiji (vise " +
+        "artikala, sitni natpisi, brendovi) izmislja detalje i takva slika laze kupca; koristi ga za JEDAN " +
+        "prepoznatljiv predmet i UVIJEK daj korisniku da uporedi staru i novu prije objave. Ne trosi OLX " +
+        "kredite nego vanjski AI racun, pa bez confirm true samo vrati sta bi radio i stanje dnevnog " +
+        "plafona. Vraca putanju nove slike, spremnu za olx_upload_images ili za slanje na odobrenje.",
       inputSchema: {
         recept: z
           .string()
@@ -656,7 +658,7 @@ if (slikaKonfigurisana()) {
         slike: z
           .array(z.string().min(1))
           .optional()
-          .describe("putanje do poslanih fotografija, npr. iz Telegram inboxa; prva je glavna"),
+          .describe("putanje poslanih fotografija ILI URL-ovi slika sa objavljenog oglasa; prva je glavna"),
         logo: z.string().optional().describe("ime firme koje ide na tablu u pozadini, samo za recepte koji ga koriste"),
         odnos: z.enum(ODNOSI).optional().describe(`odnos strana, default ${ZADANI_ODNOS} jer je kartica oglasa pejzazna`),
         confirm: z.boolean().optional().describe("true tek nakon sto korisnik potvrdi"),

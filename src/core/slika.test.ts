@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { brojPozivaDanas, zapisiAiPoziv } from "./ai-dnevnik.js";
-import { ODNOSI, RECEPTI, ZADANI_ODNOS, maxDnevno, sastaviUputu, slikaKonfigurisana } from "./slika.js";
+import { ODNOSI, RECEPTI, ZADANI_ODNOS, jeUrl, maxDnevno, sastaviUputu, slikaKonfigurisana } from "./slika.js";
 
 test("slikaKonfigurisana zavisi samo od OLX_SLIKA_API_KEY", () => {
   assert.equal(slikaKonfigurisana({}), false);
@@ -18,6 +18,15 @@ test("maxDnevno ima razuman default i odbija besmislene vrijednosti", () => {
   assert.equal(maxDnevno({ OLX_SLIKA_MAX_DNEVNO: "0" }), 10);
   assert.equal(maxDnevno({ OLX_SLIKA_MAX_DNEVNO: "-3" }), 10);
   assert.equal(maxDnevno({ OLX_SLIKA_MAX_DNEVNO: "nista" }), 10);
+});
+
+test("jeUrl razlikuje sliku sa oglasa od lokalne putanje", () => {
+  assert.equal(jeUrl("https://d4n0y8dshd77z.cloudfront.net/listings/1/lg/img-1.jpg"), true);
+  assert.equal(jeUrl("http://primjer.ba/slika.png"), true);
+  assert.equal(jeUrl("  https://primjer.ba/a.jpg  "), true, "razmaci ne smiju prevariti provjeru");
+  assert.equal(jeUrl("/inbox/1234-abc.jpg"), false);
+  assert.equal(jeUrl("C:\\inbox\\slika.jpg"), false, "Windows putanja nije URL");
+  assert.equal(jeUrl("slika.jpg"), false);
 });
 
 test("kartica oglasa je pejzazna, pa je zadani odnos 4:3", () => {
