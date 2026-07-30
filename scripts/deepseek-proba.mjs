@@ -10,14 +10,36 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { cijenaPoziva, ukupnoUlaz, zapisiPotrosnju, DNEVNIK } from "./ai-cijene.mjs";
 
-const ENDPOINT = "https://api.deepseek.com/anthropic/v1/messages";
 const MALI_SKUP = ["olx_whoami", "olx_refresh_limits", "olx_sponsor_price"];
 
+// Konfiguracija se cita iz .env OVOG klona, isto odakle je cita i pogon sesije
+// (cuvar-sesije.mjs mapira OLX_DEEPSEEK_* u ANTHROPIC_* za taj proces). Prije je proba citala
+// kljuc iz ~/.claude/deepseek.env, dakle sa mjesta koje pogon nikad ne vidi: proba je mogla
+// proci a sesija ne raditi, i obrnuto. Globalna putanja ostaje samo kao ispomoc kad .env nema
+// kljuc, jer je pravilo repoa da nista ne zivi globalno po masini.
+try {
+  process.loadEnvFile(".env");
+} catch {
+  // bez .env se pada nize, uz jasnu poruku sta popuniti
+}
+
+const BASE_URL = (process.env.OLX_DEEPSEEK_BASE_URL ?? "https://api.deepseek.com/anthropic").replace(/\/+$/, "");
+const ENDPOINT = `${BASE_URL}/v1/messages`;
+
 function kljuc() {
+  const iz_env = process.env.OLX_DEEPSEEK_AUTH_TOKEN?.trim();
+  if (iz_env && !iz_env.includes("POPUNI")) return iz_env;
+
   const putanja = process.env.DEEPSEEK_ENV_FILE || `${homedir()}/.claude/deepseek.env`;
-  const k = readFileSync(putanja, "utf8").match(/^ANTHROPIC_API_KEY=(.+)$/m)?.[1]?.trim();
-  if (!k || k.includes("POPUNI")) throw new Error(`kljuc nije popunjen u ${putanja}`);
-  return k;
+  try {
+    const k = readFileSync(putanja, "utf8").match(/^ANTHROPIC_API_KEY=(.+)$/m)?.[1]?.trim();
+    if (k && !k.includes("POPUNI")) return k;
+  } catch {
+    // fajl ne postoji: poruka nize kaze sta je pravo mjesto
+  }
+  throw new Error(
+    `kljuc nije nadjen. Popuni OLX_DEEPSEEK_AUTH_TOKEN u .env ovog klona (isto mjesto odakle ga cita pogon sesije), ili ANTHROPIC_API_KEY u ${putanja}`,
+  );
 }
 
 /** Dohvata prave seme alata sa lokalnog MCP servera, isto kao Claude Code. */

@@ -27,6 +27,11 @@ Dodaje se povrh `CLAUDE.md` kroz `scripts/claude-olx.sh`. Klijentski runtime ovo
 - AI pogon klijentske sesije bira `OLX_KLIJENT_AI` u `.env` klona: `pretplata` (default, faza
   testiranja) ili `deepseek` (OLX_DEEPSEEK_* varijable; bez njih se sesija ne pokrece). Nista
   se ne konfigurise u zshrc-u ni globalno po masini.
+- Rucna DeepSeek sesija u terminalu: `node scripts/claude-ds.mjs` (`--env` samo ispise
+  podesavanja). Cita isti `.env` kao pogon, pa rucno i pogonsko okruzenje ne mogu se razici, i
+  radi na obje platforme. Stara zsh funkcija `claude-ds` iz `~/.zshrc` se ne koristi: bila je
+  globalna po masini, pa je na Windowsu nije ni bilo. Provjera endpointa bez sesije:
+  `npm run deepseek:proba`.
 - Admin bot po klonu (opcion): `node scripts/pripremi-admin-runtime.mjs <bot_token>
   <admin_id> [id_grupe]` pravi `.claude-runtime-admin/`, pa `instaliraj-cron.sh` sam doda
   posao `admin-bot`. Vlasnikov privatni kanal, admin MCP profil, uvijek pretplata, bez Bash-a.

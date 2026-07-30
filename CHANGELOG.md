@@ -8,6 +8,18 @@ Kako se cita broj verzije: `node dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
+## 0.7.0 — 2026-07-30
+
+DeepSeek pogon prestaje zavisiti od konfiguracije koja postoji samo na jednoj masini.
+
+- `scripts/claude-ds.mjs`: rucna DeepSeek sesija na obje platforme, sa kljucem iz `.env` klona.
+  Zamjenjuje zsh funkciju `claude-ds` iz `~/.zshrc`, koja je bila globalna po masini (dakle upravo
+  ono sto CLAUDE.md zabranjuje) i zato na Windowsu nije ni postojala. Uz to rjesava razliku izmedju
+  rucne i pogonske sesije: mapira iste varijable kao pogon i nista vise, pa Telegram kanal u rucnoj
+  sesiji vise ne gasi varijabla iz starog `deepseek.env`.
+- `npm run deepseek:proba` cita kljuc i endpoint iz `.env` klona, sa istog mjesta odakle ih cita
+  pogon. Prije je citala `~/.claude/deepseek.env`, pa je proba mogla proci a sesija ne raditi.
+
 ## 0.6.0 — 2026-07-30
 
 Zatvaranje posla je sada jedan tok koji ide do kraja, umjesto niza komandi koje se pamte.

@@ -192,10 +192,14 @@ provjerava sta je od eksperimentalnih funkcija dostupno. Bez te provjere kanal s
 registruje: TUI ispise samo `Channels are not currently available`, poruke sa Telegrama nikad
 ne dodju u sesiju, a nista ne izgleda kao greska.
 
-Posljedica: `~/.claude/deepseek.env` (licna komanda `claude-ds`) tu varijablu ima, pa rucne
-DeepSeek sesije kanal ne mogu koristiti dok se ona ne izbaci. Pogon je nikad nije postavljao,
+Posljedica: `~/.claude/deepseek.env` (stara zsh funkcija `claude-ds`) tu varijablu ima, pa rucne
+DeepSeek sesije kanal nisu mogle koristiti dok se ona ne izbaci. Pogon je nikad nije postavljao,
 jer `aiPogon()` mapira samo `OLX_DEEPSEEK_*` varijable, ali je zato razlika izmedju rucnog i
 pogonskog ponasanja izgledala kao da je problem u provajderu.
+
+Rijeseno u 0.7.0: `scripts/claude-ds.mjs` mapira iste `OLX_DEEPSEEK_*` varijable kao pogon i nista
+vise, pa rucna i pogonska sesija imaju isto okruzenje. Ko jos koristi stari zshrc obrazac, ima i
+stari problem.
 
 ### Disciplina reply-a: izmjereno, i popravljeno u promptu
 
@@ -471,21 +475,25 @@ Fajl je van gita.
 
 ## Pokretanje na DeepSeeku
 
-**Za POGON (klijentska sesija) ovaj zshrc obrazac vise nije mjerodavan:** pogon bira provajdera
-kroz `OLX_KLIJENT_AI` i `OLX_DEEPSEEK_*` varijable u `.env` klona (vidi `.env.example`), pa je
-sva konfiguracija u repou i radi isto na macOS-u i Windowsu. `claude-ds` iz `~/.zshrc` ostaje
-samo kao licna komanda za rucni rad u terminalu, ako je vec podesena.
+**Zshrc obrazac nije vise mjerodavan ni za pogon ni za rucni rad.** Pogon bira provajdera kroz
+`OLX_KLIJENT_AI` i `OLX_DEEPSEEK_*` varijable u `.env` klona (vidi `.env.example`), a od 0.7.0 isto
+radi i rucna sesija kroz `scripts/claude-ds.mjs`. Sva konfiguracija je u repou i radi isto na
+macOS-u i Windowsu. Zsh funkcija `claude-ds` iz `~/.zshrc` je bila upravo ono sto CLAUDE.md
+zabranjuje (globalno po masini), pa je na Windowsu i nije bilo.
 
 Provajder se za rucni rad bira komandom, ne globalnim podesavanjem:
 
 | Komanda | Sta radi |
 |---|---|
 | `claude` | Anthropic na pretplati. Default, nista se ne mijenja. |
-| `claude-ds` | DeepSeek. Varijable vaze samo unutar te komande. |
-| `claude-ds --env` | Ispise podesavanja bez pokretanja sesije, za provjeru. |
+| `node scripts/claude-ds.mjs` | DeepSeek. Varijable vaze samo unutar tog procesa. Radi na obje platforme. |
+| `node scripts/claude-ds.mjs --env` | Ispise podesavanja bez pokretanja sesije, za provjeru. Token se ne ispisuje. |
+| `npm run deepseek:proba` | Provjeri endpoint i tool calling bez pokretanja sesije. Cita isti `.env`. |
 
-Funkcija `claude-ds` je u `~/.zshrc`, a podesavanja i kljuc u `~/.claude/deepseek.env`
-(prava 600, van repoa i van gita). Varijable su one iz zvanicne DeepSeek dokumentacije:
+Kljuc i podesavanja idu u `.env` klona (`OLX_DEEPSEEK_AUTH_TOKEN`, `OLX_DEEPSEEK_BASE_URL`), dakle
+na isto mjesto odakle ih cita pogon klijentske sesije. Stari `~/.claude/deepseek.env` proba jos
+prihvata kao ispomoc, ali novo se tamo ne podesava. Varijable koje se salju Claudeu su one iz
+zvanicne DeepSeek dokumentacije:
 `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`, `API_TIMEOUT_MS`, `ANTHROPIC_MODEL`, uz
 `ANTHROPIC_DEFAULT_HAIKU_MODEL` za pozadinske radnje i `ANTHROPIC_CUSTOM_MODEL_OPTION`
 za pro u `/model` biracu.
@@ -496,7 +504,7 @@ tada ne koristi. Podshell to drzi unutar jedne komande.
 
 Detalji koji su se pokazali u radu:
 
-- Pro se bira sa `/model` unutar `claude-ds` sesije. Za radnje koje trose kredite koristiti
+- Pro se bira sa `/model` unutar DeepSeek sesije. Za radnje koje trose kredite koristiti
   pro, zbog nalaza iz tabele gore.
 - U `/model` biracu birati DeepSeek imena. Ako se izabere Claude ime, DeepSeek ga tiho
   mapira (`claude-opus-5` daje `deepseek-v4-pro`), pa prikaz i stvarnost nisu isto.
