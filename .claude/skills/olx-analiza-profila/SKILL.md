@@ -103,7 +103,9 @@ Sedmicna runda (pokrece je administrator, ne ovaj razgovor) ostavlja prijedloge 
 `.olx-pik/prijedlozi/`, jedan fajl po rundi (`runda-YYYY-MM-DD.md`). Kad korisnik trazi da se
 "primijene prijedlozi" ili spomene sedmicnu poruku:
 
-1. Procitaj najnoviji fajl iz tog foldera. Ako ga nema, reci da trenutno nema prijedloga na
+1. Procitaj najnoviji kroz alat `olx_prijedlozi` (radnja `procitaj`, bez imena daje najnoviji).
+   Direktno citanje foldera NE radi: `Read` nad `.olx-pik` je klijentskoj sesiji zabranjen.
+   Ako prijedloga nema, reci da trenutno nema prijedloga na
    cekanju i ponudi svjezu analizu.
 2. Pobroj stavke obicnim jezikom, grupisano kako su grupisane u fajlu, najvise 10 uz broj
    preostalih.

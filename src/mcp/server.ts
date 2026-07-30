@@ -8,6 +8,8 @@ import { dirname, resolve } from "node:path";
 import { OlxClient, OlxSpendError, OlxApiError, naknadaKategorije } from "../core/index.js";
 import { loadConfig } from "../core/config.js";
 import { linkOglasa } from "../core/link.js";
+import { procitajPrijedlog, spisakPrijedloga } from "../core/prijedlozi.js";
+import { nadjiSablon } from "../core/opisi.js";
 import { POLJA, bezNapomene, bezPolja, saNapomenom, saPoljem, ucitajPamcenje, upisiPamcenje } from "../core/pamcenje.js";
 import { withAuditContext } from "../core/audit.js";
 import { parseSponsorOptions } from "../core/sponsor-options.js";
@@ -109,6 +111,7 @@ const server = new McpServer({ name: "olx-pik-mcp-server", version: "0.1.0" });
 // brendova, modela i lokacija: najveci payloadi u serveru, a klijentu ne trebaju jer lokacija
 // dolazi iz .env, a kategoriju bira `olx_suggest_category` pri objavi.
 const SAMO_ADMIN = new Set([
+  "olx_sablon_opisa",
   "olx_categories",
   "olx_category_children",
   "olx_category",
@@ -1305,6 +1308,67 @@ server.registerTool(
       }
       return { refreshed: results.filter((r) => r.ok).length, total: results.length, results, ...izuzeto };
     }),
+);
+
+// Sablon opisa iz onoga sto klijent VEC pise. Pri onboardingu klijent trazi "standardni footer,
+// vidi u drugim oglasima kako to izgleda", a jedini pouzdan izvor je njegov postojeci katalog.
+// Alat samo MJERI ucestalost i nikad ne predlaze footer koji se ne ponavlja: izmjereno je da na
+// pravom shopu sablon cesto ne postoji (2 od 25 opisa), a izmisljen footer bi postao obecanje
+// kupcu na svim buducim oglasima.
+server.registerTool(
+  "olx_sablon_opisa",
+  {
+    title: "Sablon iz postojecih opisa",
+    description:
+      "Cita opise vlastitih oglasa i javlja koji se zavrsni blokovi i fraze STVARNO ponavljaju, sa brojem pojava. Sluzi da se standardni footer prepozna iz klijentovog kataloga umjesto da se izmisli. Kad se nista ne ponavlja, to i kaze: tada footera nema.",
+    inputSchema: {
+      broj_oglasa: z.number().int().min(3).max(60).default(25).describe("koliko oglasa uzorkovati; vise je tacnije ali sporije"),
+      min_pojava: z.number().int().min(2).max(20).default(3).describe("prag ispod kojeg se ponavljanje ne prijavljuje"),
+    },
+    annotations: readOnly,
+  },
+  (args) =>
+    run(async (c) => {
+      const user = await c.resolveUsername();
+      const aktivni = await c.listAllActive(user);
+      const uzorak = aktivni.slice(0, args.broj_oglasa);
+      const opisi: string[] = [];
+      for (const o of uzorak) {
+        const puni = await c.getListing(o.id);
+        opisi.push(String((puni.additional as { description?: unknown } | null)?.description ?? ""));
+      }
+      return { ...nadjiSablon(opisi, { minPojava: args.min_pojava }), oglasa_ukupno: aktivni.length };
+    }),
+);
+
+// Prijedlozi sedmicne AI runde. Runda ih pise na disk, a klijentski bot ih nije mogao procitati
+// jer mu je Read nad .olx-pik zabranjen, pa je "primijeni prijedloge" davalo odbijenu dozvolu.
+// Alat, ne otvaranje foldera: u .olx-pik su i audit trag i potrosnja, i to klijentu ne treba.
+server.registerTool(
+  "olx_prijedlozi",
+  {
+    title: "Prijedlozi sedmicne analize",
+    description:
+      "Cita prijedloge koje je napravila sedmicna analiza. `lista` daje sto postoji, `procitaj` bez imena daje najnoviji. Prijedlog je predlog, ne naredba: svaku stavku pokazi korisniku i trazi potvrdu prije izvrsenja, a trosak i dalje ide kroz svoju potvrdu.",
+    inputSchema: {
+      radnja: z.enum(["lista", "procitaj"]),
+      ime: z.string().optional().describe("ime fajla iz liste; bez njega se cita najnoviji"),
+    },
+    annotations: readOnly,
+  },
+  async (args) => {
+    try {
+      if (args.radnja === "lista") {
+        const s = spisakPrijedloga();
+        return ok({ ukupno: s.length, prijedlozi: s });
+      }
+      const p = procitajPrijedlog(args.ime);
+      if (!p) return ok({ ima: false, napomena: "Sedmicna analiza jos nije napravila nijedan prijedlog." });
+      return ok({ ima: true, ime: p.ime, sadrzaj: p.sadrzaj });
+    } catch (e) {
+      return errResult(String(e instanceof Error ? e.message : e));
+    }
+  },
 );
 
 // Pamcenje o klijentu. Klijentska sesija se resetuje svaku noc i ne nastavlja se, a KLIJENT.md

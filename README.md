@@ -141,7 +141,8 @@ Puna mapa sa dijagramima je u `olx-dokumentacija/arhitektura.md` — nju procita
   `posao sedmicni`, `stats snapshot`).
 - **AI runda** (nedjelja 21h, jednom za cijelu masinu): headless analiza svih klonova iz
   `~/.olx-klijenti.txt` kroz vlasnikovu pretplatu, strogo read-only; izvjestaj ide klijentu u
-  grupu, prijedlozi u `.olx-pik/prijedlozi/`, a primjenjuje ih klijentski bot uz potvrdu.
+  grupu, prijedlozi u `.olx-pik/prijedlozi/`, odakle ih klijentski bot cita alatom `olx_prijedlozi` i
+  primjenjuje uz potvrdu (Read nad `.olx-pik` mu je zabranjen, pa ide kroz alat).
 
 Instalacija svih poslova: macOS `scripts/instaliraj-cron.sh` (launchd, po klonu; AI runda se
 instalira rucno jednom, uputa u sablonu), Windows

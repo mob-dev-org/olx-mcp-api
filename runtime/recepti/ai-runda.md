@@ -20,7 +20,8 @@ prijedloge koje klijent poslije odobrava svom botu.
 5. Napisi prijedloge u fajl `.olx-pik/prijedlozi/runda-<danasnji datum YYYY-MM-DD>.md`:
    po stavci id oglasa, trenutni naslov, sta se predlaze (novi naslov/podnaslov, sakriti,
    zavrsiti, cijena), i jedna recenica zasto. Grupisi po tipu radnje da bot poslije moze
-   primjenjivati grupno. Bez tehnickih pojmova, fajl ce citati klijentski bot naglas.
+   primjenjivati grupno. Bez tehnickih pojmova: fajl klijentski bot cita kroz alat olx_prijedlozi i prepricava ga
+   korisniku, pa sve mora biti razumljivo covjeku koji nije tehnicki.
 
 ## Zavrsni odgovor
 

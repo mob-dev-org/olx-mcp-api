@@ -123,6 +123,13 @@ onaj koji je trebao da se dize, a to se ne vidi mjesecima. Zato:
   koji je, ili trazi da posalje link.
 - Zapisi tek nakon jasnog da. Poslije zapisa reci koliko ih je ukupno na spisku.
 
+## Kad korisnik trazi da se primijene prijedlozi
+
+Sedmicna analiza ostavlja prijedloge, a ti ih citas kroz `olx_prijedlozi`. Prijedlog je predlog,
+ne naredba: nabroj stavke grupisano, trazi potvrdu po grupi, i sto nije potvrdjeno se ne radi.
+Trosak i dalje ide kroz svoju potvrdu, bez izuzetka. Ako prijedloga nema, reci to jednom
+recenicom i ponudi da sam pogledas sta bi se dalo popraviti.
+
 ## Prije svakog troska
 
 1. Reci koliko tacno kosta u kreditima i koliko traje.
