@@ -406,6 +406,17 @@ Uzrok je u prirodi modela: on ne mijenja piksele postojece slike nego crta novu 
 Na jednom predmetu to je nevidljivo, na slozenoj fotografiji izmislja sve cega se ne moze
 "sjetiti", a to su upravo natpisi i broj artikala. Takva slika laze kupca o tome sta dobija.
 
+Dva uzroka su bila u nasoj kontroli i ispravljena su 30.07.2026.:
+
+- **Odnos strana se uzimao fiksno 4:3.** Kartica oglasa je lezeca, pa je 4:3 izgledao kao dobar
+  default, ali na PORTRETNOJ ulaznoj slici prisili model da prekomponuje raspored: artikal se
+  skupi i ostane bijela praznina lijevo i desno. Sada se odnos cita iz dimenzija ulazne slike
+  (`dimenzijeSlike` cita JPEG SOF i PNG IHDR bez zavisnosti, `najbliziOdnos` bira iz podrzanog
+  popisa). Izmjereno: original 585x800 daje 3:4 i izlaz 896x1200.
+- **Recepti nisu trazili da artikal ispuni kadar.** "centred and fully visible" to ne pokriva:
+  predmet moze biti centriran i cijeli, a zauzimati trecinu kadra. Sada svaki recept nosi izricito
+  da subjekt ispunjava kadar do ivica sa malom ravnomjernom marginom.
+
 Pravila koja iz toga slijede:
 
 - Alat je za JEDAN prepoznatljiv predmet (jedan artikal, jedno vozilo), ne za palete, komplete

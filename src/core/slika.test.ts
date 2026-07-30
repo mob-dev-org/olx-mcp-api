@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { brojPozivaDanas, zapisiAiPoziv } from "./ai-dnevnik.js";
-import { ODNOSI, RECEPTI, ZADANI_ODNOS, jeUrl, maxDnevno, sastaviUputu, slikaKonfigurisana } from "./slika.js";
+import { ODNOSI, RECEPTI, ZADANI_ODNOS, dimenzijeSlike, jeUrl, maxDnevno, najbliziOdnos, sastaviUputu, slikaKonfigurisana } from "./slika.js";
 
 test("slikaKonfigurisana zavisi samo od OLX_SLIKA_API_KEY", () => {
   assert.equal(slikaKonfigurisana({}), false);
@@ -27,6 +27,67 @@ test("jeUrl razlikuje sliku sa oglasa od lokalne putanje", () => {
   assert.equal(jeUrl("/inbox/1234-abc.jpg"), false);
   assert.equal(jeUrl("C:\\inbox\\slika.jpg"), false, "Windows putanja nije URL");
   assert.equal(jeUrl("slika.jpg"), false);
+});
+
+test("najbliziOdnos uzme odnos od ulazne slike, a ne fiksni 4:3", () => {
+  // Portretna slika je bila uzrok problema: 4:3 je prisilio model da prekomponuje kadar.
+  assert.equal(najbliziOdnos(588, 812), "3:4", "portret dobija portretni odnos");
+  assert.equal(najbliziOdnos(1200, 896), "4:3", "pejzaz ostaje pejzaz");
+  assert.equal(najbliziOdnos(1024, 1024), "1:1");
+  assert.equal(najbliziOdnos(1920, 1080), "16:9");
+  assert.equal(najbliziOdnos(1080, 1920), "9:16");
+  // Sve mora biti iz podrzanog popisa, inace Gemini odbije zahtjev.
+  for (const [s, v] of [[100, 37], [3, 7], [5000, 1]] as [number, number][]) {
+    assert.ok(ODNOSI.includes(najbliziOdnos(s, v)), `${s}x${v} daje nepodrzan odnos`);
+  }
+});
+
+test("najbliziOdnos na besmislenim dimenzijama pada na zadani odnos", () => {
+  for (const [s, v] of [[0, 100], [100, 0], [-5, 5], [Number.NaN, 10]] as [number, number][]) {
+    assert.equal(najbliziOdnos(s, v), ZADANI_ODNOS);
+  }
+});
+
+test("dimenzijeSlike cita PNG zaglavlje", () => {
+  // Minimalno PNG zaglavlje: potpis, duzina i tip IHDR, pa sirina i visina.
+  const b = Buffer.alloc(32);
+  b.writeUInt32BE(0x89504e47, 0);
+  b.writeUInt32BE(0x0d0a1a0a, 4);
+  b.write("IHDR", 12, "ascii");
+  b.writeUInt32BE(1200, 16);
+  b.writeUInt32BE(896, 20);
+  assert.deepEqual(dimenzijeSlike(b), { sirina: 1200, visina: 896 });
+});
+
+test("dimenzijeSlike cita JPEG SOF marker", () => {
+  // FFD8 pa APP0 segment koji se preskace, pa SOF0 sa visinom i sirinom.
+  const b = Buffer.concat([
+    Buffer.from([0xff, 0xd8]),
+    Buffer.from([0xff, 0xe0, 0x00, 0x04, 0x00, 0x00]), // APP0, duzina 4
+    Buffer.from([0xff, 0xc0, 0x00, 0x11, 0x08]), // SOF0, duzina 17, precision 8
+    (() => {
+      const d = Buffer.alloc(4);
+      d.writeUInt16BE(812, 0); // visina
+      d.writeUInt16BE(588, 2); // sirina
+      return d;
+    })(),
+    Buffer.alloc(10),
+  ]);
+  assert.deepEqual(dimenzijeSlike(b), { sirina: 588, visina: 812 });
+});
+
+test("dimenzijeSlike vraca null za nepoznat format, bez petlje na pokvarenom zaglavlju", () => {
+  assert.equal(dimenzijeSlike(Buffer.from("ovo nije slika")), null);
+  assert.equal(dimenzijeSlike(Buffer.alloc(0)), null);
+  // JPEG potpis pa duzina segmenta 0: ne smije se vrtjeti u krug.
+  assert.equal(dimenzijeSlike(Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])), null);
+});
+
+test("svaki recept trazi da artikal ispuni kadar", () => {
+  // Bez toga model ostavi bijelu prazninu i artikal se na telefonu vidi kao skupljen.
+  for (const [ime, tekst] of Object.entries(RECEPTI)) {
+    assert.ok(/fills the frame/i.test(tekst), `recept ${ime} ne trazi da subjekt ispuni kadar`);
+  }
 });
 
 test("kartica oglasa je pejzazna, pa je zadani odnos 4:3", () => {

@@ -13,6 +13,7 @@
 //   OLX_SLIKA_MODEL        default gemini-3.1-flash-lite-image (najjeftiniji sa dobrim rezultatom)
 //   OLX_SLIKA_BASE_URL     default https://generativelanguage.googleapis.com/v1beta
 //   OLX_SLIKA_MAX_DNEVNO   default 10; plafon je zastita racuna, ne kvota klijenta
+//   OLX_SLIKA_DIR          default .olx-pik/slike
 //
 // Cijena, izmjereno 30.07.2026. na gemini-3.1-flash-lite-image (cjenovnik: ulaz $0.25/M,
 // izlazna SLIKA $30/M, sto je odvojeno od izlaznog teksta po $1.50/M):
@@ -22,7 +23,6 @@
 // plafon nizak: 10 dnevno je oko $12 mjesecno u najgorem slucaju.
 // Jeftiniji model postoji (imagen-4.0-fast, $0.02), ali ne prima ulaznu sliku, pa ne moze ovaj
 // posao. Medju onima koji primaju sliku ovaj je najjeftiniji.
-//   OLX_SLIKA_DIR          default .olx-pik/slike
 //
 // Endpoint je klasicni models/{model}:generateContent. Google od 2026. nudi i noviji
 // /v1beta/interactions, a generateContent je u dokumentaciji naveden kao i dalje u punoj
@@ -59,6 +59,13 @@ const EKSTENZIJE: Record<string, string> = {
 // Recepti su glavni alat kvaliteta: model daje dobar rezultat samo ako mu se tacno kaze sta
 // smije a sta ne smije mijenjati. Pisani su na engleskom jer image modeli na njemu drze uputu
 // dosljednije. {LOGO} se zamjenjuje imenom firme ili se ta recenica izbaci.
+// Jedna recenica koja se ponavlja u svim receptima. Bez nje model ostavi veliku bijelu prazninu
+// oko artikla i on se na telefonu vidi kao skupljen (vidjeno 30.07.2026.). "centred and fully
+// visible" to NE pokriva: predmet moze biti centriran i cijeli, a zauzimati trecinu kadra.
+const OKVIR =
+  "The subject fills the frame from edge to edge with only a small even margin; do not shrink it " +
+  "and do not leave large empty background areas. ";
+
 export const RECEPTI: Record<string, string> = {
   "proizvod-bijela":
     "You are given original photos of one product, taken with a phone. Recreate the exact same " +
@@ -66,8 +73,9 @@ export const RECEPTI: Record<string, string> = {
     "same colour, same materials, same text and logos on it, and the same real condition. Do not " +
     "beautify it, do not repair it, do not remove scratches, dents, stains or signs of use, do not " +
     "swap it for a newer model. Soft even studio lighting, no glare, no reflections of the room, no " +
-    "harsh shadows except a soft contact shadow under the product. The product is centred, fully " +
-    "visible and fills most of the frame, nothing cropped. Photographic realism. Do not add any " +
+    "harsh shadows except a soft contact shadow under the product. The product is centred and fully " +
+    "visible, nothing cropped. " + OKVIR +
+    "Photographic realism. Do not add any " +
     "text, watermark, price tag, border or frame.",
 
   "auto-salon":
@@ -78,13 +86,15 @@ export const RECEPTI: Record<string, string> = {
     "bright, modern car dealership showroom with a polished floor and plain walls. Remove glare and " +
     "reflections of the surroundings from the paint and the glass, and remove any photographer " +
     "reflection. Even professional lighting so the real paint colour reads true. Three quarter front " +
-    "view, the whole car inside the frame, nothing cropped. On the wall behind the car put a clean " +
+    "view, the whole car inside the frame, nothing cropped. " + OKVIR +
+    "On the wall behind the car put a clean " +
     "dealership sign reading {LOGO}. Photographic realism. Apart from that sign do not add any text, " +
     "watermark, badge or border.",
 
   "profil":
     "Create a clean, professional cover image for the profile of an online shop that sells {LOGO}. " +
-    "Calm, uncluttered composition with room for a name to be placed over it later. Photographic " +
+    "Calm, uncluttered composition with room for a name to be placed over it later. " + OKVIR +
+    "Photographic " +
     "realism, no people looking at the camera, no text, no watermark, no logo, no border.",
 };
 
@@ -121,6 +131,61 @@ export interface GenerisanaSlika {
   izlazTokena: number;
   danas: number;
   plafon: number;
+}
+
+/**
+ * Dimenzije slike iz zaglavlja fajla, bez ikakve zavisnosti.
+ *
+ * Treba nam samo da bi se odnos strana izlaza uzeo od ULAZA. Podrzani su JPEG (SOF marker) i PNG
+ * (IHDR), sto pokriva sve sto Telegram i OLX serviraju. Za ostalo vraca null i tada ostaje
+ * zadani odnos.
+ */
+export function dimenzijeSlike(bajtovi: Buffer): { sirina: number; visina: number } | null {
+  // PNG: 8 bajtova potpisa, pa IHDR na 16 (sirina) i 20 (visina), big endian.
+  if (bajtovi.length > 24 && bajtovi.readUInt32BE(0) === 0x89504e47) {
+    return { sirina: bajtovi.readUInt32BE(16), visina: bajtovi.readUInt32BE(20) };
+  }
+  // JPEG: prolazak kroz markere do prvog SOF (0xC0..0xCF, bez 0xC4, 0xC8, 0xCC).
+  if (bajtovi.length > 4 && bajtovi[0] === 0xff && bajtovi[1] === 0xd8) {
+    let i = 2;
+    while (i + 9 < bajtovi.length) {
+      if (bajtovi[i] !== 0xff) {
+        i += 1; // preskoci punjenje, ne prekidaj: neki fajlovi imaju bajtove izmedju markera
+        continue;
+      }
+      const marker = bajtovi[i + 1] ?? 0;
+      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+        return { visina: bajtovi.readUInt16BE(i + 5), sirina: bajtovi.readUInt16BE(i + 7) };
+      }
+      const duzina = bajtovi.readUInt16BE(i + 2);
+      if (duzina < 2) return null; // pokvareno zaglavlje, ne vrtimo se u krug
+      i += 2 + duzina;
+    }
+  }
+  return null;
+}
+
+/**
+ * Najblizi podrzani odnos strana zadanim dimenzijama.
+ *
+ * Zasto: `4:3` je bio fiksan default jer je kartica oglasa lezeca, ali na PORTRETNOJ ulaznoj
+ * slici to prisili model da prekomponuje raspored, artikal se skupi i ostane bijela praznina
+ * (vidjeno 30.07.2026. na oglasu sa polo majicama). Odnos izlaza zato ide od ulaza.
+ */
+export function najbliziOdnos(sirina: number, visina: number): Odnos {
+  if (!Number.isFinite(sirina) || !Number.isFinite(visina) || sirina <= 0 || visina <= 0) return ZADANI_ODNOS;
+  const cilj = sirina / visina;
+  let najbolji: Odnos = ZADANI_ODNOS;
+  let najmanjaRazlika = Number.POSITIVE_INFINITY;
+  for (const o of ODNOSI) {
+    const [a, b] = o.split(":").map(Number) as [number, number];
+    const razlika = Math.abs(a / b - cilj);
+    if (razlika < najmanjaRazlika) {
+      najmanjaRazlika = razlika;
+      najbolji = o;
+    }
+  }
+  return najbolji;
 }
 
 /** Prepoznaje ulaz koji treba prvo skinuti sa interneta (slika sa objavljenog oglasa). */
@@ -193,15 +258,23 @@ export async function generisiSliku(opcije: OpcijeGenerisanja): Promise<Generisa
     ulazne.push(jeUrl(ulaz) ? await skiniUlaznuSliku(ulaz) : ulaz);
   }
   const dijelovi: GeminiDioZahtjeva[] = [{ text: sastaviUputu(opcije.recept, opcije.logo) }];
+  let odnosPrveSlike: Odnos | null = null;
   for (const putanja of ulazne) {
     const mime = medijskiTip(putanja);
     if (!mime) {
       throw new Error(`Nepodrzan format ulazne slike: ${putanja}. Podrzano: jpg, jpeg, png, gif, webp.`);
     }
-    dijelovi.push({ inline_data: { mime_type: mime, data: readFileSync(putanja).toString("base64") } });
+    const bajtovi = readFileSync(putanja);
+    // Odnos se uzima od PRVE slike, jer je ona glavna i po njoj se komponuje kadar.
+    if (odnosPrveSlike === null) {
+      const d = dimenzijeSlike(bajtovi);
+      if (d) odnosPrveSlike = najbliziOdnos(d.sirina, d.visina);
+    }
+    dijelovi.push({ inline_data: { mime_type: mime, data: bajtovi.toString("base64") } });
   }
 
-  const odnos = opcije.odnos ?? ZADANI_ODNOS;
+  // Izricit odnos od pozivaoca pobjedjuje; inace ide odnos ulazne slike; ako ni njega nema, zadani.
+  const odnos = opcije.odnos ?? odnosPrveSlike ?? ZADANI_ODNOS;
   if (!ODNOSI.includes(odnos)) {
     throw new Error(`Nepodrzan odnos strana: ${odnos}. Podrzano: ${ODNOSI.join(", ")}.`);
   }
