@@ -22,7 +22,9 @@ Backup NEMA nijedan token, namjerno. Svi se unose rucno, i svi su obnovljivi.
 ## Redoslijed
 
 1. **Klon koda.** `git clone <url> ~/olx-klijenti/<ime>`, pa `git checkout --detach stabilno`.
-   Tag, ne grana: klijenti nikad ne prate granu.
+   Tag, ne grana: klijenti nikad ne prate granu. Ako se oporavlja zato sto je zadnje izdanje
+   pokvarilo klona, uzmi konkretno izdanje umjesto prekidaca: `git tag -l "v*"` pa
+   `git checkout --detach v0.3.0`. Sta je u kojem izdanju: `CHANGELOG.md`.
 
 2. **`.env` u cijelosti.** Ovo je najveci rucni dio, jer git ovo namjerno nema:
    - `OLX_TOKEN` — generise se ponovo na OLX-u

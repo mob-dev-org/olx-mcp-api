@@ -47,6 +47,10 @@ Odgovori i skillovi ne kopiraju brojeve ni pravila, nego pokazuju na:
   raspored automatskih poslova, AI runda, sta je automatski a sta rucno. Procitaj je prije
   rada na pogonu ili skriptama.
 
+- `CHANGELOG.md` — sta je uslo u koje izdanje. Na pitanje "od kad je ovo tako" ili "sta se
+  promijenilo" odgovor se cita odavde, ne iz pamcenja. Verzija klona: prva stavka
+  `provjeri-klon.mjs`, ili polje `version` u audit zapisu.
+
 - `olx-dokumentacija/pravila-brojeva.md` — **ima prednost nad svim ostalim izvorima kad je u
   pitanju bilo koji broj.** Resource `olx://pravila-brojeva`.
 - `olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md` — pravila platforme, paketi, kvote, izdvajanje,

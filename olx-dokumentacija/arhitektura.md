@@ -198,15 +198,28 @@ stavka FALI, sa klijentom se ne pocinje.
 Klijentski klonovi NE prate granu. Oni stoje na tagu `stabilno`, u detached stanju. To je
 kapija: los commit fizicki ne moze doci do klijenta dok ga administrator ne propusti.
 
+Dva taga rade zajedno i imaju razlicite poslove:
+
+- **`vX.Y.Z`** je nepomican dokaz sta je izdanje. Anotiran tag, nikad se ne pomjera. Bez njega
+  vracanje na prethodnu verziju nema cilj, jer pomjeren `stabilno` vise nigdje ne postoji.
+- **`stabilno`** je prekidac koji kaze koje izdanje flota vozi. Lightweight tag, pomjera se.
+
 ```
-rad na main  ->  test na svom klonu  ->  pomjeri tag  ->  azuriraj flotu
+rad na main  ->  test na svom klonu  ->  npm version  ->  tag vX.Y.Z  ->  stabilno  ->  azuriraj
 ```
 
 1. Rad ide na `main`. Feature grana se spoji u `main` kad je gotova.
 2. Na svom klonu: `npm test`, `npm run typecheck`, `scripts/provjeri-prompt.sh`. Tag se ne
    pomjera na neprovjereno stanje.
-3. Pomjeri tag: `git tag -f stabilno && git push -f origin stabilno`.
-4. Azuriraj klonove. **Skripta se pokrece na masini gdje klonovi zive**, jer restartuje njihove
+3. `npm version <broj>`: hook `preversion` sam vrti `npm test`, pa se broj podigne u
+   `package.json` i `package-lock.json`, hook `version` prepise `src/core/verzija.ts` kroz
+   `scripts/upisi-verziju.mjs`, i npm napravi commit i anotiran tag `vX.Y.Z`. Prije toga upisi
+   sekciju u `CHANGELOG.md`: test pada ako izdanje nema zapis.
+4. `git push --follow-tags origin main`. Izdanje je od ovog trenutka dokaziv, nepomican ref.
+5. **Zadnje** pomjeri prekidac: `git tag -f stabilno vX.Y.Z && git push -f origin stabilno`.
+   Zadnje je namjerno: `stabilno` je jedini ref koji flota prati, pa se pomjera samo kad je sve
+   ostalo vec na remoteu.
+6. Azuriraj klonove. **Skripta se pokrece na masini gdje klonovi zive**, jer restartuje njihove
    poslove: klonovi na Windowsu se ne mogu azurirati sa macOS-a ni obrnuto.
 
 | Masina | Komanda | Prikaz bez izmjene |
@@ -214,8 +227,15 @@ rad na main  ->  test na svom klonu  ->  pomjeri tag  ->  azuriraj flotu
 | macOS, Linux | `scripts/azuriraj-sve.sh` | `scripts/azuriraj-sve.sh --suho` |
 | Windows | `powershell -ExecutionPolicy Bypass -File deploy\windows\azuriraj.ps1` | isto uz `-Suho` |
 
-Oba rade isto, po klonu iz `~/.olx-klijenti.txt`: fetch tagova, checkout `stabilno`, `npm ci`,
-build, testovi, pa restart samo DUGOZIVIH poslova (`sesija`, `admin-bot`).
+Oba rade isto, po klonu iz `~/.olx-klijenti.txt`: fetch tagova **sa `--force`**, checkout
+`stabilno`, `npm ci`, build, testovi, pa restart samo DUGOZIVIH poslova (`sesija`, `admin-bot`).
+Na kraju prijavljuju i na kojem je izdanju flota (`git describe --tags`), pa razilazenje izdanja
+medju klonovima ne moze proci neopazeno.
+
+`--force` nije kozmetika: `git fetch --tags` bez njega ODBIJA pomjeriti tag koji lokalno vec
+postoji ("would clobber existing tag"), pa je klon ostajao na starom commitu dok checkout, build i
+testovi prodju i skripta prijavi uspjeh. Tiho neazuriranje flote je najgori ishod te skripte
+(izmjereno 30.07.2026, popravljeno u 0.4.0).
 
 Tri pravila koja su u obje skripte i nisu slucajna:
 
@@ -228,15 +248,26 @@ Tri pravila koja su u obje skripte i nisu slucajna:
   runda obnova van reda. Oni novi kod uzmu sami na sljedecem terminu, jer su jednokratni node
   procesi. Restart treba samo sesijama, jer one jedine drze stari kod i stari prompt u memoriji.
 
-Vracanje na prethodnu verziju je pomjeranje taga natrag pa ponovo azuriranje; samo pomjeranje
-taga ne mijenja nista ni na jednoj masini, jer nema posla koji automatski povlaci.
+Vracanje na prethodnu verziju je pomjeranje prekidaca na prethodno izdanje pa ponovo azuriranje:
+
+```
+git tag -f stabilno v0.3.0 && git push -f origin stabilno
+scripts/azuriraj-sve.sh
+```
+
+Samo pomjeranje taga ne mijenja nista ni na jednoj masini, jer nema posla koji automatski povlaci.
+Sta je bilo prethodno izdanje procitaj iz `CHANGELOG.md` ili `git tag -l "v*"`.
+
+Jedan rub koji vrijedi znati: azuriranje preskace klon sa lokalnim izmjenama, pa i vracanje moze
+tiho ostaviti jedan klon na losoj verziji. Na kojem je izdanju koji klon vidi se u zbiru
+azuriranja i u `node scripts/provjeri-klon.mjs` (prva stavka).
 
 ## 8. Gdje zivi klijentsko stanje i kako se spasava
 
 Kod i stanje se NIKAD ne mijesaju. To su dva odvojena repoa i dva odvojena toka:
 
 ```
-kod:     mob-dev-org/olx-mcp-api   tag stabilno   ->  svi klonovi, ista verzija
+kod:     mob-dev-org/olx-mcp-api   tag stabilno -> vX.Y.Z   ->  svi klonovi, ista verzija
 stanje:  <org>/olx-stanje          grana po klijentu  <-  svaki klon salje svoje
 ```
 

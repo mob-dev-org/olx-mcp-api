@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { loadConfig, type OlxConfig } from "./config.js";
 import { auditSinkFromPath, currentAuditContext, potrosenoNaDan, type AuditSink } from "./audit.js";
+import { VERZIJA } from "./verzija.js";
 import {
   alarmiNaloga,
   konkurentIzvjestaj,
@@ -186,6 +187,7 @@ export class OlxClient {
       const ctx = currentAuditContext();
       this.audit({
         ts: new Date().toISOString(),
+        version: VERZIJA,
         operation: ctx.operation,
         source: ctx.source,
         method,
@@ -292,6 +294,7 @@ export class OlxClient {
     const ctx = currentAuditContext();
     this.audit({
       ts: new Date().toISOString(),
+      version: VERZIJA,
       operation: ctx.operation,
       source: ctx.source,
       method,

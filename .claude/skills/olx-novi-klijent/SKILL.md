@@ -73,7 +73,9 @@ cd ~/olx-klijenti/<ime>
 git checkout --detach stabilno
 ```
 
-- Tag `stabilno` je jedina verzija koja ide klijentima; grana main je radionica.
+- Tag `stabilno` je jedina verzija koja ide klijentima; grana main je radionica. `stabilno` je
+  prekidac koji pokazuje na oznaceno izdanje (`vX.Y.Z`), pa `git describe --tags` u klonu kaze
+  tacno koje. Isto ispisuje i `provjeri-klon.mjs` kao prvu stavku.
 - Pristup repou sa tudje masine: deploy key sa read pravima, NIKAD licni SSH kljuc admina.
 - Jedan klon = jedan klijent. Za drugog klijenta novi klon, uvijek.
 

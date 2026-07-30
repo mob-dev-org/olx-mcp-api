@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { OlxClient, OlxAuthError, OlxSpendError, naknadaKategorije } from "./index.js";
 import { loadConfig } from "./config.js";
 import { potrosenoNaDan, withAuditContext, type AuditEntry } from "./audit.js";
+import { VERZIJA } from "./verzija.js";
 import type { OlxConfig } from "./config.js";
 
 interface FetchCall {
@@ -630,6 +631,7 @@ test("audit biljezi upis, a citanje preskace", async () => {
     assert.equal(zapis?.ok, true);
     assert.equal(zapis?.status, 200);
     assert.equal(zapis?.attempts, 1);
+    assert.equal(zapis?.version, VERZIJA, "zapis mora reci kojim kodom je radnja izvrsena");
     assert.ok(typeof zapis?.duration_ms === "number");
   } finally {
     restore();
@@ -836,6 +838,8 @@ test("odbijen trosak se biljezi iako zahtjev nije poslan", async () => {
     assert.equal(entries[0]?.path, "/listings/77/sponsore");
     assert.match(String(entries[0]?.error), /odbijeno bez potvrde/);
     assert.match(String(entries[0]?.error), /60 kredita/);
+    // Drugo mjesto gradnje zapisa (zapisiOdbijeno): mora nositi verziju kao i obicni zapis.
+    assert.equal(entries[0]?.version, VERZIJA);
   } finally {
     restore();
   }

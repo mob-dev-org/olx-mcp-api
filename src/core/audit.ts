@@ -18,6 +18,12 @@ export type AuditSource = "cli" | "mcp" | "nepoznato";
 export interface AuditEntry {
   // ISO vrijeme zavrsetka poziva.
   ts: string;
+  // Verzija toolkita koji je napisao zapis. Odgovara na "kojim kodom je ovo radjeno", jer
+  // "sta je radjeno i kada" bez toga ne pomaze kad se ponasanje promijenilo izmedju izdanja.
+  // Polje je OBAVEZNO namjerno: tako kompajler ne pusta novo mjesto gradnje zapisa bez verzije.
+  // Ime je englesko kao i ostala polja; rijec `verzija` je u ovom kodu zauzeta za verziju SHEME
+  // podataka (plan.ts, stats.ts, konkurenti.ts), pa bi znacila dvije razlicite stvari.
+  version: string;
   // Ime CLI komande ili MCP alata koji je pokrenuo poziv.
   operation: string;
   source: AuditSource;

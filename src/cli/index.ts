@@ -8,6 +8,7 @@ import { OlxClient, OlxApiError, OlxAuthError, OlxSpendError } from "../core/ind
 import { odvojiIzuzete, ucitajIzuzeca } from "../core/izuzeca.js";
 import { loadConfig } from "../core/config.js";
 import { setAuditContext } from "../core/audit.js";
+import { VERZIJA } from "../core/verzija.js";
 import { parseSponsorOptions, SPONSOR_DAYS, REFRESH_EVERY } from "../core/sponsor-options.js";
 import { buildPlan, dospjeliTermini, oznaciTermin, planSazetak, zaglavljeniTermini } from "../core/plan.js";
 import { citajPlan, citajPlanAkoPostoji, PLAN_FILE, upisiPlan, zauzmiKljuc } from "../core/plan-fajl.js";
@@ -195,7 +196,7 @@ const program = new Command();
 program
   .name("olx")
   .description("Interni CLI za OLX.ba / PIK.ba shopove")
-  .version("0.1.0");
+  .version(VERZIJA);
 
 // Svaka radnja se u audit logu vidi pod imenom komande koja ju je pokrenula.
 program.hook("preAction", (_thisCommand, actionCommand) => {

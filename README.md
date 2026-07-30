@@ -233,10 +233,22 @@ Izdvajanje i akcijska cijena nikad automatski.
 ### Audit log
 
 Svaka radnja koja mijenja stanje ili trosi kredite upisuje se u `.olx-pik/audit.jsonl` (jedan JSON
-po liniji, van gita). Zapis nosi vrijeme, ime komande ili MCP alata, metodu, putanju, status,
-trajanje i broj pokusaja, a kod odbijenog troska i to da potvrda nije data. Tijelo zahtjeva se
+po liniji, van gita). Zapis nosi vrijeme, **verziju toolkita** (`version`), ime komande ili MCP
+alata, metodu, putanju, status, trajanje i broj pokusaja, a kod odbijenog troska i to da potvrda
+nije data. Verzija je tu jer "sta je radjeno i kada" ne pomaze kad se ponasanje promijenilo izmedju
+dva izdanja: zapis mora reci i kojim kodom je radnja izvrsena. Tijelo zahtjeva se
 nikad ne zapisuje, jer login nosi lozinku. Citanja se ne biljeze osim ako se postavi
 `OLX_AUDIT_READS=1`. Putanja se mijenja kroz `OLX_AUDIT_FILE`; prazna vrijednost gasi log.
+
+### Verzija i izdanja
+
+Verzija sistema stoji u `src/core/verzija.ts` i vidi se na cetiri mjesta: `olx --version`, MCP
+handshake, polje `version` u audit logu i prva stavka `node scripts/provjeri-klon.mjs`. Na kojem je
+izdanju klon: `git describe --tags`.
+
+Izdanje se pravi sa `npm version <broj>` (hook sam vrti testove i prepise konstantu), nosi anotiran
+tag `vX.Y.Z`, a `stabilno` je prekidac koji kaze koje izdanje vozi flota. Sta je uslo po izdanju:
+`CHANGELOG.md`. Puna procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`, sekcija 7.
 
 ### Podaci klijenata
 

@@ -3,8 +3,14 @@
 # Povlaci tag `stabilno` u sve klijentske klonove, gradi, testira i restartuje njihove poslove.
 #
 # Zasto tag a ne grana main: los commit fizicki ne moze doci do klijenata dok ga ne propustis.
-# Radis na main, testiras na svom klonu, pa pomjeris tag:
-#   git tag -f stabilno && git push -f origin stabilno
+# Dva taga rade zajedno: `vX.Y.Z` je nepomican dokaz sta je izdanje, `stabilno` je prekidac koji
+# kaze koje izdanje flota vozi. Procedura izdanja i vracanja: olx-dokumentacija/arhitektura.md
+# sekcija 7. Vracanje je pomjeranje `stabilno` na prethodni `v` tag pa ponovo ova skripta.
+#
+# Fetch tagova IDE SA --force i to nije kozmetika: `git fetch --tags` bez toga odbija pomjeriti
+# tag koji lokalno vec postoji ("would clobber existing tag"), pa bi klon ostao na starom
+# commitu, a checkout, build i testovi bi prosli i skripta bi prijavila uspjeh. Tiho
+# neazuriranje flote je najgori moguci ishod ove skripte (izmjereno 30.07.2026).
 #
 # Zasto se klon preskace umjesto da se popravlja: klijent na staroj radnoj verziji je bolji od
 # klijenta na polovicno azuriranoj. Ako build ili testovi padnu, servisi tog klona se NE diraju.
@@ -14,6 +20,8 @@
 set -uo pipefail
 
 POPIS="${OLX_KLIJENTI_POPIS:-$HOME/.olx-klijenti.txt}"
+# Ime taga stoji na jednom mjestu, jer se inace ova skripta i njen Windows blizanac raziduju.
+TAG="${OLX_TAG:-stabilno}"
 SAMO_PROBA=0
 [[ "${1:-}" == "--suho" ]] && SAMO_PROBA=1
 
@@ -26,6 +34,15 @@ fi
 
 uspjeli=()
 pali=()
+# Izdanja na koja su klonovi stvarno dosli. Sluzi da admin poruka moze reci "sve na v0.4.0"
+# umjesto samo broja, jer je razilazenje izdanja unutar flote znak da nesto nije proslo.
+izdanja=()
+
+# Ime izdanja klona: anotiran `v` tag ako HEAD stoji na njemu, inace kratki sha. `--always` je
+# tu da funkcija nikad ne vrati prazno, jer plitak klon ili klon bez `v` tagova nije greska.
+izdanje_klona() {
+  git -C "$1" describe --tags --always 2>/dev/null || echo nepoznato
+}
 
 # Popis se cita kroz FD 3, ne kroz stdin: git/npm/node u tijelu petlje inace pojedu ostatak
 # popisa i skripta tiho obradi samo prvi klon.
@@ -43,9 +60,9 @@ while IFS= read -r -u 3 klon; do
   fi
 
   if [[ $SAMO_PROBA -eq 1 ]]; then
-    trenutni="$(git -C "$klon" rev-parse --short HEAD 2>/dev/null || echo nepoznat)"
+    trenutni="$(izdanje_klona "$klon")"
     echo "  proba: trenutno na $trenutni, ne diram nista"
-    uspjeli+=("$klon (proba)")
+    uspjeli+=("$klon (proba, $trenutni)")
     continue
   fi
 
@@ -58,8 +75,9 @@ while IFS= read -r -u 3 klon; do
   fi
 
   greska=""
-  git -C "$klon" fetch --tags --quiet origin || greska="fetch"
-  [[ -z "$greska" ]] && { git -C "$klon" checkout --detach --quiet stabilno || greska="checkout tag stabilno"; }
+  # --force: vidi napomenu u zaglavlju. Bez toga pomicni tag ostaje na starom commitu.
+  git -C "$klon" fetch --tags --force --quiet origin || greska="fetch"
+  [[ -z "$greska" ]] && { git -C "$klon" checkout --detach --quiet "$TAG" || greska="checkout tag $TAG"; }
   [[ -z "$greska" ]] && { (cd "$klon" && npm ci --silent) || greska="npm ci"; }
   [[ -z "$greska" ]] && { (cd "$klon" && npm run build --silent) || greska="build"; }
   [[ -z "$greska" ]] && { (cd "$klon" && npm test --silent >/dev/null 2>&1) || greska="testovi"; }
@@ -86,8 +104,10 @@ while IFS= read -r -u 3 klon; do
     fi
   done
 
-  uspjeli+=("$klon @ $(git -C "$klon" rev-parse --short HEAD)")
-  echo "  ok"
+  izdanje="$(izdanje_klona "$klon")"
+  izdanja+=("$izdanje")
+  uspjeli+=("$klon @ $izdanje")
+  echo "  ok, $izdanje"
 done 3< "$POPIS"
 
 echo
@@ -102,9 +122,23 @@ if [[ ${#pali[@]} -gt 0 ]]; then
   for p in "${pali[@]}"; do echo "  $p"; done
 fi
 
+# Jedno izdanje za cijelu flotu je normalno stanje. Razilazenje znaci da je neki klon ostao na
+# starom kodu, a to se lako previdi kad se gleda samo broj "proslo".
+izdanja_sazeto=""
+if [[ ${#izdanja[@]} -gt 0 ]]; then
+  jedinstvena="$(printf '%s\n' "${izdanja[@]}" | sort -u)"
+  if [[ "$(printf '%s\n' "$jedinstvena" | wc -l | xargs)" == "1" ]]; then
+    izdanja_sazeto="flota na $jedinstvena"
+  else
+    izdanja_sazeto="PAZNJA: izdanja se razilaze: $(printf '%s' "$jedinstvena" | tr '\n' ' ')"
+  fi
+  echo "$izdanja_sazeto"
+fi
+
 # Izvjestaj administratoru. Klijenti ovo ne vide.
 if [[ -n "${TELEGRAM_BOT_TOKEN:-}" && -n "${TELEGRAM_ADMIN_CHAT_ID:-}" && $SAMO_PROBA -eq 0 ]]; then
   poruka="Azuriranje flote: proslo ${#uspjeli[@]}, palo ${#pali[@]}"
+  [[ -n "$izdanja_sazeto" ]] && poruka+=$'\n'"$izdanja_sazeto"
   for p in "${pali[@]:-}"; do [[ -n "$p" ]] && poruka+=$'\n'"$p"; done
   curl -s -o /dev/null -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
     --data-urlencode "chat_id=${TELEGRAM_ADMIN_CHAT_ID}" \

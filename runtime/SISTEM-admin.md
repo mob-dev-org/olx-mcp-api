@@ -37,8 +37,14 @@ Dodaje se povrh `CLAUDE.md` kroz `scripts/claude-olx.sh`. Klijentski runtime ovo
   `posao sedmicni`, bez modela. Windows ekvivalent svih poslova:
   `deploy/windows/instaliraj-zadatke.ps1` (Task Scheduler).
 - `scripts/azuriraj-sve.sh` povlaci tag `stabilno` u sve klonove iz `~/.olx-klijenti.txt`. Klon
-  kod kojeg build ili test padne se preskace i njegovi servisi se ne restartuju. Windows
-  ekvivalent: `deploy/windows/azuriraj.ps1` (isti popis, Task Scheduler umjesto launchd).
+  kod kojeg build ili test padne se preskace i njegovi servisi se ne restartuju. Zbir i admin
+  poruka kazu i na kojem je izdanju flota; "izdanja se razilaze" znaci da je neki klon ostao na
+  starom kodu. Windows ekvivalent: `deploy/windows/azuriraj.ps1` (isti popis, Task Scheduler
+  umjesto launchd).
+- Izdanje nosi anotiran tag `vX.Y.Z`, a `stabilno` je prekidac koji kaze koje izdanje flota vozi.
+  Izdanje se pravi sa `npm version <broj>` (sam vrti testove i prepise `src/core/verzija.ts`), pa
+  se `stabilno` pomjeri na taj tag ZADNJE. Puna procedura i vracanje: `arhitektura.md` sekcija 7,
+  sta je uslo po izdanju: `CHANGELOG.md`. Verzija klona: prva stavka `provjeri-klon.mjs`.
   Skripta se pokrece na masini gdje klonovi ZIVE, pa klonovi na Windowsu ne mogu biti azurirani
   sa macOS-a i obrnuto. Oba imaju `--suho` / `-Suho` za prikaz bez ikakve izmjene.
 - `scripts/ai-runda.sh` (launchd sablon `ADMIN.ai-runda`, nedjelja 21h, instalira se rucno i

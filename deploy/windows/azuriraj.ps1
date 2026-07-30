@@ -2,8 +2,14 @@
 # restartuje njihove dugozive poslove. Windows blizanac scripts/azuriraj-sve.sh (macOS/Linux).
 #
 # Zasto tag a ne grana main: los commit fizicki ne moze doci do klijenata dok ga ne propustis.
-# Radis na main, testiras na svom klonu, pa pomjeris tag:
-#   git tag -f stabilno && git push -f origin stabilno
+# Dva taga rade zajedno: `vX.Y.Z` je nepomican dokaz sta je izdanje, `stabilno` je prekidac koji
+# kaze koje izdanje flota vozi. Procedura izdanja i vracanja: olx-dokumentacija/arhitektura.md
+# sekcija 7. Vracanje je pomjeranje `stabilno` na prethodni `v` tag pa ponovo ova skripta.
+#
+# Fetch tagova IDE SA --force i to nije kozmetika: `git fetch --tags` bez toga odbija pomjeriti
+# tag koji lokalno vec postoji ("would clobber existing tag"), pa bi klon ostao na starom
+# commitu, a checkout, build i testovi bi prosli i skripta bi prijavila uspjeh. Tiho
+# neazuriranje flote je najgori moguci ishod ove skripte (izmjereno 30.07.2026).
 #
 # Zasto se klon preskace umjesto da se popravlja: klijent na staroj radnoj verziji je bolji od
 # klijenta na polovicno azuriranoj. Ako build ili testovi padnu, zadaci tog klona se NE diraju.
@@ -14,8 +20,10 @@
 # Pokretanje:
 #   powershell -ExecutionPolicy Bypass -File deploy\windows\azuriraj.ps1
 #   powershell -ExecutionPolicy Bypass -File deploy\windows\azuriraj.ps1 -Suho
+#   powershell -ExecutionPolicy Bypass -File deploy\windows\azuriraj.ps1 -Tag v0.3.0
 
-param([switch]$Suho)
+# -Tag: ime taga stoji na jednom mjestu, jer se inace ova skripta i bash blizanac raziduju.
+param([switch]$Suho, [string]$Tag = $(if ($env:OLX_TAG) { $env:OLX_TAG } else { "stabilno" }))
 
 # Bez Stop: skripta sama vodi greske po klonu, da pad jednog klona ne prekine ostale.
 $ErrorActionPreference = "Continue"
@@ -44,6 +52,17 @@ function Pokreni([string]$Folder, [string]$Program, [string[]]$Argumenti) {
 
 $uspjeli = @()
 $pali = @()
+# Izdanja na koja su klonovi stvarno dosli. Sluzi da admin poruka moze reci "flota na v0.4.0"
+# umjesto samo broja, jer je razilazenje izdanja unutar flote znak da nesto nije proslo.
+$izdanja = @()
+
+# Ime izdanja klona: anotiran `v` tag ako HEAD stoji na njemu, inace kratki sha. `--always` je
+# tu da funkcija nikad ne vrati prazno, jer plitak klon ili klon bez `v` tagova nije greska.
+function IzdanjeKlona([string]$Folder) {
+  $ime = (& git -C $Folder describe --tags --always 2>$null)
+  if (-not $ime) { return "nepoznato" }
+  return $ime
+}
 
 foreach ($linija in Get-Content $Popis) {
   $klon = ($linija -split "#")[0].Trim()
@@ -58,10 +77,9 @@ foreach ($linija in Get-Content $Popis) {
   }
 
   if ($Suho) {
-    $trenutni = (& git -C $klon rev-parse --short HEAD 2>$null)
-    if (-not $trenutni) { $trenutni = "nepoznat" }
+    $trenutni = IzdanjeKlona $klon
     Write-Host "  proba: trenutno na $trenutni, ne diram nista"
-    $uspjeli += "$klon (proba)"
+    $uspjeli += "$klon (proba, $trenutni)"
     continue
   }
 
@@ -75,11 +93,12 @@ foreach ($linija in Get-Content $Popis) {
   }
 
   $greska = ""
-  & git -C $klon fetch --tags --quiet origin 2>$null
+  # --force: vidi napomenu u zaglavlju. Bez toga pomicni tag ostaje na starom commitu.
+  & git -C $klon fetch --tags --force --quiet origin 2>$null
   if ($LASTEXITCODE -ne 0) { $greska = "fetch" }
   if ($greska -eq "") {
-    & git -C $klon checkout --detach --quiet stabilno 2>$null
-    if ($LASTEXITCODE -ne 0) { $greska = "checkout tag stabilno" }
+    & git -C $klon checkout --detach --quiet $Tag 2>$null
+    if ($LASTEXITCODE -ne 0) { $greska = "checkout tag $Tag" }
   }
   if ($greska -eq "" -and -not (Pokreni $klon "npm" @("ci", "--silent"))) { $greska = "npm ci" }
   if ($greska -eq "" -and -not (Pokreni $klon "npm" @("run", "build", "--silent"))) { $greska = "build" }
@@ -109,9 +128,10 @@ foreach ($linija in Get-Content $Popis) {
     }
   }
 
-  $verzija = (& git -C $klon rev-parse --short HEAD 2>$null)
-  $uspjeli += "$klon @ $verzija"
-  Write-Host "  ok"
+  $izdanje = IzdanjeKlona $klon
+  $izdanja += $izdanje
+  $uspjeli += "$klon @ $izdanje"
+  Write-Host "  ok, $izdanje"
 }
 
 Write-Host ""
@@ -123,9 +143,23 @@ if ($pali.Count -gt 0) {
   foreach ($p in $pali) { Write-Host "  $p" }
 }
 
+# Jedno izdanje za cijelu flotu je normalno stanje. Razilazenje znaci da je neki klon ostao na
+# starom kodu, a to se lako previdi kad se gleda samo broj "proslo".
+$izdanjaSazeto = ""
+if ($izdanja.Count -gt 0) {
+  $jedinstvena = @($izdanja | Sort-Object -Unique)
+  if ($jedinstvena.Count -eq 1) {
+    $izdanjaSazeto = "flota na $($jedinstvena[0])"
+  } else {
+    $izdanjaSazeto = "PAZNJA: izdanja se razilaze: $($jedinstvena -join ' ')"
+  }
+  Write-Host $izdanjaSazeto
+}
+
 # Izvjestaj administratoru. Klijenti ovo ne vide.
 if ($env:TELEGRAM_BOT_TOKEN -and $env:TELEGRAM_ADMIN_CHAT_ID -and -not $Suho) {
   $poruka = "Azuriranje flote (Windows): proslo $($uspjeli.Count), palo $($pali.Count)"
+  if ($izdanjaSazeto -ne "") { $poruka += "`n$izdanjaSazeto" }
   foreach ($p in $pali) { $poruka += "`n$p" }
   try {
     Invoke-RestMethod -Method Post -Uri "https://api.telegram.org/bot$($env:TELEGRAM_BOT_TOKEN)/sendMessage" `

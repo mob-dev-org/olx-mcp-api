@@ -46,6 +46,42 @@ function komandaPostoji(ime) {
   }
 }
 
+// 0. Verzija i izdanje. Nije provjera nego kontekst za sve ostalo: kad se prijavi problem, prvo
+//    pitanje je kojim kodom klon radi. Zato NIKAD ne obara (uvijek ok ili paznja): klon koji radi
+//    ne smije biti zaustavljen zato sto git nije u PATH-u ili klon nema tagove.
+{
+  let verzija = "nepoznata";
+  try {
+    verzija = JSON.parse(readFileSync(join(KORIJEN, "package.json"), "utf8")).version ?? verzija;
+  } catch {
+    // package.json bez verzije ili nevaljao: javlja se kao paznja nize
+  }
+
+  let izdanje = "";
+  if (komandaPostoji("git") && existsSync(join(KORIJEN, ".git"))) {
+    try {
+      // --always: klon bez `v` tagova vrati kratki sha umjesto da padne. Plitak klon ili klon
+      // prije prvog tagiranog izdanja nije greska.
+      izdanje = execFileSync("git", ["describe", "--tags", "--always"], {
+        cwd: KORIJEN,
+        stdio: ["ignore", "pipe", "ignore"],
+      })
+        .toString()
+        .trim();
+    } catch {
+      // bez commita ili bez tagova: ostaje prazno
+    }
+  }
+
+  if (verzija === "nepoznata") {
+    paznja("Verzija", "package.json ne kaze verziju, pa audit log ne moze reci kojim kodom je radjeno");
+  } else if (izdanje) {
+    ok("Verzija", `${verzija} (${izdanje})`);
+  } else {
+    ok("Verzija", `${verzija} (izdanje nepoznato, git ne daje opis)`);
+  }
+}
+
 // 1. Node verzija: ispod 20.12 se .env TIHO preskace (loadEnvFile ne postoji), pa bi
 //    OLX_KLIJENT_AI nestao i klijent bi tiho presao na vlasnikovu pretplatu.
 {

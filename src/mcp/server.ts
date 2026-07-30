@@ -12,6 +12,7 @@ import { procitajPrijedlog, spisakPrijedloga } from "../core/prijedlozi.js";
 import { nadjiSablon } from "../core/opisi.js";
 import { POLJA, bezNapomene, bezPolja, saNapomenom, saPoljem, ucitajPamcenje, upisiPamcenje } from "../core/pamcenje.js";
 import { withAuditContext } from "../core/audit.js";
+import { VERZIJA } from "../core/verzija.js";
 import { parseSponsorOptions } from "../core/sponsor-options.js";
 import {
   efekatIzdvajanja,
@@ -99,7 +100,10 @@ async function run(fn: (c: OlxClient) => Promise<unknown>): Promise<ToolResult> 
   }
 }
 
-const server = new McpServer({ name: "olx-pik-mcp-server", version: "0.1.0" });
+// Ime servera je namjerno literal i ne izvodi se iz package.json ("olx-pik-toolkit"): server je
+// u Claude konfiguraciji registrovan kao "olx-pik", pa promjena identiteta u handshakeu pokvari
+// postojece registracije. Verzija se povlaci, ime ne.
+const server = new McpServer({ name: "olx-pik-mcp-server", version: VERZIJA });
 
 // Svaki alat se izvrsava unutar audit konteksta sa svojim imenom, da zapis u audit logu kaze
 // koja je radnja pokrenula poziv. Omotano je na jednom mjestu, pa registracije alata nize ostaju

@@ -1,6 +1,6 @@
 {
   "name": "olx-pik-toolkit",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "description": "Interni CLI i MCP server za upravljanje OLX.ba / PIK.ba shopovima",
   "type": "module",
   "engines": {
@@ -17,6 +17,8 @@
     "dev:mcp": "tsc && node dist/mcp/server.js",
     "typecheck": "tsc --noEmit",
     "test": "tsc && node --test dist/core/",
+    "preversion": "npm test",
+    "version": "node scripts/upisi-verziju.mjs && git add src/core/verzija.ts",
     "chat": "bash scripts/claude-olx.sh",
     "deepseek:proba": "tsc && node scripts/deepseek-proba.mjs",
     "kanal:proba": "node scripts/proba-kanala.mjs",

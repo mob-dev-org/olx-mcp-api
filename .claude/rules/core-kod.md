@@ -11,6 +11,9 @@ Ucitava se samo kad se dira kod. Klijentska i admin bot sesija ovo nikad ne vide
 
 - `src/core` je jedini sloj koji prica sa OLX API-jem. CLI i MCP su tanka lica nad njim i ne
   smiju zvati `fetch` direktno ni obilaziti `OlxClient`.
+- Smjer zavisnosti je jednosmjeran: `src/core` NE uvozi iz `src/mcp` ni `src/cli`, ni tip. To
+  cuva `src/core/slojevi.test.ts` (cita `src/`, ne `dist/`, jer `tsc` brise uvoze tipova). Kad
+  test padne, popravlja se uvoz, ne test: ono sto dijele ide u `core`.
 - Racunanje ide u ciste funkcije (`stats.ts`, `izvjestaj.ts`) sa testovima; disk diraju samo
   `audit.ts` i `snapshoti.ts`. Nova logika prati tu podjelu.
 - Sve sto mijenja stanje ili trosi kredite prolazi kroz postojece brane u `core`: `confirm`
@@ -34,6 +37,16 @@ Ucitava se samo kad se dira kod. Klijentska i admin bot sesija ovo nikad ne vide
 - `process.loadEnvFile` NE gazi vec postavljen env: eksplicitni env procesa uvijek pobjedjuje
   `.env`. Na to se oslanja cuvar sesija (OLX_MCP_PROFILE po tipu sesije) — ne mijenjati.
 - Citanje konfiguracije samo kroz `loadConfig` u `config.ts`, ne `process.env` po kodu.
+
+## Verzija
+
+- Broj verzije se NE mijenja usred obicnog rada. Mijenja ga samo izdanje, kroz
+  `npm version <broj>`, koji podigne `package.json` i kroz hook prepise `src/core/verzija.ts`.
+  Parnost tih dvaju cuva `src/core/verzija.test.ts`, kao i postojanje sekcije u `CHANGELOG.md`.
+- `VERZIJA` iz `src/core/verzija.js` je jedini izvor za CLI `--version`, MCP handshake i polje
+  `version` u audit zapisu. Novi potrosac verzije uvozi konstantu, ne prepisuje broj.
+- Polje `version` u `AuditEntry` je obavezno namjerno: novo mjesto gradnje audit zapisa ne prolazi
+  kroz `tsc` bez njega.
 
 ## Provjera
 
