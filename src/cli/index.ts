@@ -293,7 +293,7 @@ listings
       const created = await c.createListing(input, { confirm: opts.yes });
       out(created);
       if (opts.publish) {
-        const pub = await c.publishListing(created.id);
+        const pub = await c.publishListing(created.id, { confirm: opts.yes });
         console.error("Objavljeno:");
         out(pub);
       } else {
@@ -307,9 +307,10 @@ listings
 listings
   .command("publish <id>")
   .description("Objavljuje DRAFT oglas")
-  .action(async (id: string) => {
+  .option("--yes", "potvrda za naplatne kategorije (vozila, nekretnine, poslovi)", false)
+  .action(async (id: string, opts: { yes?: boolean }) => {
     try {
-      out(await (await withAuth()).publishListing(id));
+      out(await (await withAuth()).publishListing(id, { confirm: opts.yes }));
     } catch (e) {
       fail(e);
     }
@@ -322,13 +323,14 @@ listings
   .option("--title <title>")
   .option("--price <price>")
   .option("--description <description>")
-  .action(async (id: string, opts: { file?: string; title?: string; price?: string; description?: string }) => {
+  .option("--yes", "potvrda kad izmjena prebacuje oglas u naplatnu kategoriju", false)
+  .action(async (id: string, opts: { file?: string; title?: string; price?: string; description?: string; yes?: boolean }) => {
     try {
       const patch = opts.file ? JSON.parse(readFileSync(opts.file, "utf8")) : {};
       if (opts.title) patch.title = opts.title;
       if (opts.description) patch.description = opts.description;
       if (opts.price) patch.price = Number(opts.price);
-      out(await (await withAuth()).updateListing(id, patch));
+      out(await (await withAuth()).updateListing(id, patch, { confirm: opts.yes }));
     } catch (e) {
       fail(e);
     }

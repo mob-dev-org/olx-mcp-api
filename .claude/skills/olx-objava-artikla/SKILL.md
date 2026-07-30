@@ -72,8 +72,12 @@ trzisnu cijenu.
 
 ### 6. Pregled i potvrda
 
-Posalji sve na jednom mjestu: naslov, podnaslov, cijena, kategorija, broj slika. Pitaj da li da
-se objavi. Bez jasnog da nema koraka 7.
+Posalji sve na jednom mjestu: naslov, podnaslov, **opis**, cijena, kategorija, broj slika. Pitaj
+da li da se objavi. Bez jasnog da nema koraka 7.
+
+Opis je u tom popisu jer je bez njega u praksi objavljen oglas bez ijedne rijeci opisa
+(30.07.2026.) i to niko nije primijetio do poslije. Kad je opis dug, posalji prvih par redova i
+reci koliko ukupno ima.
 
 ### 7. Objava
 
@@ -86,6 +90,8 @@ oglasa.
 ## Sta ne raditi
 
 - Ne objavljivati bez `olx_draft_check`. Bez njega API vraca gresku tek nakon slanja, dakle nakon
-  sto je korisnik vec potvrdio, i to je najgori trenutak da nesto pukne.
+  sto je korisnik vec potvrdio, i to je najgori trenutak da nesto pukne. Prazan opis je od
+  30.07.2026. GRESKA u toj provjeri, ne upozorenje, pa `spreman` bude `false` i objava staje.
+- Ne objavljivati bez opisa. Ako korisnik ne zeli pisati opis, napisi predlog i trazi potvrdu.
 - Ne izmisljati podatke o artiklu koje korisnik nije potvrdio. Kad se sa slike ne vidi velicina,
   materijal ili stanje, pitaj.

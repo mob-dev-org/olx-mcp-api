@@ -416,14 +416,28 @@ export class OlxClient {
    */
   async createListing(input: CreateListingInput, opcije: { confirm?: boolean } = {}): Promise<Listing> {
     let naknada = 0;
+    let naknadaNepoznata = false;
     if (input.category_id !== undefined && input.category_id !== null) {
       try {
         // category() vraca omotac { data }, pa se listing_fee cita iz data, ne sa vrha.
         const kat = await this.category(input.category_id);
         naknada = naknadaKategorije(kat);
       } catch (e) {
-        console.error(`Naknada kategorije nije procitana, objava ide bez provjere troska: ${String(e)}`);
+        // Ne blokiramo objavu zbog neuspjelog pomocnog poziva, ali NE propustamo je ni tiho:
+        // nepoznata cijena nije isto sto i nula. Bez potvrde bi se u naplatnoj kategoriji
+        // (Automobili su 70 kredita) naplatilo bez rijeci. Zato nepoznato trazi confirm.
+        naknadaNepoznata = true;
+        console.error(`Naknada kategorije nije procitana, objava trazi potvrdu: ${String(e)}`);
       }
+    }
+
+    if (naknadaNepoznata && !opcije.confirm) {
+      this.zapisiOdbijeno("POST", "/listings", "naknada kategorije nije citljiva");
+      throw new OlxSpendError(
+        "Cijena objave u ovoj kategoriji se trenutno ne moze procitati sa platforme. " +
+          "Vecina kategorija je besplatna, ali neke (vozila, nekretnine, poslovi, usluge) nisu. " +
+          "Potvrdi (confirm) da bi se objavilo i eventualno naplatilo.",
+      );
     }
 
     if (naknada > 0) {
@@ -446,14 +460,77 @@ export class OlxClient {
     );
   }
 
-  async updateListing(id: number | string, input: UpdateListingInput): Promise<Listing> {
+  /**
+   * Izmjena oglasa. Kad izmjena nosi `category_id`, prolazi kroz istu branu troska: nacrt iz
+   * besplatne kategorije bi se inace mogao prebaciti u naplatnu pa objaviti, i tako obici branu
+   * na kreiranju. Na objavljenom oglasu API tiho ignorise `category_id` (izmjereno 29.07.2026.),
+   * ali za nacrt to nije izmjereno, pa se brana ne preskace.
+   */
+  async updateListing(id: number | string, input: UpdateListingInput, opcije: { confirm?: boolean } = {}): Promise<Listing> {
+    const nova = (input as { category_id?: number | null }).category_id;
+    if (nova !== undefined && nova !== null) {
+      let naknada = 0;
+      let nepoznata = false;
+      try {
+        naknada = naknadaKategorije(await this.category(nova));
+      } catch (e) {
+        nepoznata = true;
+        console.error(`Naknada nove kategorije nije procitana, izmjena trazi potvrdu: ${String(e)}`);
+      }
+      if ((naknada > 0 || nepoznata) && !opcije.confirm) {
+        this.zapisiOdbijeno("PUT", `/listings/${id}`, naknada > 0 ? `prebacivanje u naplatnu kategoriju, ${naknada} kredita` : "naknada nove kategorije nije citljiva");
+        throw new OlxSpendError(
+          naknada > 0
+            ? `Prebacivanje u ovu kategoriju moze kostati ${naknada} kredita pri objavi. Potvrdi (confirm) da bi se nastavilo.`
+            : "Cijena objave u novoj kategoriji se ne moze procitati. Potvrdi (confirm) da bi se nastavilo.",
+        );
+      }
+    }
     return this.unwrap(
       await this.request<Listing | { data: Listing }>(`/listings/${id}`, { method: "PUT", body: input }),
     );
   }
 
-  publishListing(id: number | string): Promise<{ message: string; status: string }> {
-    return this.request(`/listings/${id}/publish`, { method: "POST" });
+  /**
+   * Objavljuje nacrt. Nosi ISTU branu troska kao createListing, jer nacrt u naplatnoj kategoriji
+   * moze doci i mimo nas (web, CLI, kreiran ranije uz potvrdu pa nikad objavljen) i onda bi se
+   * objavio bez ijedne rijeci o cijeni. Izmjereno stanje: ne zna se da li platforma naplacuje na
+   * kreiranju ili na objavi (API-INVENTAR.md), pa brana stoji na oba poziva.
+   *
+   * Svjesna posljedica: u toku kreiraj pa objavi isti oglas se dva puta racuna u dnevni plafon.
+   * To je konzervativan smjer (moze odbiti malo prerano) i nikad ne uzrokuje nezeljenu naplatu,
+   * dok bi izostavljanje provjere ostavilo rupu za nacrt koji nije nas.
+   */
+  async publishListing(id: number | string, opcije: { confirm?: boolean } = {}): Promise<{ message: string; status: string }> {
+    let naknada = 0;
+    let naknadaNepoznata = false;
+    try {
+      const oglas = await this.getListing(id);
+      // Listing ima index potpis, pa polja dolaze kao unknown: kategorija se konvertuje izricito.
+      const sirovo = oglas.category_id ?? (oglas.category as { id?: unknown } | null)?.id;
+      const kategorija = Number(sirovo);
+      if (!Number.isFinite(kategorija) || kategorija <= 0) throw new Error("oglas ne nosi citljivu kategoriju");
+      naknada = naknadaKategorije(await this.category(kategorija));
+    } catch (e) {
+      naknadaNepoznata = true;
+      console.error(`Naknada kategorije nije procitana, objava trazi potvrdu: ${String(e)}`);
+    }
+
+    if ((naknada > 0 || naknadaNepoznata) && !opcije.confirm) {
+      const zasto = naknada > 0 ? `objava u naplatnoj kategoriji, ${naknada} kredita` : "naknada kategorije nije citljiva";
+      this.zapisiOdbijeno("POST", `/listings/${id}/publish`, zasto);
+      throw new OlxSpendError(
+        naknada > 0
+          ? `Objava ovog oglasa košta ${naknada} kredita. Potvrdi (confirm) da bi se naplatilo.`
+          : "Cijena objave ovog oglasa se trenutno ne moze procitati sa platforme. Potvrdi (confirm) da bi se objavilo i eventualno naplatilo.",
+      );
+    }
+    if (naknada > 0) this.provjeriDnevniPlafon(naknada, "POST", `/listings/${id}/publish`);
+
+    return this.request(`/listings/${id}/publish`, {
+      method: "POST",
+      ...(naknada > 0 ? { krediti: naknada } : {}),
+    });
   }
 
   deleteListing(id: number | string): Promise<{ message: string }> {

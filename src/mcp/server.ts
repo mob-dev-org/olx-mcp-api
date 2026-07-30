@@ -1053,8 +1053,17 @@ server.registerTool(
 
 server.registerTool(
   "olx_publish_listing",
-  { title: "Objavi oglas", description: "Objavljuje DRAFT oglas (postaje aktivan i vidljiv).", inputSchema: { id: z.union([z.number(), z.string()]) }, annotations: writeOp },
-  (args) => run((c) => c.publishListing(args.id)),
+  {
+    title: "Objavi oglas",
+    description:
+      "Objavljuje DRAFT oglas (postaje aktivan i vidljiv). Objava u naplatnoj kategoriji (vozila, nekretnine, poslovi, usluge) trazi confirm: bez njega vrati cijenu i ne objavi.",
+    inputSchema: {
+      id: z.union([z.number(), z.string()]),
+      confirm: z.boolean().default(false).describe("true tek nakon sto korisnik potvrdi cijenu objave"),
+    },
+    annotations: writeOp,
+  },
+  (args) => run((c) => c.publishListing(args.id, { confirm: args.confirm })),
 );
 
 server.registerTool(
@@ -1079,12 +1088,13 @@ server.registerTool(
       brand_id: z.union([z.number(), z.string()]).optional(),
       model_id: z.union([z.number(), z.string()]).optional(),
       attributes: z.array(z.object({ id: z.number(), value: z.string() })).optional(),
+      confirm: z.boolean().default(false).describe("potrebno samo kad izmjena nosi category_id u naplatnu kategoriju"),
     },
     annotations: writeOp,
   },
   (args) => {
-    const { id, ...patch } = args;
-    return run((c) => c.updateListing(id, patch));
+    const { id, confirm, ...patch } = args;
+    return run((c) => c.updateListing(id, patch, { confirm }));
   },
 );
 

@@ -659,7 +659,13 @@ export function provjeriNacrt(nacrt: NacrtOglasa, atributiKategorije: CategoryAt
       vrsta: "upozorenje",
     });
   }
-  if ((nacrt.description ?? "").trim().length < 100) {
+  // Prazan opis i kratak opis nisu isto. Prazan je greska i zaustavlja objavu: u praksi je oglas
+  // objavljen bez ijedne rijeci opisa i to niko nije prijavio (30.07.2026.), jer je upozorenje
+  // ostavljalo `spreman: true`. Kratak opis ostaje stvar kvalitete.
+  const opis = (nacrt.description ?? "").trim();
+  if (!opis) {
+    upozorenja.push({ polje: "description", problem: "Opis je prazan. Oglas bez opisa se ne objavljuje.", vrsta: "greska" });
+  } else if (opis.length < 100) {
     upozorenja.push({ polje: "description", problem: "Opis je kraci od 100 znakova.", vrsta: "upozorenje" });
   }
   if (nacrt.price === undefined || nacrt.price === null || nacrt.price === 0) {

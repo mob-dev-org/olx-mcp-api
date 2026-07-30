@@ -289,6 +289,110 @@ test("createListing se ne ponavlja na 500 (duplikat oglasa)", async () => {
   }
 });
 
+test("createListing bez confirm ne salje zahtjev ni kad naknada NIJE citljiva", async () => {
+  // Nepoznata cijena nije isto sto i nula: prije se objava tiho propustala, pa bi se u naplatnoj
+  // kategoriji naplatilo bez rijeci. Sada nepoznato trazi potvrdu.
+  const { calls, restore } = stubFetch([{ status: 500, body: { message: "kategorija nedostupna" } }]);
+  try {
+    const client = new OlxClient(testConfig());
+    await assert.rejects(
+      () => client.createListing({ title: "Nesto", category_id: 18 }),
+      (err: unknown) => {
+        assert.ok(err instanceof OlxSpendError, "mora biti greska troska, ne obicna greska");
+        return true;
+      },
+    );
+    assert.equal(calls.filter((c) => c.method === "POST").length, 0, "POST /listings se ne salje");
+  } finally {
+    restore();
+  }
+});
+
+test("publishListing bez confirm ne objavljuje nacrt u naplatnoj kategoriji", async () => {
+  // Rupa iz prakse: brana je stajala samo na kreiranju, pa se nacrt (kreiran ranije, van bota,
+  // ili prebacen u drugu kategoriju) objavljivao bez ijedne rijeci o cijeni.
+  const { calls, restore } = stubFetch([
+    { status: 200, body: { id: 5, title: "Golf", category_id: 18 } },
+    { status: 200, body: { id: 18, name: "Automobili", listing_fee: 70 } },
+  ]);
+  try {
+    const client = new OlxClient(testConfig());
+    await assert.rejects(
+      () => client.publishListing(5),
+      (err: unknown) => {
+        assert.ok(err instanceof OlxSpendError);
+        assert.ok(String((err as Error).message).includes("70"), "cijena mora biti u poruci");
+        return true;
+      },
+    );
+    assert.equal(calls.filter((c) => c.url.includes("/publish")).length, 0, "publish se ne salje");
+  } finally {
+    restore();
+  }
+});
+
+test("publishListing sa confirm objavljuje", async () => {
+  const { calls, restore } = stubFetch([
+    { status: 200, body: { id: 5, title: "Golf", category_id: 18 } },
+    { status: 200, body: { id: 18, name: "Automobili", listing_fee: 70 } },
+    { status: 200, body: { message: "ok", status: "active" } },
+  ]);
+  try {
+    const client = new OlxClient(testConfig());
+    const r = await client.publishListing(5, { confirm: true });
+    assert.equal(r.status, "active");
+    assert.equal(calls.filter((c) => c.url.includes("/publish")).length, 1);
+  } finally {
+    restore();
+  }
+});
+
+test("publishListing u besplatnoj kategoriji ne trazi confirm", async () => {
+  const { calls, restore } = stubFetch([
+    { status: 200, body: { id: 9, title: "Baloni", category_id: 754 } },
+    { status: 200, body: { id: 754, name: "Party dekoracije", listing_fee: 0 } },
+    { status: 200, body: { message: "ok", status: "active" } },
+  ]);
+  try {
+    const client = new OlxClient(testConfig());
+    const r = await client.publishListing(9);
+    assert.equal(r.status, "active");
+    assert.equal(calls.filter((c) => c.url.includes("/publish")).length, 1);
+  } finally {
+    restore();
+  }
+});
+
+test("updateListing bez confirm ne prebacuje oglas u naplatnu kategoriju", async () => {
+  // Drugi ulaz u istu rupu: besplatan nacrt se prebaci u naplatnu kategoriju pa objavi.
+  const { calls, restore } = stubFetch([{ status: 200, body: { id: 18, name: "Automobili", listing_fee: 70 } }]);
+  try {
+    const client = new OlxClient(testConfig());
+    await assert.rejects(
+      () => client.updateListing(5, { category_id: 18 }),
+      (err: unknown) => {
+        assert.ok(err instanceof OlxSpendError);
+        return true;
+      },
+    );
+    assert.equal(calls.filter((c) => c.method === "PUT").length, 0, "PUT se ne salje");
+  } finally {
+    restore();
+  }
+});
+
+test("updateListing bez kategorije ne trazi confirm i ne cita kategoriju", async () => {
+  const { calls, restore } = stubFetch([{ status: 200, body: { id: 5, title: "Novi naslov" } }]);
+  try {
+    const client = new OlxClient(testConfig());
+    await client.updateListing(5, { title: "Novi naslov" });
+    assert.equal(calls.length, 1, "samo PUT, bez citanja kategorije");
+    assert.equal(calls[0]?.method, "PUT");
+  } finally {
+    restore();
+  }
+});
+
 test("createListing bez confirm ne salje zahtjev u naplatnoj kategoriji", async () => {
   // Automobili nose listing_fee 70 kredita.
   const { calls, restore } = stubFetch([{ status: 200, body: { id: 18, name: "Automobili", listing_fee: 70 } }]);
@@ -580,7 +684,12 @@ test("audit nosi ime operacije iz konteksta", async () => {
 });
 
 test("audit biljezi i neuspjeh, sa statusom i porukom", async () => {
-  const { restore } = stubFetch([{ status: 422, body: { message: "Polje je obavezno" } }]);
+  // Prvi odgovor je citanje kategorije (besplatna), drugi je pad same objave. Bez prvog bi
+  // provjera naknade pojela stub i objava bi bila odbijena prije POST-a.
+  const { restore } = stubFetch([
+    { status: 200, body: { id: 1, name: "Besplatna", listing_fee: 0 } },
+    { status: 422, body: { message: "Polje je obavezno" } },
+  ]);
   const { entries, sink } = auditCollector();
   try {
     const client = new OlxClient(testConfig(), { audit: sink });

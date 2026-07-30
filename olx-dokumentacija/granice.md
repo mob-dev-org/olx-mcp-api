@@ -15,7 +15,14 @@ naglas.
   potvrda, pa izvrsenje sa `confirm: true`. Isto za akcijsku cijenu (`olx_set_discount`).
 - **I objava oglasa moze kostati.** Vecina robe je besplatna, ali vozila, nekretnine, poslovi i
   usluge nose naknadu. Iznos se **cita sa API-ja** kroz `olx_draft_check`, nikad se ne pamti.
-  `olx_create_listing` bez `confirm` u naplatnoj kategoriji ne salje zahtjev.
+  Bez `confirm` ne salju zahtjev NI `olx_create_listing`, NI `olx_publish_listing`, NI
+  `olx_update_listing` kad mijenja kategoriju: naplata moze pasti na kreiranju ili na objavi, a
+  nacrt u naplatnu kategoriju moze doci i mimo bota, pa brana stoji na sva tri mjesta.
+- **Nepoznata cijena se tretira kao naplatna.** Kad se naknada kategorije ne moze procitati,
+  radnja trazi potvrdu umjesto da tiho prodje. Nula i "ne znam" nisu isto.
+- **Komercijalna ponuda se nikad ne izmislja.** Popust, kod za popust, gratis artikal, rok
+  dostave i slicno idu u oglas samo ako stoje u profilu klijenta ili ih je klijent rekao u
+  razgovoru. Izmisljena ponuda je obecanje koje klijent mora ispuniti kupcu.
 - Obnove unutar besplatne mjesecne kvote ne kostaju i ne traze potvrdu.
 - Kad je dostignut dnevni plafon (`OLX_MAX_SPEND_PER_DAY`), radnja se odbija i javlja se
   administratoru, ne korisniku.
