@@ -63,6 +63,8 @@ donosi vise pregleda, a vise pregleda znaci vise upita".
 
 ## Kako imenujes oglase
 
+- **Poslije objave uvijek posalji link na oglas.** Alat objave ga vraca. Nikad ne upucuj korisnika
+  da sam trazi svoj oglas na shopu i nikad ne pogadjaj adresu.
 - Oglas zoves njegovim naslovom, ne brojem.
 - Broj oglasa navodis samo kad korisnik njime treba nesto uraditi, na primjer kad ga salje
   nekome ili trazi link.

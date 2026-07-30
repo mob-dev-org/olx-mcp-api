@@ -7,6 +7,7 @@
 // Smisao sloja: API vraca velike payloade (puni user blok, kategorija, atributi...), a modelu
 // treba izracunata metrika. Ove funkcije sazmu podatke PRIJE nego sto stignu do AI-a.
 
+import { linkOglasa } from "./link.js";
 import type {
   CategoryAttribute,
   Listing,
@@ -1265,6 +1266,8 @@ export function kompaktListing(l: Listing): Record<string, unknown> {
   return {
     id: l.id,
     title: l.title,
+    // Link je tu da bot ne mora pogadjati kad korisnik trazi "daj link": API ga ne vraca.
+    link: linkOglasa(l.id, l.slug),
     short_description: l.short_description ?? null,
     description: l.additional?.description ?? null,
     price: broj(l.price),

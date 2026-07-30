@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { OlxClient, OlxSpendError, OlxApiError, naknadaKategorije } from "../core/index.js";
 import { loadConfig } from "../core/config.js";
+import { linkOglasa } from "../core/link.js";
 import { withAuditContext } from "../core/audit.js";
 import { parseSponsorOptions } from "../core/sponsor-options.js";
 import {
@@ -1047,7 +1048,11 @@ server.registerTool(
   },
   (args) => {
     const { confirm, ...nacrt } = args;
-    return run((c) => c.createListing(nacrt, { confirm }));
+    return run(async (c) => {
+      const oglas = await c.createListing(nacrt, { confirm });
+      // Link ide uz odgovor jer ga API ne vraca, a korisnik ga trazi odmah poslije objave.
+      return { ...oglas, link: linkOglasa(oglas.id, oglas.slug) };
+    });
   },
 );
 
@@ -1056,14 +1061,26 @@ server.registerTool(
   {
     title: "Objavi oglas",
     description:
-      "Objavljuje DRAFT oglas (postaje aktivan i vidljiv). Objava u naplatnoj kategoriji (vozila, nekretnine, poslovi, usluge) trazi confirm: bez njega vrati cijenu i ne objavi.",
+      "Objavljuje DRAFT oglas (postaje aktivan i vidljiv) i vraca `link` na objavljeni oglas, koji obavezno posalji korisniku. Objava u naplatnoj kategoriji (vozila, nekretnine, poslovi, usluge) trazi confirm: bez njega vrati cijenu i ne objavi.",
     inputSchema: {
       id: z.union([z.number(), z.string()]),
       confirm: z.boolean().default(false).describe("true tek nakon sto korisnik potvrdi cijenu objave"),
     },
     annotations: writeOp,
   },
-  (args) => run((c) => c.publishListing(args.id, { confirm: args.confirm })),
+  (args) =>
+    run(async (c) => {
+      const odgovor = await c.publishListing(args.id, { confirm: args.confirm });
+      // Slug se cita sa objavljenog oglasa, jer ga API generise iz naslova pri objavi. Kad se
+      // citanje ne uspije, link bez sluga radi isto, pa se zbog toga objava ne prijavljuje kao pad.
+      let slug: unknown;
+      try {
+        slug = (await c.getListing(args.id)).slug;
+      } catch {
+        slug = undefined;
+      }
+      return { ...odgovor, link: linkOglasa(args.id, slug) };
+    }),
 );
 
 server.registerTool(
