@@ -275,6 +275,34 @@ pokrenutu golu mjeri pretplatu, sto je koristan kontrolni prolaz.
   Gemini kljuc, pa jedan adapter (`src/core/gemini.ts`) pokriva oba posla, i fotografije
   klijenta idu samo jednom vanjskom servisu umjesto dvama. Oba imena modela su provjerena
   pozivom `/v1beta/models` 30.07.2026.
+
+### Generisanje slike: cijena i sta je u njoj
+
+Izmjereno 30.07.2026. na `gemini-3.1-flash-lite-image`, brojevi su iz `usageMetadata`:
+
+| Poziv | Ulaz | Izlaz |
+|---|---|---|
+| bez ulazne slike | 18 (tekst) | 1403 |
+| jedna ulazna slika | 1138 (18 tekst + 1120 slika) | 1355 |
+| dvije ulazne slike | 2258 (18 tekst + 2240 slika) | 1373 |
+
+**Zamka u cjenovniku:** izlaz ima DVIJE stope, `$1.50 (text and thinking)` i `$30.00 (images)`.
+Ko uzme tekstualnu, promasi oko 18 puta. Prava cijena:
+
+- izlazna slika 4:3, oko 1370 tokena po $30/M, dakle **oko $0.041 po slici**
+- ulazna slika klijenta, 1120 tokena po $0.25/M, dakle $0.00028; dvije slike $0.00056
+
+Znaci klijentove fotografije su prakticno besplatne i broj ulaznih slika ne mijenja cijenu;
+cijelu cijenu nosi generisanje. Zato je `OLX_SLIKA_MAX_DNEVNO` default 10, sto je oko $12
+mjesecno u najgorem slucaju.
+
+Jeftinije od ovoga postoji samo `imagen-4.0-fast-generate-001` po $0.02, ali on ne prima ulaznu
+sliku, pa ne moze posao "prepravi ovu moju fotografiju". Medju modelima koji primaju sliku ovaj
+je najjeftiniji: `gemini-2.5-flash-image` $0.039, `gemini-3.1-flash-image` $0.067,
+`gemini-3-pro-image` $0.134 (sve na 1K).
+
+Batch cijena je pola ($15/M, oko $0.017 po slici), ali batch je asinhron i ne moze u razgovor
+na Telegramu.
 - Vazno uz to: instrukcije Telegram plugina same govore sesiji da procita fajl slike, a to na
   ovom endpointu obara potez. Zato je pravilo o slikama tvrda granica u `granice.md`, ne
   preporuka u skillu (skill se u klijentskoj sesiji i ne otvara, `Skill` je tamo zabranjen).

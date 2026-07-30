@@ -12,7 +12,16 @@
 //   OLX_SLIKA_API_KEY      Google AI Studio kljuc; bez njega se MCP alat ne registruje
 //   OLX_SLIKA_MODEL        default gemini-3.1-flash-lite-image (najjeftiniji sa dobrim rezultatom)
 //   OLX_SLIKA_BASE_URL     default https://generativelanguage.googleapis.com/v1beta
-//   OLX_SLIKA_MAX_DNEVNO   default 20; plafon je zastita racuna, ne kvota klijenta
+//   OLX_SLIKA_MAX_DNEVNO   default 10; plafon je zastita racuna, ne kvota klijenta
+//
+// Cijena, izmjereno 30.07.2026. na gemini-3.1-flash-lite-image (cjenovnik: ulaz $0.25/M,
+// izlazna SLIKA $30/M, sto je odvojeno od izlaznog teksta po $1.50/M):
+//   izlazna slika 4:3   oko 1370 tokena  =  oko $0.041 po slici
+//   jedna ulazna slika  1120 tokena      =  oko $0.00028
+// Dakle klijentove fotografije su u praksi besplatne, cijelu cijenu nosi generisanje. Zato je
+// plafon nizak: 10 dnevno je oko $12 mjesecno u najgorem slucaju.
+// Jeftiniji model postoji (imagen-4.0-fast, $0.02), ali ne prima ulaznu sliku, pa ne moze ovaj
+// posao. Medju onima koji primaju sliku ovaj je najjeftiniji.
 //   OLX_SLIKA_DIR          default .olx-pik/slike
 //
 // Endpoint je klasicni models/{model}:generateContent. Google od 2026. nudi i noviji
@@ -85,7 +94,7 @@ export function slikaKonfigurisana(env: NodeJS.ProcessEnv = process.env): boolea
 
 export function maxDnevno(env: NodeJS.ProcessEnv = process.env): number {
   const sirovo = Number(env.OLX_SLIKA_MAX_DNEVNO);
-  return Number.isFinite(sirovo) && sirovo > 0 ? Math.floor(sirovo) : 20;
+  return Number.isFinite(sirovo) && sirovo > 0 ? Math.floor(sirovo) : 10;
 }
 
 /**

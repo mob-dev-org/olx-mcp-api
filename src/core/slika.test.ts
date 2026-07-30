@@ -13,11 +13,11 @@ test("slikaKonfigurisana zavisi samo od OLX_SLIKA_API_KEY", () => {
 });
 
 test("maxDnevno ima razuman default i odbija besmislene vrijednosti", () => {
-  assert.equal(maxDnevno({}), 20);
+  assert.equal(maxDnevno({}), 10);
   assert.equal(maxDnevno({ OLX_SLIKA_MAX_DNEVNO: "5" }), 5);
-  assert.equal(maxDnevno({ OLX_SLIKA_MAX_DNEVNO: "0" }), 20);
-  assert.equal(maxDnevno({ OLX_SLIKA_MAX_DNEVNO: "-3" }), 20);
-  assert.equal(maxDnevno({ OLX_SLIKA_MAX_DNEVNO: "nista" }), 20);
+  assert.equal(maxDnevno({ OLX_SLIKA_MAX_DNEVNO: "0" }), 10);
+  assert.equal(maxDnevno({ OLX_SLIKA_MAX_DNEVNO: "-3" }), 10);
+  assert.equal(maxDnevno({ OLX_SLIKA_MAX_DNEVNO: "nista" }), 10);
 });
 
 test("kartica oglasa je pejzazna, pa je zadani odnos 4:3", () => {
