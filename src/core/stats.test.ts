@@ -310,8 +310,9 @@ test("kompaktList zadrzava kljucna polja i izbacuje balast", () => {
 });
 
 test("dnevniPlanObnova ne trazi vise obnova nego sto shop ima oglasa", () => {
-  // Pravi slucaj sa MixBoxa 30.07.2026: 1482 preostale obnove, 2 dana do kraja mjeseca, 120
-  // oglasa. Bez gornje granice izvjestaj je klijentu javio "tempo oko 741 dnevno".
+  // Slucaj vidjen na jednom klijentskom nalogu 30.07.2026.: kvota skoro nepotrosena, dva dana do
+  // kraja mjeseca, shop sa nekoliko stotina oglasa. Bez gornje granice je izvjestaj klijentu
+  // javio tempo veci od broja oglasa, sto je nemoguce ispuniti.
   // SADA je 31.07., dakle sam kraj mjeseca: ostaje jos jedan dan za 1482 obnove.
   const limits: RefreshLimits = { free_limit: 1800, free_count: 318, paid_count: 0, listing_count: 0 };
 
