@@ -8,9 +8,21 @@ Kako se cita broj verzije: `node dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
+## 0.7.1 — 2026-07-30
+
+Prvo izdanje provjereno na obje platforme, i prvo koje popravlja nalaz sa Windowsa.
+
+- Popravljen `npm test` na Windowsu: `node --test dist/core/` tamo ne silazi u direktorijum nego ga
+  izvrsi kao jedan test koji lazno prijavi "1 pass", pa je citav paket od 235 testova bio tiho
+  preskocen. Skripta sada eksplicitno navodi `"dist/core/**/*.test.js"`, sto radi identicno na obje
+  platforme jer glob resava sam Node, a ne shell. Posljedica je bila teza od same greske: `npm test`
+  je kapija u `azuriraj.ps1` i `azuriraj-ovaj-klon.mjs`, pa je na Windowsu propustao svako izdanje
+  kao da je provjereno. Nadjeno na Windows masini pri provjeri izdanja 0.6.0.
+
 ## 0.7.0 — 2026-07-30
 
-DeepSeek pogon prestaje zavisiti od konfiguracije koja postoji samo na jednoj masini.
+DeepSeek pogon prestaje zavisiti od konfiguracije koja postoji samo na jednoj masini. Ovo izdanje
+nikad nije bilo u floti: prekidac je presao sa 0.6.0 direktno na 0.7.1.
 
 - `scripts/claude-ds.mjs`: rucna DeepSeek sesija na obje platforme, sa kljucem iz `.env` klona.
   Zamjenjuje zsh funkciju `claude-ds` iz `~/.zshrc`, koja je bila globalna po masini (dakle upravo
