@@ -5,6 +5,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   alarmiNaloga,
+  danCiklusaIzIsteka,
+  danaDoResetaKvote,
+  danaRijec,
   efekatIzdvajanja,
   konkurentIzvjestaj,
   kompaktCsv,
@@ -17,6 +20,7 @@ import {
   oglasIzvjestaj,
   onboardingIzvjestaj,
   ostvarivihObnova,
+  pragObnove,
   profilStatistika,
   promjenaPregleda,
   provjeriNacrt,
@@ -223,16 +227,62 @@ test("alarmiNaloga pali alarme na pragovima i ok kad je sve cisto", () => {
   assert.equal(r.alarmi.find((a) => a.tip === "paket")?.vrijednost, 5);
 });
 
-test("alarmiNaloga: kvota propada samo pred kraj mjeseca uz slabo koristenje", () => {
-  // 2026-07-27 je 4 dana do kraja jula. Katalog dovoljno velik da je kvota uopste ostvariva.
+test("alarmiNaloga: kvota propada pred RESETOM KVOTE, ne pred krajem kalendara", () => {
+  // Prije je alarm gledao kraj kalendarskog mjeseca. Sada gleda ciklus pretplate, jer se kvota
+  // obnavlja po njemu (greska prijavljena 31.07.2026). Katalog je dovoljno velik da je kvota
+  // uopste ostvariva, inace alarm ne bi ni imao smisla.
   const slabo = limits({ free_count: 100, listing_count: 2000 });
-  const r = alarmiNaloga(me(), slabo, 0, SADA);
-  assert.equal(r.alarmi.some((a) => a.tip === "kvota_obnova"), true, "27. u mjesecu i 5.6% iskoristeno");
 
-  // Sredina mjeseca: bez alarma iako je koristenje slabo.
-  const sredina = SADA - 15 * DAN;
-  const r2 = alarmiNaloga(me({ shop: { package: "Gold", ends_at: sredina + 90 * DAN } }), slabo, 0, sredina);
-  assert.equal(r2.alarmi.some((a) => a.tip === "kvota_obnova"), false);
+  // ends_at na 3. u mjesecu: od 31.07. je sljedeci reset 03.08., dakle 3 dana. Alarm se pali.
+  const trecegAvgusta = Math.floor(Date.UTC(2026, 9, 3) / 1000); // 03.10.2026, dan ciklusa je 3
+  const blizu = alarmiNaloga(me({ shop: { package: "Gold", ends_at: trecegAvgusta } }), slabo, 0, SADA);
+  assert.equal(blizu.alarmi.some((a) => a.tip === "kvota_obnova"), true, "3 dana do reseta i slabo koristenje");
+  assert.match(
+    blizu.alarmi.find((a) => a.tip === "kvota_obnova")?.poruka ?? "",
+    /Do obnove kvote 3 dana/,
+    "poruka govori o obnovi kvote, ne o kraju kalendarskog mjeseca",
+  );
+
+  // me() nosi ends_at na 29.10., dakle dan ciklusa 29: od 31.07. je reset za 29 dana i nema alarma
+  // iako je koristenje slabo. Ranije bi ovdje alarm pukao samo zato sto je 31. u mjesecu.
+  const daleko = alarmiNaloga(me(), slabo, 0, SADA);
+  assert.equal(daleko.alarmi.some((a) => a.tip === "kvota_obnova"), false, "29 dana do reseta nije hitno");
+});
+
+test("danaDoResetaKvote: ciklus pretplate, kratki mjeseci i reset danas", () => {
+  const dan = (s: string): number => Math.floor(Date.parse(`${s}T00:00:00Z`) / 1000);
+  // Slucaj iz prakse: 31.07.2026. je kod javio 1 dan, a ciklus je isticao 24.08.
+  assert.equal(danaDoResetaKvote(dan("2026-07-31"), 24), 24);
+  // Bez poznatog ciklusa se pada na prvi u sljedecem mjesecu.
+  assert.equal(danaDoResetaKvote(dan("2026-07-21")), 11);
+  assert.equal(danaDoResetaKvote(dan("2026-07-31")), 1);
+  // Dan 31 ne postoji u februaru, pa se steze na zadnji dan mjeseca.
+  assert.equal(danaDoResetaKvote(dan("2026-01-31"), 31), 28, "januar 31 -> februar 28");
+  assert.equal(danaDoResetaKvote(dan("2026-02-15"), 31), 13);
+  // Reset je danas: kvota je vec obnovljena, pa vazi sljedeci ciklus.
+  assert.equal(danaDoResetaKvote(dan("2026-08-24"), 24), 31);
+  // ends_at daleko u buducnosti ne znaci daleki reset: mjesecnica je i dalje isti dan u mjesecu.
+  assert.equal(danCiklusaIzIsteka(dan("2027-03-24")), 24, "iz isteka se uzima samo DAN");
+  assert.equal(danCiklusaIzIsteka(undefined), undefined);
+  assert.equal(danCiklusaIzIsteka(0), undefined);
+});
+
+test("pragObnove i ostvarivihObnova prate Razred A iz pravila brojeva", () => {
+  // shop 7, PRO 21, klasicni 30 (olx://pravila-brojeva). PRO je ranije dobijao 30 i time
+  // potcijenjeno ostvarivo.
+  assert.equal(pragObnove(true), 7);
+  assert.equal(pragObnove(false, true), 21);
+  assert.equal(pragObnove(false), 30);
+  assert.equal(ostvarivihObnova(100, 30, true), 400, "shop: 4 obnove po oglasu u 30 dana");
+  assert.equal(ostvarivihObnova(100, 30, false, true), 100, "PRO: jedna po oglasu");
+  assert.equal(ostvarivihObnova(100, 30, false), 100);
+});
+
+test("danaRijec sklanja broj dana", () => {
+  assert.equal(danaRijec(1), "dan", "1 dana je odavalo da tekst pise program");
+  assert.equal(danaRijec(2), "dana");
+  assert.equal(danaRijec(24), "dana");
+  assert.equal(danaRijec(0), "dana");
 });
 
 test("alarmiNaloga: nedostizna kvota ne alarmira (mali katalog, velika kvota)", () => {
@@ -310,26 +360,81 @@ test("kompaktList zadrzava kljucna polja i izbacuje balast", () => {
 });
 
 test("dnevniPlanObnova ne trazi vise obnova nego sto shop ima oglasa", () => {
-  // Slucaj vidjen na jednom klijentskom nalogu 30.07.2026.: kvota skoro nepotrosena, dva dana do
-  // kraja mjeseca, shop sa nekoliko stotina oglasa. Bez gornje granice je izvjestaj klijentu
-  // javio tempo veci od broja oglasa, sto je nemoguce ispuniti.
-  // SADA je 31.07., dakle sam kraj mjeseca: ostaje jos jedan dan za 1482 obnove.
+  // Slucaj vidjen na klijentskom nalogu 30.07.2026.: kvota skoro nepotrosena, shop sa nekoliko
+  // stotina oglasa. Bez gornje granice je izvjestaj javio tempo veci od broja oglasa.
   const limits: RefreshLimits = { free_limit: 1800, free_count: 318, paid_count: 0, listing_count: 0 };
 
-  const bezGranice = dnevniPlanObnova(limits, 0, SADA);
-  const saGranicom = dnevniPlanObnova(limits, 0, SADA, 120);
+  const bezGranice = dnevniPlanObnova({ refreshLimits: limits, kandidata: 0, sadaTs: SADA });
+  const saGranicom = dnevniPlanObnova({
+    refreshLimits: limits,
+    kandidata: 0,
+    sadaTs: SADA,
+    aktivnihOglasa: 120,
+    imaShop: true,
+  });
   assert.ok(saGranicom.cilj_danas <= 120, `cilj ${saGranicom.cilj_danas} ne smije preci broj oglasa`);
   assert.ok(bezGranice.cilj_danas >= saGranicom.cilj_danas, "bez granice cilj je veci ili isti");
   assert.equal(saGranicom.kvota_neostvariva, true, "1482 obnove se ne mogu potrositi sa 120 oglasa");
+});
+
+test("tempo se racuna na OSTVARIVO, ne na sirovu kvotu", () => {
+  // Ovo je greska prijavljena 31.07.2026. Klijent je dobio tempo izveden iz sirove kvote
+  // podijeljene na dane, a isti oglas se besplatno obnavlja tek svakih 7 dana (olx://pravila-brojeva,
+  // Razred A), pa taj tempo nijedan katalog ne moze ispuniti.
+  const limits: RefreshLimits = { free_limit: 1800, free_count: 318, paid_count: 0, listing_count: 0 };
+  const p = dnevniPlanObnova({
+    refreshLimits: limits,
+    kandidata: 0,
+    sadaTs: SADA,
+    aktivnihOglasa: 121,
+    imaShop: true,
+    danCiklusa: 24, // ciklus pretplate, 24.08. je 24 dana od 31.07.
+  });
+  assert.equal(p.dana_do_reseta, 24, "rok ide iz ciklusa pretplate, ne iz kalendara");
+  assert.equal(p.rok_poznat, true);
+  // 121 oglas kroz 24 dana uz prag 7 dana: 121 * floor(24/7) = 363
+  assert.equal(p.ostvarivo, 363);
+  assert.ok(p.cilj_danas <= Math.ceil(121 / 7) + 1, `tempo ${p.cilj_danas} mora biti blizu odrzivih 17, ne 62`);
+  assert.equal(p.kvota_neostvariva, true, "1482 preostalo je vise od 363 ostvarivih");
 });
 
 test("dnevniPlanObnova ne javlja neostvarivu kvotu kad je ona ostvariva", () => {
   const limits: RefreshLimits = { free_limit: 1800, free_count: 0, paid_count: 0, listing_count: 0 };
   // Pocetak mjeseca: SADA je 31.07., pa 29 dana ranije daje 02.07.
   const pocetakMjeseca = SADA - 29 * DAN;
-  const p = dnevniPlanObnova(limits, 50, pocetakMjeseca, 500);
-  assert.equal(p.kvota_neostvariva, false, "500 oglasa kroz cijeli mjesec lako pokrije 1800");
+  const p = dnevniPlanObnova({
+    refreshLimits: limits,
+    kandidata: 50,
+    sadaTs: pocetakMjeseca,
+    aktivnihOglasa: 500,
+    imaShop: true,
+  });
+  assert.equal(p.kvota_neostvariva, false, "500 oglasa kroz mjesec uz prag 7 dana pokrije 1800");
   assert.equal(p.za_obnovu, Math.min(p.cilj_danas, 50), "za_obnovu ostaje manji od cilja i kandidata");
+
+  // Bez shopa je prag 30 dana, pa isti katalog kvotu NE moze potrositi.
+  const bezShopa = dnevniPlanObnova({
+    refreshLimits: limits,
+    kandidata: 50,
+    sadaTs: pocetakMjeseca,
+    aktivnihOglasa: 500,
+    imaShop: false,
+  });
+  assert.equal(bezShopa.kvota_neostvariva, true, "prag 30 dana znaci samo jedna obnova po oglasu");
+});
+
+test("ritam trgovca mijenja dnevni cilj", () => {
+  const limits: RefreshLimits = { free_limit: 1800, free_count: 318, paid_count: 0, listing_count: 0 };
+  const zajedno = { refreshLimits: limits, kandidata: 200, sadaTs: SADA, aktivnihOglasa: 121, imaShop: true, danCiklusa: 24 };
+
+  const ravnomjerno = dnevniPlanObnova({ ...zajedno, ritam: { strategija: "ravnomjerno" } });
+  const sve = dnevniPlanObnova({ ...zajedno, ritam: { strategija: "sve-dostupno" } });
+  const interval = dnevniPlanObnova({ ...zajedno, ritam: { strategija: "interval", dana: 7 } });
+
+  assert.equal(sve.cilj_danas, 121, "sve-dostupno ide do broja oglasa, granica je samo kvota");
+  assert.equal(interval.cilj_danas, Math.ceil(121 / 7), "interval dijeli katalog na dane intervala");
+  assert.ok(ravnomjerno.cilj_danas < sve.cilj_danas, "ravnomjerno je uzdrzanije od sve-dostupno");
+  assert.equal(ravnomjerno.ritam, "ravnomjerno", "ritam ide u izvjestaj da klijent zna po cemu se radi");
 });
 
 test("kompaktCsv nosi ista polja kao kompaktList, uz zaglavlje i jedan red po oglasu", () => {
@@ -411,8 +516,12 @@ test("onboardingIzvjestaj racuna preostale besplatne obnove i preporuku po danu"
     sadaTs: SADA,
   });
   assert.equal(i.besplatne_obnove.preostalo, 500);
-  assert.equal(i.besplatne_obnove.dana_do_kraja_mjeseca, 1);
-  assert.equal(i.besplatne_obnove.preporuceno_dnevno, 500);
+  // me() nosi shop.ends_at na SADA + 90 dana, dakle 29.10.2026: dan ciklusa je 29, pa je od
+  // 31.07. sljedeca obnova kvote 29.08. Rok NIJE 1 dan, kako je kalendarski racun tvrdio.
+  assert.equal(i.besplatne_obnove.dana_do_reseta, 29);
+  assert.equal(i.besplatne_obnove.rok_poznat, true);
+  // Jedan aktivan oglas uz prag 7 dana ne moze primiti 500 obnova; preporuka je zato 1, ne 500.
+  assert.equal(i.besplatne_obnove.preporuceno_dnevno, 1);
   assert.equal(i.besplatne_obnove.propusteno_procenat, 27.8);
 
   // Sredina mjeseca, da se vidi da se preporuka stvarno dijeli na preostale dane.
@@ -423,8 +532,8 @@ test("onboardingIzvjestaj racuna preostale besplatne obnove i preporuku po danu"
     ukupno: { istekli: 0, skriveni: 0, neaktivni: 0, zavrseni: 0 },
     sadaTs: SADA - 10 * DAN,
   });
-  assert.equal(sredina.besplatne_obnove.dana_do_kraja_mjeseca, 11, "21.07. znaci 11 dana do kraja");
-  assert.equal(sredina.besplatne_obnove.preporuceno_dnevno, 46);
+  assert.equal(sredina.besplatne_obnove.dana_do_reseta, 8, "od 21.07. do reseta 29.07. je 8 dana");
+  assert.equal(sredina.besplatne_obnove.preporuceno_dnevno, 1, "jedan oglas ne moze vise od jedne obnove dnevno");
 });
 
 test("onboardingIzvjestaj radi i bez detalja o oglasima, ali tada nema ucinka", () => {
@@ -638,16 +747,31 @@ test("provjeriNacrt je zadovoljan kad je sve popunjeno", () => {
 
 // ===== dnevni plan i prirast pregleda =====
 
-test("dnevniPlanObnova dijeli preostalu kvotu na preostale dane i staje na broju kandidata", () => {
-  const puno = dnevniPlanObnova(limits({ free_limit: 1800, free_count: 800 }), 500, SADA - 10 * DAN);
-  assert.equal(puno.dana_do_kraja_mjeseca, 11);
+test("dnevniPlanObnova rasporedjuje ostvarivo na preostale dane i staje na broju kandidata", () => {
+  // Bez `aktivnihOglasa` nema stropa ni ostvarivog, pa se pada na sirovu kvotu kroz dane. Tada se
+  // rok NE smije izgovoriti korisniku, jer je kraj kalendarskog mjeseca samo pretpostavka.
+  const puno = dnevniPlanObnova({
+    refreshLimits: limits({ free_limit: 1800, free_count: 800 }),
+    kandidata: 500,
+    sadaTs: SADA - 10 * DAN,
+  });
+  assert.equal(puno.dana_do_reseta, 11);
+  assert.equal(puno.rok_poznat, false, "bez ciklusa pretplate rok nije poznat");
   assert.equal(puno.cilj_danas, 91, "1000 kroz 11 dana");
   assert.equal(puno.za_obnovu, 91);
 
-  const malo = dnevniPlanObnova(limits({ free_limit: 1800, free_count: 800 }), 20, SADA - 10 * DAN);
+  const malo = dnevniPlanObnova({
+    refreshLimits: limits({ free_limit: 1800, free_count: 800 }),
+    kandidata: 20,
+    sadaTs: SADA - 10 * DAN,
+  });
   assert.equal(malo.za_obnovu, 20, "ne moze se obnoviti vise nego sto ima kandidata");
 
-  const potroseno = dnevniPlanObnova(limits({ free_limit: 1800, free_count: 1800 }), 500, SADA);
+  const potroseno = dnevniPlanObnova({
+    refreshLimits: limits({ free_limit: 1800, free_count: 1800 }),
+    kandidata: 500,
+    sadaTs: SADA,
+  });
   assert.equal(potroseno.cilj_danas, 0);
   assert.equal(potroseno.za_obnovu, 0);
 });

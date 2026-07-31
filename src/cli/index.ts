@@ -16,7 +16,9 @@ import type { PlanKandidat, SponsorPlan } from "../core/plan.js";
 import { matchCatalog, summarizeMatches } from "../core/match.js";
 import type { PikItem, KatalogItem, OverrideEntry } from "../core/match.js";
 import { loadKatalog } from "../core/katalog.js";
-import { alarmiNaloga, dnevniPlanObnova, efekatIzdvajanja, promjenaKonkurenta, promjenaPregleda } from "../core/stats.js";
+import { alarmiNaloga, danCiklusaIzIsteka, dnevniPlanObnova, efekatIzdvajanja, pragObnove, promjenaKonkurenta, promjenaPregleda } from "../core/stats.js";
+import { intervalUzPrag, poIntervalu, ucitajRitam } from "../core/ritam-obnova.js";
+import { zapisiKvotu } from "../core/kvota-dnevnik.js";
 import { ucitajKonkurenta, upisiKonkurenta } from "../core/konkurenti.js";
 import type { OnboardingDetalj } from "../core/stats.js";
 import { dnevniTekst, dnevniVrijedanSlanja, onboardingMarkdown, onboardingTelegram, sedmicniTekst } from "../core/izvjestaj.js";
@@ -1402,13 +1404,46 @@ posao
       );
       // Broj aktivnih oglasa je gornja granica dnevnog tempa: bez toga izvjestaj javi tempo koji
       // je veci od broja oglasa i to klijentu zvuci kao propust, a nije.
-      const plan = dnevniPlanObnova(limits, kandidati.length, sadaTs, aktivni.length);
+      // Ritam je odluka trgovca; kad ga nije rekao, ide podrazumijevani (ravnomjerno).
+      const ritam = ucitajRitam();
+      const shop = (me.shop ?? null) as { ends_at?: number } | null;
+      const plan = dnevniPlanObnova({
+        refreshLimits: limits,
+        kandidata: kandidati.length,
+        sadaTs,
+        aktivnihOglasa: aktivni.length,
+        // Rok kvote ide iz ciklusa pretplate, ne iz kalendara: kalendarski mjesec je davao
+        // pogresan rok (izmjereno 31.07.2026: javljen 1 dan, a ciklus je isticao 24.08).
+        danCiklusa: danCiklusaIzIsteka(shop?.ends_at),
+        imaShop: shop !== null,
+        ritam,
+      });
+
+      // Stanje kvote se biljezi svaki dan, jer API ne vraca datum reseta i bez ove serije se ne
+      // moze vidjeti KAD se kvota obnovi (olx://pravila-brojeva, otvoreno pitanje).
+      zapisiKvotu({
+        freeLimit: limits.free_limit ?? 0,
+        freeCount: limits.free_count ?? 0,
+        aktivnih: aktivni.length,
+        danCiklusa: danCiklusaIzIsteka(shop?.ends_at),
+      });
 
       let obnovljeno: number | null = null;
       let neuspjelih = 0;
       if (!opts.suho) {
         obnovljeno = 0;
-        for (const l of kandidati.slice(0, plan.za_obnovu)) {
+        const naRedu =
+          ritam.strategija === "interval" && typeof ritam.dana === "number"
+            ? poIntervalu(
+                kandidati.map((l) => ({
+                  ...l,
+                  zadnjaObnova: typeof l.date === "number" ? l.date : undefined,
+                })),
+                intervalUzPrag(ritam.dana, pragObnove(shop !== null)),
+                sadaTs,
+              )
+            : kandidati;
+        for (const l of naRedu.slice(0, plan.za_obnovu)) {
           try {
             await c.refreshListing(l.id);
             obnovljeno += 1;

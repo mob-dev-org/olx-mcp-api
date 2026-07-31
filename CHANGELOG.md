@@ -10,6 +10,44 @@ sekcija 7.
 
 ## Nije jos izdano
 
+Kvota obnova se racuna po ciklusu pretplate i po ostvarivom, ne po kalendaru i sirovoj kvoti.
+Prijavljeno iz prakse 31.07.2026: klijent je u jutarnjoj poruci dobio "Do kraja mjeseca 1 dana",
+a njegov ciklus je istjecao 24.08., dakle 24 dana.
+
+- **Rok kvote ide iz `shop.ends_at`**, novi `danaDoResetaKvote` i `danCiklusaIzIsteka`. Uzima se
+  DAN u mjesecu, ne broj dana do isteka: paket na sest mjeseci ima `ends_at` daleko u buducnosti,
+  a mjesecnica je i dalje isti dan. Kratki mjeseci se stezu (dan 31 u februaru je 28), a kad je
+  reset bas danas vazi sljedeci ciklus. Bez `ends_at` se pada na kalendar, ali se tada rok
+  korisniku NE izgovara (polje `rok_poznat`), jer je to pretpostavka.
+- **Tempo se racuna na OSTVARIVO.** `dnevniPlanObnova` je krsio pravilo koje repo vec ima
+  zapisano (`pravila-brojeva.md`: "poredjenja i alarmi idu na ostvarivo, ne na sirovu kvotu"):
+  dijelio je preostalu kvotu na dane i dobijao tempo koji nijedan katalog ne moze ispuniti.
+  Izmjereno na MixBoxu: cilj 121 dnevno na shopu gdje je odrzivo oko 17, jer se isti oglas
+  besplatno obnavlja tek svakih 7 dana. Sada `cilj_danas` izlazi 16, a `ostvarivo` je u izlazu.
+  Ovo mijenja i PONASANJE, ne samo tekst: `posao dnevni` izvrsava `plan.za_obnovu`.
+- **Dva razlicita racuna dana su svedena na jedan.** `alarmiNaloga` je dane racunao rucno i BEZ
+  danasnjeg dana, pa je ista cron poruka mogla reci "1 dana" iz jednog izvora i "0 dana" iz
+  drugog. Alarm sada gleda reset kvote, ne kraj kalendara.
+- **`ostvarivihObnova` zna za PRO** (prag 21 dan). Ranije je svaki nalog bez shopa dobijao 30 i
+  time potcijenjeno ostvarivo. Prag je izdvojen u `pragObnove`.
+- **Sklonjene su dvije tvrdnje bez izvora**: "Neiskoristena kvota se ne prenosi u sljedeci
+  mjesec" i skillovo "zadnjeg dana mjeseca potrosi sve preostalo". Da se kvota ne prenosi nije
+  potvrdjeno nicim, a rafal pred pogresnim rokom bi ostavio shop bez obnova na pocetku ciklusa.
+- **Poruka navodi pravi razlog.** Umjesto "jer nemate toliko oglasa" (klijent ima 121) sada kaze
+  da se isti oglas besplatno obnavlja tek nakon nekoliko dana i da je to granica platforme.
+  Broj dana se sklanja, "1 dana" vise ne postoji.
+- **Ritam obnavljanja je odluka trgovca.** Novi `olx_ritam_obnova` i `.olx-pik/ritam-obnova.json`
+  po uzoru na izuzeca: `ravnomjerno` (podrazumijevano), `sve-dostupno`, `interval` sa brojem dana.
+  Kraci interval od praga platforme se podize i to se javi, da se ne obeca ritam koji se ne moze
+  izvrsiti. Bot pita jednom kad ritam nije zapisan. Krediti kroz ovo ne prolaze nijednom linijom.
+- **Novi `.olx-pik/kvota-dnevnik.jsonl`**: jedan red dnevno sa stanjem kvote, jer API ne vraca
+  datum reseta i bez serije se dan reseta ne moze prepoznati. `daniResetaKvote` ga cita. Time se
+  zatvara otvoreno pitanje iz `pravila-brojeva.md`, koje je imalo zakazan test za 01.08.2026.
+- **Prvi testovi nad TEKSTOM poruke.** `izvjestaj.test.ts` je do sada pokrivao samo kapiju za
+  slanje, pa je greska prosla bez ijednog crvenog testa. Testovi u `stats.test.ts` koji su staru
+  semantiku drzali kao ispravnu su prepisani, ne zaobidjeni.
+
+
 Granice upotrebe klijentskog bota. Do sada je bot bio ogranicen po SPOSOBNOSTIMA (koje alate
 ima), a nikako po NAMJENI: nista ga nije vezalo za posao oko shopa, a generator slika je primao
 proizvoljan tekst i radio i bez ijedne fotografije.

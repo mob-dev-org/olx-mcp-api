@@ -7,6 +7,7 @@
 //   markdown  = onboarding izvjestaj koji klijent cita jednom, moze biti dug
 //   telegram  = dnevna i sedmicna poruka, mora stati u jednu poruku i biti citljiva na telefonu
 
+import { danaRijec } from "./stats.js";
 import type { AlarmiNaloga, DnevniPlanObnova, OnboardingIzvjestaj, PromjenaPregleda } from "./stats.js";
 import type { PlanSazetak } from "./plan.js";
 
@@ -74,11 +75,15 @@ export function onboardingMarkdown(i: OnboardingIzvjestaj): string {
     r.push(`- Neiskorisceno: ${o.preostalo} (${o.propusteno_procenat}% kvote)`);
     if (o.preostalo > 0) {
       r.push(
-        `- Do kraja mjeseca je jos ${o.dana_do_kraja_mjeseca} dana, sto znaci oko ${o.preporuceno_dnevno} obnova dnevno da se kvota ne baci.`,
+        o.rok_poznat
+          ? `- Kvota se obnavlja za ${o.dana_do_reseta} ${danaRijec(o.dana_do_reseta)}, sto znaci oko ${o.preporuceno_dnevno} obnova dnevno.`
+          : `- Preporuceno oko ${o.preporuceno_dnevno} obnova dnevno.`,
       );
     }
     r.push("");
-    r.push("Obnova ne kosta nista i vraca oglas na vrh po svjezini. Neiskoristena kvota se ne prenosi u sljedeci mjesec.");
+    // Tvrdnja "neiskoristena kvota se ne prenosi" je izbacena: nema izvor ni u zvanicnoj pomoci
+    // ni u API-ju (olx://pravila-brojeva, kada se kvota resetuje nije potvrdjeno).
+    r.push("Obnova ne kosta nista i vraca oglas na vrh po svjezini.");
   }
   r.push("");
 
@@ -164,7 +169,13 @@ export function onboardingTelegram(i: OnboardingIzvjestaj): string {
   r.push(`Aktivnih oglasa: ${i.nalog.aktivnih_oglasa}`);
   if (o.kvota > 0) {
     r.push(`Besplatnih obnova neiskorisceno: ${o.preostalo} od ${o.kvota}`);
-    if (o.preostalo > 0) r.push(`Do kraja mjeseca ${o.dana_do_kraja_mjeseca} dana, oko ${o.preporuceno_dnevno} obnova dnevno.`);
+    if (o.preostalo > 0) {
+      r.push(
+        o.rok_poznat
+          ? `Kvota se obnavlja za ${o.dana_do_reseta} ${danaRijec(o.dana_do_reseta)}, oko ${o.preporuceno_dnevno} obnova dnevno.`
+          : `Oko ${o.preporuceno_dnevno} obnova dnevno.`,
+      );
+    }
   }
   const najveci = i.higijena[0];
   if (najveci) r.push("", `Najveci problem: ${najveci.broj} oglasa, ${najveci.poruka.toLowerCase()}`);
@@ -229,21 +240,29 @@ export function dnevniTekst(d: DnevniPodaci): string {
 
   if (d.plan.kvota > 0) {
     r.push(`Preostalo besplatnih obnova: ${d.plan.preostalo} od ${d.plan.kvota}.`);
+    const dana = d.plan.dana_do_reseta;
+    // Rok se izgovara SAMO kad je izveden iz ciklusa pretplate. Kad nije, broj je kraj
+    // kalendarskog mjeseca, dakle pretpostavka, i ne smije se klijentu dati kao rok
+    // (olx://pravila-brojeva: kada se kvota resetuje nije potvrdjeno).
+    const rok = d.plan.rok_poznat ? `Kvota se obnavlja za ${dana} ${danaRijec(dana)}.` : null;
+
     if (d.plan.preostalo === 0) {
-      r.push("Mjesecna kvota je potrosena do kraja.");
+      r.push("Besplatna kvota je potrosena do kraja.");
     } else if (d.plan.kvota_neostvariva) {
-      // Kad kvota nadmasi ono sto se fizicki moze obnoviti do kraja mjeseca, tempo se ne javlja:
-      // broj koji niko ne moze ispuniti zvuci kao propust, a nije. Kvota se ne prenosi u novi
-      // mjesec, pa nema sta da se popravlja.
+      // Kvota je veca od onoga sto katalog fizicki moze potrositi. Pravi razlog je PRAG po
+      // oglasu, ne broj oglasa: isti oglas se besplatno obnavlja tek nakon praga platforme.
+      // Tempo se ne javlja, jer broj koji niko ne moze ispuniti zvuci kao propust, a nije.
       r.push(
-        `Do kraja mjeseca ${d.plan.dana_do_kraja_mjeseca} dana. Ostatak kvote se nece stici ` +
-          "potrositi jer nemate toliko oglasa, i to je normalno.",
+        (rok ? `${rok} ` : "") +
+          "Ostatak kvote se nece stici potrositi, jer se isti oglas moze besplatno obnoviti tek " +
+          "nakon nekoliko dana. To je granica platforme, ne propust.",
       );
     } else {
-      r.push(`Do kraja mjeseca ${d.plan.dana_do_kraja_mjeseca} dana, tempo oko ${d.plan.cilj_danas} dnevno.`);
-      // Kandidata manje nego sto tempo trazi znaci da se kvota nece stici potrositi.
+      r.push((rok ? `${rok} ` : "") + `Tempo oko ${d.plan.cilj_danas} dnevno.`);
+      // Kandidata manje nego sto tempo trazi je normalno stanje, ne alarm: platforma sama
+      // odlucuje koji oglas je danas dostupan.
       if (d.plan.kandidata < d.plan.cilj_danas) {
-        r.push(`Napomena: danas je bilo dostupno samo ${d.plan.kandidata} oglasa za obnovu, manje nego sto tempo trazi.`);
+        r.push(`Danas je platforma dala samo ${d.plan.kandidata} oglasa za obnovu, manje nego sto tempo trazi.`);
       }
     }
   }
@@ -299,7 +318,7 @@ export function sedmicniTekst(s: SedmicniPodaci): string {
   const o = s.onboarding.besplatne_obnove;
   if (o.kvota > 0) {
     r.push("", `Besplatne obnove: iskorisceno ${o.iskorisceno} od ${o.kvota}.`);
-    if (o.preostalo > 0) r.push(`Ostalo ${o.preostalo}, tempo ${o.preporuceno_dnevno} dnevno do kraja mjeseca.`);
+    if (o.preostalo > 0) r.push(`Ostalo ${o.preostalo}, tempo ${o.preporuceno_dnevno} dnevno.`);
   }
 
   const najveci = s.onboarding.higijena[0];

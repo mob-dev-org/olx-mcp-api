@@ -8,6 +8,7 @@
 // treba izracunata metrika. Ove funkcije sazmu podatke PRIJE nego sto stignu do AI-a.
 
 import { linkOglasa } from "./link.js";
+import { RITAM_PODRAZUMIJEVANI, type Ritam, type RitamStrategija } from "./ritam-obnova.js";
 import type {
   CategoryAttribute,
   Listing,
@@ -244,8 +245,11 @@ export interface OnboardingIzvjestaj {
     kvota: number;
     iskorisceno: number;
     preostalo: number;
-    dana_do_kraja_mjeseca: number;
-    // Koliko obnova dnevno treba trositi da se kvota potrosi do kraja mjeseca.
+    dana_do_reseta: number;
+    /** true samo kad je rok iz ciklusa pretplate; inace je kraj kalendarskog mjeseca, dakle pretpostavka. */
+    rok_poznat: boolean;
+    // Koliko obnova dnevno treba trositi da se OSTVARIVO iskoristi do obnove kvote. Racuna se na
+    // ostvarivo, ne na sirovu kvotu (olx://pravila-brojeva), jer prag po oglasu vezuje prije kvote.
     preporuceno_dnevno: number;
     propusteno_procenat: number;
   };
@@ -273,27 +277,78 @@ function nalaz(kljuc: string, poruka: string, lista: { id: number; title?: strin
   return { kljuc, poruka, broj: lista.length, primjeri: primjeri(lista) };
 }
 
-// Broj dana do kraja KALENDARSKOG mjeseca u kojem je `sadaTs`, ukljucujuci danasnji. Radi u
-// UTC, isto kao ostatak modula. PAZNJA: da se kvota obnova resetuje bas krajem kalendarskog
-// mjeseca je pretpostavka, ne izmjerena cinjenica (API ne vraca datum reseta); status provjere
-// stoji u olx-dokumentacija/pravila-brojeva.md. Zato poruke koje iz ovoga nastaju uvijek kazu
-// "kalendarskog mjeseca", da se ne pomijesa sa istekom paketa koji tece svojim ciklusom.
-function danaDoKrajaMjeseca(sadaTs: number): number {
-  const d = new Date(sadaTs * 1000);
-  const uMjesecu = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
-  return Math.max(1, uMjesecu - d.getUTCDate() + 1);
+/**
+ * Dan u mjesecu na koji se kvota obnova obnavlja, izveden iz datuma isteka paketa.
+ *
+ * Zasto iz `shop.ends_at`: pretplata se placa po broju mjeseci od datuma placanja, pa mjesecni
+ * ciklus tece od tog dana, a ne od prvog u mjesecu. Kalendarski mjesec je bio pretpostavka i
+ * davao je pogresan rok (izmjereno 31.07.2026: kod je javio 1 dan, a ciklus je isticao 24.08).
+ *
+ * PAZNJA, ovo NIJE "dana do isteka paketa": paket kupljen na sest mjeseci ima `ends_at` daleko u
+ * buducnosti, a mjesecnica je i dalje isti dan u mjesecu. Zato se uzima samo DAN.
+ */
+export function danCiklusaIzIsteka(endsAtTs: number | undefined | null): number | undefined {
+  if (typeof endsAtTs !== "number" || !Number.isFinite(endsAtTs) || endsAtTs <= 0) return undefined;
+  return new Date(endsAtTs * 1000).getUTCDate();
 }
 
 /**
- * Koliko obnova katalog FIZICKI moze potrositi u `dana` dana: rucna obnova istog oglasa ide
- * tek svakih 7 dana na shopu, odnosno 30 dana bez shopa (prag iz olx://pravila-brojeva).
+ * Broj dana do sljedece obnove kvote, ukljucujuci danasnji. Radi u UTC, isto kao ostatak modula.
+ *
+ * Sa `danCiklusa` racuna do sljedece pojave tog dana u mjesecu. Bez njega pada na kraj
+ * kalendarskog mjeseca, ali tada pozivalac NE smije tvrditi rok korisniku: da se kvota resetuje
+ * bas krajem kalendarskog mjeseca je pretpostavka, status stoji u olx://pravila-brojeva.
+ */
+export function danaDoResetaKvote(sadaTs: number, danCiklusa?: number): number {
+  const d = new Date(sadaTs * 1000);
+  const danas = d.getUTCDate();
+  const godina = d.getUTCFullYear();
+  const mjesec = d.getUTCMonth();
+  const odMs = Date.UTC(godina, mjesec, danas);
+
+  // Bez poznatog ciklusa se pada na prvi u sljedecem mjesecu, dakle dan reseta je 1. Time su dva
+  // slucaja jedan racun: broji se OD danas DO dana reseta, ne racunajuci sam dan reseta, jer je
+  // zadnji dan koji se moze iskoristiti onaj prije reseta.
+  const zeljeni = typeof danCiklusa === "number" && Number.isFinite(danCiklusa)
+    ? Math.min(Math.max(1, Math.floor(danCiklusa)), 31)
+    : 1;
+
+  // Dan 29, 30 i 31 ne postoji u svakom mjesecu, pa se steze na zadnji dan ciljnog mjeseca. Bez
+  // toga bi Date pretekao u sljedeci mjesec i rok bi skocio za nekoliko dana.
+  const stegni = (g: number, m: number): number => Math.min(zeljeni, new Date(Date.UTC(g, m + 1, 0)).getUTCDate());
+
+  // Prvi reset STRIKTNO poslije danas: ako je reset bas danas, kvota je vec obnovljena, pa vazi
+  // sljedeci ciklus.
+  let ciljMs = Date.UTC(godina, mjesec, stegni(godina, mjesec));
+  if (ciljMs <= odMs) ciljMs = Date.UTC(godina, mjesec + 1, stegni(godina, mjesec + 1));
+
+  return Math.max(1, Math.round((ciljMs - odMs) / 86_400_000));
+}
+
+/**
+ * Sklanjanje rijeci "dan" uz broj. Bez ovoga poruka klijentu kaze "1 dana", sto odmah odaje da
+ * je tekst sastavio program (prijavljeno iz prakse 31.07.2026).
+ */
+export function danaRijec(n: number): string {
+  return Math.abs(n) === 1 ? "dan" : "dana";
+}
+
+/** Prag rucne obnove istog oglasa, u danima (olx://pravila-brojeva, Razred A). */
+export function pragObnove(imaShop: boolean, imaPro = false): number {
+  if (imaShop) return 7;
+  return imaPro ? 21 : 30;
+}
+
+/**
+ * Koliko obnova katalog FIZICKI moze potrositi u `dana` dana: rucna obnova istog oglasa ide tek
+ * nakon praga (shop 7 dana, PRO 21, klasicni 30; olx://pravila-brojeva, Razred A).
  * Kvota veca od ovoga se ne moze iskoristiti ni teoretski, pa se savjeti i alarmi porede sa
  * ostvarivim brojem, ne sa sirovom kvotom; inace "kvota propada" gori vjecno na svakom nalogu
  * ciji je katalog manji od kvote.
  */
-export function ostvarivihObnova(brojAktivnih: number, dana: number, imaShop: boolean): number {
-  const cooldownDana = imaShop ? 7 : 30;
-  return Math.max(0, brojAktivnih) * Math.max(1, Math.floor(dana / cooldownDana));
+export function ostvarivihObnova(brojAktivnih: number, dana: number, imaShop: boolean, imaPro = false): number {
+  const prag = pragObnove(imaShop, imaPro);
+  return Math.max(0, brojAktivnih) * Math.max(1, Math.floor(dana / prag));
 }
 
 export function onboardingIzvjestaj(input: OnboardingInput): OnboardingIzvjestaj {
@@ -303,7 +358,8 @@ export function onboardingIzvjestaj(input: OnboardingInput): OnboardingIzvjestaj
   const kvota = refreshLimits.free_limit ?? 0;
   const iskorisceno = refreshLimits.free_count ?? 0;
   const preostalo = Math.max(0, kvota - iskorisceno);
-  const danaDoKraja = danaDoKrajaMjeseca(sadaTs);
+  const danCiklusa = danCiklusaIzIsteka(shop?.ends_at);
+  const danaDoKraja = danaDoResetaKvote(sadaTs, danCiklusa);
 
   // Limit oglasa po paketu: oblik odgovora nije dokumentovan, pa se trazi prvo brojcano polje
   // sa poznatim imenom umjesto da se pretpostavi struktura.
@@ -403,8 +459,8 @@ export function onboardingIzvjestaj(input: OnboardingInput): OnboardingIzvjestaj
         redoslijed: potezi.length + 1,
         potez:
           preostalo > ostvarivo
-            ? `Obnavljati redovno, oko ${dnevno} oglasa dnevno: do kraja kalendarskog mjeseca katalog moze iskoristiti jos oko ${zaPotrositi} obnova. Kvota (${preostalo} preostalo) je veca nego sto katalog fizicki moze potrositi i to je normalno.`
-            : `Potrositi preostalih ${preostalo} besplatnih obnova do kraja kalendarskog mjeseca, oko ${dnevno} dnevno`,
+            ? `Obnavljati redovno, oko ${dnevno} oglasa dnevno: do obnove kvote katalog moze iskoristiti jos oko ${zaPotrositi} obnova. Kvota (${preostalo} preostalo) je veca nego sto katalog fizicki moze potrositi, jer se isti oglas obnavlja tek nakon praga, i to je normalno.`
+            : `Potrositi preostalih ${preostalo} besplatnih obnova do obnove kvote, oko ${dnevno} dnevno`,
         kosta: "besplatno",
       });
     }
@@ -455,8 +511,15 @@ export function onboardingIzvjestaj(input: OnboardingInput): OnboardingIzvjestaj
       kvota,
       iskorisceno,
       preostalo,
-      dana_do_kraja_mjeseca: danaDoKraja,
-      preporuceno_dnevno: preostalo === 0 ? 0 : Math.ceil(preostalo / danaDoKraja),
+      dana_do_reseta: danaDoKraja,
+      rok_poznat: typeof danCiklusa === "number",
+      preporuceno_dnevno:
+        preostalo === 0
+          ? 0
+          : Math.min(
+              Math.ceil(Math.min(preostalo, ostvarivihObnova(aktivni.length, danaDoKraja, shop !== null)) / danaDoKraja),
+              aktivni.length,
+            ),
       propusteno_procenat: kvota === 0 ? 0 : zaokruzi((preostalo / kvota) * 100),
     },
     higijena,
@@ -793,8 +856,16 @@ export function promjenaKonkurenta(
 export interface DnevniPlanObnova {
   kvota: number;
   preostalo: number;
-  dana_do_kraja_mjeseca: number;
-  // Koliko bi trebalo obnoviti danas da se kvota ravnomjerno potrosi do kraja mjeseca.
+  /** Dana do sljedece obnove kvote. Vidi `rok_poznat` prije nego se broj izgovori korisniku. */
+  dana_do_reseta: number;
+  /**
+   * true samo kad je rok izveden iz ciklusa pretplate (`shop.ends_at`). Kad je false, broj je
+   * kraj kalendarskog mjeseca, dakle pretpostavka, i tekst ga NE smije tvrditi kao rok.
+   */
+  rok_poznat: boolean;
+  /** Koliko obnova katalog fizicki moze potrositi do reseta (prag po oglasu, `ostvarivihObnova`). */
+  ostvarivo: number;
+  // Koliko bi trebalo obnoviti danas da se ostvarivo ravnomjerno rasporedi do reseta kvote.
   // Ogranicen brojem aktivnih oglasa kad je poznat: oglas se ne moze obnoviti dvaput isti dan,
   // pa cilj veci od broja oglasa nije cilj nego besmislica u izvjestaju.
   cilj_danas: number;
@@ -802,9 +873,23 @@ export interface DnevniPlanObnova {
   kandidata: number;
   // Stvarni broj za danas: manji od cilja i broja kandidata.
   za_obnovu: number;
-  // true kad se preostala kvota ne moze potrositi do kraja mjeseca ni kad bi se svaki oglas
-  // obnavljao svaki dan. Tada nema smisla javljati tempo, jer ga niko ne moze ispuniti.
+  // true kad se preostala kvota ne moze potrositi do reseta ni u najboljem slucaju, jer se isti
+  // oglas obnavlja tek nakon praga. Tada nema smisla javljati tempo, niti da kvota "propada".
   kvota_neostvariva: boolean;
+  /** Koji ritam je primijenjen; ide u izvjestaj da klijent zna po cemu se radi. */
+  ritam: RitamStrategija;
+}
+
+export interface DnevniPlanUlaz {
+  refreshLimits: RefreshLimits;
+  kandidata: number;
+  sadaTs: number;
+  aktivnihOglasa?: number;
+  /** Dan u mjesecu kad se kvota obnavlja; iz `danCiklusaIzIsteka(shop.ends_at)`. */
+  danCiklusa?: number;
+  imaShop?: boolean;
+  imaPro?: boolean;
+  ritam?: Ritam;
 }
 
 /**
@@ -812,29 +897,54 @@ export interface DnevniPlanObnova {
  *
  * Ravnomjerno trosenje, ne sve odjednom: obnova vraca oglas na vrh po svjezini, pa 500 obnova u
  * jednom danu i nula narednih daje losiju prosjecnu poziciju nego 100 dnevno kroz pet dana.
+ *
+ * Racuna se na OSTVARIVO, ne na sirovu kvotu. To je pravilo iz olx://pravila-brojeva ("poredjenja
+ * i alarmi idu na ostvarivo"), koje je ova funkcija ranije krsila: dijelila je preostalu kvotu na
+ * dane i dobijala tempo koji nijedan katalog ne moze ispuniti (izmjereno 31.07.2026: cilj 121 na
+ * shopu gdje je odrzivo oko 17, jer se isti oglas obnavlja tek svakih 7 dana).
  */
-export function dnevniPlanObnova(
-  refreshLimits: RefreshLimits,
-  kandidata: number,
-  sadaTs: number,
-  aktivnihOglasa?: number,
-): DnevniPlanObnova {
+export function dnevniPlanObnova(ulaz: DnevniPlanUlaz): DnevniPlanObnova {
+  const { refreshLimits, kandidata, sadaTs, aktivnihOglasa, danCiklusa, imaShop = false, imaPro = false } = ulaz;
+  const ritam = ulaz.ritam ?? RITAM_PODRAZUMIJEVANI;
+
   const kvota = refreshLimits.free_limit ?? 0;
   const preostalo = Math.max(0, kvota - (refreshLimits.free_count ?? 0));
-  const dana = danaDoKrajaMjeseca(sadaTs);
-  const ravnomjerno = preostalo === 0 ? 0 : Math.ceil(preostalo / dana);
+  const dana = danaDoResetaKvote(sadaTs, danCiklusa);
+  const rokPoznat = typeof danCiklusa === "number" && Number.isFinite(danCiklusa);
+
   // Gornja granica je broj oglasa: isti oglas se ne obnavlja dvaput u istom danu. Bez ovoga
   // izvjestaj klijentu javi tempo tipa "741 dnevno" na shopu od 120 oglasa (viđeno 30.07.2026).
   const strop = typeof aktivnihOglasa === "number" && aktivnihOglasa >= 0 ? aktivnihOglasa : Number.POSITIVE_INFINITY;
-  const cilj = Math.min(ravnomjerno, strop);
+  const ostvarivo =
+    strop === Number.POSITIVE_INFINITY ? Number.POSITIVE_INFINITY : ostvarivihObnova(strop, dana, imaShop, imaPro);
+  const zaPotrositi = Math.min(preostalo, ostvarivo);
+
+  let cilj: number;
+  if (preostalo === 0) {
+    cilj = 0;
+  } else if (ritam.strategija === "sve-dostupno") {
+    // Trgovac je rekao da hoce sve sto platforma da. Kvota je jedina granica.
+    cilj = Math.min(preostalo, strop);
+  } else if (ritam.strategija === "interval" && typeof ritam.dana === "number" && ritam.dana > 0) {
+    // Svaki oglas svakih `dana`: dnevni cilj je katalog podijeljen intervalom. Koji je oglas
+    // danas na redu presudjuje pozivalac, jer samo on ima datum zadnje obnove po oglasu.
+    const poIntervalu = strop === Number.POSITIVE_INFINITY ? preostalo : Math.ceil(strop / ritam.dana);
+    cilj = Math.min(poIntervalu, preostalo);
+  } else {
+    cilj = Math.min(Math.ceil(zaPotrositi / dana), strop);
+  }
+
   return {
     kvota,
     preostalo,
-    dana_do_kraja_mjeseca: dana,
-    cilj_danas: cilj,
+    dana_do_reseta: dana,
+    rok_poznat: rokPoznat,
+    ostvarivo: Number.isFinite(ostvarivo) ? ostvarivo : 0,
+    cilj_danas: Number.isFinite(cilj) ? cilj : 0,
     kandidata,
     za_obnovu: Math.min(cilj, kandidata),
-    kvota_neostvariva: preostalo > 0 && strop !== Number.POSITIVE_INFINITY && preostalo > strop * dana,
+    kvota_neostvariva: preostalo > 0 && Number.isFinite(ostvarivo) && preostalo > ostvarivo,
+    ritam: ritam.strategija,
   };
 }
 
@@ -1071,25 +1181,29 @@ export function alarmiNaloga(
 
   const freeLimit = refreshLimits.free_limit ?? 0;
   if (freeLimit > 0) {
-    const datum = new Date(sadaTs * 1000);
-    const zadnjiDan = new Date(Date.UTC(datum.getUTCFullYear(), datum.getUTCMonth() + 1, 0)).getUTCDate();
-    const doKraja = zadnjiDan - datum.getUTCDate();
+    // Rok ide kroz istu funkciju kao ostatak modula. Ranije se racunao ovdje rucno i BEZ
+    // danasnjeg dana, pa je ista cron poruka mogla reci "1 dana" iz jednog izvora i "0 dana" iz
+    // drugog (izmjereno 31.07.2026).
+    const danCiklusa = danCiklusaIzIsteka(shop?.ends_at);
+    const doKraja = danaDoResetaKvote(sadaTs, danCiklusa);
+    const rokPoznat = typeof danCiklusa === "number";
     // Poredjenje ide sa OSTVARIVIM, ne sa sirovom kvotom: listing_count iz refresh/limits je
     // broj oglasa naloga, pa katalog od 168 oglasa nikad ne moze potrositi kvotu 1800 i alarm
     // po sirovoj kvoti bi gorio svaki mjesec kao sum.
     const aktivnih = refreshLimits.listing_count ?? 0;
     const imaShop = Boolean(me.shop);
-    const dostizno =
-      aktivnih > 0 ? Math.min(freeLimit, ostvarivihObnova(aktivnih, zadnjiDan, imaShop)) : freeLimit;
+    const uCiklusu = ostvarivihObnova(aktivnih, 30, imaShop);
+    const dostizno = aktivnih > 0 ? Math.min(freeLimit, uCiklusu) : freeLimit;
     const iskoristeno = dostizno > 0 ? zaokruzi(((refreshLimits.free_count ?? 0) / dostizno) * 100) : 100;
     if (doKraja <= krajMjesecaDana && iskoristeno < kvotaMinProcenat) {
       const stize = Math.min(
         Math.max(0, freeLimit - (refreshLimits.free_count ?? 0)),
-        aktivnih > 0 ? ostvarivihObnova(aktivnih, Math.max(1, doKraja), imaShop) : Number.MAX_SAFE_INTEGER,
+        aktivnih > 0 ? ostvarivihObnova(aktivnih, doKraja, imaShop) : Number.MAX_SAFE_INTEGER,
       );
+      const rok = rokPoznat ? `Do obnove kvote ${doKraja} ${danaRijec(doKraja)}` : `Kvota se obnavlja za oko ${doKraja} ${danaRijec(doKraja)}`;
       alarmi.push({
         tip: "kvota_obnova",
-        poruka: `Do kraja kalendarskog mjeseca ${doKraja} dana, a iskoristeno ${iskoristeno}% ostvarivih besplatnih obnova; jos oko ${stize} se stize iskoristiti.`,
+        poruka: `${rok}, a iskoristeno ${iskoristeno}% ostvarivih besplatnih obnova; jos oko ${stize} se stize iskoristiti.`,
         vrijednost: iskoristeno,
       });
     }

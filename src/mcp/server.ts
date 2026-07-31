@@ -18,6 +18,7 @@ import { parseSponsorOptions } from "../core/sponsor-options.js";
 import {
   efekatIzdvajanja,
   izracunajNoveCijene,
+  pragObnove,
   kompaktCsv,
   kompaktList,
   kompaktListing,
@@ -32,6 +33,7 @@ import { PLAN_FILE, upisiPlan, zauzmiKljuc } from "../core/plan-fajl.js";
 import { buildPlan, planSazetak, type PlanKandidat } from "../core/plan.js";
 import { opisiSliku, vidKonfigurisan } from "../core/vid.js";
 import { OPSEZI, bezSklonjenog, odvojiIzuzete, saDodatim, spisak, ucitajIzuzeca, upisiIzuzeca } from "../core/izuzeca.js";
+import { INTERVAL_MAX, STRATEGIJE, intervalUzPrag, normalizujRitam, ritamZapisan, ucitajRitam, upisiRitam } from "../core/ritam-obnova.js";
 import { DOPUNA_MAX, ODNOSI, RECEPTI, ZADANI_ODNOS, generisiSliku, maxDnevno, provjeriZahtjevSlike, slikaKonfigurisana, type Odnos } from "../core/slika.js";
 import { zapisiZahtjevSlike } from "../core/slike-trag.js";
 import { brojPozivaDanas } from "../core/ai-dnevnik.js";
@@ -501,7 +503,7 @@ server.registerTool(
 
 server.registerTool(
   "olx_refresh_limits",
-  { title: "Limiti obnove", description: "Mjesecni limiti obnove (free_limit, free_count, listing_count).", inputSchema: {}, annotations: readOnly },
+  { title: "Limiti obnove", description: "Limiti besplatne obnove sa naloga (free_limit, free_count, listing_count). Datum kad se kvota obnavlja API NE vraca; rok se izvodi iz ciklusa pretplate (shop.ends_at).", inputSchema: {}, annotations: readOnly },
   () => run((c) => c.refreshLimits()),
 );
 
@@ -1487,6 +1489,56 @@ server.registerTool(
         napomena_ukupno: novo.napomene.length,
         napomena:
           "Zapisano. Vazi od sljedeceg razgovora, jer se pravila sesije sastavljaju pri pokretanju.",
+      });
+    } catch (e) {
+      return errResult(String(e instanceof Error ? e.message : e));
+    }
+  },
+);
+
+// Ritam kojim vlasnik zeli da mu se oglasi obnavljaju. Obnove su BESPLATNE unutar kvote, pa je
+// ritam stvar njegovog ukusa i ne trosi mu nista. Zapis zivi u klonu (.olx-pik/ritam-obnova.json)
+// i cita ga dnevna cron obnova, koja radi bez modela, zato je strukturiran a ne slobodan tekst.
+server.registerTool(
+  "olx_ritam_obnova",
+  {
+    title: "Ritam obnavljanja oglasa",
+    description:
+      "Kojim ritmom se oglasi automatski obnavljaju. 'ravnomjerno' rasporedi kroz ciklus, 'sve-dostupno' dize svaki oglas koji platforma da, 'interval' dize isti oglas svakih N dana. Radnja 'procitaj' ne trazi strategiju. Platforma besplatnu obnovu istog oglasa daje tek nakon praga, pa se kraci interval podize na prag i to se javi. Ne trosi kredite.",
+    inputSchema: {
+      radnja: z.enum(["procitaj", "postavi"]),
+      strategija: z.enum(STRATEGIJE).optional().describe("obavezno za postavi"),
+      dana: z.number().int().min(1).max(INTERVAL_MAX).optional().describe("samo za interval: oglas ne cesce od ovoliko dana"),
+    },
+  },
+  async (args) => {
+    try {
+      const ritam = ucitajRitam();
+      if (args.radnja === "procitaj") {
+        return ok({ ...ritam, zapisano: ritamZapisan(ritam), podrazumijevani: !ritamZapisan(ritam) });
+      }
+      if (!args.strategija) return errResult("Radnja 'postavi' trazi strategiju.");
+      if (args.strategija === "interval" && typeof args.dana !== "number") {
+        return errResult("Strategija 'interval' trazi i broj dana.");
+      }
+
+      // Prag platforme se ne moze zaobici, pa se kraci interval podize i to se JAVI. Tiho
+      // prihvatanje bi klijentu obecalo ritam koji se ne moze izvrsiti.
+      const prag = pragObnove(true);
+      const trazeno = args.dana ?? 0;
+      const dana = args.strategija === "interval" ? intervalUzPrag(trazeno, prag) : undefined;
+      const novo = normalizujRitam({
+        strategija: args.strategija,
+        ...(dana !== undefined ? { dana } : {}),
+        kada: new Date().toISOString(),
+      });
+      upisiRitam(novo);
+      return ok({
+        ...novo,
+        ...(dana !== undefined && dana !== trazeno
+          ? { napomena: `Interval je podignut sa ${trazeno} na ${dana} dana, jer platforma besplatnu obnovu istog oglasa daje tek nakon ${prag} dana.` }
+          : {}),
+        vazi_od: "sljedece dnevne obnove",
       });
     } catch (e) {
       return errResult(String(e instanceof Error ? e.message : e));

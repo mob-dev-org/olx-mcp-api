@@ -15,6 +15,8 @@
 
 import { putanjaDnevnika } from "./ai-dnevnik.js";
 import { putanjaTraga } from "./slike-trag.js";
+import { putanjaRitma } from "./ritam-obnova.js";
+import { putanjaKvoteDnevnika } from "./kvota-dnevnik.js";
 import { loadConfig } from "./config.js";
 import { putanjaIzuzeca } from "./izuzeca.js";
 import { KONKURENTI_DIR } from "./konkurenti.js";
@@ -46,6 +48,11 @@ export function bijeliSpisak(env: NodeJS.ProcessEnv = process.env): StavkaSpiska
     // Ide na daljinu jer je dokazni materijal: jedini zapis o tome sta je trazeno od generatora
     // slika i sta je odbijeno. Bez njega se zloupotreba ne moze rekonstruisati poslije oporavka.
     { putanja: putanjaTraga(env), opis: "zahtjevi prema generatoru slika" },
+    // Odluka klijenta, isto kao izuzeca: bez nje bot poslije oporavka nametne svoj raspored.
+    { putanja: putanjaRitma(env), opis: "ritam obnavljanja koji je trazio klijent" },
+    // Serija stanja kvote. Nezamjenjiva retroaktivno, kao i snapshoti pregleda: po njoj se
+    // vidi KAD se kvota obnavlja, a API taj datum ne vraca.
+    { putanja: putanjaKvoteDnevnika(env), opis: "dnevno stanje kvote obnova" },
     { putanja: PLAN_FILE, opis: "raspored izdvajanja" },
     { putanja: ".olx-pik/saznanja.jsonl", opis: "zapisi iz prakse" },
     // Marker dokle je `saznanja-pokupi.sh` stigao. Bez njega bi se poslije oporavka sva saznanja

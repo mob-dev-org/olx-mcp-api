@@ -23,8 +23,16 @@ nalogu; poznata protivrjecnost zvanicne pomoci i izmjerenog stanja je opisana u
    Traje 1-2 minute (jedan zahtjev po oglasu), pise `.olx-pik/snapshots/views-YYYY-MM-DD.json`.
    Bez ovih dnevnih snimaka se efekat izdvajanja ne moze mjeriti (`olx_sponsor_effect`).
 2. `olx_refresh_limits` — `free_limit`, `free_count`. Preostalo = `free_limit - free_count`.
-3. Dnevni budzet obnova = preostalo / broj dana do kraja mjeseca, zaokruzeno nadolje, najmanje 1
-   kad je preostalo vece od nule. Zadnjeg dana mjeseca potrosi sve preostalo (kvota se ne prenosi).
+3. Dnevni budzet obnova NE racunaj sam. Racun zivi na jednom mjestu, u `dnevniPlanObnova`
+   (`src/core/stats.ts`), i vidi se kroz `node dist/cli/index.js posao dnevni --suho`, koji vraca
+   `cilj_danas`. Tri stvari koje su ranije bile prepisane ovdje i bile POGRESNE:
+   - Rok nije kraj kalendarskog mjeseca nego ciklus pretplate (`shop.ends_at`); polje
+     `dana_do_reseta`, a `rok_poznat` kaze smije li se rok izgovoriti korisniku.
+   - Budzet se racuna na OSTVARIVO, ne na sirovu kvotu: isti oglas se besplatno obnavlja tek
+     nakon praga (shop 7 dana), pa je kvota podijeljena na dane tempo koji niko ne moze ispuniti.
+   - Kvota se NE prazni zadnjeg dana. Da se kvota ne prenosi nije potvrdjeno nijednim izvorom
+     (olx://pravila-brojeva), a rafal pred pogresnim rokom ostavi shop bez obnova na pocetku
+     ciklusa.
 4. `olx_refresh_bulk confirm=false limit=<dnevni budzet>` — dry-run. Vraca kandidate
    (`refresh_available: true`) i preostalu kvotu. Ako kandidata nema, nalog je zavrsen za danas.
 5. Prioritet unutar budzeta: oglasi sa najstarijim datumom prvi (`date` u listi oglasa), jer su
@@ -40,7 +48,7 @@ Na kraju ispisi izvjestaj.
 Jedan red brojeva, pa samo alarmi koji su STVARNO aktivni. Prazne rubrike se ne ispisuju: red
 "upozorenja: nema" ne govori nista a placa se svaki dan.
 
-| obnovljeno danas | neuspjelo | preostala kvota | dana do kraja mjeseca |
+| obnovljeno danas | neuspjelo | preostala kvota | dana do obnove kvote |
 
 Upozorenja: pozovi `olx_account_alerts` (jedan poziv pokriva paket pri
 isteku, saldo kredita, kvotu koja propada i istekle oglase) i prenesi samo one alarme koje je

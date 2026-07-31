@@ -32,11 +32,20 @@ jer korisnik dobije broj u koji vjeruje.
   od ta dva broja se ne smije citirati. Pročitaj stvarni limit.
 - Koliko je obnova već potrošeno ovaj mjesec. Pažnja: polje sa iskorištenim obnovama pokazuje
   POTROŠENO, ne preostalo. Preostalo je limit minus potrošeno.
-- **Kada se kvota obnova resetuje NIJE potvrđeno.** API ne vraća datum reseta, zvanična pomoć
-  ne precizira. Kod pretpostavlja kraj kalendarskog mjeseca, ali kvota može pratiti i ciklus
-  paketa. Test u toku: očitati limit obnova na test nalogu 1. augusta 2026 (paket aktiviran
-  ~25.07); ako potrošeno padne na 0, važi kalendarski mjesec, inače ciklus paketa. Do tada se
-  o "kvota propada" govori oprezno i uvijek kaže "kalendarskog mjeseca".
+- **Kada se kvota obnova resetuje NIJE potvrđeno, ali se više ne pretpostavlja kalendar.** API
+  ne vraća datum reseta (`/listing/refresh/limits` daje samo `free_limit`, `free_count`,
+  `paid_count`, `listing_count`), a zvanična pomoć ne precizira. Kod od 31.07.2026. rok izvodi iz
+  **ciklusa pretplate**: dan u mjesecu iz `shop.ends_at`. Osnov: shop se plaća po broju mjeseci od
+  datuma plaćanja, a zvanična pomoć za PRO kaže "narednih mjesec dana" od aktivacije.
+  Kalendarski mjesec je ostao samo kao rezerva kad `ends_at` nije čitljiv, i tada se rok
+  korisniku NE izgovara (polje `rok_poznat`).
+  Zašto je to bilo bitno: na MixBoxu je 31.07.2026. javljen rok od 1 dana, a ciklus je istjecao
+  24.08., dakle 24 dana. Isti broj ulazi i u ponašanje, ne samo u tekst.
+  **Mjerenje u toku:** dnevni posao od 31.07.2026. upisuje stanje kvote u
+  `.olx-pik/kvota-dnevnik.jsonl`. Dan kad `free_count` padne je dan reseta (`daniResetaKvote`).
+  Na MixBoxu ciklus pada na 24., daleko od 1., pa se dva objašnjenja ne mogu pomiješati: padne li
+  1. augusta, važi kalendar; padne li 24. augusta, važi ciklus paketa. Do nalaza se o "kvota
+  propada" ne govori uopšte, jer ni to nema izvor.
 - Većina naloga kvotu NE MOŽE potrošiti do kraja: ručna obnova istog oglasa ide tek nakon
   praga (red iznad), pa je ostvarivi maksimum broj oglasa puta broj obnova po oglasu u
   periodu. Poređenja i alarmi idu na ostvarivo, ne na sirovu kvotu (`ostvarivihObnova` u
