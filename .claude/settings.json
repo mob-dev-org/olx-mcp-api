@@ -4,11 +4,10 @@
       "mcp__olx-pik__olx_sponsor_listing",
       "mcp__olx-pik__olx_set_discount"
     ],
+    "//deny2": "Samo Edit(...) pravila hvataju fajl operacije; Write(...) deny harness ne primjenjuje i samo je pravio upozorenja u izlazu (vidjeno 31.07.2026). Edit pokriva sve alate za izmjenu fajlova, pa je zastita ista.",
     "//deny": "Globalni ~/.claude/channels vazi za cijelu masinu i nas pogon ga NE cita. Sve o klijentu (bot token, allowlist, grupe) zivi u .claude-runtime*/channels/telegram OVOG klona, upisuje se kroz pripremi skripte. Deny hvata sesiju koja bi po navici pisala globalno (npr. /telegram:configure).",
     "deny": [
-      "Write(~/.claude/channels/**)",
       "Edit(~/.claude/channels/**)",
-      "Write(//**/.claude/channels/**)",
       "Edit(//**/.claude/channels/**)"
     ]
   },
