@@ -1189,6 +1189,18 @@ stats
   });
 
 stats
+  .command("konkurent-telefon <username>")
+  .description("Telefon kandidata iz javnog teksta (opis shopa i oglasa); API ga ne vraca kao polje")
+  .option("--broj-oglasa <n>", "koliko najskorijih aktivnih oglasa provjeriti uz opis shopa", "5")
+  .action(async (username: string, opts: { brojOglasa: string }) => {
+    try {
+      out(await (await withAuth()).statsKonkurentTelefon(username, Number(opts.brojOglasa) || 5));
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+stats
   .command("oglas <id>")
   .description("Izracunata analiza jednog oglasa (naseg ili tudjeg)")
   .action(async (id: string) => {

@@ -1,10 +1,11 @@
 import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
-import { loadConfig, type OlxConfig } from "./config.js";
+import { loadConfig, procitajIzEnvFajla, type OlxConfig } from "./config.js";
 import { auditSinkFromPath, currentAuditContext, potrosenoNaDan, type AuditSink } from "./audit.js";
 import { objasniPogotke, provjeriRobu, type PogodakRobe } from "./zabranjena-roba.js";
 import { VERZIJA } from "./verzija.js";
+import { izvuciTelefon } from "./telefon-ekstrakcija.js";
 import {
   alarmiNaloga,
   konkurentIzvjestaj,
@@ -1108,6 +1109,46 @@ export class OlxClient {
       }
     }
     return { izvjestaj, top_oglasi: topOglasi, broj_poziva: pozivi, trajanje_ms: Date.now() - start };
+  }
+
+  // Telefon kandidata iz javnog teksta: API ga ne vraca kao polje ni za jedan tudji nalog
+  // (privatni podaci se ne vracaju za tudje naloge), pa se cita iz opisa shopa i prvih
+  // brojOglasa najskorijih aktivnih oglasa. Ekstrakcija (regex pa Haiku) je u telefon-ekstrakcija.ts.
+  //
+  // Namjerno cita SAMO prvu stranicu aktivnih oglasa (ne listAllByState): za shop sa stotinama
+  // oglasa bi prelistavanje svih stranica samo da se izabere top N bilo desetine poziva i
+  // sekundi po kandidatu, neprihvatljivo kad se prolazi kroz citav Excel spisak. Prva stranica
+  // je dovoljna, jer trazimo bilo koji tekst gdje je prodavac upisao broj, ne bas najnoviji oglas.
+  async statsKonkurentTelefon(
+    username: string,
+    brojOglasa = 5,
+  ): Promise<{ username: string; telefon: string | null; izvor: "regex" | "haiku" | null; provjereno_oglasa: number; broj_poziva: number; trajanje_ms: number }> {
+    const start = Date.now();
+    let pozivi = 0;
+    const profil = await this.userProfile(username);
+    pozivi += 1;
+    const prvaStranica = await this.listActive(username, 1);
+    pozivi += 1;
+
+    const kandidati = [...prvaStranica.data].sort((a, b) => (b.date ?? 0) - (a.date ?? 0)).slice(0, brojOglasa);
+    const dijeloviTeksta: string[] = [];
+    if (profil.shop?.description) dijeloviTeksta.push(profil.shop.description);
+    for (const o of kandidati) {
+      const detalji = await this.getListing(o.id);
+      pozivi += 1;
+      if (detalji.short_description) dijeloviTeksta.push(detalji.short_description);
+      if (detalji.additional?.description) dijeloviTeksta.push(detalji.additional.description);
+    }
+
+    const rezultat = await izvuciTelefon(dijeloviTeksta.join("\n"));
+    return {
+      username,
+      telefon: rezultat.telefon,
+      izvor: rezultat.izvor,
+      provjereno_oglasa: kandidati.length,
+      broj_poziva: pozivi,
+      trajanje_ms: Date.now() - start,
+    };
   }
 
   // Izvjestaj o jednom oglasu (nasem ili tudjem), 1 poziv.

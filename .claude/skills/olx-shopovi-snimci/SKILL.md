@@ -1,14 +1,16 @@
 ---
 name: olx-shopovi-snimci
 description: >-
-  Obrada Excel snimaka PIK/OLX shopova: razdvajanje po kantonima i poredjenje dva snimka. Okidaci:
-  "razdvoji shopove", "excel po kantonima", "uporedi sa proslim mjesecom", "koliko praznih
-  shopova". Ne za analizu pojedinacnog shopa preko API-ja.
+  Obrada Excel snimaka PIK/OLX shopova: razdvajanje po kantonima, poredjenje dva snimka i
+  dopisivanje telefona kandidata. Okidaci: "razdvoji shopove", "excel po kantonima", "uporedi sa
+  proslim mjesecom", "koliko praznih shopova", "izvuci telefone kandidata", "dodaj telefone u
+  listu". Ne za analizu pojedinacnog shopa preko API-ja.
 ---
 
-# Snimci PIK/OLX shopova: razdvajanje i poredjenje
+# Snimci PIK/OLX shopova: razdvajanje, poredjenje i telefon kandidata
 
-Dva posla, dvije skripte. Obje samo citaju ulazne fajlove i nikad ih ne mijenjaju.
+Nekoliko poslova, nekoliko skripti. Sve samo citaju ulazne fajlove i nikad ih ne mijenjaju, osim
+telefon skripte (Posao 3), koja dopisuje nove kolone u NOV izlazni fajl; ulazni ostaje netaknut.
 
 ## Gdje su fajlovi
 
@@ -71,6 +73,31 @@ Listovi u izlazu:
 - `Iz praznog u aktivno`, bili nula oglasa, sada imaju
 - `Iz aktivnog u prazno`, imali oglase, sada nula
 - `Promjena broja oglasa`, sa kolonom razlike, sortirano po rastu
+
+## Posao 3: telefon kandidata
+
+OLX API ne vraca broj telefona ni za jedan tudji nalog (privatni podaci se ne vracaju za tudje
+naloge), pa se cita iz slobodnog teksta koji je prodavac sam upisao: opis shopa i opis prvih
+nekoliko aktivnih oglasa. Prinos nije garantovan, samo onoliko kandidata koliko je broj zaista
+upisalo u tekst.
+
+```bash
+npm run build   # dist/cli/index.js mora biti svjez
+python3 .claude/skills/olx-shopovi-snimci/scripts/dodaj-telefone.py \
+  olx-dokumentacija/shopovi-razdvojeno-2026-07-28.xlsx \
+  [--broj-oglasa 5] [--pauza 0.4]
+```
+
+Ulaz je bilo koji xlsx sa kolonom `Shop (username)` na jednom ili vise listova (izlaz
+`razdvoji.py`, `prodajna_lista.py`, ili sirovi snimak). Za svaki jedinstven username (isti se ne
+pita dvaput ni kad se pojavi na vise listova) poziva CLI `stats konkurent-telefon <username>`
+(regex prolaz pa Haiku tek kad regex ne nadje nista sigurno, vidi
+`src/core/telefon-ekstrakcija.ts`), i dopisuje dvije kolone: `Telefon` i `Telefon izvor`
+(`regex`/`haiku`/prazno). Listovi bez kolone `Shop (username)` (sazetci, analize) se prepisuju
+nepromijenjeni. Izlaz je nov fajl (podrazumijevano `<ulaz>-telefoni.xlsx`).
+
+Prikaz telefona u HTML izvjestaju nije dio ovog posla: HTML izvjestaj trenutno ne postoji nigdje
+u toolkitu (sve je markdown/telegram tekst/JSON), pa se prosiruje kasnije, kad se pravi.
 
 ## Pravila i granice
 
