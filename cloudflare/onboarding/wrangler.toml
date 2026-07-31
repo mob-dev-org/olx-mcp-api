@@ -1,0 +1,22 @@
+name = "pikgpt-onboarding"
+main = "worker.js"
+compatibility_date = "2025-07-01"
+
+# Nema potrebe za nodejs_compat: Worker koristi samo WebCrypto, fetch i KV. ecies.mjs ne uvozi
+# nijedan Node ugradjeni modul.
+
+[vars]
+OLX_API = "https://api.olx.ba"
+TTL_PENDING = "1800"
+TTL_READY = "3600"
+MAX_POKUSAJA = "5"
+
+# KV za sesije. Napravi namespace pa zalijepi id:
+#   npx wrangler kv namespace create SESIJE
+[[kv_namespaces]]
+binding = "SESIJE"
+id = "POPUNI_KV_ID"
+
+# Tajne se NE drze ovdje, nego kroz secret put (ostaju van gita):
+#   npx wrangler secret put PULL_SECRET   # bearer za /admin i /pull (isti string ide u puller)
+#   npx wrangler secret put ADMIN_PUB     # javni kljuc iz: node scripts/onboarding-kljuc.mjs
