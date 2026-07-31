@@ -27,3 +27,9 @@ olx-dokumentacija/saznanja-ulaz/
 
 # Izlazi mjerenja i testiranja u dokumentaciji: lokalno, ne u git.
 olx-dokumentacija/izdvajanje-provjera-*
+
+# Cloudflare Worker (web onboarding): lokalni build i tajne wranglera nikad u git.
+# Sam kod Workera (worker.js, wrangler.toml) ide u git; tajne i KV id se postavljaju kroz
+# `wrangler secret put` i ostaju van repoa (isti princip kao backup bez tokena).
+.wrangler/
+cloudflare/**/.dev.vars

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sablon. Kao ADMIN.ai-runda, ovaj se NE instalira kroz instaliraj-cron.sh nego RUCNO i samo
+  JEDNOM na admin masini, jer puller sam obilazi sve sesije iz ~/.pikgpt/onboarding-sesije.json i
+  upisuje token u pripadajuci klon. Admin masina je Mac (kao i ai-runda.sh), pa nema Windows
+  blizanca.
+
+  Instalacija (KORIJEN je putanja glavnog admin repoa):
+    sed "s|KORIJEN|$PWD|g" deploy/launchd/ba.codefactory.olx.ADMIN.onboarding-puller.plist \
+      > ~/Library/LaunchAgents/ba.codefactory.olx.ADMIN.onboarding-puller.plist
+    launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/ba.codefactory.olx.ADMIN.onboarding-puller.plist
+
+  Prije instalacije mora postojati ~/.pikgpt/config.json (workerBase, pullSecret) i privatni
+  kljuc (node scripts/onboarding-kljuc.mjs). Bez njih puller izadje sa greskom u log.
+
+  StartInterval 180: klijentov login se pokupi u roku od par minuta. Puller radi jedan prolaz i
+  izadje; kad nema spremnih sesija, brzo zavrsi bez troska.
+
+  bash -lc zbog PATH-a: node dolazi iz login profila.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>ba.codefactory.olx.ADMIN.onboarding-puller</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>cd KORIJEN &amp;&amp; node scripts/onboarding-puller.mjs</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>KORIJEN</string>
+
+  <key>StartInterval</key>
+  <integer>180</integer>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>KORIJEN/.olx-pik/cron-onboarding-puller.log</string>
+  <key>StandardErrorPath</key>
+  <string>KORIJEN/.olx-pik/cron-onboarding-puller.log</string>
+</dict>
+</plist>
