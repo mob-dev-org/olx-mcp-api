@@ -8,7 +8,24 @@ Kako se cita broj verzije: `node dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
-## Nije jos izdano
+## 0.8.0 — 2026-07-31
+
+Minor, a ne patch: dva nova alata, nov nacin onboardinga i promijenjeno ponasanje dnevne obnove.
+Nijedan postojeci klon ne treba rucnu intervenciju, sve nove varijable imaju podrazumijevane
+vrijednosti i novo stanje se pravi samo.
+
+- **Web onboarding klijenta, iz jedne komande.** `scripts/onboarding-uzivo.mjs`: klijent dobije
+  link, prijavi se, token i sve ostalo ostane na admin kompjuteru. Bez Cloudflare naloga i bez
+  deploya (`wrangler dev --local` plus brzi tunel), pa OLX login ide sa admin IP adrese. Token u
+  prolazu je sifrovan admin javnim kljucem, lozinka se nikad ne cuva.
+- **Nov OLX token se preuzima bez restarta sesije.** Na 401 se `.env` procita ponovo i, ako je
+  token zamijenjen, poziv se ponovi jednom. Rjesava rotaciju tokena uopste, ne samo onboarding.
+  Restart sesije jos treba samo kad se mijenja `KLIJENT-javno.md`, jer on ulazi u prompt pri
+  startu; za to puller ostavi `.olx-pik/restart-sesije`, a cuvar ga procita i restartuje sesiju.
+- **CLI `stats konkurent-telefon <username>`**: telefon kandidata iz javnog teksta shopa i oglasa,
+  jer API ga za tudje naloge ne vraca kao polje. Regex prvo, Haiku samo kad regex nije siguran.
+
+
 
 Kvota obnova se racuna po ciklusu pretplate i po ostvarivom, ne po kalendaru i sirovoj kvoti.
 Prijavljeno iz prakse 31.07.2026: klijent je u jutarnjoj poruci dobio "Do kraja mjeseca 1 dana",
