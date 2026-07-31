@@ -7,7 +7,7 @@ import { test } from "node:test";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { OlxClient, OlxAuthError, OlxSpendError, naknadaKategorije } from "./index.js";
+import { OlxClient, OlxAuthError, OlxSpendError, OlxPravilaError, naknadaKategorije } from "./index.js";
 import { loadConfig } from "./config.js";
 import { potrosenoNaDan, withAuditContext, type AuditEntry } from "./audit.js";
 import { VERZIJA } from "./verzija.js";
@@ -854,4 +854,73 @@ test("naknadaKategorije cita listing_fee i iz omotaca i iz raspakovanog oblika",
   assert.equal(naknadaKategorije({ data: { id: 754 } }), 0, "bez polja je 0, ne NaN");
   assert.equal(naknadaKategorije(null), 0);
   assert.equal(naknadaKategorije({ data: { listing_fee: "nije broj" } }), 0);
+});
+
+// ---- Guardrails: roba koju platforma ne dozvoljava (clan 8) ----
+
+test("createListing zaustavlja spornu robu prije ijednog mreznog poziva", async () => {
+  const { calls, restore } = stubFetch([{ status: 200, body: { id: 5, name: "Ostalo", listing_fee: 0 } }]);
+  try {
+    const client = new OlxClient(testConfig());
+    await assert.rejects(
+      () => client.createListing({ title: "Kutija Xanaxa", category_id: 5, description: "" }),
+      (err: unknown) => {
+        assert.ok(err instanceof OlxPravilaError);
+        assert.ok(err.pogoci.length > 0, "greska nosi sta je tacno zapelo");
+        return true;
+      },
+    );
+    assert.equal(calls.length, 0, "ni kategorija se ne cita: sporan oglas ne trosi nijedan poziv");
+  } finally {
+    restore();
+  }
+});
+
+test("potvrda sporne robe NE potvrdjuje i cijenu objave", async () => {
+  // Ovo je cijeli razlog zasto su dvije zastavice a ne jedna. Sa jednom bi oglas sa spornom
+  // rijecju u naplatnoj kategoriji prosao ovako: padne na robi, covjek potvrdi robu, i cijena
+  // od 70 kredita prodje a da je niko nije izgovorio.
+  const { calls, restore } = stubFetch([{ status: 200, body: { id: 18, name: "Automobili", listing_fee: 70 } }]);
+  try {
+    const client = new OlxClient(testConfig());
+    await assert.rejects(
+      () => client.createListing({ title: "Replika satova", category_id: 18 }, { potvrdiRobu: true }),
+      (err: unknown) => {
+        assert.ok(err instanceof OlxSpendError, "poslije robe mora doci brana troska");
+        return true;
+      },
+    );
+    assert.equal(calls.filter((c) => c.method === "POST").length, 0, "oglas se ne salje");
+  } finally {
+    restore();
+  }
+});
+
+test("obican oglas ne osjeti provjeru robe", async () => {
+  const { calls, restore } = stubFetch([
+    { status: 200, body: { id: 5, name: "Ostalo", listing_fee: 0 } },
+    { status: 200, body: { id: 77, title: "Polo majice pamuk" } },
+  ]);
+  try {
+    const client = new OlxClient(testConfig());
+    const oglas = await client.createListing({ title: "Polo majice pamuk", category_id: 5 });
+    assert.equal(oglas.id, 77);
+    assert.equal(calls.filter((c) => c.method === "POST").length, 1);
+  } finally {
+    restore();
+  }
+});
+
+test("izmjena samo cijene ne pokrece provjeru robe ni na spornom oglasu", async () => {
+  // Grupna promjena cijena salje samo price, pa oglas cije ime sadrzi spornu rijec ne smije
+  // oboriti rutinski posao nad cijelim katalogom.
+  const { calls, restore } = stubFetch([{ status: 200, body: { id: 5, price: 20 } }]);
+  try {
+    const client = new OlxClient(testConfig());
+    await client.updateListing(5, { price: 20 });
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0]?.method, "PUT");
+  } finally {
+    restore();
+  }
 });

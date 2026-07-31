@@ -14,6 +14,7 @@
 // `stanje-kopija.ts`, git u `git-stanje.ts`.
 
 import { putanjaDnevnika } from "./ai-dnevnik.js";
+import { putanjaTraga } from "./slike-trag.js";
 import { loadConfig } from "./config.js";
 import { putanjaIzuzeca } from "./izuzeca.js";
 import { KONKURENTI_DIR } from "./konkurenti.js";
@@ -42,6 +43,9 @@ export function bijeliSpisak(env: NodeJS.ProcessEnv = process.env): StavkaSpiska
     { putanja: putanjaIzuzeca(env), opis: "oglasi koje klijent ne da dizati" },
     { putanja: loadConfig(env).auditFile, opis: "trag svih radnji i troska" },
     { putanja: putanjaDnevnika(env), opis: "potrosnja vanjskog AI racuna" },
+    // Ide na daljinu jer je dokazni materijal: jedini zapis o tome sta je trazeno od generatora
+    // slika i sta je odbijeno. Bez njega se zloupotreba ne moze rekonstruisati poslije oporavka.
+    { putanja: putanjaTraga(env), opis: "zahtjevi prema generatoru slika" },
     { putanja: PLAN_FILE, opis: "raspored izdvajanja" },
     { putanja: ".olx-pik/saznanja.jsonl", opis: "zapisi iz prakse" },
     // Marker dokle je `saznanja-pokupi.sh` stigao. Bez njega bi se poslije oporavka sva saznanja

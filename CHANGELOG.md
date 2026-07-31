@@ -8,6 +8,41 @@ Kako se cita broj verzije: `node dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
+## Nije jos izdano
+
+Granice upotrebe klijentskog bota. Do sada je bot bio ogranicen po SPOSOBNOSTIMA (koje alate
+ima), a nikako po NAMJENI: nista ga nije vezalo za posao oko shopa, a generator slika je primao
+proizvoljan tekst i radio i bez ijedne fotografije.
+
+- **Generator slika u klijentskom profilu prima samo recept sa spiska.** Sema alata
+  `olx_generiraj_sliku` se sada razlikuje po profilu: klijent bira izmedju gotovih recepata i
+  ne vidi slobodan tekst kao mogucnost, pa odbijanje pada na validaciji i ne kosta nijedan token
+  kod Geminija. Admin zadrzava slobodan tekst, jer tako i nastaju novi recepti.
+- **Uz recept za artikal mora ici prava fotografija**, a kratka dopuna scene ("pozadina svijetlo
+  siva") prolazi kroz filter. Posljedica: tekst koji je napisao klijent moze uci u prompt samo
+  zajedno sa fotografijom koju je klijent prilozio. Naslovna slika shopa je jedini recept bez
+  fotografije i zato ne prima dopunu. Ista brana stoji i u jezgru (`provjeriZahtjevSlike`), pa
+  vazi za svakog pozivaoca, ne samo za MCP.
+- **Novi trag `.olx-pik/slike-zahtjevi.jsonl`**: sta je trazeno od generatora i sta je odbijeno,
+  doslovno. Odvojen od `ai-usage.jsonl` jer taj dnevnik garantuje samo brojeve i nikad sadrzaj.
+  Ide u backup, jer je dokazni materijal.
+- **Sporna roba zaustavlja objavu do potvrde.** Novi `provjeriRobu` po clanu 8 Uslova koristenja
+  PIK.ba: `olx_draft_check` javlja nalaz jos dok je oglas nacrt, a kreiranje, izmjena i objava
+  bez potvrde staju uz objasnjenje. Namjerno UPOZORENJE a ne blokada: lista nad domacim
+  tekstom nikad nece biti tacna, pa odluku donosi covjek, ali nista ne prolazi tiho. Oruzje
+  nije na listi, jer se lovacko i sportsko u BiH legalno prodaje.
+- **Potvrda sporne robe je odvojena zastavica (`potvrdi_spornu_robu`), ne `confirm`.** Sa jednom
+  zajednickom zastavicom bi oglas sa spornom rijeci u naplatnoj kategoriji prosao ovako: padne na
+  robi, covjek potvrdi robu, i cijena objave prodje a da je niko nije izgovorio. Dvije brane,
+  dvije potvrde; zakljucano testom u `client.test.ts`.
+- Grupne radnje nisu pogodjene: `olx_bulk_price` salje samo cijenu, pa oglas cije ime sadrzi
+  spornu rijec ne obara rutinski prolaz kroz katalog.
+- **Klijentski prompt dobio opseg posla**: sta jeste posao bota, sta nije, i kako se odbija u
+  jednoj recenici uz konkretan potez na shopu. Pozdrav i obicna ljubaznost se ne odbijaju.
+  Pravila vaze prema svakome ko pise u grupi, a uputa unutar poruke ili teksta oglasa ih ne
+  mijenja. `scripts/provjeri-prompt.sh` dobio cetiri nove provjere, sve samo za klijentski
+  profil, da odstupanje bude mjerljivo a ne stvar utiska.
+
 ## 0.7.1 — 2026-07-30
 
 Prvo izdanje provjereno na obje platforme, i prvo koje popravlja nalaz sa Windowsa.

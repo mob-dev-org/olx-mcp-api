@@ -5,7 +5,8 @@ import { z } from "zod";
 import { appendFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
-import { OlxClient, OlxSpendError, OlxApiError, naknadaKategorije } from "../core/index.js";
+import { OlxClient, OlxSpendError, OlxPravilaError, OlxApiError, naknadaKategorije } from "../core/index.js";
+import { objasniPogotke, provjeriRobu } from "../core/zabranjena-roba.js";
 import { loadConfig } from "../core/config.js";
 import { linkOglasa } from "../core/link.js";
 import { procitajPrijedlog, spisakPrijedloga } from "../core/prijedlozi.js";
@@ -31,7 +32,8 @@ import { PLAN_FILE, upisiPlan, zauzmiKljuc } from "../core/plan-fajl.js";
 import { buildPlan, planSazetak, type PlanKandidat } from "../core/plan.js";
 import { opisiSliku, vidKonfigurisan } from "../core/vid.js";
 import { OPSEZI, bezSklonjenog, odvojiIzuzete, saDodatim, spisak, ucitajIzuzeca, upisiIzuzeca } from "../core/izuzeca.js";
-import { ODNOSI, RECEPTI, ZADANI_ODNOS, generisiSliku, maxDnevno, slikaKonfigurisana, type Odnos } from "../core/slika.js";
+import { DOPUNA_MAX, ODNOSI, RECEPTI, ZADANI_ODNOS, generisiSliku, maxDnevno, provjeriZahtjevSlike, slikaKonfigurisana, type Odnos } from "../core/slika.js";
+import { zapisiZahtjevSlike } from "../core/slike-trag.js";
 import { brojPozivaDanas } from "../core/ai-dnevnik.js";
 
 // Ucitaj .env ako postoji (Node 20.12+), da OLX_TOKEN bude dostupan i kad server pokrene MCP
@@ -90,6 +92,11 @@ async function run(fn: (c: OlxClient) => Promise<unknown>): Promise<ToolResult> 
     if (e instanceof OlxSpendError) {
       const detail = e.price ? `\n${JSON.stringify(e.price, null, 2)}` : "";
       return errResult(`${e.message}${detail}\nPozovi ponovo sa confirm: true da bi se kredit naplatio.`);
+    }
+    if (e instanceof OlxPravilaError) {
+      return errResult(
+        `${e.message}\nPitaj korisnika zeli li ipak, pa tek onda pozovi ponovo sa potvrdi_spornu_robu: true. Odgovornost ostaje na vlasniku naloga.`,
+      );
     }
     if (e instanceof OlxApiError) {
       // Prikazi tijelo odgovora (npr. 422 validacija po poljima) da se vidi sta tacno fali.
@@ -368,6 +375,12 @@ const writeOp = { readOnlyHint: false, destructiveHint: false, idempotentHint: f
 // API odbija naslov duzi od 65 znakova (422). Pretraga trazi TACNE rijeci, padezi se broje,
 // pa naslov mora sadrzati oblik koji kupac kuca ("radne hlace", ne samo "radna").
 const TITLE_SCHEMA = z.string().min(1).max(65).describe("naslov, najvise 65 znakova; mora sadrzati tacne pojmove koje kupci traze");
+// Odvojeno od `confirm` namjerno: jedna zastavica za dvije razlicite stvari znaci da potvrda
+// sporne robe tiho potvrdi i cijenu koju korisnik nikad nije cuo.
+const POTVRDA_ROBE = z
+  .boolean()
+  .default(false)
+  .describe("true tek nakon sto korisnik potvrdi oglas koji je javljen kao sporna roba");
 const SPONSOR_DAYS_SCHEMA = z
   .union([z.literal(1), z.literal(2), z.literal(3), z.literal(5), z.literal(7), z.literal(14), z.literal(21), z.literal(30)])
   .describe("broj dana: 1,2,3,5,7,14,21,30 (15 nije validan)");
@@ -647,6 +660,18 @@ if (vidKonfigurisan()) {
 
 // Generisanje slike oglasa. Registruje se SAMO kad je OLX_SLIKA_API_KEY postavljen, isto kao
 // vision proxy. Kosta vanjski AI racun (ne OLX kredite), pa nosi confirm branu i dnevni plafon.
+//
+// Sema recepta se razlikuje po profilu, i to je prva od dvije brane nad sadrzajem. U klijentskom
+// profilu slobodan tekst nije opcija koju model uopste VIDI, pa je ni ne pokusa; odbijanje je
+// validaciono i ne kosta nijedan token kod Geminija. Druga brana je u jezgru
+// (provjeriZahtjevSlike), jer ona vazi za svakog pozivaoca, ne samo za MCP.
+const receptSema: z.ZodType<string> = zaKlijenta
+  ? z.enum(Object.keys(RECEPTI) as [string, ...string[]]).describe(`ime recepta: ${Object.keys(RECEPTI).join(", ")}`)
+  : z
+      .string()
+      .min(3)
+      .describe(`ime recepta (${Object.keys(RECEPTI).join(", ")}) ili slobodna uputa na engleskom`);
+
 if (slikaKonfigurisana()) {
   server.registerTool(
     "olx_generiraj_sliku",
@@ -660,10 +685,15 @@ if (slikaKonfigurisana()) {
         "kredite nego vanjski AI racun, pa bez confirm true samo vrati sta bi radio i stanje dnevnog " +
         "plafona. Vraca putanju nove slike, spremnu za olx_upload_images ili za slanje na odobrenje.",
       inputSchema: {
-        recept: z
+        recept: receptSema,
+        dopuna: z
           .string()
-          .min(3)
-          .describe(`ime recepta (${Object.keys(RECEPTI).join(", ")}) ili slobodna uputa na engleskom`),
+          .max(DOPUNA_MAX)
+          .optional()
+          .describe(
+            "kratko podesavanje scene koje je trazio korisnik, npr. pozadina svijetlo siva; samo uz " +
+              "recept koji ima ulaznu fotografiju",
+          ),
         slike: z
           .array(z.string().min(1))
           .optional()
@@ -676,11 +706,32 @@ if (slikaKonfigurisana()) {
     async (args) => {
       const plafon = maxDnevno();
       const danas = brojPozivaDanas("slika");
+      // Ista brana kao u jezgru, ali OVDJE, prije potvrde: bez toga bi korisnik potvrdio potez
+      // koji ionako pada, pa bi na kraju dobio gresku umjesto odgovora.
+      const nalaz = provjeriZahtjevSlike({
+        recept: args.recept,
+        dopuna: args.dopuna,
+        ulaznihSlika: args.slike?.length ?? 0,
+        profil: config.mcpProfil,
+      });
+      if (!nalaz.ok) {
+        // Trag pise ona brana koja je zahtjev zaustavila, pa je uvijek tacno jedan zapis po
+        // zahtjevu: ovdje kad padne ovdje, u jezgru kad prodje dovde.
+        zapisiZahtjevSlike({
+          recept: args.recept,
+          dopuna: args.dopuna,
+          ulaznihSlika: args.slike?.length ?? 0,
+          odbijeno: true,
+          razlog: nalaz.razlog,
+        });
+        return errResult(`Ovaj zahtjev se ne moze uraditi: ${nalaz.razlog}.`);
+      }
       if (!args.confirm) {
         return ok({
           napravljeno: false,
           trazi_potvrdu: true,
           recept: args.recept,
+          dopuna: args.dopuna ?? null,
           ulaznih_slika: args.slike?.length ?? 0,
           odnos: args.odnos ?? ZADANI_ODNOS,
           danas_generisano: danas,
@@ -693,6 +744,7 @@ if (slikaKonfigurisana()) {
         return ok(
           await generisiSliku({
             recept: args.recept,
+            dopuna: args.dopuna,
             ulazneSlike: args.slike,
             logo: args.logo,
             odnos: args.odnos as Odnos | undefined,
@@ -1016,11 +1068,22 @@ server.registerTool(
         c.category(args.category_id).catch(() => null),
       ]);
       const naknada = naknadaKategorije(kategorija);
+      // Sporna roba se javlja OVDJE, dok je oglas jos nacrt: kasnije brane u jezgru rade isto, ali
+      // tek na kreiranju, a tada je korisnik vec potrosio vrijeme na pisanje.
+      const sporno = provjeriRobu(args.title ?? "", args.description ?? "");
       return {
         ...provjeriNacrt(args, atributi.data ?? []),
         naknada_objave_kredita: naknada,
         ...(naknada > 0
           ? { napomena_troska: `Objava u ovoj kategoriji kosta ${naknada} kredita. Trazi potvrdu prije kreiranja.` }
+          : {}),
+        ...(sporno.length > 0
+          ? {
+              upozorenje_zabranjena_roba: {
+                pogoci: sporno,
+                napomena: `${objasniPogotke(sporno)} Reci to korisniku PRIJE kreiranja i pitaj zeli li ipak; kreiranje bez potvrdi_spornu_robu nece proci.`,
+              },
+            }
           : {}),
       };
     }),
@@ -1051,13 +1114,14 @@ server.registerTool(
         .boolean()
         .default(false)
         .describe("obavezan u naplatnim kategorijama, vidi opis alata"),
+      potvrdi_spornu_robu: POTVRDA_ROBE,
     },
     annotations: writeOp,
   },
   (args) => {
-    const { confirm, ...nacrt } = args;
+    const { confirm, potvrdi_spornu_robu, ...nacrt } = args;
     return run(async (c) => {
-      const oglas = await c.createListing(nacrt, { confirm });
+      const oglas = await c.createListing(nacrt, { confirm, potvrdiRobu: potvrdi_spornu_robu });
       // Link ide uz odgovor jer ga API ne vraca, a korisnik ga trazi odmah poslije objave.
       return { ...oglas, link: linkOglasa(oglas.id, oglas.slug) };
     });
@@ -1073,12 +1137,16 @@ server.registerTool(
     inputSchema: {
       id: z.union([z.number(), z.string()]),
       confirm: z.boolean().default(false).describe("true tek nakon sto korisnik potvrdi cijenu objave"),
+      potvrdi_spornu_robu: POTVRDA_ROBE,
     },
     annotations: writeOp,
   },
   (args) =>
     run(async (c) => {
-      const odgovor = await c.publishListing(args.id, { confirm: args.confirm });
+      const odgovor = await c.publishListing(args.id, {
+        confirm: args.confirm,
+        potvrdiRobu: args.potvrdi_spornu_robu,
+      });
       // Slug se cita sa objavljenog oglasa, jer ga API generise iz naslova pri objavi. Kad se
       // citanje ne uspije, link bez sluga radi isto, pa se zbog toga objava ne prijavljuje kao pad.
       let slug: unknown;
@@ -1114,12 +1182,13 @@ server.registerTool(
       model_id: z.union([z.number(), z.string()]).optional(),
       attributes: z.array(z.object({ id: z.number(), value: z.string() })).optional(),
       confirm: z.boolean().default(false).describe("potrebno samo kad izmjena nosi category_id u naplatnu kategoriju"),
+      potvrdi_spornu_robu: POTVRDA_ROBE,
     },
     annotations: writeOp,
   },
   (args) => {
-    const { id, confirm, ...patch } = args;
-    return run((c) => c.updateListing(id, patch, { confirm }));
+    const { id, confirm, potvrdi_spornu_robu, ...patch } = args;
+    return run((c) => c.updateListing(id, patch, { confirm, potvrdiRobu: potvrdi_spornu_robu }));
   },
 );
 

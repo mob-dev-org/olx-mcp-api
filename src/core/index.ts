@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { loadConfig, type OlxConfig } from "./config.js";
 import { auditSinkFromPath, currentAuditContext, potrosenoNaDan, type AuditSink } from "./audit.js";
+import { objasniPogotke, provjeriRobu, type PogodakRobe } from "./zabranjena-roba.js";
 import { VERZIJA } from "./verzija.js";
 import {
   alarmiNaloga,
@@ -73,6 +74,21 @@ export class OlxSpendError extends Error {
   ) {
     super(message);
     this.name = "OlxSpendError";
+  }
+}
+
+/**
+ * Oglas spominje robu koju platforma ne dozvoljava (clan 8 Uslova koristenja). Nije blokada nego
+ * zaustavljanje do potvrde: lista je uska ali nikad nece biti tacna, pa odluku donosi covjek.
+ * Isti oblik brane kao OlxSpendError, samo drugi razlog.
+ */
+export class OlxPravilaError extends Error {
+  constructor(
+    message: string,
+    readonly pogoci: PogodakRobe[],
+  ) {
+    super(message);
+    this.name = "OlxPravilaError";
   }
 }
 
@@ -308,6 +324,31 @@ export class OlxClient {
     });
   }
 
+  /**
+   * Zaustavi radnju kad tekst oglasa spominje robu iz clana 8, dok covjek to ne potvrdi.
+   *
+   * Zasto potvrda a ne blokada: lista pojmova nad domacim tekstom nikad nece biti tacna, a
+   * blokirana legitimna prodaja je za klijenta koji placa uslugu veca steta od rijetkog spornog
+   * oglasa. Zaustavljanje uz zapis daje oboje: nista ne prolazi tiho, a odluku donosi covjek.
+   *
+   * Potvrda je NAMJERNO odvojena od `confirm`. Da dijele jednu zastavicu, oglas sa spornom rijeci
+   * u naplatnoj kategoriji bi prosao ovako: prvo padne na robi, covjek potvrdi robu, i sa
+   * `confirm: true` prodje i cijena, a da je niko nije izgovorio. Dvije brane, dvije potvrde.
+   */
+  private provjeriPravilaRobe(
+    naslov: string | undefined,
+    opis: string | undefined,
+    potvrdjeno: boolean | undefined,
+    method: Method,
+    path: string,
+  ): void {
+    const pogoci = provjeriRobu(naslov ?? "", opis ?? "");
+    if (pogoci.length === 0 || potvrdjeno) return;
+    const razlog = `sporna roba: ${pogoci.map((p) => p.pojam).join(", ")}`;
+    this.zapisiOdbijeno(method, path, razlog);
+    throw new OlxPravilaError(objasniPogotke(pogoci), pogoci);
+  }
+
   // Relogin je moguc samo kad postoje lozinka i korisnicko ime. Client-id rezim se ne obnavlja
   // loginom, a nakon neuspjelog logina se ceka, da se ne bombarduje /auth/login.
   private canRelogin(): boolean {
@@ -417,7 +458,12 @@ export class OlxClient {
    * propusta uz upozorenje na stderr: blokirati objavu zbog neuspjelog pomocnog poziva bi bilo
    * gore od rizika, jer je velika vecina kategorija besplatna.
    */
-  async createListing(input: CreateListingInput, opcije: { confirm?: boolean } = {}): Promise<Listing> {
+  async createListing(
+    input: CreateListingInput,
+    opcije: { confirm?: boolean; potvrdiRobu?: boolean } = {},
+  ): Promise<Listing> {
+    // Pravila robe idu PRIJE citanja kategorije: sporan oglas ne treba ni jedan mrezni poziv.
+    this.provjeriPravilaRobe(input.title, input.description, opcije.potvrdiRobu, "POST", "/listings");
     let naknada = 0;
     let naknadaNepoznata = false;
     if (input.category_id !== undefined && input.category_id !== null) {
@@ -469,7 +515,13 @@ export class OlxClient {
    * na kreiranju. Na objavljenom oglasu API tiho ignorise `category_id` (izmjereno 29.07.2026.),
    * ali za nacrt to nije izmjereno, pa se brana ne preskace.
    */
-  async updateListing(id: number | string, input: UpdateListingInput, opcije: { confirm?: boolean } = {}): Promise<Listing> {
+  async updateListing(
+    id: number | string,
+    input: UpdateListingInput,
+    opcije: { confirm?: boolean; potvrdiRobu?: boolean } = {},
+  ): Promise<Listing> {
+    // Izmjena je drugi put do istog ishoda: bezopasan oglas se prepise u sporan pa ostane objavljen.
+    this.provjeriPravilaRobe(input.title, input.description, opcije.potvrdiRobu, "PUT", `/listings/${id}`);
     const nova = (input as { category_id?: number | null }).category_id;
     if (nova !== undefined && nova !== null) {
       let naknada = 0;
@@ -504,11 +556,18 @@ export class OlxClient {
    * To je konzervativan smjer (moze odbiti malo prerano) i nikad ne uzrokuje nezeljenu naplatu,
    * dok bi izostavljanje provjere ostavilo rupu za nacrt koji nije nas.
    */
-  async publishListing(id: number | string, opcije: { confirm?: boolean } = {}): Promise<{ message: string; status: string }> {
+  async publishListing(
+    id: number | string,
+    opcije: { confirm?: boolean; potvrdiRobu?: boolean } = {},
+  ): Promise<{ message: string; status: string }> {
     let naknada = 0;
     let naknadaNepoznata = false;
+    // Nacrt je mogao nastati i mimo bota (web, CLI, ranije kreiran), pa se tekst provjerava i
+    // ovdje, ne samo na kreiranju. Oglas se ionako cita zbog naknade, pa ovo ne kosta poziv vise.
+    let oglasZaPravila: Listing | null = null;
     try {
       const oglas = await this.getListing(id);
+      oglasZaPravila = oglas;
       // Listing ima index potpis, pa polja dolaze kao unknown: kategorija se konvertuje izricito.
       const sirovo = oglas.category_id ?? (oglas.category as { id?: unknown } | null)?.id;
       const kategorija = Number(sirovo);
@@ -517,6 +576,16 @@ export class OlxClient {
     } catch (e) {
       naknadaNepoznata = true;
       console.error(`Naknada kategorije nije procitana, objava trazi potvrdu: ${String(e)}`);
+    }
+
+    if (oglasZaPravila) {
+      this.provjeriPravilaRobe(
+        typeof oglasZaPravila.title === "string" ? oglasZaPravila.title : "",
+        typeof oglasZaPravila.description === "string" ? oglasZaPravila.description : "",
+        opcije.potvrdiRobu,
+        "POST",
+        `/listings/${id}/publish`,
+      );
     }
 
     if ((naknada > 0 || naknadaNepoznata) && !opcije.confirm) {

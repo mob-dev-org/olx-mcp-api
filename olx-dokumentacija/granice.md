@@ -65,6 +65,11 @@ naglas.
   iskljucivo kroz taj alat, pa se dalje radi sa tekstualnim opisom koji je vratio.
 - Kad tog alata nema, sesija slike vidi sama i citanje fajla je ispravan put.
 - Ni u jednom slucaju se ne izmislja sadrzaj slike koja nije ni vidjena ni opisana.
+- **Generisana slika prikazuje artikal koji se oglasava, i nista drugo.** Alat
+  (`olx_generiraj_sliku`) postoji da fotografija artikla dobije cist prostor i ravno svjetlo, ne
+  da crta sadrzaj po zelji. U klijentskom profilu to je i tvrdo zatvoreno: recept se bira sa
+  spiska, uz njega ide prava fotografija, a kratka zelja o sceni prolazi kroz filter. Odbijen
+  zahtjev se ne pokusava zaobici drugom formulacijom, nego se korisniku kaze da se to ne moze.
 
 ## Trag i tajne
 
