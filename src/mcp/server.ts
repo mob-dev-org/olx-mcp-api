@@ -65,7 +65,9 @@ const POMOC_CLANCI_DIR = resolve(POMOC_DIR, "clanci");
 // Za drugog klijenta se klonira repo. Zato nema alata za promjenu naloga i nema mutabilnog
 // stanja: nemoguce je da radnja tiho zavrsi na pogresnom klijentu.
 const config = loadConfig();
-const client = new OlxClient(config);
+// envFajl: na 401 se procita `.env` i preuzme nov token bez restarta sesije. Bitno jer se
+// `.env` cita jednom pri startu, a onboarding ga upisuje dok sesija vec radi.
+const client = new OlxClient(config, { envFajl: ".env" });
 
 type ToolResult = {
   content: { type: "text"; text: string }[];

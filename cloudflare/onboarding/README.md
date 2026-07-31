@@ -80,15 +80,47 @@ node cloudflare/onboarding/test-mac.mjs         # link + puller do upisa OLX_TOK
 `test-mac.mjs` pokrece prave skripte kao odvojene procese uz lokalni server; radi na tvojoj
 masini (u nekim sandbox okruzenjima child proces ne moze do lokalnog servera).
 
+## Najkraci put: jedna komanda, bez Cloudflare naloga
+
+```
+node scripts/onboarding-uzivo.mjs <putanja-do-klona>
+```
+
+Skripta sama pripremi kljuceve i tajnu, digne Worker LOKALNO (`wrangler dev --local`), otvori
+Cloudflare brzi tunel, ispise link i kopira ga, pa ceka. Kad se klijent uloguje, token ide u
+`.env` klona, prodje `whoami`, pokrene se analiza i sesija se obrise.
+
+Sto ovaj put NE trazi: `wrangler login`, KV namespace, `wrangler secret put`, `wrangler deploy`.
+Izmjereno 31.07.2026: `wrangler dev --local` radi bez ijedne prijave, KV se simulira lokalno i
+placeholder `id` u `wrangler.toml` ne smeta.
+
+Dvije posljedice koje vrijedi znati:
+
+- **Link zivi samo dok skripta radi.** Kad je ugasis, link prestaje raditi. Za onboarding je to
+  dobro: nema zaostalog javnog linka.
+- **OLX login ide sa TVOJE IP adrese**, ne sa Cloudflare datacentra, jer Worker radi na tvom
+  kompjuteru. Time pitanje egress adrese uopste ne postoji.
+
+Deploy varijanta ispod ostaje moguca ako ti ikad zatreba trajan link.
+
 ## Sigurnost
 
 - Lozinka klijenta nikad se ne cuva. Rizik je Worker u prolazu; kod je namjerno minimalan i bez
   logovanja tijela. Klijent koji zna svoj token moze na formi kliknuti "Imam OLX token" i lozinku
   ne unositi uopste.
+- **Zasto lozinka uopste, a ne samo token.** Nije stvar pogodnosti: u repou ne postoji nijedno
+  mjesto gdje korisnik sam generise token, a tacno mjesto je nepoznato (`API-INVENTAR.md`, dio o
+  autentikaciji). Token nastaje jedino kroz `/auth/login`, dakle iz korisnickog imena i lozinke.
+  Grana "Imam OLX token" zato radi samo za klijenta koji token vec ima.
+- **Mjera koju vrijedi uvijek predloziti klijentu: da promijeni OLX lozinku poslije onboardinga.**
+  Token ostaje vazeci, a lozinka koja je prosla kroz nasu formu prestaje vrijediti. Jedan potez,
+  bez ikakve stete, i uklanja jedinu preostalu izlozenost.
+- Ako se ikad potvrdi da OLX izdaje tokene za shopove zvanicno, kredencijalna grana i sifrovanje
+  postaju nepotrebni. Vrijedi pitati podrsku.
 - Token u KV je samo ECIES sifrat. Bez privatnog kljuca sa admin masine se ne moze procitati.
 - Privatni kljuc, `PULL_SECRET` i KV id nikad ne idu u git.
 - Dok `PULL_SECRET` nije postavljen (ili je kraci od 24 znaka), `/admin/*` i `/pull` vracaju
   401 na svaki zahtjev. Ako poslije deploya dobijas 401 iz pullera, prvo provjeri duzinu tajne.
-- Prije prve upotrebe uzivo provjeri da OLX login prolazi sa Worker egress IP-a (Faza 0 u planu):
-  posalji sebi link, uloguj se svojim test nalogom, vidi stigne li token. Ako OLX blokira, ostaje
-  varijanta "samo token".
+- Provjereno uzivo 31.07.2026: OLX prihvata login preko API-ja, token je sifrovan u Workeru i
+  desifrovan admin privatnim kljucem, upisan u `.env` i prosao `whoami`. Egress IP nije pitanje
+  kod lokalnog puta.

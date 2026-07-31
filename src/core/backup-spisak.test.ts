@@ -122,3 +122,13 @@ test("putanja pomjerena van klona ne izlazi iz radne kopije", () => {
   assert.equal(ciljUKopiji("../izvan/p.json"), "van-klona/p.json");
   assert.equal(ciljUKopiji("C:/olx/p.json"), "van-klona/p.json");
 });
+
+test("prolazan zahtjev za restart sesije se ne salje u backup", () => {
+  // Marker kojim onboarding puller trazi da cuvar restartuje sesiju zbog novog tokena. Zivi
+  // sekundama i cuvar ga obrise; u backupu bi izazvao restart na masini gdje se stanje vraca.
+  const r = razvrstaj([".olx-pik/restart-sesije", ".olx-pik/restart-admin-bota"]);
+  assert.equal(r.uzmi.length, 0);
+  assert.equal(r.nepoznato.length, 0, "ne smije se prijaviti kao nepoznato stanje");
+  assert.equal(r.preskoci.length, 2);
+  for (const p of r.preskoci) assert.match(p.razlog, /restart/);
+});

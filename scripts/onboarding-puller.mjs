@@ -5,7 +5,7 @@
 // zivoj sesiji se komanda ne moze ubaciti). Zato masina sama povlaci. Zakazivanje je vanjsko
 // (launchd), kao snapshot i dnevni posao; ova skripta radi jedan prolaz i izadje.
 //
-// Po sesiji: desifruj token -> upisi OLX_TOKEN u .env klona -> `auth whoami` provjera ->
+// Po sesiji: desifruj token -> upisi OLX_TOKEN u .env klona -> `whoami` provjera ->
 // pokreni onboarding analizu (ako postoji) -> javi klijentu i adminu -> obrisi sesiju.
 //
 // Token se NIKAD ne ispisuje. Pokretanje:
@@ -114,7 +114,9 @@ for (const s of sesije) {
   const klonEnv = procitajEnv(envPut);
 
   // 3. provjera pristupa (CLI ucita .env klona sam)
-  const who = spawnSync("node", ["dist/cli/index.js", "auth", "whoami"], {
+  // `whoami` je komanda na vrhu, NE podkomanda `auth`. Sa "auth whoami" je commander vracao
+  // "unknown command" i provjera je padala na SVAKOM klonu, uvijek (nadjeno uzivo 31.07.2026).
+  const who = spawnSync("node", ["dist/cli/index.js", "whoami"], {
     cwd: klon,
     encoding: "utf8",
     timeout: 30000,
@@ -141,6 +143,25 @@ for (const s of sesije) {
     }
   } else if (!BEZ_ANALIZE) {
     console.error("Wrapper scripts/onboarding-analiza.sh jos ne postoji, preskacem analizu.");
+  }
+
+  // 4b. ako sesija tog klona VEC radi, zatrazi joj restart.
+  //
+  // Zasto: `.env` se cita jednom, pri startu procesa (cuvar-sesije.mjs i MCP server). Sesija koja
+  // je krenula prije ovog upisa nema nov token i radila bi bez njega do nocnog restarta u 03:00.
+  // Fajl a ne signal, jer cuvar radi i na Windowsu gdje Node ne dostavlja SIGHUP.
+  // Kad cuvar ne radi (novi klon, sesija se jos nije ni pokrenula), nema sta da se restartuje.
+  for (const [pid, marker] of [
+    ["cuvar-sesije.pid", "restart-sesije"],
+    ["cuvar-admin-bota.pid", "restart-admin-bota"],
+  ]) {
+    if (!existsSync(resolve(klon, ".olx-pik", pid))) continue;
+    try {
+      writeFileSync(resolve(klon, ".olx-pik", marker), "nov OLX token iz onboardinga\n", "utf8");
+      console.error(`Sesija ${klon} radi, zatrazen joj je restart da preuzme nov token.`);
+    } catch (e) {
+      console.error(`Ne mogu zatraziti restart sesije (${String(e)}). Restartuj je rucno.`);
+    }
   }
 
   // 5. javi klijentu i adminu

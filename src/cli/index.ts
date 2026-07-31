@@ -63,7 +63,8 @@ function fail(err: unknown): never {
 
 // Jedan klon repoa radi za jedan nalog: token iz OLX_TOKEN u .env ovog klona.
 function client(): OlxClient {
-  return new OlxClient(loadConfig());
+  // envFajl: na 401 preuzmi nov token iz .env bez restarta (vidi OlxClientOptions).
+  return new OlxClient(loadConfig(), { envFajl: ".env" });
 }
 
 // Puno ime komande ("sponsor apply"), da audit log kaze koja je radnja pokrenula poziv.

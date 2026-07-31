@@ -251,6 +251,9 @@ await zauzmiPidFajl();
 // Prije gasenja provjerava IME procesa: recikliran pid ne smije ubiti nevin tudji proces.
 
 const SESIJA_PID_FAJL = join(KORIJEN, ".olx-pik", JE_ADMIN ? "sesija-admin-bota.pid" : "sesija-klijent.pid");
+// Marker kojim vanjski proces (npr. onboarding puller) trazi restart sesije. Prolazan je i ne
+// ide u backup; obrise se odmah po obradi.
+const RESTART_ZAHTJEV = join(KORIJEN, ".olx-pik", JE_ADMIN ? "restart-admin-bota" : "restart-sesije");
 
 function imeProcesa(pid) {
   try {
@@ -578,6 +581,28 @@ setInterval(() => {
       );
     }
     zatraziRestart("poruka stigla a sesija ne odgovara");
+    return;
+  }
+
+  // Zahtjev za restart izvana: fajl, ne signal. Signal bi bio uredniji, ali cuvar radi i na
+  // Windowsu gdje Node ne dostavlja SIGHUP, a pogon.md trazi da isti fajl radi na obje platforme.
+  //
+  // Zasto uopste: `.env` se cita JEDNOM, pri startu procesa (ovaj fajl, red 57, i MCP server).
+  // Kad onboarding upise nov OLX_TOKEN u zivi klon, sesija koja vec radi ga ne vidi, pa bi bot
+  // radio bez tokena do nocnog restarta. Puller zato ostavi ovaj fajl.
+  if (existsSync(RESTART_ZAHTJEV)) {
+    let razlog = "vanjski zahtjev";
+    try {
+      razlog = readFileSync(RESTART_ZAHTJEV, "utf8").trim() || razlog;
+    } catch {
+      // fajl je nestao ili je necitljiv: restart se ipak radi, razlog ostaje opsti
+    }
+    try {
+      unlinkSync(RESTART_ZAHTJEV);
+    } catch {
+      // ako se ne moze obrisati, ne vrtimo restart u krug: zahtjev se ignorise dalje
+    }
+    zatraziRestart(razlog);
     return;
   }
 

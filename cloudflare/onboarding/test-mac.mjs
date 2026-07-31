@@ -77,8 +77,17 @@ writeFileSync(resolve(pikgptDir, "onboarding-priv.b64"), par.privatniB64 + "\n",
 const klon = resolve(baza, "klon");
 mkdirSync(resolve(klon, "dist/cli"), { recursive: true });
 writeFileSync(resolve(klon, ".env.example"), "OLX_TOKEN=\nTELEGRAM_BOT_TOKEN=\nTELEGRAM_CHAT_ID=\n");
-// lazni CLI: whoami prolazi (exit 0)
-writeFileSync(resolve(klon, "dist/cli/index.js"), "process.exit(0);\n");
+// Lazni CLI koji NE prolazi na bilo sta: zapise argumente i pada ako komanda nije `whoami`.
+// Prije je bio `process.exit(0)` na sve, pa je puller godinama mogao zvati nepostojecu komandu i
+// test bi bio zelen. Nadjeno uzivo 31.07.2026: zvao je `auth whoami`, sto commander ne poznaje.
+writeFileSync(
+  resolve(klon, "dist/cli/index.js"),
+  [
+    "const a = process.argv.slice(2);",
+    "require('node:fs').writeFileSync(require('node:path').resolve(__dirname, '../../cli-argumenti.txt'), a.join(' '));",
+    "process.exit(a.join(' ') === 'whoami' ? 0 : 1);",
+  ].join("\n") + "\n",
+);
 
 const okrog = {
   ...process.env,
@@ -125,6 +134,9 @@ ok(!(pr.stdout + pr.stderr).includes(PRAVI_TOKEN), "puller nigdje ne ispisuje to
 
 const envKlon = readFileSync(resolve(klon, ".env"), "utf8");
 ok(envKlon.includes(`OLX_TOKEN=${PRAVI_TOKEN}`), "OLX_TOKEN upisan u .env klona");
+
+const argumenti = readFileSync(resolve(klon, "cli-argumenti.txt"), "utf8").trim();
+ok(argumenti === "whoami", `puller zove 'whoami', ne '${argumenti}'`);
 
 const pull = await praviFetch(`${BASE}/pull`, { headers: { authorization: "Bearer " + PULL } });
 ok((await pull.json()).sesije.length === 0, "sesija obrisana sa Workera");

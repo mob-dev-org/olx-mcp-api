@@ -115,6 +115,14 @@ const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms
 export interface OlxClientOptions {
   // Gdje ide trag radnji. Injektovan namjerno: testovi podmetnu kolektor u memoriji umjesto fajla.
   audit?: AuditSink;
+  /**
+   * Odakle se na 401 cita eventualno nov token. Kad NIJE zadan, jezgro disk ne dira uopste.
+   *
+   * Namjerno bez podrazumijevanog `.env`: sa njim su testovi citali pravi `.env` repoa, dakle i
+   * pravi token klijenta, i mijenjali ponasanje 401 testova (izmjereno 31.07.2026). Prave
+   * putanje ga postavljaju eksplicitno (`src/mcp/server.ts`, `src/cli/index.ts`).
+   */
+  envFajl?: string;
 }
 
 // Koliko se ceka prije novog pokusaja logina nakon neuspjelog. Bez ovoga bi pogresna lozinka
@@ -129,6 +137,7 @@ export class OlxClient {
   // Jedan login u letu za sve pozive koji su istovremeno dobili 401.
   private reloginPromise?: Promise<void>;
   private reloginFailedAt?: number;
+  private readonly envFajl?: string;
 
   constructor(
     private readonly config: OlxConfig = loadConfig(),
@@ -136,6 +145,7 @@ export class OlxClient {
   ) {
     this.token = config.token;
     this.audit = options.audit ?? auditSinkFromPath(config.auditFile);
+    this.envFajl = options.envFajl;
   }
 
   get baseUrl(): string {
@@ -195,6 +205,7 @@ export class OlxClient {
     const startedAt = Date.now();
     let attempt = 0;
     let reloginTried = false;
+    let tokenOsvjezen = false;
 
     // Jedan zapis po logickom pozivu, ne po HTTP pokusaju, da backoff ne pravi spam u logu.
     // Tijelo i query nikad ne ulaze u zapis (login nosi lozinku).
@@ -260,6 +271,19 @@ export class OlxClient {
         // 401 znaci da token ne vrijedi. Ako imamo kredencijale, obnovimo ga jednom.
         // 403 se NE lijeci loginom: tamo je autentikacija prosla a nalog nema dozvolu
         // (npr. shop nije odobren za API), pa bi login bio uzaludan poziv.
+        // Prije relogina: mozda je token u medjuvremenu ZAMIJENJEN u `.env` (onboarding upisao
+        // nov, ili je rotiran rukom). Proces ga ne vidi, jer se `.env` cita jednom pri startu, pa
+        // bi inace trebao restart cijele sesije. Jedan pokusaj po zahtjevu.
+        if (res.status === 401 && auth && !tokenOsvjezen && this.envFajl) {
+          tokenOsvjezen = true;
+          const sDiska = procitajIzEnvFajla("OLX_TOKEN", this.envFajl);
+          if (sDiska && sDiska !== this.token) {
+            this.token = sDiska;
+            zapisi(res.status, false, "token je u .env zamijenjen, ponavljam sa novim");
+            continue;
+          }
+        }
+
         if (res.status === 401 && auth && !reloginTried && this.canRelogin()) {
           reloginTried = true;
           const obnovljen = await this.tryRelogin();
@@ -279,7 +303,7 @@ export class OlxClient {
             res.status === 401
               ? this.canRelogin()
                 ? "Sesija je istekla (401) i obnova tokena nije uspjela. Provjeri OLX_USERNAME i OLX_PASSWORD."
-                : "Token ne vrijedi ili je istekao (401). Postavi novi OLX_TOKEN, ili dodaj OLX_USERNAME i OLX_PASSWORD pa ce se token obnavljati sam."
+                : "Token ne vrijedi ili je istekao (401). Upisi novi OLX_TOKEN u .env i pokusaj ponovo (preuzima se bez restarta sesije), ili dodaj OLX_USERNAME i OLX_PASSWORD pa ce se obnavljati sam."
               : "Pristup odbijen (403). Autentikacija je prosla, ali nalog nema dozvolu: najcesce shop nije odobren za API pristup.";
           zapisi(res.status, false, poruka);
           throw new OlxAuthError(poruka);

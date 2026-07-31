@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 // Centralizovano citanje konfiguracije iz okruzenja.
 //
 // Jedan klon repozitorija radi za JEDAN nalog: jedan `OLX_TOKEN` (ili jedan par
@@ -87,4 +88,38 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): OlxConfig {
     defaultCountryId: opcioniBroj(env.OLX_DEFAULT_COUNTRY_ID),
     defaultCityId: opcioniBroj(env.OLX_DEFAULT_CITY_ID),
   };
+}
+
+/**
+ * Procita JEDNU vrijednost iz `.env` fajla, bez diranja `process.env`.
+ *
+ * Zasto ovako a ne `process.loadEnvFile`: on NE gazi vec postavljen env (na to se oslanja cuvar
+ * sesija, vidi .claude/rules/core-kod.md), pa se ponovnim pozivom nov token nikad ne bi vidio.
+ * Ovdje treba upravo obrnuto: procitati sto je NA DISKU sada.
+ *
+ * Zasto uopste treba: token upisan u `.env` dok sesija radi (onboarding, rotacija) procesu koji
+ * je vec startovao ostaje nevidljiv, jer se `.env` cita jednom pri startu. Poziv na 401 ovim
+ * saznaje da je token u medjuvremenu zamijenjen i izbjegne restart cijele sesije.
+ *
+ * Parsiranje je namjerno minimalno: `KLJUC=vrijednost`, komentari i prazni redovi se preskacu,
+ * obicni i dvostruki navodnici se skidaju. Nema interpolacije i nema visereda.
+ */
+export function procitajIzEnvFajla(kljuc: string, putanja = ".env"): string | undefined {
+  let sadrzaj: string;
+  try {
+    sadrzaj = readFileSync(putanja, "utf8");
+  } catch {
+    return undefined; // nema fajla: nema sta da se procita, pozivalac ostaje na starom
+  }
+  for (const red of sadrzaj.split("\n")) {
+    const t = red.trim();
+    if (!t || t.startsWith("#")) continue;
+    const znak = t.indexOf("=");
+    if (znak < 1) continue;
+    if (t.slice(0, znak).trim() !== kljuc) continue;
+    const sirovo = t.slice(znak + 1).trim();
+    const bezNavodnika = /^(".*"|'.*')$/.test(sirovo) ? sirovo.slice(1, -1) : sirovo;
+    return bezNavodnika || undefined;
+  }
+  return undefined;
 }

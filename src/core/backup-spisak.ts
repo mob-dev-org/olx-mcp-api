@@ -96,6 +96,8 @@ export function crniObrasci(): { obrazac: RegExp; razlog: string }[] {
     { obrazac: /\.tmp$/, razlog: "polovicno upisan fajl" },
     { obrazac: /\.lock$/, razlog: "lock" },
     { obrazac: /\.pid$/, razlog: "pid" },
+    // Prolazan marker kojim vanjski proces trazi restart sesije; cuvar ga obrise po obradi.
+    { obrazac: /(^|\/)restart-(sesije|admin-bota)$/, razlog: "prolazan zahtjev za restart" },
     { obrazac: /\.alarm$/, razlog: "alarm masine" },
     { obrazac: /(^|\/)node_modules(\/|$)/, razlog: "zavisnosti" },
     { obrazac: /(^|\/)dist(\/|$)/, razlog: "build izlaz" },

@@ -4,7 +4,7 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { OlxClient, OlxAuthError, OlxSpendError, OlxPravilaError, naknadaKategorije } from "./index.js";
@@ -17,6 +17,8 @@ interface FetchCall {
   url: string;
   method: string;
   body?: string;
+  /** Zaglavlja poziva; sluzi da test moze dokazati KOJI je token poslan. */
+  headers?: Record<string, string>;
 }
 
 interface StubReply {
@@ -31,12 +33,16 @@ function stubFetch(replies: StubReply[]): { calls: FetchCall[]; restore: () => v
   const original = globalThis.fetch;
   let index = 0;
 
-  globalThis.fetch = (async (input: unknown, init?: { method?: string; body?: unknown }) => {
+  globalThis.fetch = (async (
+    input: unknown,
+    init?: { method?: string; body?: unknown; headers?: Record<string, string> },
+  ) => {
     const url = typeof input === "string" ? input : String(input);
     calls.push({
       url,
       method: init?.method ?? "GET",
       body: typeof init?.body === "string" ? init.body : undefined,
+      headers: init?.headers,
     });
     const reply = replies[Math.min(index, replies.length - 1)];
     index++;
@@ -735,7 +741,7 @@ test("401 bez kredencijala ne pokusava login", async () => {
       () => client.me(),
       (err: unknown) => {
         assert.ok(err instanceof OlxAuthError);
-        assert.match(err.message, /Postavi novi OLX_TOKEN/);
+        assert.match(err.message, /Upisi novi OLX_TOKEN u .env/);
         return true;
       },
     );
@@ -920,6 +926,56 @@ test("izmjena samo cijene ne pokrece provjeru robe ni na spornom oglasu", async 
     await client.updateListing(5, { price: 20 });
     assert.equal(calls.length, 1);
     assert.equal(calls[0]?.method, "PUT");
+  } finally {
+    restore();
+  }
+});
+
+// ---- nov token u .env se preuzima bez restarta sesije ----
+
+test("na 401 se procita .env i nov token se preuzme, bez restarta sesije", async () => {
+  // Zasto ovo postoji: `.env` se cita JEDNOM pri startu procesa, pa token koji onboarding upise
+  // dok sesija radi ostaje nevidljiv. Bez ovoga je jedini izlaz bio restart cijele Claude sesije.
+  const dir = mkdtempSync(join(tmpdir(), "olx-env-"));
+  const envFajl = join(dir, ".env");
+  writeFileSync(envFajl, "# komentar\nOLX_TOKEN=novi-token-sa-diska\nOLX_BASE_URL=https://api.olx.ba\n");
+  const { calls, restore } = stubFetch([
+    { status: 401, body: { message: "unauthorized" } },
+    { status: 200, body: { id: 7, username: "MixBox" } },
+  ]);
+  try {
+    const client = new OlxClient({ ...testConfig(), token: "stari-token" }, { envFajl });
+    const r = (await client.me()) as { id: number };
+    assert.equal(r.id, 7, "poziv je ponovljen i uspio");
+    assert.equal(calls.length, 2, "tacno jedan ponovljeni poziv");
+    assert.equal(calls[1]?.headers?.Authorization, "Bearer novi-token-sa-diska", "drugi poziv nosi NOV token");
+  } finally {
+    restore();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("na 401 se ne vrti u krug kad je token u .env isti", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "olx-env-"));
+  const envFajl = join(dir, ".env");
+  writeFileSync(envFajl, "OLX_TOKEN=stari-token\n");
+  const { calls, restore } = stubFetch([{ status: 401, body: {} }, { status: 401, body: {} }]);
+  try {
+    const client = new OlxClient({ ...testConfig(), token: "stari-token" }, { envFajl });
+    await assert.rejects(() => client.me(), (e: unknown) => e instanceof OlxAuthError);
+    assert.equal(calls.length, 1, "isti token znaci nema ponavljanja");
+  } finally {
+    restore();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("na 401 bez .env fajla se ponasa kao i prije", async () => {
+  const { calls, restore } = stubFetch([{ status: 401, body: {} }]);
+  try {
+    const client = new OlxClient({ ...testConfig(), token: "stari-token" }, { envFajl: "/nepostojeci/put/.env" });
+    await assert.rejects(() => client.me(), (e: unknown) => e instanceof OlxAuthError);
+    assert.equal(calls.length, 1);
   } finally {
     restore();
   }
