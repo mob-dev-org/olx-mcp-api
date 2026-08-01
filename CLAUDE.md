@@ -79,6 +79,12 @@ Jedan klon = jedan klijent, pa i SVA njegova konfiguracija: bot tokeni, allowlis
 cijelu masinu, nas pogon ga ne cita, i mijesao bi klijente. `/telegram:configure` se u ovom
 repou ne koristi ni u jednom runtimeu.
 
+Spisak grupa u `access.json` je jedan izvor za oba smjera: po njemu bot PRIMA poruke i po njemu
+izvjestaji ODLAZE. `TELEGRAM_CHAT_ID` u `.env` je samo dopuna i smije ostati prazan. Grupa se
+dodaje sa `telegram grupe dodaj <id>`, ne ponovnim pokretanjem `pripremi-runtime.mjs` (ona odbija
+rad na postojecem runtime-u, pa bi je brisanje runtimea kostalo svih uparivanja). Sta kome ide
+kaze `telegram grupe`.
+
 Razgovor nije skladiste: sto je covjek poslao u poruci, poslije restarta sesije ne postoji.
 Svaki podatak za postavku (OLX token, bot token, ID, odluka) upisi u njegovo konacno mjesto
 ISTOG TRENA kad stigne, pa tek onda odgovori: OLX token u `.env` (`OLX_TOKEN=`, fajl napravi

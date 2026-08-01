@@ -96,7 +96,7 @@ flowchart TB
     subgraph dan["Svaki dan"]
         s1["02:40 snapshot<br/>snimi preglede svih oglasa u fajl<br/>bez ovoga nema trendova"]
         s2["03:00 nocni restart sesije<br/>kontekst na nulu, ciscenje inboxa<br/>radi cuvar-sesije.mjs"]
-        s3["07:20 dnevni posao<br/>obnove unutar besplatne kvote<br/>pa jutarnja poruka u grupu"]
+        s3["07:20 dnevni posao<br/>obnove unutar besplatne kvote<br/>pa jutarnja poruka u SVE grupe"]
         s8["08:10 backup stanja<br/>pamcenje, izuzeca, audit, snapshoti<br/>na privatnu granu klijenta"]
     end
     subgraph sedmica["Sedmicno"]
@@ -124,6 +124,13 @@ jednom.
 
 Backup je jedini posao koji je uslovan: instalira se samo kad je `OLX_STANJE_REPO` popunjen u
 `.env`. Bez toga bi svako jutro pao i slao alarm, a klon bi imao jedan pokvaren zadatak vise.
+
+Kome idu izvjestaji: svakoj grupi pod `groups` u `.claude-runtime/channels/telegram/access.json`,
+plus `TELEGRAM_CHAT_ID` iz `.env` kao dopuni, dedupirano. Isti fajl odlucuje i od koga bot PRIMA
+poruke, pa se spisak ne vodi dvaput. Bot API nema poziv koji vraca u kojim je bot grupama, a
+`my_chat_member` je nedostupan jer polling drzi Telegram plugin ziva sesija, pa se id nove grupe
+ocita rucno jednom. Sedmicni posao usput radi `getChat` nad svakim odredistem i javi ADMINU kad
+je bot iz neke grupe izbacen; sam ne uklanja nista, jer prelazak grupe u supergrupu mijenja id.
 
 ## 4. AI runda i primjena prijedloga
 
@@ -183,7 +190,14 @@ stavka FALI, sa klijentom se ne pocinje.
    snapshoti postoje samo na disku te masine).
 3. BotFather: novi bot, pa `/setprivacy` na Disable.
 4. `node scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>` — pravi izolovani
-   runtime (svoj bot, svoj allowlist, bez globalnih servera).
+   runtime (svoj bot, svoj allowlist, bez globalnih servera). Ta skripta radi SAMO jednom, na
+   praznom klonu: svaku sljedecu grupu dodaje `telegram grupe dodaj <id>`, jer bi brisanje
+   runtimea radi ponovne pripreme pobrisalo sva uparivanja.
+4b. Telegram plugin U TAJ runtime, jer plugin cache ide po `CLAUDE_CONFIG_DIR`:
+   `CLAUDE_CONFIG_DIR=.claude-runtime claude plugin marketplace add anthropics/claude-plugins-official`
+   pa `... claude plugin install telegram@claude-plugins-official`. Uz to `bun` u PATH-u, jer
+   plugin njime dize svoj MCP server. Bez oba bot ne odgovara na poruke, ali izvjestaji stizu,
+   pa se kvar previdi.
 5. `npm ci && npm run build && npm test`.
 6. `scripts/instaliraj-cron.sh` (macOS) ili `deploy/windows/instaliraj-zadatke.ps1` (Windows):
    instalira poslove, ukljucujuci cuvara koji odmah digne sesiju, i backup kad je podesen.

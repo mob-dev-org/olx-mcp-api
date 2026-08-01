@@ -114,3 +114,54 @@ test("dnevni tekst ne obecava tempo veci od ostvarivog", () => {
   assert.ok(p.cilj_danas <= najveciOdrzivi, `tempo ${p.cilj_danas} preko odrzivog ${najveciOdrzivi}`);
   assert.match(dnevniTekst(podaci({ plan: p, obnovljeno: 5 })), /Tempo oko 16 dnevno/);
 });
+
+test("preostala kvota u poruci racuna i obnove iz ovog prolaza", () => {
+  // Prijavljeno 01.08.2026: poruka je u istom dahu javljala "Obnovljeno danas: 59" i
+  // "Preostalo besplatnih obnova: 1800 od 1800", jer je plan izracunat prije slanja obnova.
+  const t = dnevniTekst(podaci({ plan: plan({ kvota: 1800, preostalo: 1800 }), obnovljeno: 59 }));
+  assert.match(t, /Preostalo besplatnih obnova: 1741 od 1800\./);
+  assert.ok(!/1800 od 1800/.test(t), "predobnovljeno stanje kvote");
+});
+
+test("kvota potrosena do kraja se prepozna i kad je potrosena bas danas", () => {
+  const t = dnevniTekst(podaci({ plan: plan({ preostalo: 12, kvota_neostvariva: false }), obnovljeno: 12 }));
+  assert.match(t, /Besplatna kvota je potrosena do kraja\./);
+  assert.ok(!/Tempo oko/.test(t), "nema tempa kad nema sta trositi");
+});
+
+test("rast pregleda: pet stavki i ispravan oblik rijeci dan", () => {
+  const rastu = [1, 2, 3, 4, 5, 6, 7].map((i) => ({ id: i, title: `Oglas ${i}`, prirast: 100 - i }));
+  const t = dnevniTekst(
+    podaci({
+      obnovljeno: 5,
+      promjena: { od_ts: 1, do_ts: 2, dana: 1, obuhvaceno: 7, ukupan_prirast: 405, rastu, miruju: [] },
+    }),
+  );
+  assert.match(t, /Pregledi u zadnjih 1 dan: 405 novih\./);
+  assert.ok(!/1 dana/.test(t), "broj mora biti sklonjen");
+  assert.match(t, /- Oglas 5: 95/);
+  assert.ok(!/Oglas 6/.test(t), "spisak staje na pet stavki");
+});
+
+test("razmak snimaka se u poruci izgovara cijelim brojem", () => {
+  // Snimci ne padaju u istu sekundu svaki dan, pa promjenaPregleda racuna sa decimalom.
+  // Na zivom nalogu 01.08.2026. to je dalo "Pregledi u zadnjih 1.6 dana".
+  const t = dnevniTekst(
+    podaci({
+      obnovljeno: 3,
+      promjena: { od_ts: 1, do_ts: 2, dana: 1.6, obuhvaceno: 5, ukupan_prirast: 583, rastu: [{ id: 1, prirast: 67 }], miruju: [] },
+    }),
+  );
+  assert.match(t, /Pregledi u zadnjih 2 dana: 583 novih\./);
+  assert.ok(!/1\.6/.test(t), "decimala ne ide u poruku klijentu");
+});
+
+test("razmak manji od dana se ne izgovara kao nula", () => {
+  const t = dnevniTekst(
+    podaci({
+      obnovljeno: 3,
+      promjena: { od_ts: 1, do_ts: 2, dana: 0.4, obuhvaceno: 5, ukupan_prirast: 12, rastu: [{ id: 1, prirast: 12 }], miruju: [] },
+    }),
+  );
+  assert.match(t, /Pregledi u zadnjih 1 dan: 12 novih\./);
+});

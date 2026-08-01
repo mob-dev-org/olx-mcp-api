@@ -22,7 +22,17 @@ import { zapisiKvotu } from "../core/kvota-dnevnik.js";
 import { ucitajKonkurenta, upisiKonkurenta } from "../core/konkurenti.js";
 import type { OnboardingDetalj } from "../core/stats.js";
 import { dnevniTekst, dnevniVrijedanSlanja, onboardingMarkdown, onboardingTelegram, sedmicniTekst } from "../core/izvjestaj.js";
-import { javiAdminu, posaljiPoruku } from "../core/telegram.js";
+import { chatIdovi, izaberiOdredista, javiAdminu, posaljiPoruku, provjeriChat, type NalazChata } from "../core/telegram.js";
+import {
+  citajPristup,
+  dodajGrupu,
+  grupeKlijenta,
+  imaGrupu,
+  mtimePristupa,
+  putanjaPristupa,
+  ukloniGrupu,
+  upisiPristup,
+} from "../core/telegram-grupe.js";
 import { SNAPSHOT_DIR, ucitajSnapshote, upisiSnapshot, zadnjiSnapshot } from "../core/snapshoti.js";
 import { razvrstaj } from "../core/backup-spisak.js";
 import { kopirajURadnu, popisiStanje, uporediSaKopijom, vratiIzRadne } from "../core/stanje-kopija.js";
@@ -1379,6 +1389,160 @@ program
     }
   });
 
+// ---- Telegram grupe ----
+//
+// Rucna administratorska komanda, ne cron posao: zato je van grupe `posao`.
+//
+// Postoji jer `pripremi-runtime.mjs` odbija rad na vec pripremljenom runtime-u, pa je do sada
+// jedini nacin da se doda druga grupa bio rucni edit access.json ili brisanje cijelog runtimea
+// (sto gubi uparivanja). Klijentska sesija ovo ne moze pozvati: `runtime/settings.klijent.json`
+// joj brani Bash, Write i citanje samog access.json.
+const telegram = program.command("telegram").description("Grupe u kojima bot radi (ne trosi kredite)");
+
+// Odredista vise ne dolaze samo iz .env, pa poruka o gresci ne smije upucivati samo tamo: covjek
+// bi popunio .env i time zaobisao pravi izvor umjesto da ga popravi.
+const BEZ_ODREDISTA =
+  "Telegram poruka NIJE poslana: nema nijednog odredista. Ili fali TELEGRAM_BOT_TOKEN u .env, " +
+  "ili nema nijedne grupe. Dodaj grupu sa: node dist/cli/index.js telegram grupe dodaj <id_grupe>";
+
+function spisakOdredista(): { iz_accessa: string[]; iz_enva: string[]; odredista: string[]; access_fajl: string } {
+  const izAccessa = grupeKlijenta();
+  const izEnva = chatIdovi(process.env.TELEGRAM_CHAT_ID);
+  return {
+    iz_accessa: izAccessa,
+    iz_enva: izEnva,
+    odredista: izaberiOdredista(undefined, process.env.TELEGRAM_CHAT_ID, izAccessa),
+    access_fajl: putanjaPristupa(),
+  };
+}
+
+const grupe = telegram.command("grupe").description("Grupe kojima idu izvjestaji");
+
+grupe
+  .command("lista", { isDefault: true })
+  .description("Ko sve dobija dnevni i sedmicni izvjestaj, i odakle taj id dolazi")
+  .action(() => {
+    try {
+      const s = spisakOdredista();
+      // Id koji je samo u .env znaci da bot u toj grupi ne prima poruke: izvjestaj stize, ali
+      // klijent ne moze odgovoriti botu. Tiha polovicna postavka, pa se izricito imenuje.
+      const samoUEnvu = s.iz_enva.filter((id) => !s.iz_accessa.includes(id));
+      out({ ...s, samo_u_envu: samoUEnvu });
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+grupe
+  .command("dodaj <chatId>")
+  .description("Dodaj grupu u access.json (idempotentno)")
+  .option("--admin", "radi nad .claude-runtime-admin umjesto klijentskog runtimea", false)
+  .option("--trazi-mention", "bot reaguje samo kad ga se oznaci", false)
+  .option("--allow <ids>", "ko smije pisati botu u toj grupi (zarezom); podrazumijevano isti kao ostale grupe")
+  .action((chatId: string, opts: { admin?: boolean; traziMention?: boolean; allow?: string }) => {
+    try {
+      const vrsta = opts.admin ? "admin" : "klijent";
+      const putanja = putanjaPristupa(vrsta);
+      const mtime = mtimePristupa(putanja);
+      const pristup = citajPristup(putanja);
+      if (!pristup) throw new Error(`Nema ili je pokvaren ${putanja}. Pokreni prvo scripts/pripremi-runtime.mjs.`);
+
+      const bilo = imaGrupu(pristup, chatId);
+      const izmjena: Record<string, unknown> = {};
+      // Samo izricito zadano polje ulazi u izmjenu: ponovljena komanda nad postojecom grupom ne
+      // smije vratiti allowFrom na podrazumijevani i izbaciti ljude kojima je pristup dat rucno.
+      if (opts.traziMention) izmjena.requireMention = true;
+      if (opts.allow !== undefined) izmjena.allowFrom = chatIdovi(opts.allow);
+
+      const novi = dodajGrupu(pristup, chatId, izmjena);
+      const promijenjeno = JSON.stringify(novi) !== JSON.stringify(pristup);
+      if (promijenjeno) upisiPristup(novi, { putanja, mtimeOcekivan: mtime ?? undefined });
+
+      out({
+        chat_id: String(chatId).trim(),
+        runtime: vrsta,
+        vec_postojala: bilo,
+        promijenjeno,
+        grupa: novi.groups[String(chatId).trim()],
+        // Izvjestaj krece odmah, jer ga cron cita pri svakom pokretanju. Dolazne poruke ne: plugin
+        // cita access.json pri startu sesije, pa dok se ne restartuje bot u novoj grupi cuti.
+        napomena: promijenjeno
+          ? "Izvjestaji idu odmah. Da bot POCNE odgovarati u toj grupi, restartuj klijentsku sesiju."
+          : "Nista nije promijenjeno.",
+      });
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+grupe
+  .command("ukloni <chatId>")
+  .description("Ukloni grupu iz access.json (idempotentno)")
+  .option("--admin", "radi nad .claude-runtime-admin umjesto klijentskog runtimea", false)
+  .action((chatId: string, opts: { admin?: boolean }) => {
+    try {
+      const vrsta = opts.admin ? "admin" : "klijent";
+      const putanja = putanjaPristupa(vrsta);
+      const mtime = mtimePristupa(putanja);
+      const pristup = citajPristup(putanja);
+      if (!pristup) throw new Error(`Nema ili je pokvaren ${putanja}.`);
+
+      const novi = ukloniGrupu(pristup, chatId);
+      const promijenjeno = novi !== pristup;
+      if (promijenjeno) upisiPristup(novi, { putanja, mtimeOcekivan: mtime ?? undefined });
+      out({ chat_id: String(chatId).trim(), runtime: vrsta, promijenjeno, preostalo_grupa: Object.keys(novi.groups).length });
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+grupe
+  .command("provjeri")
+  .description("Je li bot jos u svakoj grupi sa spiska (getChat, ne trosi kredite)")
+  .option("--javi", "posalji nalaz administratoru", false)
+  .action(async (opts: { javi?: boolean }) => {
+    try {
+      const nalazi = await provjeriGrupe();
+      if (opts.javi && nalazi.mrtvih.length > 0) await javiAdminu(porukaOMrtvimGrupama(nalazi.mrtvih));
+      out(nalazi);
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+/**
+ * getChat nad svakim odredistem. Admin DM se namjerno preskace: `getChat` nad korisnikom radi
+ * samo ako je taj korisnik ikad pisao botu, pa bi svaki nalaz tvrdio da je admin mrtav.
+ */
+async function provjeriGrupe(): Promise<{ provjereno: number; ziv: NalazChata[]; mrtvih: NalazChata[]; nepoznato: NalazChata[] }> {
+  const nalazi: NalazChata[] = [];
+  for (const id of spisakOdredista().odredista) nalazi.push(await provjeriChat(id));
+  return {
+    provjereno: nalazi.length,
+    ziv: nalazi.filter((n) => n.stanje === "ziv"),
+    mrtvih: nalazi.filter((n) => n.stanje === "mrtav"),
+    nepoznato: nalazi.filter((n) => n.stanje === "nepoznato"),
+  };
+}
+
+/**
+ * Grupa se NIKAD ne uklanja sama, samo se javi uz gotovu komandu. Tri razloga: getChat moze pasti
+ * prolazno; prelazak grupe u supergrupu mijenja id, pa bi automatsko brisanje izbacilo klijenta
+ * iz izvjestaja bez traga; i isti unos je dozvola za DOLAZNE poruke, pa bi ga jedna HTTP greska
+ * utisala u oba smjera.
+ */
+function porukaOMrtvimGrupama(mrtvi: NalazChata[]): string {
+  const redovi = mrtvi.map((n) => `- ${n.chatId}: ${n.razlog ?? "nedostupna"}`);
+  return [
+    `Bot vise nije u ${mrtvi.length} ${mrtvi.length === 1 ? "grupi" : "grupa"} sa spiska izvjestaja:`,
+    ...redovi,
+    "",
+    "Ako je to namjerno, ukloni ih:",
+    ...mrtvi.map((n) => `  node dist/cli/index.js telegram grupe ukloni ${n.chatId}`),
+    "Ako je grupa presla u supergrupu, id se promijenio i novi treba dodati rucno.",
+  ].join("\n");
+}
+
 // ---- Zakazani poslovi ----
 //
 // Ovo pokrece launchd, ne covjek. Kljucno: nijedan model se ne poziva, brojeve racuna kod, pa
@@ -1490,7 +1654,7 @@ posao
       // 0 poslanih van suhog rezima znaci da token ili chat NISU postavljeni: klijent bi bez
       // ove provjere mjesecima cutke ostajao bez jutarnje poruke, a log bi tvrdio uspjeh.
       if (!opts.suho && !opts.bezSlanja && poslano === 0) {
-        throw new Error("Telegram poruka NIJE poslana: TELEGRAM_BOT_TOKEN ili TELEGRAM_CHAT_ID nedostaje u .env");
+        throw new Error(BEZ_ODREDISTA);
       }
       out({ plan, obnovljeno, neuspjelih, poslano_poruka: poslano, tekst });
     } catch (e) {
@@ -1523,9 +1687,26 @@ posao
 
       const poslano = opts.suho ? 0 : await posaljiPoruku(tekst);
       if (!opts.suho && poslano === 0) {
-        throw new Error("Telegram poruka NIJE poslana: TELEGRAM_BOT_TOKEN ili TELEGRAM_CHAT_ID nedostaje u .env");
+        throw new Error(BEZ_ODREDISTA);
       }
-      out({ poslano_poruka: poslano, tekst });
+
+      // Provjera zivosti grupa jaha na sedmicnom poslu umjesto da bude svoj cron posao: nov posao
+      // trazi launchd sablon I Windows zadatak (.claude/rules/pogon.md) i reinstalaciju poslova na
+      // cijeloj floti, a ovdje je rijec o par getChat poziva za dogadjaj koji se desi par puta
+      // godisnje. Nalaz ide ISKLJUCIVO adminu; klijent ne treba znati za nasu konfiguraciju.
+      let grupe = null;
+      if (!opts.suho) {
+        try {
+          const nalaz = await provjeriGrupe();
+          if (nalaz.mrtvih.length > 0) await javiAdminu(porukaOMrtvimGrupama(nalaz.mrtvih));
+          grupe = { provjereno: nalaz.provjereno, mrtvih: nalaz.mrtvih.length, nepoznato: nalaz.nepoznato.length };
+        } catch (e) {
+          // Provjera je dodatak, ne posao: njen pad ne smije oboriti izvjestaj koji je vec poslan.
+          console.error(`Provjera grupa nije prosla: ${String(e instanceof Error ? e.message : e)}`);
+        }
+      }
+
+      out({ poslano_poruka: poslano, grupe, tekst });
     } catch (e) {
       await posaoFail("sedmicni", e);
     }
@@ -1651,7 +1832,7 @@ posao
       }
       const poslano = await posaljiPoruku(tekst);
       if (poslano === 0) {
-        throw new Error("Poruka nije poslana: TELEGRAM_BOT_TOKEN ili TELEGRAM_CHAT_ID nedostaje u .env.");
+        throw new Error(BEZ_ODREDISTA);
       }
       out({ kanal: "klijent", poslano_poruka: poslano });
     } catch (e) {
@@ -1659,4 +1840,23 @@ posao
     }
   });
 
-program.parseAsync(process.argv).catch(fail);
+/**
+ * Telegram id grupe je NEGATIVAN broj, a commander svaki token koji pocinje minusom cita kao
+ * opciju i pada sa "unknown option '-1005678'". Bez ovoga bi svaka komanda nad grupom trazila
+ * `--` separator, sto se zaboravi i izgleda kao kvar.
+ *
+ * Id se PREMJESTA na kraj iza `--`, ne umece se separator na njegovo mjesto: `--` guta sve iza
+ * sebe, pa bi `dodaj -100 --trazi-mention` tiho izgubio zastavicu. Ovako opcije ostaju opcije bez
+ * obzira na redoslijed.
+ *
+ * Zahvat je namjerno uzak: dira samo granu `telegram`, samo prvi token koji je cio negativan
+ * broj, i preskace ga ako je vrijednost neke opcije. Ostatak CLI-ja parsira commander netaknuto.
+ */
+function razrijesiNegativneIdove(argv: string[]): string[] {
+  if (argv[2] !== "telegram" || argv.includes("--")) return argv;
+  const i = argv.findIndex((t, n) => n > 2 && /^-\d+$/.test(t) && !argv[n - 1]!.startsWith("--"));
+  if (i === -1) return argv;
+  return [...argv.slice(0, i), ...argv.slice(i + 1), "--", argv[i]!];
+}
+
+program.parseAsync(razrijesiNegativneIdove(process.argv)).catch(fail);

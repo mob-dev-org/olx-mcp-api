@@ -46,6 +46,26 @@ function komandaPostoji(ime) {
   }
 }
 
+// Grupe kojima idu izvjestaji. Namjerno duplirano umjesto uvoza iz dist/core/telegram-grupe.js:
+// ova skripta radi i kad build ne postoji (build je tek stavka 5 nize), pa bi uvoz tiho ugasio
+// bas ovu provjeru na klonu kojem najvise treba.
+function grupeIzAccessa(rt = ".claude-runtime") {
+  try {
+    const a = JSON.parse(readFileSync(join(rt, "channels", "telegram", "access.json"), "utf8"));
+    return Object.keys(a?.groups ?? {}).filter((k) => k.trim().length > 0);
+  } catch {
+    return [];
+  }
+}
+
+/** Isti split kao `chatIdovi` u src/core/telegram.ts, u tri reda. */
+function idoviIzEnva(v) {
+  return String(v ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 // 0. Verzija i izdanje. Nije provjera nego kontekst za sve ostalo: kad se prijavi problem, prvo
 //    pitanje je kojim kodom klon radi. Zato NIKAD ne obara (uvijek ok ili paznja): klon koji radi
 //    ne smije biti zaustavljen zato sto git nije u PATH-u ili klon nema tagove.
@@ -106,9 +126,38 @@ if (!existsSync(".env")) {
   if (profil === "klijent") ok("OLX_MCP_PROFILE=klijent");
   else paznja("OLX_MCP_PROFILE", `"${profil || "(prazno)"}" pada na admin: klijent bi vidio i admin alate`, "postavi OLX_MCP_PROFILE=klijent u .env");
 
-  for (const v of ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "TELEGRAM_ADMIN_CHAT_ID"]) {
+  for (const v of ["TELEGRAM_BOT_TOKEN", "TELEGRAM_ADMIN_CHAT_ID"]) {
     if (process.env[v]) ok(v);
     else fali(v, "bez ovoga izvjestaji i alarmi tiho ne idu (posao bi sada pao sa greskom)", `upisi ${v} u .env`);
+  }
+
+  // TELEGRAM_CHAT_ID vise nije jedini izvor odredista: grupe dolaze iz access.json, a .env je
+  // dopuna. Zato je FALI samo kad su OBA prazna, inace bi svaki uredan klon bez .env spiska
+  // svako jutro prijavljivao problem koji ne postoji.
+  {
+    const izAccessa = grupeIzAccessa();
+    const izEnva = idoviIzEnva(process.env.TELEGRAM_CHAT_ID);
+    const ukupno = new Set([...izAccessa, ...izEnva]).size;
+    if (ukupno === 0) {
+      fali(
+        "Odredista izvjestaja",
+        "nema nijedne grupe: ni u access.json ni u TELEGRAM_CHAT_ID, pa dnevni posao pada",
+        "node dist/cli/index.js telegram grupe dodaj <id_grupe>",
+      );
+    } else {
+      ok("Odredista izvjestaja", `${ukupno} (${izAccessa.length} iz access.json, ${izEnva.length} iz .env)`);
+    }
+    // Id samo u .env znaci da bot u toj grupi NE prima poruke: izvjestaj stize, a klijent pise u
+    // prazno. Tiha polovicna postavka, pa se imenuje. Obrnut slucaj vise nije nalaz: grupa iz
+    // access.json bez unosa u .env je od sada normalno stanje.
+    const samoUEnvu = izEnva.filter((id) => !izAccessa.includes(id));
+    if (samoUEnvu.length > 0) {
+      paznja(
+        "Grupa bez dolaznog pristupa",
+        `${samoUEnvu.join(", ")} prima izvjestaj ali nije u access.json, pa bot tu ne odgovara na poruke`,
+        `node dist/cli/index.js telegram grupe dodaj ${samoUEnvu[0]}`,
+      );
+    }
   }
 
   if ((process.env.OLX_KLIJENT_AI ?? "pretplata").trim().toLowerCase() === "deepseek") {
@@ -186,7 +235,38 @@ else paznja("KLIJENT-javno.md", "bot ne zna ton, footer ni granice klijenta", `$
   } else if (!existsSync(join(tg, ".env")) || !existsSync(join(tg, "access.json"))) {
     fali("Telegram runtime", ".claude-runtime postoji ali fali telegram .env ili access.json", "ponovi pripremu runtime-a");
   } else {
-    ok("Telegram runtime pripremljen");
+    const grupe = grupeIzAccessa(rt);
+    ok("Telegram runtime pripremljen", `${grupe.length} ${grupe.length === 1 ? "grupa" : "grupa"} u access.json`);
+  }
+
+  // Telegram plugin i njegov pogon. Ovo je do sada bila rupa: klon je prolazio preflight kao
+  // ispravan, a bot nije odgovarao. Jutarnje poruke to ne otkrivaju, jer njih salje cron kroz
+  // cist fetch (src/core/telegram.ts), potpuno mimo plugina i sesije. Kvar se vidi tek kad
+  // covjek pise botu i ne dobije odgovor.
+  if (existsSync(rt)) {
+    // Plugin cache ide PO config diru, ne globalno: klijentska sesija radi sa
+    // CLAUDE_CONFIG_DIR=.claude-runtime, pa joj instalacija u ~/.claude ne znaci nista
+    // (izmjereno 01.08.2026: prazan config dir javlja "No plugins installed").
+    const cache = join(rt, "plugins", "cache", "claude-plugins-official", "telegram");
+    let verzija = null;
+    try {
+      verzija = readdirSync(cache).find((v) => existsSync(join(cache, v, ".mcp.json"))) ?? null;
+    } catch {
+      // mape nema
+    }
+    if (verzija) ok("Telegram plugin", `verzija ${verzija} u ${rt}`);
+    else {
+      fali(
+        "Telegram plugin",
+        `nije instaliran u ${rt}, pa sesija ne prima poruke (cron izvjestaji svejedno rade, zato se kvar previdi)`,
+        `CLAUDE_CONFIG_DIR=${rt} claude plugin marketplace add anthropics/claude-plugins-official && CLAUDE_CONFIG_DIR=${rt} claude plugin install telegram@claude-plugins-official`,
+      );
+    }
+
+    // Plugin dize svoj MCP server sa `bun run` (vidi njegov .mcp.json). Bez buna server ne krene,
+    // a greska se ne vidi nigdje osim u logu sesije.
+    if (komandaPostoji("bun")) ok("bun u PATH-u", "pogon Telegram plugina");
+    else fali("bun u PATH-u", "Telegram plugin dize MCP server sa `bun run`, bez njega bot tiho ne odgovara", "instaliraj bun: https://bun.sh");
   }
 }
 
