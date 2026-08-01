@@ -14,8 +14,13 @@ Ucitava se samo kad se dira kod. Klijentska i admin bot sesija ovo nikad ne vide
 - Smjer zavisnosti je jednosmjeran: `src/core` NE uvozi iz `src/mcp` ni `src/cli`, ni tip. To
   cuva `src/core/slojevi.test.ts` (cita `src/`, ne `dist/`, jer `tsc` brise uvoze tipova). Kad
   test padne, popravlja se uvoz, ne test: ono sto dijele ide u `core`.
-- Racunanje ide u ciste funkcije (`stats.ts`, `izvjestaj.ts`) sa testovima; disk diraju samo
-  `audit.ts` i `snapshoti.ts`. Nova logika prati tu podjelu.
+- Racunanje ide u ciste funkcije sa testovima (`stats.ts`, `izvjestaj.ts`, `plan.ts`), odvojeno
+  od modula koji dira disk (`snapshoti.ts`, `plan-fajl.ts`, `pamcenje.ts`, `telegram-grupe.ts` i
+  jos desetak). Pravilo NIJE "samo dva modula smiju na disk", nego: odluka i racun se daju
+  izvuci u funkciju koja prima podatke i vraca podatke, a I/O oko nje ostaje tanak i bez logike.
+  Testira se ta funkcija, ne omotac.
+- Disk se dira relativnim putanjama od radne mape, uz `OLX_*_FILE` override. Cron garantuje da je
+  radna mapa korijen klona; ko dodaje novo citanje, dodaje i override.
 - Sve sto mijenja stanje ili trosi kredite prolazi kroz postojece brane u `core`: `confirm`
   parametar, `provjeriDnevniPlafon`, audit zapis. Nikad ne dodavati alat koji ih zaobilazi.
 - Alat za brisanje oglasa se ne dodaje u MCP ni pod kojim imenom (granice.md).

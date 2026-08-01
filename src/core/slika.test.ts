@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { brojPozivaDanas, zapisiAiPoziv } from "./ai-dnevnik.js";
-import { DOPUNA_MAX, ODNOSI, RECEPTI, ZADANI_ODNOS, dimenzijeSlike, jeUrl, maxDnevno, najbliziOdnos, provjeriDopunu, provjeriZahtjevSlike, sastaviUputu, slikaKonfigurisana } from "./slika.js";
+import { DOPUNA_MAX, ODNOSI, RECEPTI, RECEPTI_BEZ_FOTOGRAFIJE, RECEPT_POZADINA, ZADANI_ODNOS, dimenzijeSlike, jeUrl, maxDnevno, najbliziOdnos, provjeriDopunu, provjeriZahtjevSlike, sastaviUputu, slikaKonfigurisana } from "./slika.js";
 
 test("slikaKonfigurisana zavisi samo od OLX_SLIKA_API_KEY", () => {
   assert.equal(slikaKonfigurisana({}), false);
@@ -118,11 +118,26 @@ test("svaki recept zabranjuje popravljanje artikla ili dodavanje teksta", () => 
     assert.ok(/watermark/i.test(tekst), `recept ${ime} mora zabraniti vodeni znak`);
     assert.ok(/\btext\b/i.test(tekst), `recept ${ime} mora rijesiti pitanje teksta na slici`);
   }
-  // Recepti za stvarni artikal moraju cuvati njegovo stanje, da slika ne laze kupca.
-  for (const ime of ["proizvod-bijela", "auto-salon"]) {
+  // Recepti za stvarni artikal moraju cuvati njegovo stanje, da slika ne laze kupca. Spisak se
+  // IZVODI, ne prepisuje: novi recept sa fotografijom tako ne moze proci bez ove provjere.
+  const saFotografijom = Object.keys(RECEPTI).filter((ime) => !RECEPTI_BEZ_FOTOGRAFIJE.has(ime));
+  assert.ok(saFotografijom.length >= 2, "provjera bi bila besmislena da nema recepata sa fotografijom");
+  for (const ime of saFotografijom) {
     const tekst = RECEPTI[ime] ?? "";
     assert.ok(/do not repair|do not remove scratches/i.test(tekst), `recept ${ime} mora cuvati stanje`);
+    assert.ok(/exact same/i.test(tekst), `recept ${ime} mora traziti isti artikal, ne slican`);
   }
+});
+
+test("recept za pozadinu nosi placeholder koji pozadina.ts popunjava", () => {
+  const tekst = RECEPTI[RECEPT_POZADINA] ?? "";
+  assert.ok(tekst.includes("{POZADINA}"), "bez placeholdera pozadina ne moze uci u uputu");
+  // Bez zadane pozadine recenica sa placeholderom mora ispasti cijela, da modelu ne ode "{POZADINA}".
+  const bezPozadine = sastaviUputu(RECEPT_POZADINA);
+  assert.ok(!bezPozadine.includes("{POZADINA}"));
+  const saPozadinom = sastaviUputu(RECEPT_POZADINA, undefined, undefined, "a light grey concrete wall");
+  assert.ok(saPozadinom.includes("a light grey concrete wall"));
+  assert.ok(!saPozadinom.includes("{POZADINA}"));
 });
 
 test("brojPozivaDanas broji samo uspjele pozive traženog izvora za današnji dan", () => {

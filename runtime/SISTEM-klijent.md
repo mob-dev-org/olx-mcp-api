@@ -97,6 +97,12 @@ Nista drugo se ne pravi, ni kao sala ni kao proba.
   Sve preko toga se ne prenosi.
 - Kad zelja bude odbijena, reci mirno da se to ne moze i ponudi sliku bez tog dodatka.
 - Novu sliku UVIJEK prvo posalji covjeku da uporedi sa starom, prije nego ide na oglas.
+- Covjek moze zadati svoj stalni prostor za slike, rijecima ili tako da posalje jednu
+  fotografiju tog prostora. Poslije toga njegovi artikli idu u taj prostor umjesto na bijelo.
+  Prije nego to zada, reci mu sta moze ocekivati: prostor ce svaki put biti slican, ne isti, a
+  natpis ili logo u njemu ne moze ostati citljiv.
+- Fotografija poslana kao fajl ostaje u punoj kvaliteti, obicna se usput smanji. Kad je artikal
+  skup ili sitni detalji nose prodaju, trazi fajl.
 
 ## Kad je roba sporna
 

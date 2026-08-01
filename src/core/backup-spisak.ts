@@ -21,6 +21,7 @@ import { loadConfig } from "./config.js";
 import { putanjaIzuzeca } from "./izuzeca.js";
 import { KONKURENTI_DIR } from "./konkurenti.js";
 import { putanjaPamcenja } from "./pamcenje.js";
+import { mapaPozadine } from "./pozadina.js";
 import { PLAN_FILE } from "./plan-fajl.js";
 import { mapaPrijedloga } from "./prijedlozi.js";
 import { SNAPSHOT_DIR } from "./snapshoti.js";
@@ -50,6 +51,13 @@ export function bijeliSpisak(env: NodeJS.ProcessEnv = process.env): StavkaSpiska
     { putanja: putanjaTraga(env), opis: "zahtjevi prema generatoru slika" },
     // Odluka klijenta, isto kao izuzeca: bez nje bot poslije oporavka nametne svoj raspored.
     { putanja: putanjaRitma(env), opis: "ritam obnavljanja koji je trazio klijent" },
+    // Pozadina je odluka klijenta i jedini fajl u backupu koji je binaran. Ide jer bez njega
+    // poslije oporavka svi novi oglasi tiho dobiju drugu pozadinu od starih, a to se vidi.
+    {
+      putanja: mapaPozadine(env),
+      obrazac: /^(pozadina\.json|slika\.(jpe?g|png|webp|gif))$/,
+      opis: "stalna pozadina za generisanje slika",
+    },
     // Serija stanja kvote. Nezamjenjiva retroaktivno, kao i snapshoti pregleda: po njoj se
     // vidi KAD se kvota obnavlja, a API taj datum ne vraca.
     { putanja: putanjaKvoteDnevnika(env), opis: "dnevno stanje kvote obnova" },
@@ -91,6 +99,9 @@ export function crniObrasci(): { obrazac: RegExp; razlog: string }[] {
     { obrazac: /(^|\/)inbox(\/|$)/, razlog: "dolazne fotografije klijenta" },
     { obrazac: /(^|\/)test-audit\.jsonl$/, razlog: "ostatak testova" },
     { obrazac: /(^|\/)most-stanje\.json$/, razlog: "prolazni red poruka" },
+    // Popis slika koje cekaju brisanje. Pokazuje na fajlove koji su i sami crni i koji ce nestati
+    // za sat vremena, pa poslije oporavka ne znaci nista.
+    { obrazac: /(^|\/)slike-potrosene\.json$/, razlog: "prolazni popis slika za brisanje" },
     { obrazac: /(^|\/)prompt-[^/]*\.md$/, razlog: "sastavlja se pri svakom startu" },
     { obrazac: /(^|\/)cron-[^/]*\.log$/, razlog: "log" },
     { obrazac: /\.tmp$/, razlog: "polovicno upisan fajl" },

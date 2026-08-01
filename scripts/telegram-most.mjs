@@ -132,18 +132,45 @@ async function tg(metoda, tijelo) {
   return j.result;
 }
 
-/** Skine fotografiju u inbox koji klijentska sesija smije citati. Vraca putanju ili null. */
-async function skiniFoto(poruka) {
+/**
+ * Bira izvor slike iz poruke. Redoslijed je namjeran: `document` ide PRIJE `photo`.
+ *
+ * Telegram za `photo` uvijek rekompresuje u JPEG i skalira (u praksi oko 1280 px duza strana),
+ * pa je najveca velicina iz tog niza i dalje kopija sa gubitkom. Ista poruka poslana kao fajl
+ * ("posalji bez kompresije") stize kao `document` sa netaknutim originalom. Kad su prisutna oba,
+ * Telegram salje samo jedno, ali provjera stoji ovim redom da original nikad ne izgubi.
+ *
+ * Ranije se `document` uopste nije citao, pa je fotografija poslana kao fajl tiho nestajala.
+ */
+function izvorSlike(poruka) {
+  const dok = poruka.document;
+  // Bez mime provjere bi ovdje prosao PDF, ZIP i sve ostalo sto covjek prevuce u razgovor.
+  if (dok?.file_id && typeof dok.mime_type === "string" && dok.mime_type.startsWith("image/")) {
+    return { fileId: dok.file_id, kljuc: dok.file_unique_id, velicina: dok.file_size };
+  }
   const velicine = poruka.photo;
   if (!Array.isArray(velicine) || velicine.length === 0) return null;
   const najveca = velicine[velicine.length - 1]; // Telegram salje rastuce, zadnja je najveca
+  return { fileId: najveca.file_id, kljuc: najveca.file_unique_id, velicina: najveca.file_size };
+}
+
+/** Skine fotografiju u inbox koji klijentska sesija smije citati. Vraca putanju ili null. */
+async function skiniFoto(poruka) {
+  const izvor = izvorSlike(poruka);
+  if (!izvor) return null;
+  // getFile ne radi preko 20 MB, to je limit Bot API-ja. Bez ove provjere poziv padne bez
+  // objasnjenja, a covjek ne zna zasto mu slika nije stigla.
+  if (izvor.velicina && izvor.velicina > 20 * 1024 * 1024) {
+    log(`fotografija preskocena: ${Math.round(izvor.velicina / 1048576)} MB je preko limita Telegrama (20 MB)`);
+    return null;
+  }
   try {
-    const info = await tg("getFile", { file_id: najveca.file_id });
+    const info = await tg("getFile", { file_id: izvor.fileId });
     const res = await fetch(`https://api.telegram.org/file/bot${TOKEN}/${info.file_path}`);
     if (!res.ok) throw new Error(`preuzimanje fajla: ${res.status}`);
     const ext = (info.file_path.match(/\.[a-z0-9]+$/i) ?? [".jpg"])[0].toLowerCase();
     mkdirSync(INBOX, { recursive: true });
-    const putanja = resolve(INBOX, `${Date.now()}-${najveca.file_unique_id}${ext}`);
+    const putanja = resolve(INBOX, `${Date.now()}-${izvor.kljuc}${ext}`);
     writeFileSync(putanja, Buffer.from(await res.arrayBuffer()));
     return putanja;
   } catch (e) {

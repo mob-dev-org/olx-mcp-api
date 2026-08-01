@@ -62,6 +62,23 @@ Ucitava se samo kad se diraju skripte ili deploy. Mapa cijelog pogona:
 
 ## Telegram botovi
 
+- Telegram plugin i njegov `bun` su ZAVISNOSTI POGONA, ne opcija. Plugin cache stoji u
+  `$CLAUDE_CONFIG_DIR/plugins/`, dakle instalira se posebno za svaki runtime
+  (`.claude-runtime`, `.claude-runtime-admin`); globalna instalacija u `~/.claude` klijentskoj
+  sesiji ne vrijedi nista. `pripremi-runtime.mjs` to NE radi, pa je korak u skillu i u
+  `provjeri-klon.mjs`.
+- Kvar plugina se ne vidi na jutarnjoj poruci: nju salje cron kroz `src/core/telegram.ts`, cist
+  fetch mimo sesije i plugina. Bot moze mjesecima cutati na poruke dok izvjestaji uredno stizu.
+  Zato preflight provjerava plugin i `bun` odvojeno od svega ostalog.
 - Klijentski bot: BotFather privacy ISKLJUCEN (mora vidjeti sve poruke grupe).
 - Admin bot: privacy UKLJUCEN (u grupi prima samo mention i reply) + `requireMention: true`.
   Ne mijenjati jedno u drugo; to je razlog zasto se botovi u admin grupi ne mijesaju.
+- `access.json` je jedan izvor za oba smjera: po njemu bot PRIMA poruke i po njemu izvjestaji
+  ODLAZE. `TELEGRAM_CHAT_ID` je samo dopuna. Grupa se dodaje sa `telegram grupe dodaj <id>`, jer
+  `pripremi-runtime.mjs` odbija rad na postojecem runtime-u.
+- Otkrivanje grupa preko `getUpdates` se NE pokusava. Zivu sesiju drzi Telegram plugin i on je
+  jedini konzumer pollinga; drugi bi joj krao poruke. Zato ni `my_chat_member` nije dostupan i
+  id nove grupe se ocita rucno.
+- Prelazak grupe u supergrupu MIJENJA `chat_id`. Zato `telegram grupe provjeri` mrtvu grupu samo
+  javi adminu i nikad je ne uklanja sam: isti unos je i dozvola za dolazne poruke, pa bi ga jedna
+  HTTP greska utisala u oba smjera.

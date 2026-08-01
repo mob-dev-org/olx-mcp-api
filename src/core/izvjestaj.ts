@@ -19,6 +19,17 @@ function broj(n: number | null | undefined, ako = "nepoznato"): string {
   return n === null || n === undefined ? ako : String(n);
 }
 
+/**
+ * Razmak izmedju snimaka u danima, za tekst poruke.
+ *
+ * `promjenaPregleda` racuna sa jednom decimalom, jer snimci ne padaju u istu sekundu svaki dan.
+ * To je tacno za racun, ali "Pregledi u zadnjih 1.6 dana" u poruci klijentu zvuci kao masinski
+ * ispis. Nikad ispod 1: "u zadnjih 0 dana" nema smisla.
+ */
+export function danaZaTekst(dana: number): number {
+  return Math.max(1, Math.round(dana));
+}
+
 /** Skracuje naslov da red stane u jedan red na telefonu. */
 export function skrati(tekst: string, maks = 45): string {
   const t = tekst.trim();
@@ -239,14 +250,18 @@ export function dnevniTekst(d: DnevniPodaci): string {
   if (d.neuspjelih_obnova > 0) r.push(`Nije uspjelo: ${d.neuspjelih_obnova}.`);
 
   if (d.plan.kvota > 0) {
-    r.push(`Preostalo besplatnih obnova: ${d.plan.preostalo} od ${d.plan.kvota}.`);
+    // Plan je izracunat PRIJE nego su obnove poslane, pa `plan.preostalo` jos ne zna za njih.
+    // Bez ovog oduzimanja poruka u istom dahu kaze "obnovljeno 59" i "preostalo 1800 od 1800",
+    // sto klijentu izgleda kao da posao nije ni odradjen (prijavljeno 01.08.2026).
+    const preostalo = Math.max(0, d.plan.preostalo - (d.obnovljeno ?? 0));
+    r.push(`Preostalo besplatnih obnova: ${preostalo} od ${d.plan.kvota}.`);
     const dana = d.plan.dana_do_reseta;
     // Rok se izgovara SAMO kad je izveden iz ciklusa pretplate. Kad nije, broj je kraj
     // kalendarskog mjeseca, dakle pretpostavka, i ne smije se klijentu dati kao rok
     // (olx://pravila-brojeva: kada se kvota resetuje nije potvrdjeno).
     const rok = d.plan.rok_poznat ? `Kvota se obnavlja za ${dana} ${danaRijec(dana)}.` : null;
 
-    if (d.plan.preostalo === 0) {
+    if (preostalo === 0) {
       r.push("Besplatna kvota je potrosena do kraja.");
     } else if (d.plan.kvota_neostvariva) {
       // Kvota je veca od onoga sto katalog fizicki moze potrositi. Pravi razlog je PRAG po
@@ -268,9 +283,11 @@ export function dnevniTekst(d: DnevniPodaci): string {
   }
 
   if (d.promjena && d.promjena.rastu.length > 0) {
-    r.push("", `Pregledi u zadnjih ${d.promjena.dana} dana: ${d.promjena.ukupan_prirast} novih.`);
+    const dana = danaZaTekst(d.promjena.dana);
+    r.push("", `Pregledi u zadnjih ${dana} ${danaRijec(dana)}: ${d.promjena.ukupan_prirast} novih.`);
     r.push("Najvise rastu:");
-    for (const p of d.promjena.rastu.slice(0, 3)) {
+    // Pet stavki, ne tri: klijent po ovoj listi bira sta izdvojiti, a tri su premalo za izbor.
+    for (const p of d.promjena.rastu.slice(0, 5)) {
       r.push(`- ${skrati(p.title ?? String(p.id))}: ${p.prirast}`);
     }
   }
@@ -302,7 +319,8 @@ export function sedmicniTekst(s: SedmicniPodaci): string {
   r.push(`Sedmicni pregled${s.username ? ` - ${s.username}` : ""}`, "");
 
   if (s.promjena) {
-    r.push(`U zadnjih ${s.promjena.dana} dana: ${s.promjena.ukupan_prirast} novih pregleda na ${s.promjena.obuhvaceno} oglasa.`);
+    const dana = danaZaTekst(s.promjena.dana);
+    r.push(`U zadnjih ${dana} ${danaRijec(dana)}: ${s.promjena.ukupan_prirast} novih pregleda na ${s.promjena.obuhvaceno} oglasa.`);
     if (s.promjena.rastu.length > 0) {
       r.push("", "Najbolje ide:");
       for (const p of s.promjena.rastu.slice(0, 5)) r.push(`- ${skrati(p.title ?? String(p.id))}: ${p.prirast}`);

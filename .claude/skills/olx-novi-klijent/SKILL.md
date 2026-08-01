@@ -87,7 +87,8 @@ cp KLIJENT.primjer.md KLIJENT.md
 ```
 
 U `.env` popuni: `OLX_TOKEN`, `OLX_MCP_PROFILE=klijent`, `OLX_MAX_SPEND_PER_DAY`,
-`TELEGRAM_BOT_TOKEN` (klijentov bot), `TELEGRAM_CHAT_ID` (grupa), `TELEGRAM_ADMIN_CHAT_ID`.
+`TELEGRAM_BOT_TOKEN` (klijentov bot), `TELEGRAM_ADMIN_CHAT_ID`. `TELEGRAM_CHAT_ID` NE mora:
+grupe dolaze iz `access.json` koji pravi sljedeci korak.
 Za DeepSeek pogon jos `OLX_KLIJENT_AI=deepseek` i `OLX_DEEPSEEK_*` (vidi komentare u
 `.env.example`). `KLIJENT.md` popuni sa adminom: ostaje u KORIJENU klona.
 
@@ -115,7 +116,33 @@ node scripts/pripremi-admin-runtime.mjs <admin_bot_token> <admin_telegram_id> [i
   `set CLAUDE_CONFIG_DIR=.claude-runtime-admin` pa `claude login`. Isto i za
   `.claude-runtime` AKO klijentska sesija ide na pretplatu; na DeepSeeku ne treba
   (auth ide kroz `OLX_DEEPSEEK_AUTH_TOKEN` iz `.env`). macOS to ne treba, Keychain.
+- **Telegram plugin se instalira PO RUNTIME-u, ne globalno.** Plugin cache stoji u
+  `$CLAUDE_CONFIG_DIR/plugins/`, pa instalacija u `~/.claude` klijentskoj sesiji ne znaci nista.
+  Bez ovog koraka bot ne odgovara na poruke, a jutarnji izvjestaji svejedno stizu (njih salje
+  cron mimo sesije), pa kvar lako prodje neopazeno:
+
+  ```
+  CLAUDE_CONFIG_DIR=.claude-runtime claude plugin marketplace add anthropics/claude-plugins-official
+  CLAUDE_CONFIG_DIR=.claude-runtime claude plugin install telegram@claude-plugins-official
+  ```
+
+  Isto ponovi sa `.claude-runtime-admin` ako se postavlja i admin bot. Marketplace se klonira
+  preko SSH-a, dakle masina treba GitHub SSH kljuc. Zauzima oko 38 MB po runtime-u.
+- **`bun` mora biti u PATH-u.** Plugin dize svoj MCP server sa `bun run`; bez njega bot cuti bez
+  ijedne greske na vidljivom mjestu. Instalacija: https://bun.sh
 - Dodaj oba bota u odgovarajuce grupe na Telegramu.
+- **Druga i svaka sljedeca klijentova grupa NE ide ponovnim pokretanjem `pripremi-runtime.mjs`**:
+  ta skripta odbija rad na postojecem runtime-u, pa bi je covjek prosao tek nakon brisanja
+  runtimea, sto gubi sva uparivanja. Umjesto toga:
+
+  ```
+  node dist/cli/index.js telegram grupe dodaj <id_grupe>
+  node dist/cli/index.js telegram grupe
+  ```
+
+  Id grupe se ocita iz `@getidsbot`. Prva komanda je idempotentna, druga pokazuje kome tacno idu
+  izvjestaji. Izvjestaji krecu odmah; da bot POCNE odgovarati u novoj grupi, restartuj klijentsku
+  sesiju (plugin cita `access.json` pri startu).
 
 ## 5. Zakazani poslovi (snapshot, jutarnja poruka, sedmicni pregled, obje sesije)
 
