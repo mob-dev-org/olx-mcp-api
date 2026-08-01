@@ -34,6 +34,7 @@ import { resolve } from "node:path";
 import { brojPozivaDanas, zapisiAiPoziv } from "./ai-dnevnik.js";
 import { loadConfig } from "./config.js";
 import { pozoviGemini, type GeminiDioZahtjeva } from "./gemini.js";
+import { opisZaRecept, ucitajPozadinu } from "./pozadina.js";
 import { zapisiZahtjevSlike } from "./slike-trag.js";
 import { normalizujTekst, tokeni } from "./tekst.js";
 import { medijskiTip } from "./vid.js";
@@ -65,9 +66,17 @@ const EKSTENZIJE: Record<string, string> = {
 // Jedna recenica koja se ponavlja u svim receptima. Bez nje model ostavi veliku bijelu prazninu
 // oko artikla i on se na telefonu vidi kao skupljen (vidjeno 30.07.2026.). "centred and fully
 // visible" to NE pokriva: predmet moze biti centriran i cijeli, a zauzimati trecinu kadra.
+// Bez druge recenice model "popunjavanje kadra" katkad rijesi rastezanjem/stiskanjem predmeta
+// umjesto ravnomjernog uvecanja, pa artikal izadje siri ili uzi nego u originalu (vidjeno
+// 31.07.2026.).
 const OKVIR =
   "The subject fills the frame from edge to edge with only a small even margin; do not shrink it " +
-  "and do not leave large empty background areas. ";
+  "and do not leave large empty background areas. Scale it up uniformly to do this and keep its " +
+  "exact original proportions: never stretch, squeeze or distort the subject wider, taller, " +
+  "thinner or shorter than it really is. ";
+
+/** Ime recepta koji radi na stalnoj pozadini klijenta. Na jednom mjestu, jer ga zna i brana. */
+export const RECEPT_POZADINA = "pozadina-klijenta";
 
 export const RECEPTI: Record<string, string> = {
   "proizvod-bijela":
@@ -93,6 +102,20 @@ export const RECEPTI: Record<string, string> = {
     "On the wall behind the car put a clean " +
     "dealership sign reading {LOGO}. Photographic realism. Apart from that sign do not add any text, " +
     "watermark, badge or border.",
+
+  // Isti posao kao proizvod-bijela, samo je podloga stalna pozadina klijenta umjesto bijelog
+  // studija. {POZADINA} popunjava pozadina.ts; bez postavljene pozadine recept se odbija.
+  "pozadina-klijenta":
+    "You are given original photos of one product, taken with a phone. Recreate the exact same " +
+    "product and place it in this scene: {POZADINA}. Keep the product identical: same shape, " +
+    "same colour, same materials, same text and logos on it, and the same real condition. Do not " +
+    "beautify it, do not repair it, do not remove scratches, dents, stains or signs of use, do not " +
+    "swap it for a newer model. Light the product so it sits naturally in that scene, with a soft " +
+    "contact shadow under it, no glare and no reflections of the room. Keep the scene plain and " +
+    "quiet behind the product; do not add props, other products or decoration that are not in it " +
+    "already. The product is centred and fully visible, nothing cropped. " + OKVIR +
+    "Photographic realism. Do not add any " +
+    "text, watermark, price tag, border or frame.",
 
   "profil":
     "Create a clean, professional cover image for the profile of an online shop that sells {LOGO}. " +
@@ -183,11 +206,11 @@ export type NalazDopune = { ok: true } | { ok: false; razlog: string };
  * je ono oko njega: osnova recepta uvijek ostaje, ZATVARANJE ide poslije dopune, i uz dopunu
  * uvijek stoji prava fotografija (vidi provjeriZahtjevSlike).
  */
-export function provjeriDopunu(dopuna: string): NalazDopune {
+export function provjeriDopunu(dopuna: string, max: number = DOPUNA_MAX): NalazDopune {
   const tekst = dopuna.trim();
   if (!tekst) return { ok: true };
-  if (tekst.length > DOPUNA_MAX) {
-    return { ok: false, razlog: `dopuna je duza od ${DOPUNA_MAX} znakova (${tekst.length})` };
+  if (tekst.length > max) {
+    return { ok: false, razlog: `dopuna je duza od ${max} znakova (${tekst.length})` };
   }
   if (!DOZVOLJENI_ZNAKOVI.test(tekst)) {
     return {
@@ -261,19 +284,32 @@ export function provjeriZahtjevSlike(zahtjev: ZahtjevZaProvjeru): NalazDopune {
  * Dopuna se lijepi IZA gotove osnove (poslije obrade {LOGO}, da je filter recenica ne pojede) i
  * iza nje ide ZATVARANJE.
  */
-export function sastaviUputu(receptIliTekst: string, logo?: string, dopuna?: string): string {
+export function sastaviUputu(
+  receptIliTekst: string,
+  logo?: string,
+  dopuna?: string,
+  pozadina?: string,
+): string {
   const osnova = RECEPTI[receptIliTekst] ?? receptIliTekst;
-  const ime = logo?.trim();
-  const saLogom = ime
-    ? osnova.replaceAll("{LOGO}", ime)
-    : osnova
-        .split(/(?<=\.)\s+/)
-        .filter((recenica) => !recenica.includes("{LOGO}"))
-        .join(" ")
-        .trim();
+  const saLogom = zamijeniIliIzbaci(osnova, "{LOGO}", logo);
+  // Za {POZADINA} vrijedi isto pravilo kao za {LOGO}: bez vrijednosti recenica ispada cijela,
+  // da modelu nikad ne ode doslovan placeholder.
+  const saPozadinom = zamijeniIliIzbaci(saLogom, "{POZADINA}", pozadina);
   const dodatak = dopuna?.trim();
-  if (!dodatak) return saLogom;
-  return `${saLogom} Seller note about the scene, apply it only if it does not conflict with anything above: ${dodatak}. ${ZATVARANJE}`;
+  if (!dodatak) return saPozadinom;
+  return `${saPozadinom} Seller note about the scene, apply it only if it does not conflict with anything above: ${dodatak}. ${ZATVARANJE}`;
+}
+
+/** Zamijeni placeholder vrijednoscu, ili izbaci cijelu recenicu u kojoj stoji. */
+function zamijeniIliIzbaci(tekst: string, placeholder: string, vrijednost?: string): string {
+  const cista = vrijednost?.trim();
+  if (cista) return tekst.replaceAll(placeholder, cista);
+  if (!tekst.includes(placeholder)) return tekst;
+  return tekst
+    .split(/(?<=\.)\s+/)
+    .filter((recenica) => !recenica.includes(placeholder))
+    .join(" ")
+    .trim();
 }
 
 export interface GenerisanaSlika {
@@ -428,13 +464,36 @@ export async function generisiSliku(opcije: OpcijeGenerisanja): Promise<Generisa
     );
   }
 
+  // Stalna pozadina klijenta. Trazi je samo recept koji je za nju i pravljen; bez postavljene
+  // pozadine se odbija odmah, jer bi inace recept ostao bez podloge i model bi je izmislio.
+  let pozadinaZaRecept: string | undefined;
+  let slikaPozadine: string | undefined;
+  if (opcije.recept === RECEPT_POZADINA) {
+    const pozadina = ucitajPozadinu();
+    if (!pozadina) {
+      throw new Error(
+        `Recept "${RECEPT_POZADINA}" trazi da je pozadina prethodno postavljena (olx_pozadina). ` +
+          `Dok je nema, koristi "proizvod-bijela".`,
+      );
+    }
+    pozadinaZaRecept = opisZaRecept(pozadina);
+    slikaPozadine = pozadina.slika;
+  }
+
   const zadane = (opcije.ulazneSlike ?? []).slice(0, MAX_ULAZNIH);
   // URL-ovi (slike sa objavljenog oglasa) se prvo skinu na disk; lokalne putanje ostaju kakve su.
   const ulazne: string[] = [];
   for (const ulaz of zadane) {
     ulazne.push(jeUrl(ulaz) ? await skiniUlaznuSliku(ulaz) : ulaz);
   }
-  const dijelovi: GeminiDioZahtjeva[] = [{ text: sastaviUputu(opcije.recept, opcije.logo, opcije.dopuna) }];
+  // Slika pozadine ide NA KRAJ i ne racuna se u MAX_ULAZNIH: ona nije klijentova fotografija
+  // artikla nego stalna referenca. Red je bitan na dva mjesta: odnos strana se uzima od PRVE
+  // slike (mora ostati artikal), a prompt na pozadinu pokazuje kao na POSLJEDNJU (opisZaRecept).
+  if (slikaPozadine) ulazne.push(slikaPozadine);
+
+  const dijelovi: GeminiDioZahtjeva[] = [
+    { text: sastaviUputu(opcije.recept, opcije.logo, opcije.dopuna, pozadinaZaRecept) },
+  ];
   let odnosPrveSlike: Odnos | null = null;
   for (const putanja of ulazne) {
     const mime = medijskiTip(putanja);

@@ -38,6 +38,16 @@ drugacije.
 
 Ako slike nema, objava je i dalje moguca, ali reci da oglasi bez slike prakticno ne prodaju.
 
+Kad je poslana samo jedna slika, trazi jos: 5 do 7 fotografija je razlika koja se osjeti. Sedam
+je besplatno na obicnom profilu, do 20 na shopu. Trazi artikal iz vise uglova, detalj materijala
+ili natpisa, i posteno prikazano ostecenje ako ga ima. Kad korisnik pita koliko slika utice na
+poziciju u pretrazi, odgovor je da ne utice: vise slika donosi vise klikova i upita na isti
+broj pregleda, ne bolji rang.
+
+Slika poslana kao FAJL ("bez kompresije") stize u punoj kvaliteti, a obicna poslana slika je
+Telegram vec smanjio. Kad je artikal skup ili sitni detalji nose prodaju, isplati se traziti
+fajl.
+
 ### 2. Kategorija
 
 `olx_suggest_category` sa kljucnim rijecima sa slike. Ponudi jednu, najvise dvije mogucnosti i

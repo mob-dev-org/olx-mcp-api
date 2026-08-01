@@ -34,7 +34,9 @@ import { buildPlan, planSazetak, type PlanKandidat } from "../core/plan.js";
 import { opisiSliku, vidKonfigurisan } from "../core/vid.js";
 import { OPSEZI, bezSklonjenog, odvojiIzuzete, saDodatim, spisak, ucitajIzuzeca, upisiIzuzeca } from "../core/izuzeca.js";
 import { INTERVAL_MAX, STRATEGIJE, intervalUzPrag, normalizujRitam, ritamZapisan, ucitajRitam, upisiRitam } from "../core/ritam-obnova.js";
-import { DOPUNA_MAX, ODNOSI, RECEPTI, ZADANI_ODNOS, generisiSliku, maxDnevno, provjeriZahtjevSlike, slikaKonfigurisana, type Odnos } from "../core/slika.js";
+import { POZADINA_OPIS_MAX, obrisiPozadinu, sacuvajPozadinu, sazetakPozadine, ucitajPozadinu } from "../core/pozadina.js";
+import { DOPUNA_MAX, ODNOSI, RECEPTI, RECEPT_POZADINA, ZADANI_ODNOS, generisiSliku, maxDnevno, provjeriDopunu, provjeriZahtjevSlike, slikaKonfigurisana, type Odnos } from "../core/slika.js";
+import { oznaciPotrosene, pocistiPotrosene } from "../core/slike-ciscenje.js";
 import { zapisiZahtjevSlike } from "../core/slike-trag.js";
 import { brojPozivaDanas } from "../core/ai-dnevnik.js";
 
@@ -757,6 +759,66 @@ if (slikaKonfigurisana()) {
       } catch (e) {
         return errResult(String(e instanceof Error ? e.message : e));
       }
+    },
+  );
+
+  // Stalna pozadina klijenta: zada se jednom, poslije samo recept "pozadina-klijenta". Ide u
+  // OBA profila jer je to postavka koju covjek radi za sebe, ne trosak i ne izmjena oglasa.
+  server.registerTool(
+    "olx_pozadina",
+    {
+      title: "Stalna pozadina za slike",
+      description:
+        "Pozadina koju recept pozadina-klijenta koristi umjesto bijelog studija, da svi oglasi imaju isti prostor. " +
+        "postavi = zapamti opis i/ili sliku pozadine (slika se kopira u klon, pa smije nestati iz inboxa); " +
+        "prikazi = sta je sada postavljeno; ukloni = vrati se na bijelu podlogu. VAZNO reci korisniku: pozadina se " +
+        "svaki put crta iznova, pa je SLICNA a nikad identicna, a tekst i logo na pozadini ce biti iskrivljeni.",
+      inputSchema: {
+        radnja: z.enum(["postavi", "prikazi", "ukloni"]),
+        opis: z
+          .string()
+          .max(POZADINA_OPIS_MAX)
+          .optional()
+          .describe(
+            "scena rijecima, npr. svijetlo sivi beton; ulazi u prompt na engleskom, pa prevedi ono " +
+              "sto je korisnik rekao; samo uz radnju postavi",
+          ),
+        slika: z.string().min(1).optional().describe("putanja fotografije pozadine koju je poslao korisnik"),
+      },
+      annotations: writeOp,
+    },
+    async (args) => {
+      if (args.radnja === "prikazi") {
+        const pozadina = ucitajPozadinu();
+        return ok(
+          pozadina
+            ? { postavljena: true, ...pozadina, sazetak: sazetakPozadine(pozadina) }
+            : { postavljena: false, napomena: `Pozadina nije postavljena, pa recept ${RECEPT_POZADINA} nije dostupan.` },
+        );
+      }
+      if (args.radnja === "ukloni") {
+        const bilo = obrisiPozadinu();
+        return ok({
+          uklonjena: bilo,
+          napomena: bilo ? "Slike se ponovo prave na bijeloj podlozi." : "Pozadina ni nije bila postavljena.",
+        });
+      }
+      // Opis pozadine prolazi ISTI filter kao dopuna na receptu: on ide u prompt, pa je za njega
+      // nebitno kojim ga je putem covjek unio.
+      if (args.opis) {
+        const nalaz = provjeriDopunu(args.opis, POZADINA_OPIS_MAX);
+        if (!nalaz.ok) return errResult(`Opis pozadine se ne moze prihvatiti: ${nalaz.razlog}.`);
+      }
+      const rezultat = sacuvajPozadinu({ opis: args.opis, izvorSlike: args.slika });
+      if (!rezultat.ok) return errResult(`Pozadina nije sacuvana: ${rezultat.razlog}.`);
+      return ok({
+        postavljena: true,
+        ...rezultat.pozadina,
+        sazetak: sazetakPozadine(rezultat.pozadina),
+        napomena:
+          `Od sada recept ${RECEPT_POZADINA} stavlja artikle na ovu pozadinu. Ona se svaki put crta iznova, ` +
+          "pa dva oglasa nece imati doslovno istu pozadinu.",
+      });
     },
   );
 }
@@ -1633,9 +1695,16 @@ server.registerTool(
       if (!args.urls?.length && !args.file_paths?.length) {
         throw new Error("Zadaj urls ili file_paths.");
       }
+      // Prvo pometi sto je od ranije dozrelo, pa tek onda radi. Ciscenje je lijeno i vezano za
+      // posao sa slikama, da klon ne dobija jos jedan zadatak za instalirati na dvije platforme.
+      pocistiPotrosene();
       const result: Record<string, unknown> = {};
       if (args.urls?.length) result.by_url = await c.uploadImagesByUrl(args.id, args.urls);
-      if (args.file_paths?.length) result.by_file = await c.uploadImageFiles(args.id, args.file_paths);
+      if (args.file_paths?.length) {
+        result.by_file = await c.uploadImageFiles(args.id, args.file_paths);
+        // Tek poslije uspjesnog uploada: fajl je odradio posao i smije nestati kad odgoda prodje.
+        oznaciPotrosene(args.file_paths);
+      }
       return result;
     }),
 );
