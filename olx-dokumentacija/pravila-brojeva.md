@@ -43,14 +43,20 @@ jer korisnik dobije broj u koji vjeruje.
      dana" od aktivacije.
   3. **Kalendar** kao rezerva kad nema ni mjerenja ni `ends_at`; tada se rok korisniku NE
      izgovara (polje `rok_poznat`, izvor u polju `rok_izvor`).
+  **Spor izvora (od 02.08.2026.):** kad izmjereni dan i dan ciklusa tvrde RAZLIČIT dan,
+  rok se korisniku ne izgovara uopšte (`rok_izvor: "sporno"`, `rok_poznat: false`), a za
+  unutrašnji račun tempa važi mjerenje. Razlog: prvo mjerenje ide u prilog kalendaru, a
+  administrator kvotu vezuje za istek paketa; dok jedan izvor ne potvrdi, nijedan broj se ne
+  tvrdi klijentu.
   Zašto je to bitno: na MixBoxu je 31.07.2026. javljen rok od 1 dana po kalendaru, a ciklus je
   istjecao 24.08. Isti broj ulazi i u ponašanje, ne samo u tekst.
   **Prvo mjerenje (01.08.2026.) ide u prilog KALENDARU, suprotno hipotezi ciklusa:** `free_count`
   je pao 318 -> 59 između 31.07. i 01.08., uz nepromijenjen `free_limit` 1800 i dan ciklusa 24.
-  Ograde: samo jedan izmjeren prelaz, i vrijednost poslije pada je 59 umjesto 0 (najvjerovatnije
-  obnove izvršene istog jutra prije prvog upisa). Presuda: padne li `free_count` i 24.08., važi
-  ciklus paketa; ostane li pad tek 01.09., važi kalendar. Do nalaza se o "kvota propada" ne
-  govori uopšte, jer ni to nema izvor.
+  Tih 59 je objašnjivo obnovama koje je jutarnji posao izvršio 01.08. prije prvog upisa, pa se
+  svi poznati brojevi slažu sa resetom u ponoć 01.08. Ograda: samo jedan izmjeren prelaz.
+  Presuda: padne li `free_count` i 24.08., važi ciklus paketa (i spor nestaje sam, jer mjerenje
+  pređe na dan 24); ostane li pad tek 01.09., važi kalendar i ciklus se briše iz prioriteta. Do
+  nalaza se o "kvota propada" ne govori uopšte, jer ni to nema izvor.
 - Većina naloga kvotu NE MOŽE potrošiti do kraja: ručna obnova istog oglasa ide tek nakon
   praga (red iznad), pa je ostvarivi maksimum broj oglasa puta broj obnova po oglasu u
   periodu. Poređenja i alarmi idu na ostvarivo, ne na sirovu kvotu (`ostvarivihObnova` u

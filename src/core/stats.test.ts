@@ -398,17 +398,26 @@ test("tempo se racuna na OSTVARIVO, ne na sirovu kvotu", () => {
   assert.equal(p.kvota_neostvariva, true, "1482 preostalo je vise od 363 ostvarivih");
 });
 
-test("izmjereni dan reseta gazi ciklus pretplate", () => {
-  // Prvi zivi podatak (01.08.2026) je pokazao pad potrosenog na 1. u mjesecu, dok je hipoteza
-  // ciklusa tvrdila 24. Mjerenje je jaci dokaz od izvoda iz ends_at, pa pobjedjuje; bez
-  // mjerenja sve ostaje po starom.
+test("izmjereni dan reseta: sam vazi, u sukobu sa ciklusom rok postaje sporan", () => {
+  // Prvi zivi podatak (01.08.2026, pad potrosenog na 1. u mjesecu) i tvrdnja administratora da
+  // se kvota vezuje za istek paketa (dan 24) se razilaze. Dok jedan izvor ne potvrdi (presuda
+  // 24.08.), rok se korisniku ne izgovara; racun ide po mjerenju, jer jedino ono dolazi iz
+  // stvarnog ponasanja platforme i sam se ispravi na sljedecem resetu.
   const limits: RefreshLimits = { free_limit: 1800, free_count: 318, paid_count: 0, listing_count: 0 };
   const zajedno = { refreshLimits: limits, kandidata: 0, sadaTs: SADA, aktivnihOglasa: 121, imaShop: true };
 
-  const izmjereno = dnevniPlanObnova({ ...zajedno, danCiklusa: 24, izmjereniDanReseta: 1 });
-  assert.equal(izmjereno.dana_do_reseta, 1, "od 31.07. je sljedeci 1. u mjesecu sutra");
-  assert.equal(izmjereno.rok_poznat, true, "mjerenje je jaci dokaz, rok se izgovara");
-  assert.equal(izmjereno.rok_izvor, "izmjereno");
+  const sporno = dnevniPlanObnova({ ...zajedno, danCiklusa: 24, izmjereniDanReseta: 1 });
+  assert.equal(sporno.dana_do_reseta, 1, "racun ide po mjerenju: od 31.07. je 1. u mjesecu sutra");
+  assert.equal(sporno.rok_poznat, false, "sporan rok se ne izgovara");
+  assert.equal(sporno.rok_izvor, "sporno");
+
+  const samoMjerenje = dnevniPlanObnova({ ...zajedno, izmjereniDanReseta: 1 });
+  assert.equal(samoMjerenje.rok_poznat, true, "bez ciklusa nema spora, mjerenje vazi");
+  assert.equal(samoMjerenje.rok_izvor, "izmjereno");
+
+  const slazuSe = dnevniPlanObnova({ ...zajedno, danCiklusa: 24, izmjereniDanReseta: 24 });
+  assert.equal(slazuSe.rok_poznat, true, "izvori koji se slazu nisu spor");
+  assert.equal(slazuSe.rok_izvor, "izmjereno");
 
   const ciklus = dnevniPlanObnova({ ...zajedno, danCiklusa: 24 });
   assert.equal(ciklus.dana_do_reseta, 24);
@@ -419,14 +428,15 @@ test("izmjereni dan reseta gazi ciklus pretplate", () => {
   assert.equal(kalendar.rok_izvor, "kalendar");
 });
 
-test("alarmiNaloga i onboardingIzvjestaj postuju izmjereni dan reseta", () => {
+test("alarmiNaloga i onboardingIzvjestaj postuju izmjereni dan reseta i spor", () => {
   // Isto pravilo na sva mjesta koja racunaju rok: bez toga dnevna poruka i alarm istog jutra
   // mogu reci razlicit rok, ista klasa greske koja je vec jednom sanirana.
   const slabo = limits({ free_count: 100, listing_count: 2000 });
-  // me() nosi dan ciklusa 29 (nema alarma na 29 dana); izmjereni dan 3 daje rok od 3 dana.
+  // me() nosi dan ciklusa 29; izmjereni dan 3 daje rok od 3 dana, ali je sporan pa alarm
+  // koristi ogradjenu formulaciju umjesto tvrdnje.
   const r = alarmiNaloga(me(), slabo, 0, SADA, {}, 3);
   assert.equal(r.alarmi.some((a) => a.tip === "kvota_obnova"), true, "3 dana do izmjerenog reseta");
-  assert.match(r.alarmi.find((a) => a.tip === "kvota_obnova")?.poruka ?? "", /Do obnove kvote 3 dana/);
+  assert.match(r.alarmi.find((a) => a.tip === "kvota_obnova")?.poruka ?? "", /oko 3 dana/, "sporan rok ide sa ogradom");
 
   const i = onboardingIzvjestaj({
     me: me(),
@@ -436,8 +446,8 @@ test("alarmiNaloga i onboardingIzvjestaj postuju izmjereni dan reseta", () => {
     sadaTs: SADA,
     izmjereniDanReseta: 1,
   });
-  assert.equal(i.besplatne_obnove.dana_do_reseta, 1, "mjerenje gazi dan ciklusa 29 iz ends_at");
-  assert.equal(i.besplatne_obnove.rok_poznat, true);
+  assert.equal(i.besplatne_obnove.dana_do_reseta, 1, "racun ide po mjerenju, ne po ciklusu 29");
+  assert.equal(i.besplatne_obnove.rok_poznat, false, "mjerenje i ciklus se razilaze, rok je sporan");
 });
 
 test("dnevniPlanObnova ne javlja neostvarivu kvotu kad je ona ostvariva", () => {

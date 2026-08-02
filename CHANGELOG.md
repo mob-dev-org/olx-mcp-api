@@ -8,6 +8,16 @@ Kako se cita broj verzije: `node dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
+## 0.9.1 — 2026-08-02
+
+Patch: sporan rok kvote se klijentu ne izgovara.
+
+- **Kad se izmjereni dan reseta i dan ciklusa pretplate razilaze, rok je sporan i poruka ga ne
+  tvrdi** (`rok_izvor: "sporno"`, `rok_poznat: false`). Mjerenje od 01.08. pokazuje kalendar, a
+  administrator kvotu vezuje za istek paketa; dok jedan izvor ne potvrdi (presuda 24.08.),
+  nijedan broj se ne tvrdi. Racun tempa ide po mjerenju. Vazi za dnevnu poruku, alarme i
+  onboarding izvjestaj (olx://pravila-brojeva).
+
 ## 0.9.0 — 2026-08-02
 
 Minor: mijenja se ponasanje dnevne poruke i racun roka kvote, i dodan je alat za pozadinu slika.
