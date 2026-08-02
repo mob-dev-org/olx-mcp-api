@@ -219,6 +219,8 @@ export interface OnboardingInput {
   sadaTs: number;
   // Datum snapshota iz kojeg su detalji, da izvjestaj kaze koliko su podaci stari.
   detaljiTs?: number;
+  /** Izmjereni dan reseta kvote iz kvota dnevnika; jaci od ciklusa pretplate. */
+  izmjereniDanReseta?: number;
 }
 
 export interface OnboardingNalaz {
@@ -246,7 +248,7 @@ export interface OnboardingIzvjestaj {
     iskorisceno: number;
     preostalo: number;
     dana_do_reseta: number;
-    /** true samo kad je rok iz ciklusa pretplate; inace je kraj kalendarskog mjeseca, dakle pretpostavka. */
+    /** true kad je rok izmjeren iz kvota dnevnika ili iz ciklusa pretplate; inace je kraj kalendarskog mjeseca, dakle pretpostavka. */
     rok_poznat: boolean;
     // Koliko obnova dnevno treba trositi da se OSTVARIVO iskoristi do obnove kvote. Racuna se na
     // ostvarivo, ne na sirovu kvotu (olx://pravila-brojeva), jer prag po oglasu vezuje prije kvote.
@@ -358,8 +360,8 @@ export function onboardingIzvjestaj(input: OnboardingInput): OnboardingIzvjestaj
   const kvota = refreshLimits.free_limit ?? 0;
   const iskorisceno = refreshLimits.free_count ?? 0;
   const preostalo = Math.max(0, kvota - iskorisceno);
-  const danCiklusa = danCiklusaIzIsteka(shop?.ends_at);
-  const danaDoKraja = danaDoResetaKvote(sadaTs, danCiklusa);
+  const danReseta = input.izmjereniDanReseta ?? danCiklusaIzIsteka(shop?.ends_at);
+  const danaDoKraja = danaDoResetaKvote(sadaTs, danReseta);
 
   // Limit oglasa po paketu: oblik odgovora nije dokumentovan, pa se trazi prvo brojcano polje
   // sa poznatim imenom umjesto da se pretpostavi struktura.
@@ -512,7 +514,7 @@ export function onboardingIzvjestaj(input: OnboardingInput): OnboardingIzvjestaj
       iskorisceno,
       preostalo,
       dana_do_reseta: danaDoKraja,
-      rok_poznat: typeof danCiklusa === "number",
+      rok_poznat: typeof danReseta === "number",
       preporuceno_dnevno:
         preostalo === 0
           ? 0
@@ -859,10 +861,13 @@ export interface DnevniPlanObnova {
   /** Dana do sljedece obnove kvote. Vidi `rok_poznat` prije nego se broj izgovori korisniku. */
   dana_do_reseta: number;
   /**
-   * true samo kad je rok izveden iz ciklusa pretplate (`shop.ends_at`). Kad je false, broj je
-   * kraj kalendarskog mjeseca, dakle pretpostavka, i tekst ga NE smije tvrditi kao rok.
+   * true kad je rok izmjeren iz kvota dnevnika ili izveden iz ciklusa pretplate (`shop.ends_at`).
+   * Kad je false, broj je kraj kalendarskog mjeseca, dakle pretpostavka, i tekst ga NE smije
+   * tvrditi kao rok.
    */
   rok_poznat: boolean;
+  /** Odakle je rok: mjerenje je najjaci dokaz, ciklus je izvod, kalendar je pretpostavka. */
+  rok_izvor: "izmjereno" | "ciklus" | "kalendar";
   /** Koliko obnova katalog fizicki moze potrositi do reseta (prag po oglasu, `ostvarivihObnova`). */
   ostvarivo: number;
   // Koliko bi trebalo obnoviti danas da se ostvarivo ravnomjerno rasporedi do reseta kvote.
@@ -887,6 +892,11 @@ export interface DnevniPlanUlaz {
   aktivnihOglasa?: number;
   /** Dan u mjesecu kad se kvota obnavlja; iz `danCiklusaIzIsteka(shop.ends_at)`. */
   danCiklusa?: number;
+  /**
+   * Dan reseta IZMJEREN iz kvota dnevnika (`izmjereniDanReseta(ucitajKvotuDnevnik())`).
+   * Jaci od `danCiklusa`: mjerenje pobjedjuje izvod, i samo se ispravlja na sljedecem resetu.
+   */
+  izmjereniDanReseta?: number;
   imaShop?: boolean;
   imaPro?: boolean;
   ritam?: Ritam;
@@ -909,8 +919,11 @@ export function dnevniPlanObnova(ulaz: DnevniPlanUlaz): DnevniPlanObnova {
 
   const kvota = refreshLimits.free_limit ?? 0;
   const preostalo = Math.max(0, kvota - (refreshLimits.free_count ?? 0));
-  const dana = danaDoResetaKvote(sadaTs, danCiklusa);
-  const rokPoznat = typeof danCiklusa === "number" && Number.isFinite(danCiklusa);
+  const danReseta = ulaz.izmjereniDanReseta ?? danCiklusa;
+  const dana = danaDoResetaKvote(sadaTs, danReseta);
+  const rokPoznat = typeof danReseta === "number" && Number.isFinite(danReseta);
+  const rokIzvor: DnevniPlanObnova["rok_izvor"] =
+    typeof ulaz.izmjereniDanReseta === "number" ? "izmjereno" : rokPoznat ? "ciklus" : "kalendar";
 
   // Gornja granica je broj oglasa: isti oglas se ne obnavlja dvaput u istom danu. Bez ovoga
   // izvjestaj klijentu javi tempo tipa "741 dnevno" na shopu od 120 oglasa (viđeno 30.07.2026).
@@ -939,6 +952,7 @@ export function dnevniPlanObnova(ulaz: DnevniPlanUlaz): DnevniPlanObnova {
     preostalo,
     dana_do_reseta: dana,
     rok_poznat: rokPoznat,
+    rok_izvor: rokIzvor,
     ostvarivo: Number.isFinite(ostvarivo) ? ostvarivo : 0,
     cilj_danas: Number.isFinite(cilj) ? cilj : 0,
     kandidata,
@@ -1155,6 +1169,8 @@ export function alarmiNaloga(
   isteklihOglasa: number,
   sadaTs: number,
   pragovi: AlarmiPragovi = {},
+  // Izmjereni dan reseta iz kvota dnevnika; jaci od ciklusa pretplate, isto kao u planu obnova.
+  izmjereniDanReseta?: number,
 ): AlarmiNaloga {
   const kreditiMin = pragovi.kreditiMin ?? 500;
   const paketDana = pragovi.paketDana ?? 14;
@@ -1184,9 +1200,9 @@ export function alarmiNaloga(
     // Rok ide kroz istu funkciju kao ostatak modula. Ranije se racunao ovdje rucno i BEZ
     // danasnjeg dana, pa je ista cron poruka mogla reci "1 dana" iz jednog izvora i "0 dana" iz
     // drugog (izmjereno 31.07.2026).
-    const danCiklusa = danCiklusaIzIsteka(shop?.ends_at);
-    const doKraja = danaDoResetaKvote(sadaTs, danCiklusa);
-    const rokPoznat = typeof danCiklusa === "number";
+    const danReseta = izmjereniDanReseta ?? danCiklusaIzIsteka(shop?.ends_at);
+    const doKraja = danaDoResetaKvote(sadaTs, danReseta);
+    const rokPoznat = typeof danReseta === "number";
     // Poredjenje ide sa OSTVARIVIM, ne sa sirovom kvotom: listing_count iz refresh/limits je
     // broj oglasa naloga, pa katalog od 168 oglasa nikad ne moze potrositi kvotu 1800 i alarm
     // po sirovoj kvoti bi gorio svaki mjesec kao sum.

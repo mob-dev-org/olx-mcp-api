@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { OlxClient, OlxApiError, OlxAuthError, OlxSpendError } from "../core/index.js";
 import { odvojiIzuzete, ucitajIzuzeca } from "../core/izuzeca.js";
 import { loadConfig } from "../core/config.js";
-import { setAuditContext } from "../core/audit.js";
+import { potrosenoNaDan, setAuditContext } from "../core/audit.js";
 import { VERZIJA } from "../core/verzija.js";
 import { parseSponsorOptions, SPONSOR_DAYS, REFRESH_EVERY } from "../core/sponsor-options.js";
 import { buildPlan, dospjeliTermini, oznaciTermin, planSazetak, zaglavljeniTermini } from "../core/plan.js";
@@ -16,9 +16,9 @@ import type { PlanKandidat, SponsorPlan } from "../core/plan.js";
 import { matchCatalog, summarizeMatches } from "../core/match.js";
 import type { PikItem, KatalogItem, OverrideEntry } from "../core/match.js";
 import { loadKatalog } from "../core/katalog.js";
-import { alarmiNaloga, danCiklusaIzIsteka, dnevniPlanObnova, efekatIzdvajanja, pragObnove, promjenaKonkurenta, promjenaPregleda } from "../core/stats.js";
+import { alarmiNaloga, danCiklusaIzIsteka, dnevniPlanObnova, efekatIzdvajanja, mrtviOglasi, pragObnove, promjenaKonkurenta, promjenaPregleda } from "../core/stats.js";
 import { intervalUzPrag, poIntervalu, ucitajRitam } from "../core/ritam-obnova.js";
-import { zapisiKvotu } from "../core/kvota-dnevnik.js";
+import { izmjereniDanReseta, ucitajKvotuDnevnik, zapisiKvotu } from "../core/kvota-dnevnik.js";
 import { ucitajKonkurenta, upisiKonkurenta } from "../core/konkurenti.js";
 import type { OnboardingDetalj } from "../core/stats.js";
 import { dnevniTekst, dnevniVrijedanSlanja, onboardingMarkdown, onboardingTelegram, sedmicniTekst } from "../core/izvjestaj.js";
@@ -1584,14 +1584,25 @@ posao
       // Ritam je odluka trgovca; kad ga nije rekao, ide podrazumijevani (ravnomjerno).
       const ritam = ucitajRitam();
       const shop = (me.shop ?? null) as { ends_at?: number } | null;
+      // Rok kvote: izmjereni dan reseta iz kvota dnevnika je najjaci dokaz, ciklus pretplate je
+      // izvod, kalendar samo neizgovoreni fallback (olx://pravila-brojeva). Danasnje ocitanje se
+      // dodaje u memoriji, jer se na disk upisuje tek nize, a reset se moze desiti bas danas.
+      const izmjeren = izmjereniDanReseta([
+        ...ucitajKvotuDnevnik(),
+        {
+          dan: new Date(sadaTs * 1000).toISOString().slice(0, 10),
+          free_count: limits.free_count ?? 0,
+          free_limit: limits.free_limit ?? 0,
+          aktivnih: aktivni.length,
+        },
+      ]);
       const plan = dnevniPlanObnova({
         refreshLimits: limits,
         kandidata: kandidati.length,
         sadaTs,
         aktivnihOglasa: aktivni.length,
-        // Rok kvote ide iz ciklusa pretplate, ne iz kalendara: kalendarski mjesec je davao
-        // pogresan rok (izmjereno 31.07.2026: javljen 1 dan, a ciklus je isticao 24.08).
         danCiklusa: danCiklusaIzIsteka(shop?.ends_at),
+        izmjereniDanReseta: izmjeren,
         imaShop: shop !== null,
         ritam,
       });
@@ -1631,15 +1642,36 @@ posao
       }
 
       const istekli = await c.listExpired(user, 1);
+
+      // Krediti potroseni danas, iz audit loga. Log koji jos ne postoji znaci nula potrosnje;
+      // svaka druga greska citanja se guta, jer dopuna poruke ne smije oboriti dnevni posao.
+      let potroseno = 0;
+      try {
+        potroseno = potrosenoNaDan(readFileSync(loadConfig().auditFile, "utf8"), danasnjiDatum());
+      } catch {
+        potroseno = 0;
+      }
+      // Plan izdvajanja nije obavezan: klijent bez plana dobija poruku bez te linije.
+      const planIzdvajanja = citajPlanAkoPostoji();
+
+      const snapshoti = ucitajSnapshote();
+      // Mrtvi oglasi imaju smisla tek nad dovoljno dugom serijom: nad snapshotima od par dana
+      // bi pola kataloga izgledalo mrtvo samo zato sto jos nije stiglo dobiti pregled.
+      const mrtviSirovo = mrtviOglasi(snapshoti, sadaTs);
+      const mrtvi = mrtviSirovo && mrtviSirovo.period_dana >= 14 ? mrtviSirovo : null;
       const podaci = {
         username: user,
         plan,
         obnovljeno,
         neuspjelih_obnova: neuspjelih,
-        alarmi: alarmiNaloga(me, limits, istekli.meta.total, sadaTs),
+        alarmi: alarmiNaloga(me, limits, istekli.meta.total, sadaTs, {}, izmjeren),
         nova_pitanja: typeof me.new_questions_count === "number" ? me.new_questions_count : null,
         // Dnevni prirast pregleda: dva zadnja snimka, pa raspon od 2 dana umjesto 7.
-        promjena: promjenaPregleda(ucitajSnapshote(), sadaTs, 2),
+        promjena: promjenaPregleda(snapshoti, sadaTs, 2),
+        dospjelo: planIzdvajanja ? dospjeliTermini(planIzdvajanja, danasnjiDatum()).length : 0,
+        potroseno_kredita: potroseno,
+        mrtvi: mrtvi && mrtvi.oglasi.length > 0 ? { broj: mrtvi.oglasi.length, dana: mrtvi.period_dana } : null,
+        izuzeti: izuzetiDanas.length,
       };
       const tekst = dnevniTekst(podaci);
 

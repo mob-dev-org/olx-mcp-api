@@ -507,7 +507,7 @@ server.registerTool(
 
 server.registerTool(
   "olx_refresh_limits",
-  { title: "Limiti obnove", description: "Limiti besplatne obnove sa naloga (free_limit, free_count, listing_count). Datum kad se kvota obnavlja API NE vraca; rok se izvodi iz ciklusa pretplate (shop.ends_at).", inputSchema: {}, annotations: readOnly },
+  { title: "Limiti obnove", description: "Limiti besplatne obnove sa naloga (free_limit, free_count, listing_count). Datum kad se kvota obnavlja API NE vraca; rok: izmjereni dan reseta iz kvota dnevnika kad postoji, inace ciklus pretplate (shop.ends_at).", inputSchema: {}, annotations: readOnly },
   () => run((c) => c.refreshLimits()),
 );
 

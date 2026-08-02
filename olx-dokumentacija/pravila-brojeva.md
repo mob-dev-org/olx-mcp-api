@@ -32,20 +32,25 @@ jer korisnik dobije broj u koji vjeruje.
   od ta dva broja se ne smije citirati. Pročitaj stvarni limit.
 - Koliko je obnova već potrošeno ovaj mjesec. Pažnja: polje sa iskorištenim obnovama pokazuje
   POTROŠENO, ne preostalo. Preostalo je limit minus potrošeno.
-- **Kada se kvota obnova resetuje NIJE potvrđeno, ali se više ne pretpostavlja kalendar.** API
+- **Kada se kvota obnova resetuje NIJE potvrđeno; rok se određuje po prioritetu izvora.** API
   ne vraća datum reseta (`/listing/refresh/limits` daje samo `free_limit`, `free_count`,
-  `paid_count`, `listing_count`), a zvanična pomoć ne precizira. Kod od 31.07.2026. rok izvodi iz
-  **ciklusa pretplate**: dan u mjesecu iz `shop.ends_at`. Osnov: shop se plaća po broju mjeseci od
-  datuma plaćanja, a zvanična pomoć za PRO kaže "narednih mjesec dana" od aktivacije.
-  Kalendarski mjesec je ostao samo kao rezerva kad `ends_at` nije čitljiv, i tada se rok
-  korisniku NE izgovara (polje `rok_poznat`).
-  Zašto je to bilo bitno: na MixBoxu je 31.07.2026. javljen rok od 1 dana, a ciklus je istjecao
-  24.08., dakle 24 dana. Isti broj ulazi i u ponašanje, ne samo u tekst.
-  **Mjerenje u toku:** dnevni posao od 31.07.2026. upisuje stanje kvote u
-  `.olx-pik/kvota-dnevnik.jsonl`. Dan kad `free_count` padne je dan reseta (`daniResetaKvote`).
-  Na MixBoxu ciklus pada na 24., daleko od 1., pa se dva objašnjenja ne mogu pomiješati: padne li
-  1. augusta, važi kalendar; padne li 24. augusta, važi ciklus paketa. Do nalaza se o "kvota
-  propada" ne govori uopšte, jer ni to nema izvor.
+  `paid_count`, `listing_count`), a zvanična pomoć ne precizira. Prioritet od 02.08.2026.:
+  1. **Izmjereni dan reseta** iz `.olx-pik/kvota-dnevnik.jsonl` (`izmjereniDanReseta`): zadnji
+     pouzdan pad `free_count` uz isti `free_limit` između uzastopnih dana. Mjerenje je najjači
+     dokaz i samo se ispravlja na svakom sljedećem resetu.
+  2. **Ciklus pretplate**: dan u mjesecu iz `shop.ends_at` (kod od 31.07.2026.). Osnov: shop se
+     plaća po broju mjeseci od datuma plaćanja, a zvanična pomoć za PRO kaže "narednih mjesec
+     dana" od aktivacije.
+  3. **Kalendar** kao rezerva kad nema ni mjerenja ni `ends_at`; tada se rok korisniku NE
+     izgovara (polje `rok_poznat`, izvor u polju `rok_izvor`).
+  Zašto je to bitno: na MixBoxu je 31.07.2026. javljen rok od 1 dana po kalendaru, a ciklus je
+  istjecao 24.08. Isti broj ulazi i u ponašanje, ne samo u tekst.
+  **Prvo mjerenje (01.08.2026.) ide u prilog KALENDARU, suprotno hipotezi ciklusa:** `free_count`
+  je pao 318 -> 59 između 31.07. i 01.08., uz nepromijenjen `free_limit` 1800 i dan ciklusa 24.
+  Ograde: samo jedan izmjeren prelaz, i vrijednost poslije pada je 59 umjesto 0 (najvjerovatnije
+  obnove izvršene istog jutra prije prvog upisa). Presuda: padne li `free_count` i 24.08., važi
+  ciklus paketa; ostane li pad tek 01.09., važi kalendar. Do nalaza se o "kvota propada" ne
+  govori uopšte, jer ni to nema izvor.
 - Većina naloga kvotu NE MOŽE potrošiti do kraja: ručna obnova istog oglasa ide tek nakon
   praga (red iznad), pa je ostvarivi maksimum broj oglasa puta broj obnova po oglasu u
   periodu. Poređenja i alarmi idu na ostvarivo, ne na sirovu kvotu (`ostvarivihObnova` u

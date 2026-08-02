@@ -8,7 +8,7 @@ import { dnevniTekst, dnevniVrijedanSlanja, type DnevniPodaci } from "./izvjesta
 function podaci(overrides: Partial<DnevniPodaci> = {}): DnevniPodaci {
   return {
     username: "test",
-    plan: { kvota: 1800, preostalo: 1500, dana_do_reseta: 10, rok_poznat: true, ostvarivo: 400, cilj_danas: 0, kandidata: 0, za_obnovu: 0, kvota_neostvariva: false, ritam: "ravnomjerno" },
+    plan: { kvota: 1800, preostalo: 1500, dana_do_reseta: 10, rok_poznat: true, rok_izvor: "ciklus", ostvarivo: 400, cilj_danas: 0, kandidata: 0, za_obnovu: 0, kvota_neostvariva: false, ritam: "ravnomjerno" },
     obnovljeno: 0,
     neuspjelih_obnova: 0,
     alarmi: { ok: true, alarmi: [] },
@@ -43,7 +43,7 @@ test("obnovljeni oglasi, alarmi ili rast pregleda cine poruku vrijednom", () => 
 
 test("kvar obnove (kandidata ima, nista obnovljeno) je vrijedan poruke, ne tisina", () => {
   assert.equal(
-    dnevniVrijedanSlanja(podaci({ obnovljeno: 0, plan: { kvota: 1800, preostalo: 1500, dana_do_reseta: 10, rok_poznat: true, ostvarivo: 400, cilj_danas: 5, kandidata: 5, za_obnovu: 5, kvota_neostvariva: false, ritam: "ravnomjerno" } })),
+    dnevniVrijedanSlanja(podaci({ obnovljeno: 0, plan: { kvota: 1800, preostalo: 1500, dana_do_reseta: 10, rok_poznat: true, rok_izvor: "ciklus", ostvarivo: 400, cilj_danas: 5, kandidata: 5, za_obnovu: 5, kvota_neostvariva: false, ritam: "ravnomjerno" } })),
     true,
   );
   assert.equal(dnevniVrijedanSlanja(podaci({ neuspjelih_obnova: 2 })), true);
@@ -51,6 +51,15 @@ test("kvar obnove (kandidata ima, nista obnovljeno) je vrijedan poruke, ne tisin
 
 test("probni rezim (obnovljeno null) bez icega drugog nije vrijedan slanja", () => {
   assert.equal(dnevniVrijedanSlanja(podaci({ obnovljeno: null })), false);
+});
+
+test("dospio termin i danasnji trosak okidaju poruku; mrtvi i izuzeti ne", () => {
+  // Dospio termin trazi potez, trosak se javlja isti dan. Mrtvi oglasi, izuzeti i oni koji
+  // miruju su sadrzaj za poruku koja se ionako salje: da okidaju, klijent bi poruku dobijao
+  // svaki dan i naucio je ignorisati.
+  assert.equal(dnevniVrijedanSlanja(podaci({ dospjelo: 2 })), true);
+  assert.equal(dnevniVrijedanSlanja(podaci({ potroseno_kredita: 54 })), true);
+  assert.equal(dnevniVrijedanSlanja(podaci({ mrtvi: { broj: 8, dana: 30 }, izuzeti: 3 })), false);
 });
 
 // ---- tekst dnevne poruke ----
@@ -64,6 +73,7 @@ function plan(overrides: Partial<DnevniPodaci["plan"]> = {}): DnevniPodaci["plan
     preostalo: 1482,
     dana_do_reseta: 24,
     rok_poznat: true,
+    rok_izvor: "ciklus" as const,
     ostvarivo: 363,
     cilj_danas: 16,
     kandidata: 20,
@@ -154,6 +164,37 @@ test("razmak snimaka se u poruci izgovara cijelim brojem", () => {
   );
   assert.match(t, /Pregledi u zadnjih 2 dana: 583 novih\./);
   assert.ok(!/1\.6/.test(t), "decimala ne ide u poruku klijentu");
+});
+
+test("dopune poruke: trosak, dospjeli termini, mrtvi, izuzeti i miruju", () => {
+  const t = dnevniTekst(
+    podaci({
+      obnovljeno: 3,
+      dospjelo: 2,
+      potroseno_kredita: 54,
+      mrtvi: { broj: 8, dana: 30 },
+      izuzeti: 3,
+      promjena: { od_ts: 1, do_ts: 2, dana: 2, obuhvaceno: 20, ukupan_prirast: 40, rastu: [{ id: 1, prirast: 40 }], miruju: [{ id: 2 }, { id: 3 }] },
+    }),
+  );
+  assert.match(t, /Potroseno danas: 54 kredita\./);
+  assert.match(t, /Plan izdvajanja: 2 termina je dospjelo a nije izvrseno\./);
+  assert.match(t, /Bez ijednog novog pregleda vec 30 dana: 8 oglasa\./);
+  assert.match(t, /Preskoceno po tvojoj listi izuzetaka: 3\./);
+  assert.match(t, /Bez novog pregleda u istom periodu: 2 oglasa\./);
+});
+
+test("dopune se ne pominju kad ih nema", () => {
+  const t = dnevniTekst(podaci({ obnovljeno: 3, dospjelo: 0, potroseno_kredita: 0, mrtvi: null, izuzeti: 0 }));
+  assert.ok(!/Potroseno danas/.test(t));
+  assert.ok(!/Plan izdvajanja/.test(t));
+  assert.ok(!/novog pregleda/.test(t));
+  assert.ok(!/izuzetaka/.test(t));
+});
+
+test("jedan dospio termin se izgovara u jednini", () => {
+  const t = dnevniTekst(podaci({ obnovljeno: 3, dospjelo: 1 }));
+  assert.match(t, /1 termin je dospio a nije izvrseno\./);
 });
 
 test("razmak manji od dana se ne izgovara kao nula", () => {

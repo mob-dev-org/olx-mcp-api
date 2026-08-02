@@ -212,6 +212,16 @@ export interface DnevniPodaci {
   alarmi: AlarmiNaloga;
   nova_pitanja: number | null;
   promjena: PromjenaPregleda | null;
+  // Termini plana izdvajanja koji su dospjeli a nisu izvrseni. Traze potez, pa okidaju slanje.
+  dospjelo?: number;
+  // Krediti potroseni danas, iz audit loga. Trosak se javlja klijentu isti dan, pa okida slanje.
+  potroseno_kredita?: number;
+  // Oglasi bez ijednog novog pregleda kroz duzi period (`mrtviOglasi`), samo broj i raspon.
+  // Sadrzaj za poruku koja se ionako salje, NE okidac: broj se mijenja sporo i svakodnevno
+  // okidanje bi klijenta naucilo da poruke ignorise.
+  mrtvi?: { broj: number; dana: number } | null;
+  // Oglasi preskoceni u danasnjoj obnovi zbog liste izuzetaka. Sadrzaj, ne okidac.
+  izuzeti?: number;
 }
 
 /**
@@ -226,7 +236,11 @@ export function dnevniVrijedanSlanja(d: DnevniPodaci): boolean {
     d.alarmi.alarmi.length > 0 ||
     (d.promjena !== null && d.promjena.rastu.length > 0) ||
     // Kandidata ima a nista nije obnovljeno: to je kvar vrijedan poruke, ne tisina.
-    (d.obnovljeno === 0 && d.plan.za_obnovu > 0)
+    (d.obnovljeno === 0 && d.plan.za_obnovu > 0) ||
+    // Dospio termin izdvajanja trazi potez, a trosak se javlja isti dan. Ostale dopune
+    // (mrtvi, izuzeti, miruju) su sadrzaj za poruku koja se ionako salje, ne okidaci.
+    (d.dospjelo ?? 0) > 0 ||
+    (d.potroseno_kredita ?? 0) > 0
   );
 }
 
@@ -248,6 +262,7 @@ export function dnevniTekst(d: DnevniPodaci): string {
     r.push("Danas nije obnovljen nijedan oglas.");
   }
   if (d.neuspjelih_obnova > 0) r.push(`Nije uspjelo: ${d.neuspjelih_obnova}.`);
+  if ((d.izuzeti ?? 0) > 0) r.push(`Preskoceno po tvojoj listi izuzetaka: ${d.izuzeti}.`);
 
   if (d.plan.kvota > 0) {
     // Plan je izracunat PRIJE nego su obnove poslane, pa `plan.preostalo` jos ne zna za njih.
@@ -282,6 +297,15 @@ export function dnevniTekst(d: DnevniPodaci): string {
     }
   }
 
+  if ((d.potroseno_kredita ?? 0) > 0) {
+    r.push("", `Potroseno danas: ${d.potroseno_kredita} kredita.`);
+  }
+
+  if ((d.dospjelo ?? 0) > 0) {
+    const n = d.dospjelo ?? 0;
+    r.push("", `Plan izdvajanja: ${n} ${n === 1 ? "termin je dospio" : "termina je dospjelo"} a nije izvrseno. Pokreni izvrsenje plana.`);
+  }
+
   if (d.promjena && d.promjena.rastu.length > 0) {
     const dana = danaZaTekst(d.promjena.dana);
     r.push("", `Pregledi u zadnjih ${dana} ${danaRijec(dana)}: ${d.promjena.ukupan_prirast} novih.`);
@@ -290,6 +314,13 @@ export function dnevniTekst(d: DnevniPodaci): string {
     for (const p of d.promjena.rastu.slice(0, 5)) {
       r.push(`- ${skrati(p.title ?? String(p.id))}: ${p.prirast}`);
     }
+    // Samo broj, bez liste: dnevna poruka mora stati u jedan ekran telefona.
+    if (d.promjena.miruju.length > 0) r.push(`Bez novog pregleda u istom periodu: ${d.promjena.miruju.length} oglasa.`);
+  }
+
+  if (d.mrtvi && d.mrtvi.broj > 0) {
+    const dana = danaZaTekst(d.mrtvi.dana);
+    r.push("", `Bez ijednog novog pregleda vec ${dana} ${danaRijec(dana)}: ${d.mrtvi.broj} oglasa.`);
   }
 
   const vazni = d.alarmi.alarmi.filter((a) => a.tip !== "kvota_obnova");

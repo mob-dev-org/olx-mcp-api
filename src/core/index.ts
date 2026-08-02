@@ -6,6 +6,7 @@ import { auditSinkFromPath, currentAuditContext, potrosenoNaDan, type AuditSink 
 import { objasniPogotke, provjeriRobu, type PogodakRobe } from "./zabranjena-roba.js";
 import { VERZIJA } from "./verzija.js";
 import { izvuciTelefon } from "./telefon-ekstrakcija.js";
+import { izmjereniDanReseta, ucitajKvotuDnevnik } from "./kvota-dnevnik.js";
 import {
   alarmiNaloga,
   konkurentIzvjestaj,
@@ -1074,6 +1075,9 @@ export class OlxClient {
       detalji: detalji?.oglasi,
       detaljiTs: detalji?.ts,
       sadaTs: Math.floor(Date.now() / 1000),
+      // Izmjereni dan reseta gazi izvod iz ciklusa; dnevnik na klonu bez mjerenja vrati prazno
+      // i sve ostaje po starom.
+      izmjereniDanReseta: izmjereniDanReseta(ucitajKvotuDnevnik()),
     });
     return { izvjestaj, broj_poziva: pozivi, trajanje_ms: Date.now() - start };
   }
@@ -1161,7 +1165,14 @@ export class OlxClient {
     const me = await this.me();
     const username = await this.resolveUsername();
     const [limits, istekli] = await Promise.all([this.refreshLimits(), this.listExpired(username, 1)]);
-    const rezultat = alarmiNaloga(me, limits, istekli.meta.total, Math.floor(Date.now() / 1000), pragovi);
+    const rezultat = alarmiNaloga(
+      me,
+      limits,
+      istekli.meta.total,
+      Math.floor(Date.now() / 1000),
+      pragovi,
+      izmjereniDanReseta(ucitajKvotuDnevnik()),
+    );
     return { ...rezultat, broj_poziva: 3 };
   }
 }

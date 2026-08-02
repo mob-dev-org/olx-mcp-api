@@ -69,6 +69,35 @@ export function daniResetaKvote(redovi: RedKvote[]): string[] {
   return dani;
 }
 
+/**
+ * Dan u mjesecu na koji se kvota IZMJERENO resetuje, iz zadnjeg pouzdanog pada `free_count`.
+ *
+ * Pouzdan pad mora zadovoljiti sva tri uslova:
+ * - `free_count` je pao: potroseno unutar istog ciklusa moze samo rasti;
+ * - `free_limit` je isti: promjena paketa takodjer mijenja brojeve, ali nije reset;
+ * - redovi su isti ili tacno uzastopan kalendarski dan: preko rupe u cronu bi se kao dan
+ *   reseta uzeo prvi dan kad je posao ponovo radio, a ne stvarni.
+ *
+ * Vazi ZADNJI pouzdan pad, bez glasanja starijih: pretplata se moze ponovo kupiti na novi
+ * datum, pa samo najnovije mjerenje odrazava vazeci ciklus. Kad pouzdanog pada nema, vraca
+ * undefined i rok se dalje izvodi po starom (ciklus pretplate, pa kalendar).
+ */
+export function izmjereniDanReseta(redovi: RedKvote[]): number | undefined {
+  let dan: number | undefined;
+  for (let i = 1; i < redovi.length; i++) {
+    const prosli = redovi[i - 1];
+    const ovaj = redovi[i];
+    if (!prosli || !ovaj) continue;
+    if (ovaj.free_count >= prosli.free_count) continue;
+    if (ovaj.free_limit !== prosli.free_limit) continue;
+    const razmak = (Date.parse(ovaj.dan) - Date.parse(prosli.dan)) / 86_400_000;
+    if (razmak !== 0 && razmak !== 1) continue;
+    const d = Number(ovaj.dan.slice(8, 10));
+    if (Number.isFinite(d) && d >= 1 && d <= 31) dan = d;
+  }
+  return dan;
+}
+
 /** Procita dnevnik i vrati redove; pokvaren red se preskace, ne obara citanje. */
 export function ucitajKvotuDnevnik(putanja = putanjaKvoteDnevnika()): RedKvote[] {
   let sadrzaj: string;

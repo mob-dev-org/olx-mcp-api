@@ -8,6 +8,35 @@ Kako se cita broj verzije: `node dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
+## 0.9.0 — 2026-08-02
+
+Minor: mijenja se ponasanje dnevne poruke i racun roka kvote, i dodan je alat za pozadinu slika.
+Postojeci klonovi ne trebaju rucnu intervenciju.
+
+- **Rok obnove kvote ide po prioritetu izvora: izmjereno > ciklus > kalendar.** Prvo zivo
+  mjerenje (01.08.2026: `free_count` pao 318 na 59 bas 1. u mjesecu) ide u prilog kalendaru,
+  suprotno hipotezi ciklusa iz 0.8.0. Umjesto nove pretpostavke, rok sada uzima IZMJERENI dan
+  reseta iz `.olx-pik/kvota-dnevnik.jsonl` kad postoji (`izmjereniDanReseta`), i sam se ispravi
+  na svakom sljedecem resetu. Vazi isto za dnevni plan, alarme i onboarding izvjestaj; izvor
+  roka stoji u novom polju `rok_izvor`. Presuda kalendar/ciklus pada 24.08.
+  (olx://pravila-brojeva).
+- **Dnevna poruka javlja i trosak, plan izdvajanja i slijepe tacke kataloga.** Novo: potroseni
+  krediti danas (iz audit loga), dospjeli a neizvrseni termini plana izdvajanja, oglasi bez
+  ijednog novog pregleda (nad serijom od bar 14 dana), preskoceni po listi izuzetaka i broj onih
+  koji miruju. Poruku okidaju samo trosak i dospjeli termini; ostalo je sadrzaj za poruku koja
+  se ionako salje, da klijent ne dobija prazan izvjestaj svaki dan.
+- **Preostale obnove u poruci racunaju i obnove iz istog prolaza.** Prijavljeno 01.08.2026:
+  poruka je u istom dahu tvrdila "obnovljeno 59" i "preostalo 1800 od 1800", jer se plan racuna
+  prije slanja obnova.
+- **Izvjestaji idu u sve grupe iz `access.json`.** Spisak grupa je jedan izvor za oba smjera:
+  po njemu bot prima poruke i po njemu izvjestaji odlaze. `TELEGRAM_CHAT_ID` ostaje samo dopuna.
+  Nova CLI komanda `telegram grupe` (i `dodaj`/`ukloni`) upravlja spiskom bez diranja runtimea.
+- **Slike: proporcije artikla se cuvaju, original se cita i iz Telegram fajla, nov alat
+  `olx_pozadina`.** Generisanje vise ne razvlaci artikal (isti faktor na obje ose), fotografija
+  poslana kao fajl vise ne prolazi Telegram rekompresiju, uploadovane slike se ciste nakon
+  odgode, a klijent moze zadati stalnu pozadinu koja se crta iznova za svaki oglas (slicna,
+  nikad identicna; kaze se unaprijed).
+
 ## 0.8.0 — 2026-07-31
 
 Minor, a ne patch: dva nova alata, nov nacin onboardinga i promijenjeno ponasanje dnevne obnove.
