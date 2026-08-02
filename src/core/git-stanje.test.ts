@@ -9,6 +9,23 @@ import { bootstrap, commitIPush, danaDoIsteka, git, imeGrane, masinaSePoklapa, p
 const IMA_GIT = git(null, ["--version"]).kod === 0;
 const opcije = IMA_GIT ? {} : { skip: "git nije dostupan na ovoj masini" };
 
+// Direktorijumski simlink na Windowsu trazi Developer Mode ili admin prava; bez njih
+// symlinkSync pada sa EPERM i rucio bi testnu kapiju na svakom Windows klonu. Test je
+// uhvatio pravi kvar na macOS-u (/tmp je link na /private/tmp), pa se tamo i dalje
+// izvrsava, a na Windowsu bez dozvole se tihoskim skipom izostavi umjesto da padne.
+let imaSimlink = true;
+if (process.platform === "win32") {
+  try {
+    const probaMeta = mkdtempSync(join(tmpdir(), "olx-link-meta-"));
+    symlinkSync(mkdtempSync(join(tmpdir(), "olx-link-izvor-")), join(probaMeta, "veza"), "dir");
+  } catch {
+    imaSimlink = false;
+  }
+}
+const opcijeSimlink = IMA_GIT && imaSimlink
+  ? {}
+  : { skip: !IMA_GIT ? "git nije dostupan na ovoj masini" : "Windows bez prava za pravljenje simlinka" };
+
 function daljinski(): string {
   const put = mkdtempSync(join(tmpdir(), "olx-daljinski-"));
   git(null, ["init", "--bare", put]);
@@ -53,7 +70,7 @@ test("radna kopija unutar klona se odbija, jer bi zaustavila sva buduca azuriran
   assert.equal(uKlonu("/klon/mixbox-stanje", "/klon/mixbox"), false);
 });
 
-test("brana vidi kroz simbolicki link", opcije, () => {
+test("brana vidi kroz simbolicki link", opcijeSimlink, () => {
   // Uhvaceno u probi: na macOS-u je /tmp link na /private/tmp, pa isti folder ima dva imena i
   // golo poredjenje putanja kaze da je radna kopija van klona kad jeste unutra.
   const stvarni = mkdtempSync(join(tmpdir(), "olx-klon-"));
