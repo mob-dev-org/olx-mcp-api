@@ -507,7 +507,7 @@ server.registerTool(
 
 server.registerTool(
   "olx_refresh_limits",
-  { title: "Limiti obnove", description: "Limiti besplatne obnove sa naloga (free_limit, free_count, listing_count). Datum kad se kvota obnavlja API NE vraca; rok: izmjereni dan reseta iz kvota dnevnika, pa ciklus pretplate (shop.ends_at); kad se razilaze, rok se ne tvrdi (olx://pravila-brojeva).", inputSchema: {}, annotations: readOnly },
+  { title: "Limiti obnove", description: "Limiti besplatne obnove sa naloga (free_limit, free_count, listing_count). Datum kad se kvota obnavlja API NE vraca; rok se izvodi iz ciklusa pretplate (dan iz shop.ends_at), a kalendarski mjesec nije rok i ne izgovara se (olx://pravila-brojeva).", inputSchema: {}, annotations: readOnly },
   () => run((c) => c.refreshLimits()),
 );
 
@@ -939,7 +939,7 @@ server.registerTool(
   {
     title: "Onboarding izvjestaj",
     description:
-      "Prva analiza shopa u jednom pozivu: neiskoristene besplatne obnove i dnevni tempo do kraja mjeseca, oglasi sa nedostacima, svjezina, pregledi i upiti, rangirana lista prvih poteza.",
+      "Prva analiza shopa u jednom pozivu: neiskoristene besplatne obnove i dnevni tempo do reseta kvote, oglasi sa nedostacima, svjezina, pregledi i upiti, rangirana lista prvih poteza. Rok reseta ide po ciklusu pretplate, ne po kalendarskom mjesecu; kad rok nije poznat, dana_do_reseta je null i ne izgovara se.",
     inputSchema: {
       format: z
         .enum(["json", "markdown", "telegram"])
@@ -966,7 +966,7 @@ server.registerTool(
   {
     title: "Statistika profila",
     description:
-      "Pregled vlastitog naloga u jednom pozivu: paket i istek, krediti, kvota obnova, oglasi po stanjima, cijene, udio sponzorisanih, neobnovljeni oglasi. Polje nova_pitanja je neprovjeren brojac sa API-ja: ne iznositi ga korisniku kao cinjenicu.",
+      "Pregled vlastitog naloga u jednom pozivu: paket i njegov istek (shop.ends_at), krediti, iskoristenost kvote obnova (bez roka reseta, za rok je olx_refresh_limits), oglasi po stanjima, cijene, udio sponzorisanih, neobnovljeni oglasi. Polje nova_pitanja je neprovjeren brojac sa API-ja: ne iznositi ga korisniku kao cinjenicu.",
     inputSchema: {
       views: z
         .enum(["none", "sample", "snapshot"])
@@ -1030,7 +1030,7 @@ server.registerTool(
   {
     title: "Alarmi naloga",
     description:
-      "Brza provjera naloga (3 API poziva): paket pri isteku, saldo kredita ispod praga, kvota obnova koja propada pred kraj mjeseca, istekli oglasi za reaktivaciju. Vraca ok: true kad je sve cisto. Pragovi su podesivi.",
+      "Brza provjera naloga (3 API poziva): paket pri isteku, saldo kredita ispod praga, slabo iskoristena kvota obnova pred resetom, istekli oglasi za reaktivaciju. Reset kvote ide po ciklusu pretplate, ne po kalendarskom mjesecu. Vraca ok: true kad je sve cisto. Pragovi su podesivi.",
     inputSchema: {
       krediti_min: z.number().int().min(0).optional().describe("prag salda kredita, default 500"),
       paket_dana: z.number().int().min(1).optional().describe("alarm kad paket istice za manje od N dana, default 14"),

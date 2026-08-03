@@ -33,6 +33,12 @@ export interface OlxConfig {
   // Podrazumijevana lokacija za objavu, da model ne mora pretrazivati gradove.
   defaultCountryId?: number;
   defaultCityId?: number;
+  /**
+   * Dan u mjesecu kad se obnavlja kvota besplatnih obnova, 1 do 31. Rezerva za nalog bez shopa:
+   * inace se dan cita iz `shop.ends_at` i ovo ostaje prazno. Postavljena vrijednost ima prednost
+   * nad izmjerenim danom iz kvota dnevnika, isto kao ciklus (olx://pravila-brojeva).
+   */
+  danCiklusaKvote?: number;
 }
 
 function num(value: string | undefined, fallback: number): number {
@@ -50,6 +56,15 @@ function opcioniBroj(value: string | undefined): number | undefined {
   if (!value) return undefined;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+// Dan u mjesecu: van opsega 1 do 31 se odbacuje umjesto da se steze, jer bi stezanje pogresno
+// upisan dan (0, 45) tiho pretvorilo u rok koji se onda TVRDI korisniku.
+function danUMjesecu(value: string | undefined): number | undefined {
+  const parsed = opcioniBroj(value);
+  if (parsed === undefined) return undefined;
+  const cio = Math.floor(parsed);
+  return cio >= 1 && cio <= 31 ? cio : undefined;
 }
 
 // Nepoznata vrijednost pada na `admin`, ne na `klijent`: pogresno napisan profil ne smije tiho
@@ -87,6 +102,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): OlxConfig {
     maxSpendPerDay: num(env.OLX_MAX_SPEND_PER_DAY, 0),
     defaultCountryId: opcioniBroj(env.OLX_DEFAULT_COUNTRY_ID),
     defaultCityId: opcioniBroj(env.OLX_DEFAULT_CITY_ID),
+    danCiklusaKvote: danUMjesecu(env.OLX_DAN_CIKLUSA_KVOTE),
   };
 }
 

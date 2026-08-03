@@ -30,33 +30,33 @@ jer korisnik dobije broj u koji vjeruje.
 
 - Kvota besplatnih obnova. Zvanična pomoć navodi 750, izmjereno je 1.800 na Gold nalogu. Nijedan
   od ta dva broja se ne smije citirati. Pročitaj stvarni limit.
-- Koliko je obnova već potrošeno ovaj mjesec. Pažnja: polje sa iskorištenim obnovama pokazuje
-  POTROŠENO, ne preostalo. Preostalo je limit minus potrošeno.
-- **Kada se kvota obnova resetuje NIJE potvrđeno; rok se određuje po prioritetu izvora.** API
-  ne vraća datum reseta (`/listing/refresh/limits` daje samo `free_limit`, `free_count`,
-  `paid_count`, `listing_count`), a zvanična pomoć ne precizira. Prioritet od 02.08.2026.:
-  1. **Izmjereni dan reseta** iz `.olx-pik/kvota-dnevnik.jsonl` (`izmjereniDanReseta`): zadnji
-     pouzdan pad `free_count` uz isti `free_limit` između uzastopnih dana. Mjerenje je najjači
-     dokaz i samo se ispravlja na svakom sljedećem resetu.
-  2. **Ciklus pretplate**: dan u mjesecu iz `shop.ends_at` (kod od 31.07.2026.). Osnov: shop se
+- Koliko je obnova već potrošeno u tekućem ciklusu. Pažnja: polje sa iskorištenim obnovama
+  pokazuje POTROŠENO, ne preostalo. Preostalo je limit minus potrošeno.
+- **Reset kvote obnova ide po CIKLUSU PRETPLATE, ne po kalendarskom mjesecu.** API ne vraća datum
+  reseta (`/listing/refresh/limits` daje samo `free_limit`, `free_count`, `paid_count`,
+  `listing_count`), pa se dan izvodi. Prioritet od 03.08.2026.:
+  1. **Ciklus pretplate**: dan u mjesecu iz `shop.ends_at` (`danCiklusaIzIsteka`). Osnov: shop se
      plaća po broju mjeseci od datuma plaćanja, a zvanična pomoć za PRO kaže "narednih mjesec
-     dana" od aktivacije.
-  3. **Kalendar** kao rezerva kad nema ni mjerenja ni `ends_at`; tada se rok korisniku NE
-     izgovara (polje `rok_poznat`, izvor u polju `rok_izvor`).
-  **Spor izvora (od 02.08.2026.):** kad izmjereni dan i dan ciklusa tvrde RAZLIČIT dan,
-  rok se korisniku ne izgovara uopšte (`rok_izvor: "sporno"`, `rok_poznat: false`), a za
-  unutrašnji račun tempa važi mjerenje. Razlog: prvo mjerenje ide u prilog kalendaru, a
-  administrator kvotu vezuje za istek paketa; dok jedan izvor ne potvrdi, nijedan broj se ne
-  tvrdi klijentu.
+     dana" od aktivacije. Paket na šest mjeseci ima `ends_at` daleko u budućnosti, a mjesečnica
+     je i dalje isti dan, zato se uzima samo DAN.
+  2. **Izmjereni dan reseta** iz `.olx-pik/kvota-dnevnik.jsonl` (`izmjereniDanReseta`): zadnji
+     pouzdan pad `free_count` uz isti `free_limit` između uzastopnih dana. Vrijedi kad ciklusa
+     nema (nalog bez shopa).
+  3. **Kalendar NIJE rok.** Kad nema ni ciklusa ni mjerenja, `rok_poznat` je false,
+     `dana_do_reseta` je null i broj dana se korisniku NE izgovara ni sa ogradom.
+  **Spor izvora:** kad izmjereni dan i dan ciklusa tvrde RAZLIČIT dan, važi ciklus, rok se
+  izgovara, a nesuglasje se bilježi u `rok_izvor` kao `ciklus_uz_spor`. Prekidač je jedna
+  konstanta `IZVOR_ROKA_KVOTE` u `src/core/stats.ts`; sva tri potrošača (dnevni plan, onboarding,
+  alarmi) idu kroz `rokResetaKvote`, pa ne mogu razići.
   Zašto je to bitno: na MixBoxu je 31.07.2026. javljen rok od 1 dana po kalendaru, a ciklus je
   istjecao 24.08. Isti broj ulazi i u ponašanje, ne samo u tekst.
-  **Prvo mjerenje (01.08.2026.) ide u prilog KALENDARU, suprotno hipotezi ciklusa:** `free_count`
-  je pao 318 -> 59 između 31.07. i 01.08., uz nepromijenjen `free_limit` 1800 i dan ciklusa 24.
-  Tih 59 je objašnjivo obnovama koje je jutarnji posao izvršio 01.08. prije prvog upisa, pa se
-  svi poznati brojevi slažu sa resetom u ponoć 01.08. Ograda: samo jedan izmjeren prelaz.
-  Presuda: padne li `free_count` i 24.08., važi ciklus paketa (i spor nestaje sam, jer mjerenje
-  pređe na dan 24); ostane li pad tek 01.09., važi kalendar i ciklus se briše iz prioriteta. Do
-  nalaza se o "kvota propada" ne govori uopšte, jer ni to nema izvor.
+  **Otvoren dokaz protiv (ne brisati):** prvo mjerenje 01.08.2026. pokazalo je pad `free_count`
+  318 -> 59 između 31.07. i 01.08., uz nepromijenjen `free_limit` 1800 i dan ciklusa 24, što
+  govori u prilog kalendaru. Odlukom od 03.08.2026. se tretira kao anomalija jednog prelaza.
+  Presuda 24.08.2026. stoji: padne li `free_count` 24.08., ciklus je potvrđen i spor nestaje sam;
+  ostane li pad tek 01.09., `IZVOR_ROKA_KVOTE` se prebacuje na `mjerenje`. Moguće je i da su to
+  dva različita mjerača (naplata po godišnjici, brojač obnova po kalendaru); i to bi se vidjelo
+  iz istog dnevnika. Do nalaza se o "kvota propada" ne govori uopšte, jer ni to nema izvor.
 - Većina naloga kvotu NE MOŽE potrošiti do kraja: ručna obnova istog oglasa ide tek nakon
   praga (red iznad), pa je ostvarivi maksimum broj oglasa puta broj obnova po oglasu u
   periodu. Poređenja i alarmi idu na ostvarivo, ne na sirovu kvotu (`ostvarivihObnova` u

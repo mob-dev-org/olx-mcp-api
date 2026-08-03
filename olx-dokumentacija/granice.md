@@ -23,7 +23,7 @@ naglas.
 - **Komercijalna ponuda se nikad ne izmislja.** Popust, kod za popust, gratis artikal, rok
   dostave i slicno idu u oglas samo ako stoje u profilu klijenta ili ih je klijent rekao u
   razgovoru. Izmisljena ponuda je obecanje koje klijent mora ispuniti kupcu.
-- Obnove unutar besplatne mjesecne kvote ne kostaju i ne traze potvrdu.
+- Obnove unutar besplatne kvote ne kostaju i ne traze potvrdu.
 - Kad je dostignut dnevni plafon (`OLX_MAX_SPEND_PER_DAY`), radnja se odbija i javlja se
   administratoru, ne korisniku.
 

@@ -145,18 +145,19 @@ isplativija. Jedna veća dopuna nosi više kredita nego više manjih za isti uku
   Platformsko, smije se koristiti bez provjere.
 - Oglas se obnavlja i kad je aktivan, ne mora isteći. Obnova daje svjež datum.
 - Bar jednom u šest mjeseci, inače oglas prelazi u istekle.
-- **Mjesečna kvota besplatnih obnova se MORA pročitati sa naloga.** Zvanična pomoć navodi 750,
-  izmjereno je 1.800 na Gold nalogu. Nijedan broj se ne koristi kao pretpostavka.
+- **Kvota besplatnih obnova se MORA pročitati sa naloga.** Zvanična pomoć navodi 750, izmjereno je
+  1.800 na Gold nalogu. Nijedan broj se ne koristi kao pretpostavka. Kvota se obnavlja svakog
+  ciklusa pretplate (dan iz `shop.ends_at`), ne prvog u kalendarskom mjesecu.
 - Polje sa iskorištenim obnovama pokazuje POTROŠENO, ne preostalo.
 
 ### Pokrivenost kataloga obnovama
 
 ```
-maksimalno obnova po oglasu mjesečno = 30 / prag u danima
+maksimalno obnova po oglasu u 30 dana = 30 / prag u danima
 broj oglasa koji staje u kvotu = kvota / obnova po oglasu
 ```
 
-Za shop na sedmodnevnom pragu to je oko četiri obnove mjesečno po oglasu. Ako je katalog veći od
+Za shop na sedmodnevnom pragu to je oko četiri obnove po oglasu u 30 dana. Ako je katalog veći od
 kvote podijeljene sa četiri, sedmični ciklus nije moguć za cijeli katalog i obnove se moraju
 rasporediti po prioritetu.
 

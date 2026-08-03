@@ -81,13 +81,14 @@ export function onboardingMarkdown(i: OnboardingIzvjestaj): string {
   if (o.kvota === 0) {
     r.push("- Kvota besplatnih obnova nije dostupna na ovom nalogu.");
   } else {
-    r.push(`- Mjesecna kvota: ${o.kvota}`);
+    r.push(`- Kvota besplatnih obnova: ${o.kvota}`);
     r.push(`- Iskorisceno: ${o.iskorisceno}`);
     r.push(`- Neiskorisceno: ${o.preostalo} (${o.propusteno_procenat}% kvote)`);
     if (o.preostalo > 0) {
+      const dana = o.dana_do_reseta;
       r.push(
-        o.rok_poznat
-          ? `- Kvota se obnavlja za ${o.dana_do_reseta} ${danaRijec(o.dana_do_reseta)}, sto znaci oko ${o.preporuceno_dnevno} obnova dnevno.`
+        o.rok_poznat && dana !== null
+          ? `- Kvota se obnavlja za ${dana} ${danaRijec(dana)}, sto znaci oko ${o.preporuceno_dnevno} obnova dnevno.`
           : `- Preporuceno oko ${o.preporuceno_dnevno} obnova dnevno.`,
       );
     }
@@ -181,9 +182,10 @@ export function onboardingTelegram(i: OnboardingIzvjestaj): string {
   if (o.kvota > 0) {
     r.push(`Besplatnih obnova neiskorisceno: ${o.preostalo} od ${o.kvota}`);
     if (o.preostalo > 0) {
+      const dana = o.dana_do_reseta;
       r.push(
-        o.rok_poznat
-          ? `Kvota se obnavlja za ${o.dana_do_reseta} ${danaRijec(o.dana_do_reseta)}, oko ${o.preporuceno_dnevno} obnova dnevno.`
+        o.rok_poznat && dana !== null
+          ? `Kvota se obnavlja za ${dana} ${danaRijec(dana)}, oko ${o.preporuceno_dnevno} obnova dnevno.`
           : `Oko ${o.preporuceno_dnevno} obnova dnevno.`,
       );
     }

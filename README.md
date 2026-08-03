@@ -226,7 +226,7 @@ ucitavaju i pravila iz `.claude/rules/` (`paths` frontmatter).
 ### Dnevna obnova
 
 Dnevnu obnovu NE radi model: CLI `posao dnevni` (launchd/Task Scheduler u 07:20) obnovi oglase
-unutar besplatne kvote po tempu do kraja mjeseca i posalje jutarnju poruku klijentu, sve za
+unutar besplatne kvote po tempu do reseta kvote i posalje jutarnju poruku klijentu, sve za
 nula tokena. Skill `olx-cron-obnove` sluzi za razgovor o rasporedu i kvoti, ne za izvrsenje.
 Izdvajanje i akcijska cijena nikad automatski.
 

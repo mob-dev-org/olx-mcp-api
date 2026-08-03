@@ -398,45 +398,53 @@ test("tempo se racuna na OSTVARIVO, ne na sirovu kvotu", () => {
   assert.equal(p.kvota_neostvariva, true, "1482 preostalo je vise od 363 ostvarivih");
 });
 
-test("izmjereni dan reseta: sam vazi, u sukobu sa ciklusom rok postaje sporan", () => {
-  // Prvi zivi podatak (01.08.2026, pad potrosenog na 1. u mjesecu) i tvrdnja administratora da
-  // se kvota vezuje za istek paketa (dan 24) se razilaze. Dok jedan izvor ne potvrdi (presuda
-  // 24.08.), rok se korisniku ne izgovara; racun ide po mjerenju, jer jedino ono dolazi iz
-  // stvarnog ponasanja platforme i sam se ispravi na sljedecem resetu.
+test("spor mjerenja i ciklusa se rjesava u korist ciklusa, i nesuglasje ostaje zapisano", () => {
+  // Odluka od 03.08.2026: paket se placa od dana aktivacije, pa mjesecni prozor tece od tog dana,
+  // ne od prvog u mjesecu. Prvo mjerenje (01.08.2026, pad potrosenog bas 1. u mjesecu) govorilo je
+  // u prilog kalendaru i svjesno se tretira kao anomalija jednog prelaza. Nesuglasje ostaje u
+  // `rok_izvor` da presuda 24.08. bude mjerljiva iz zapisa (IZVOR_ROKA_KVOTE u stats.ts).
   const limits: RefreshLimits = { free_limit: 1800, free_count: 318, paid_count: 0, listing_count: 0 };
   const zajedno = { refreshLimits: limits, kandidata: 0, sadaTs: SADA, aktivnihOglasa: 121, imaShop: true };
 
   const sporno = dnevniPlanObnova({ ...zajedno, danCiklusa: 24, izmjereniDanReseta: 1 });
-  assert.equal(sporno.dana_do_reseta, 1, "racun ide po mjerenju: od 31.07. je 1. u mjesecu sutra");
-  assert.equal(sporno.rok_poznat, false, "sporan rok se ne izgovara");
-  assert.equal(sporno.rok_izvor, "sporno");
+  assert.equal(sporno.dana_do_reseta, 24, "u sporu vazi ciklus, ne mjerenje");
+  assert.equal(sporno.rok_poznat, true, "spor je zatvoren, pa se rok izgovara");
+  assert.equal(sporno.rok_izvor, "ciklus_uz_spor", "nesuglasje se biljezi, ne brise");
 
   const samoMjerenje = dnevniPlanObnova({ ...zajedno, izmjereniDanReseta: 1 });
-  assert.equal(samoMjerenje.rok_poznat, true, "bez ciklusa nema spora, mjerenje vazi");
+  assert.equal(samoMjerenje.rok_poznat, true, "bez ciklusa je mjerenje jedini dokaz i vazi");
   assert.equal(samoMjerenje.rok_izvor, "izmjereno");
 
   const slazuSe = dnevniPlanObnova({ ...zajedno, danCiklusa: 24, izmjereniDanReseta: 24 });
   assert.equal(slazuSe.rok_poznat, true, "izvori koji se slazu nisu spor");
-  assert.equal(slazuSe.rok_izvor, "izmjereno");
+  assert.equal(slazuSe.rok_izvor, "ciklus", "mjerenje potvrdjuje ciklus, izvor ostaje ciklus");
 
   const ciklus = dnevniPlanObnova({ ...zajedno, danCiklusa: 24 });
   assert.equal(ciklus.dana_do_reseta, 24);
   assert.equal(ciklus.rok_izvor, "ciklus");
 
   const kalendar = dnevniPlanObnova({ ...zajedno });
-  assert.equal(kalendar.rok_poznat, false);
+  assert.equal(kalendar.rok_poznat, false, "bez ijednog izvora rok se ne tvrdi");
   assert.equal(kalendar.rok_izvor, "kalendar");
 });
 
-test("alarmiNaloga i onboardingIzvjestaj postuju izmjereni dan reseta i spor", () => {
+test("alarmiNaloga i onboardingIzvjestaj rok racunaju istom funkcijom kao dnevni plan", () => {
   // Isto pravilo na sva mjesta koja racunaju rok: bez toga dnevna poruka i alarm istog jutra
   // mogu reci razlicit rok, ista klasa greske koja je vec jednom sanirana.
   const slabo = limits({ free_count: 100, listing_count: 2000 });
-  // me() nosi dan ciklusa 29; izmjereni dan 3 daje rok od 3 dana, ali je sporan pa alarm
-  // koristi ogradjenu formulaciju umjesto tvrdnje.
-  const r = alarmiNaloga(me(), slabo, 0, SADA, {}, 3);
-  assert.equal(r.alarmi.some((a) => a.tip === "kvota_obnova"), true, "3 dana do izmjerenog reseta");
-  assert.match(r.alarmi.find((a) => a.tip === "kvota_obnova")?.poruka ?? "", /oko 3 dana/, "sporan rok ide sa ogradom");
+
+  // Ciklus 03.08. je 3 dana od SADA, pa alarm ulazi u prozor od 7 dana. Izmjereni dan 1 se
+  // razilazi sa ciklusom, ali ciklus pobjedjuje, pa se rok tvrdi bez ograde.
+  const blizuCiklusa = me({ shop: { package: "Gold", ends_at: SADA + 3 * DAN } });
+  const r = alarmiNaloga(blizuCiklusa, slabo, 0, SADA, {}, 1);
+  const poruka = r.alarmi.find((a) => a.tip === "kvota_obnova")?.poruka ?? "";
+  assert.match(poruka, /Do obnove kvote 3 dana/, "u sporu vazi ciklus i rok se tvrdi");
+
+  // Bez shopa nema ciklusa, a bez mjerenja nema ni drugog izvora: broj dana se ne izgovara.
+  const bezIzvora = alarmiNaloga(me({ shop: null }), slabo, 0, SADA, {});
+  const bezRoka = bezIzvora.alarmi.find((a) => a.tip === "kvota_obnova")?.poruka ?? "";
+  assert.match(bezRoka, /rok obnove kvote nije poznat/, "nepoznat rok se ne pretvara u broj dana");
+  assert.doesNotMatch(bezRoka, /\d+ dana/, "kalendarska pretpostavka ne izlazi kao broj dana");
 
   const i = onboardingIzvjestaj({
     me: me(),
@@ -446,8 +454,20 @@ test("alarmiNaloga i onboardingIzvjestaj postuju izmjereni dan reseta i spor", (
     sadaTs: SADA,
     izmjereniDanReseta: 1,
   });
-  assert.equal(i.besplatne_obnove.dana_do_reseta, 1, "racun ide po mjerenju, ne po ciklusu 29");
-  assert.equal(i.besplatne_obnove.rok_poznat, false, "mjerenje i ciklus se razilaze, rok je sporan");
+  assert.equal(i.besplatne_obnove.dana_do_reseta, 29, "u sporu vazi ciklus 29, ne mjerenje 1");
+  assert.equal(i.besplatne_obnove.rok_poznat, true);
+
+  // Bez ikakvog izvora onboarding ne smije prikazati kalendarski broj kao rok.
+  const bezRokaOnb = onboardingIzvjestaj({
+    me: me({ shop: null }),
+    refreshLimits: limits({ free_limit: 1800, free_count: 1300 }),
+    aktivni: [oglas()],
+    ukupno: { istekli: 0, skriveni: 0, neaktivni: 0, zavrseni: 0 },
+    sadaTs: SADA,
+  });
+  assert.equal(bezRokaOnb.besplatne_obnove.dana_do_reseta, null, "nepoznat rok je null, ne broj");
+  assert.equal(bezRokaOnb.besplatne_obnove.rok_poznat, false);
+  assert.ok(bezRokaOnb.besplatne_obnove.preporuceno_dnevno > 0, "tempo se i dalje racuna, nad 30 dana");
 });
 
 test("dnevniPlanObnova ne javlja neostvarivu kvotu kad je ona ostvariva", () => {

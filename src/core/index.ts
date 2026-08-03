@@ -1075,9 +1075,10 @@ export class OlxClient {
       detalji: detalji?.oglasi,
       detaljiTs: detalji?.ts,
       sadaTs: Math.floor(Date.now() / 1000),
-      // Izmjereni dan reseta gazi izvod iz ciklusa; dnevnik na klonu bez mjerenja vrati prazno
-      // i sve ostaje po starom.
+      // Izmjereni dan vazi kad ciklusa nema; dnevnik na klonu bez mjerenja vrati prazno i sve
+      // ostaje po starom. Rezerva iz .env vazi samo za nalog bez shopa.
       izmjereniDanReseta: izmjereniDanReseta(ucitajKvotuDnevnik()),
+      danCiklusaRezerva: this.config.danCiklusaKvote,
     });
     return { izvjestaj, broj_poziva: pozivi, trajanje_ms: Date.now() - start };
   }
@@ -1170,7 +1171,7 @@ export class OlxClient {
       limits,
       istekli.meta.total,
       Math.floor(Date.now() / 1000),
-      pragovi,
+      { danCiklusaRezerva: this.config.danCiklusaKvote, ...pragovi },
       izmjereniDanReseta(ucitajKvotuDnevnik()),
     );
     return { ...rezultat, broj_poziva: 3 };

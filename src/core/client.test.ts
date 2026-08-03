@@ -541,6 +541,24 @@ test("loadConfig vraca default brojeve kad su env vrijednosti neispravne", () =>
   assert.equal(config.timeoutMs, 0, "eksplicitna nula je validna vrijednost, ne greska");
 });
 
+test("loadConfig prima dan ciklusa kvote samo kao valjan dan u mjesecu", () => {
+  // Rezerva za nalog bez shopa. Pogresan upis se odbacuje umjesto da se steze: stegnut dan bi
+  // postao rok koji se onda TVRDI klijentu, a to je tacno ono sto pravila-brojeva zabranjuje.
+  assert.equal(loadConfig({} as NodeJS.ProcessEnv).danCiklusaKvote, undefined, "prazno ostaje prazno");
+  assert.equal(loadConfig({ OLX_DAN_CIKLUSA_KVOTE: "24" } as NodeJS.ProcessEnv).danCiklusaKvote, 24);
+  assert.equal(loadConfig({ OLX_DAN_CIKLUSA_KVOTE: "1" } as NodeJS.ProcessEnv).danCiklusaKvote, 1);
+  assert.equal(loadConfig({ OLX_DAN_CIKLUSA_KVOTE: "31" } as NodeJS.ProcessEnv).danCiklusaKvote, 31);
+
+  for (const lose of ["0", "32", "-5", "prvi", "1.9"]) {
+    const c = loadConfig({ OLX_DAN_CIKLUSA_KVOTE: lose } as NodeJS.ProcessEnv);
+    if (lose === "1.9") {
+      assert.equal(c.danCiklusaKvote, 1, "decimalni dan se odsijeca na cio dan u opsegu");
+    } else {
+      assert.equal(c.danCiklusaKvote, undefined, `vrijednost "${lose}" se ne smije primiti`);
+    }
+  }
+});
+
 test("loadConfig postavlja audit log na putanju van gita", () => {
   const podrazumijevano = loadConfig({} as NodeJS.ProcessEnv);
   assert.equal(podrazumijevano.auditFile, ".olx-pik/audit.jsonl");

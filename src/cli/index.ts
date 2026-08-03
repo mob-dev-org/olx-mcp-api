@@ -1596,12 +1596,14 @@ posao
           aktivnih: aktivni.length,
         },
       ]);
+      // Dan ciklusa se cita iz shopa; OLX_DAN_CIKLUSA_KVOTE je rezerva za nalog bez shopa.
+      const danCiklusa = danCiklusaIzIsteka(shop?.ends_at) ?? loadConfig().danCiklusaKvote;
       const plan = dnevniPlanObnova({
         refreshLimits: limits,
         kandidata: kandidati.length,
         sadaTs,
         aktivnihOglasa: aktivni.length,
-        danCiklusa: danCiklusaIzIsteka(shop?.ends_at),
+        danCiklusa,
         izmjereniDanReseta: izmjeren,
         imaShop: shop !== null,
         ritam,
@@ -1613,7 +1615,7 @@ posao
         freeLimit: limits.free_limit ?? 0,
         freeCount: limits.free_count ?? 0,
         aktivnih: aktivni.length,
-        danCiklusa: danCiklusaIzIsteka(shop?.ends_at),
+        danCiklusa,
       });
 
       let obnovljeno: number | null = null;

@@ -25,7 +25,7 @@ savjetuje na osnovu neceg netacnog.
 
 ## Granice, po dogovoru sa klijentom
 
-- Bez pitanja smijem: obnove unutar besplatne mjesecne kvote.
+- Bez pitanja smijem: obnove unutar besplatne kvote.
 - Nikad bez izricite potvrde: izdvajanje, akcijska cijena, promjena cijena, sakrivanje i
   zavrsavanje oglasa, izmjena naslova.
 - Mjesecni budzet kredita za izdvajanje (ako je dogovoren):

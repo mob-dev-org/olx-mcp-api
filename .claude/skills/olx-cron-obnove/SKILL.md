@@ -1,15 +1,15 @@
 ---
 name: olx-cron-obnove
 description: >-
-  Dnevna obnova oglasa uz ravnomjerno trosenje mjesecne kvote. Okidaci: "obnovi oglase", "dnevna
+  Dnevna obnova oglasa uz ravnomjerno trosenje kvote obnova. Okidaci: "obnovi oglase", "dnevna
   obnova", "koliko obnova danas", "zakazi obnove", "iskoristi kvotu".
 ---
 
 # Dnevna obnova kroz sve naloge
 
 Obnova daje oglasu svjez datum i dize ga na vrh kategorije medju standardnim oglasima. Besplatna
-je do mjesecne kvote, pa je neiskoristena kvota cist gubitak. Zato se ne trosi u jednom danu,
-nego ravnomjerno kroz mjesec.
+je do kvote koja se obnavlja svakog ciklusa pretplate, pa je neiskoristena kvota cist gubitak.
+Zato se ne trosi u jednom danu, nego ravnomjerno do reseta kvote.
 
 Brojeve ne pretpostavljaj. Kvota se cita sa API-ja (`olx_refresh_limits`), jer se razlikuje po
 nalogu; poznata protivrjecnost zvanicne pomoci i izmjerenog stanja je opisana u
@@ -27,7 +27,8 @@ nalogu; poznata protivrjecnost zvanicne pomoci i izmjerenog stanja je opisana u
    (`src/core/stats.ts`), i vidi se kroz `node dist/cli/index.js posao dnevni --suho`, koji vraca
    `cilj_danas`. Tri stvari koje su ranije bile prepisane ovdje i bile POGRESNE:
    - Rok nije kraj kalendarskog mjeseca nego ciklus pretplate (`shop.ends_at`); polje
-     `dana_do_reseta`, a `rok_poznat` kaze smije li se rok izgovoriti korisniku.
+     `dana_do_reseta`, a `rok_poznat` kaze smije li se rok izgovoriti korisniku. Kad je
+     `rok_poznat` false, `dana_do_reseta` je null i broj dana se ne izgovara ni sa ogradom.
    - Budzet se racuna na OSTVARIVO, ne na sirovu kvotu: isti oglas se besplatno obnavlja tek
      nakon praga (shop 7 dana), pa je kvota podijeljena na dane tempo koji niko ne moze ispuniti.
    - Kvota se NE prazni zadnjeg dana. Da se kvota ne prenosi nije potvrdjeno nijednim izvorom

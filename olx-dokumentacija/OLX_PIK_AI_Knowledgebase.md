@@ -74,7 +74,7 @@ Paginirano, `per_page` 20, `meta` sadrži `total`, `last_page`, `current_page`. 
 | Istekli | `GET /users/:id/listings/expired?page=N` |
 | Skriveni | `GET /users/:id/listings/hidden?page=N` |
 
-Ovo je osnova za bulk operacije: prelistaj sve stranice aktivnih, filtriraj `refresh_available: true`, pa pozovi refresh poštujući mjesečni limit.
+Ovo je osnova za bulk operacije: prelistaj sve stranice aktivnih, filtriraj `refresh_available: true`, pa pozovi refresh poštujući pročitani limit kvote.
 
 ### 4.3 Categories
 
@@ -154,7 +154,7 @@ Sve tri poluge rade zajedno. Nijedna sama nije dovoljna. Izdvajanje ne spašava 
 ### 5.4 Svježina i obnova
 
 - Obnova daje oglasu svjež datum i diže ga na vrh kategorije.
-- Shop: mjesečna kvota besplatnih obnova se čita sa naloga (zvanično se navodi 750, izmjereno 1.800 na Gold shopu, pa se nijedan broj ne pretpostavlja), ručna besplatna obnova svakih 7 dana, grupne radnje do 50 artikala odjednom.
+- Shop: kvota besplatnih obnova se čita sa naloga (zvanično se navodi 750, izmjereno 1.800 na Gold shopu, pa se nijedan broj ne pretpostavlja) i obnavlja se svakog ciklusa pretplate, ne prvog u kalendarskom mjesecu (`pravila-brojeva.md`); ručna besplatna obnova svakih 7 dana, grupne radnje do 50 artikala odjednom.
 - Za stalno prisustvo na vrhu: kombinovana opcija, izdvajanje plus automatska obnova na 3, 8 ili 24 sata.
 
 ### 5.5 Krediti i izdvajanje (interno)
@@ -239,7 +239,7 @@ Klasifikacija alata u MCP:
 - DRAFT zamka: poslije kreiranja oglasa uvijek slijedi publish, inače oglas nije vidljiv.
 - Trošak kredita: `sponsore` i `discount` uvijek prvo prikaži cijenu i traži potvrdu.
 - Ne briši radi re-rankinga: koristi refresh ili hide.
-- Mjesečni limit obnova: prije bulk obnove OBAVEZNO provjeri `GET /listing/refresh/limits` i ne prelazi pročitani `free_limit`. Ne koristiti nijedan zapamćen broj.
+- Limit obnova u ciklusu: prije bulk obnove OBAVEZNO provjeri `GET /listing/refresh/limits` i ne prelazi pročitani `free_limit`. Ne koristiti nijedan zapamćen broj.
 - Rate limiti API-ja: NEPOTVRĐENO koliki su. Implementiraj konzervativni throttling i retry sa backoff-om.
 - Tokeni: env ili keychain, po korisniku, nikad u repou.
 - Zaštita podataka: ne logiraj lične podatke kupaca; ne izvozi interne cijene kredita ni marže u materijale za klijente.

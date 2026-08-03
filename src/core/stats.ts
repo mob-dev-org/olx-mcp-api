@@ -219,8 +219,10 @@ export interface OnboardingInput {
   sadaTs: number;
   // Datum snapshota iz kojeg su detalji, da izvjestaj kaze koliko su podaci stari.
   detaljiTs?: number;
-  /** Izmjereni dan reseta kvote iz kvota dnevnika; jaci od ciklusa pretplate. */
+  /** Izmjereni dan reseta kvote iz kvota dnevnika; vazi kad ciklusa pretplate nema. */
   izmjereniDanReseta?: number;
+  /** Dan ciklusa iz `OLX_DAN_CIKLUSA_KVOTE`; vazi samo kad nalog nema `shop.ends_at`. */
+  danCiklusaRezerva?: number;
 }
 
 export interface OnboardingNalaz {
@@ -247,8 +249,9 @@ export interface OnboardingIzvjestaj {
     kvota: number;
     iskorisceno: number;
     preostalo: number;
-    dana_do_reseta: number;
-    /** true kad je rok izmjeren iz kvota dnevnika ili iz ciklusa pretplate; inace je kraj kalendarskog mjeseca, dakle pretpostavka. */
+    /** null kad rok nije poznat: kalendarska pretpostavka se ne prikazuje kao broj dana. */
+    dana_do_reseta: number | null;
+    /** true kad rok stoji na ciklusu pretplate ili na izmjerenom danu; false znaci da izvora nema. */
     rok_poznat: boolean;
     // Koliko obnova dnevno treba trositi da se OSTVARIVO iskoristi do obnove kvote. Racuna se na
     // ostvarivo, ne na sirovu kvotu (olx://pravila-brojeva), jer prag po oglasu vezuje prije kvote.
@@ -328,6 +331,62 @@ export function danaDoResetaKvote(sadaTs: number, danCiklusa?: number): number {
 }
 
 /**
+ * Koji izvor pobjedjuje kad se izmjereni dan reseta i dan ciklusa pretplate razilaze.
+ *
+ * Odluka od 03.08.2026: pobjedjuje CIKLUS. Osnov: paket se placa od dana aktivacije, pa mjesecni
+ * prozor tece od tog dana, a ne od prvog u mjesecu. Prvo mjerenje (01.08.2026: `free_count` pao
+ * 318 na 59 bas prvog u mjesecu, uz dan ciklusa 24) govorilo je u prilog kalendaru; ova odluka ga
+ * svjesno tretira kao anomaliju jednog prelaza.
+ *
+ * Presuda 24.08.2026 i dalje stoji, jer se `.olx-pik/kvota-dnevnik.jsonl` puni nepromijenjeno:
+ * padne li `free_count` tek 01.09. a ne 24.08., ovdje se vrijednost prebaci na "mjerenje". Ovo je
+ * jedino mjesto koje tada treba dirati.
+ */
+export const IZVOR_ROKA_KVOTE: "ciklus" | "mjerenje" = "ciklus";
+
+/**
+ * Odakle je rok reseta kvote. Vrijednosti sa sufiksom `_uz_spor` znace da mjerenje i ciklus tvrde
+ * RAZLICIT dan: rok se izgovara po pobjedniku iz `IZVOR_ROKA_KVOTE`, ali se nesuglasje biljezi da
+ * presuda 24.08.2026 ostane mjerljiva iz zapisa.
+ */
+export type RokIzvor = "izmjereno" | "ciklus" | "kalendar" | "ciklus_uz_spor" | "mjerenje_uz_spor";
+
+export interface RokResetaKvote {
+  /** Dan u mjesecu kad se kvota obnavlja, ili `undefined` kad nema ni mjerenja ni ciklusa. */
+  danReseta: number | undefined;
+  /** true kad se rok smije izgovoriti korisniku. false znaci da je broj pretpostavka (kalendar). */
+  rokPoznat: boolean;
+  rokIzvor: RokIzvor;
+}
+
+/**
+ * Jedno mjesto koje rjesava rok reseta kvote, da dnevni plan, onboarding i alarmi ne mogu
+ * razici. Ranije je ista logika stajala prepisana na tri mjesta i alarm je govorio rok koji je
+ * dnevna poruka precutala.
+ *
+ * Kalendar (prvi u mjesecu) ostaje samo kad nema nijednog izvora, i tada `rokPoznat` je false:
+ * pozivalac broj smije koristiti za grubu procjenu, ali ga ne smije tvrditi kao rok.
+ */
+export function rokResetaKvote(izmjereniDanReseta?: number, danCiklusa?: number): RokResetaKvote {
+  const imaMjerenje = typeof izmjereniDanReseta === "number" && Number.isFinite(izmjereniDanReseta);
+  const imaCiklus = typeof danCiklusa === "number" && Number.isFinite(danCiklusa);
+
+  if (imaMjerenje && imaCiklus && izmjereniDanReseta !== danCiklusa) {
+    const poCiklusu = IZVOR_ROKA_KVOTE === "ciklus";
+    return {
+      danReseta: poCiklusu ? danCiklusa : izmjereniDanReseta,
+      rokPoznat: true,
+      rokIzvor: poCiklusu ? "ciklus_uz_spor" : "mjerenje_uz_spor",
+    };
+  }
+  // Kad se slazu, ciklus je taj koji vazi, a mjerenje ga samo potvrdjuje.
+  if (imaCiklus) return { danReseta: danCiklusa, rokPoznat: true, rokIzvor: "ciklus" };
+  // Bez ciklusa je mjerenje jedini stvarni dokaz i vrijedi samo za sebe.
+  if (imaMjerenje) return { danReseta: izmjereniDanReseta, rokPoznat: true, rokIzvor: "izmjereno" };
+  return { danReseta: undefined, rokPoznat: false, rokIzvor: "kalendar" };
+}
+
+/**
  * Sklanjanje rijeci "dan" uz broj. Bez ovoga poruka klijentu kaze "1 dana", sto odmah odaje da
  * je tekst sastavio program (prijavljeno iz prakse 31.07.2026).
  */
@@ -360,11 +419,12 @@ export function onboardingIzvjestaj(input: OnboardingInput): OnboardingIzvjestaj
   const kvota = refreshLimits.free_limit ?? 0;
   const iskorisceno = refreshLimits.free_count ?? 0;
   const preostalo = Math.max(0, kvota - iskorisceno);
-  const danCiklusa = danCiklusaIzIsteka(shop?.ends_at);
-  const rokSporan =
-    typeof input.izmjereniDanReseta === "number" && typeof danCiklusa === "number" && input.izmjereniDanReseta !== danCiklusa;
-  const danReseta = input.izmjereniDanReseta ?? danCiklusa;
+  const danCiklusa = danCiklusaIzIsteka(shop?.ends_at) ?? input.danCiklusaRezerva;
+  const { danReseta, rokPoznat } = rokResetaKvote(input.izmjereniDanReseta, danCiklusa);
   const danaDoKraja = danaDoResetaKvote(sadaTs, danReseta);
+  // Kad rok nije poznat, `danaDoKraja` je kalendarska pretpostavka, pa ne smije ni u tekst ni u
+  // broj koji klijent vidi. Tempo se tada racuna nad neutralnim prozorom od 30 dana.
+  const prozorTempa = rokPoznat ? danaDoKraja : 30;
 
   // Limit oglasa po paketu: oblik odgovora nije dokumentovan, pa se trazi prvo brojcano polje
   // sa poznatim imenom umjesto da se pretpostavi struktura.
@@ -516,13 +576,13 @@ export function onboardingIzvjestaj(input: OnboardingInput): OnboardingIzvjestaj
       kvota,
       iskorisceno,
       preostalo,
-      dana_do_reseta: danaDoKraja,
-      rok_poznat: !rokSporan && typeof danReseta === "number",
+      dana_do_reseta: rokPoznat ? danaDoKraja : null,
+      rok_poznat: rokPoznat,
       preporuceno_dnevno:
         preostalo === 0
           ? 0
           : Math.min(
-              Math.ceil(Math.min(preostalo, ostvarivihObnova(aktivni.length, danaDoKraja, shop !== null)) / danaDoKraja),
+              Math.ceil(Math.min(preostalo, ostvarivihObnova(aktivni.length, prozorTempa, shop !== null)) / prozorTempa),
               aktivni.length,
             ),
       propusteno_procenat: kvota === 0 ? 0 : zaokruzi((preostalo / kvota) * 100),
@@ -864,17 +924,12 @@ export interface DnevniPlanObnova {
   /** Dana do sljedece obnove kvote. Vidi `rok_poznat` prije nego se broj izgovori korisniku. */
   dana_do_reseta: number;
   /**
-   * true kad je rok izmjeren iz kvota dnevnika ili izveden iz ciklusa pretplate (`shop.ends_at`),
-   * i kad se ta dva NE razilaze. Kad je false, broj je pretpostavka (kalendar) ili su izvori u
-   * sukobu, i tekst ga NE smije tvrditi kao rok.
+   * true kad rok stoji na ciklusu pretplate (`shop.ends_at`) ili na izmjerenom danu. Kad je false,
+   * broj je kalendarska pretpostavka i tekst ga NE smije tvrditi kao rok.
    */
   rok_poznat: boolean;
-  /**
-   * Odakle je rok: mjerenje je najjaci dokaz, ciklus je izvod, kalendar je pretpostavka.
-   * "sporno" znaci da mjerenje i ciklus tvrde razlicit dan: tada se za racun uzima mjerenje,
-   * ali se rok korisniku ne izgovara dok jedan izvor ne potvrdi (olx://pravila-brojeva).
-   */
-  rok_izvor: "izmjereno" | "ciklus" | "kalendar" | "sporno";
+  /** Odakle je rok; vidi `RokIzvor` za znacenje sufiksa `_uz_spor`. */
+  rok_izvor: RokIzvor;
   /** Koliko obnova katalog fizicki moze potrositi do reseta (prag po oglasu, `ostvarivihObnova`). */
   ostvarivo: number;
   // Koliko bi trebalo obnoviti danas da se ostvarivo ravnomjerno rasporedi do reseta kvote.
@@ -901,7 +956,7 @@ export interface DnevniPlanUlaz {
   danCiklusa?: number;
   /**
    * Dan reseta IZMJEREN iz kvota dnevnika (`izmjereniDanReseta(ucitajKvotuDnevnik())`).
-   * Jaci od `danCiklusa`: mjerenje pobjedjuje izvod, i samo se ispravlja na sljedecem resetu.
+   * Kad se razilazi sa `danCiklusa`, pobjednika bira `IZVOR_ROKA_KVOTE`.
    */
   izmjereniDanReseta?: number;
   imaShop?: boolean;
@@ -926,22 +981,10 @@ export function dnevniPlanObnova(ulaz: DnevniPlanUlaz): DnevniPlanObnova {
 
   const kvota = refreshLimits.free_limit ?? 0;
   const preostalo = Math.max(0, kvota - (refreshLimits.free_count ?? 0));
-  // Kad mjerenje i ciklus tvrde razlicit dan, nijedan se korisniku ne tvrdi: administrator
-  // vezuje kvotu za istek paketa, a prvo mjerenje (01.08.2026) pokazuje kalendar, i dok se
-  // izvori ne slize rok je sporan. Za racun tempa se uzima mjerenje, jer je to jedini izvor
-  // koji dolazi iz stvarnog ponasanja platforme i sam se ispravi na sljedecem resetu.
-  const izmjeren = ulaz.izmjereniDanReseta;
-  const sporno = typeof izmjeren === "number" && typeof danCiklusa === "number" && izmjeren !== danCiklusa;
-  const danReseta = izmjeren ?? danCiklusa;
+  // Rok ide kroz `rokResetaKvote`, jedino mjesto koje rjesava spor mjerenja i ciklusa. Ovdje se
+  // logika ne prepisuje, jer je prepisana na tri mjesta vec jednom razisla u praksi.
+  const { danReseta, rokPoznat, rokIzvor } = rokResetaKvote(ulaz.izmjereniDanReseta, danCiklusa);
   const dana = danaDoResetaKvote(sadaTs, danReseta);
-  const rokPoznat = !sporno && typeof danReseta === "number" && Number.isFinite(danReseta);
-  const rokIzvor: DnevniPlanObnova["rok_izvor"] = sporno
-    ? "sporno"
-    : typeof izmjeren === "number"
-      ? "izmjereno"
-      : rokPoznat
-        ? "ciklus"
-        : "kalendar";
 
   // Gornja granica je broj oglasa: isti oglas se ne obnavlja dvaput u istom danu. Bez ovoga
   // izvjestaj klijentu javi tempo tipa "741 dnevno" na shopu od 120 oglasa (viđeno 30.07.2026).
@@ -1165,9 +1208,11 @@ export function oglasIzvjestaj(listing: Listing, sadaTs: number): OglasIzvjestaj
 export interface AlarmiPragovi {
   kreditiMin?: number;
   paketDana?: number;
-  // Alarm o kvoti se pali kad je do kraja mjeseca <= krajMjesecaDana, a iskoristeno < kvotaMinProcenat.
+  // Alarm o kvoti se pali kad je do reseta kvote <= krajMjesecaDana, a iskoristeno < kvotaMinProcenat.
   kvotaMinProcenat?: number;
   krajMjesecaDana?: number;
+  /** Dan ciklusa iz `OLX_DAN_CIKLUSA_KVOTE`; vazi samo kad nalog nema `shop.ends_at`. */
+  danCiklusaRezerva?: number;
 }
 
 export interface Alarm {
@@ -1218,13 +1263,11 @@ export function alarmiNaloga(
     // Rok ide kroz istu funkciju kao ostatak modula. Ranije se racunao ovdje rucno i BEZ
     // danasnjeg dana, pa je ista cron poruka mogla reci "1 dana" iz jednog izvora i "0 dana" iz
     // drugog (izmjereno 31.07.2026).
-    // Isto pravilo spora kao u dnevnom planu: kad se mjerenje i ciklus razilaze, rok se ne
-    // tvrdi (formulacija "oko"), a racun ide po mjerenju.
-    const danCiklusa = danCiklusaIzIsteka(shop?.ends_at);
-    const sporno = typeof izmjereniDanReseta === "number" && typeof danCiklusa === "number" && izmjereniDanReseta !== danCiklusa;
-    const danReseta = izmjereniDanReseta ?? danCiklusa;
+    // Rok ide kroz istu funkciju kao dnevni plan i onboarding, pa alarm ne moze tvrditi rok koji
+    // dnevna poruka precuti (bilo tako do 0.9.1: alarm je govorio "za oko N dana", poruka nista).
+    const danCiklusa = danCiklusaIzIsteka(shop?.ends_at) ?? pragovi.danCiklusaRezerva;
+    const { danReseta, rokPoznat } = rokResetaKvote(izmjereniDanReseta, danCiklusa);
     const doKraja = danaDoResetaKvote(sadaTs, danReseta);
-    const rokPoznat = !sporno && typeof danReseta === "number";
     // Poredjenje ide sa OSTVARIVIM, ne sa sirovom kvotom: listing_count iz refresh/limits je
     // broj oglasa naloga, pa katalog od 168 oglasa nikad ne moze potrositi kvotu 1800 i alarm
     // po sirovoj kvoti bi gorio svaki mjesec kao sum.
@@ -1238,12 +1281,11 @@ export function alarmiNaloga(
         Math.max(0, freeLimit - (refreshLimits.free_count ?? 0)),
         aktivnih > 0 ? ostvarivihObnova(aktivnih, doKraja, imaShop) : Number.MAX_SAFE_INTEGER,
       );
-      const rok = rokPoznat ? `Do obnove kvote ${doKraja} ${danaRijec(doKraja)}` : `Kvota se obnavlja za oko ${doKraja} ${danaRijec(doKraja)}`;
-      alarmi.push({
-        tip: "kvota_obnova",
-        poruka: `${rok}, a iskoristeno ${iskoristeno}% ostvarivih besplatnih obnova; jos oko ${stize} se stize iskoristiti.`,
-        vrijednost: iskoristeno,
-      });
+      // Bez poznatog roka se broj dana ne izgovara nikako, isto kao u dnevnoj poruci.
+      const poruka = rokPoznat
+        ? `Do obnove kvote ${doKraja} ${danaRijec(doKraja)}, a iskoristeno ${iskoristeno}% ostvarivih besplatnih obnova; jos oko ${stize} se stize iskoristiti.`
+        : `Iskoristeno ${iskoristeno}% ostvarivih besplatnih obnova, a rok obnove kvote nije poznat.`;
+      alarmi.push({ tip: "kvota_obnova", poruka, vrijednost: iskoristeno });
     }
   }
 
