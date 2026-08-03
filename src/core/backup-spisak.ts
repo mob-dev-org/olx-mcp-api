@@ -95,6 +95,9 @@ export function crniObrasci(): { obrazac: RegExp; razlog: string }[] {
     { obrazac: /(^|\/)onboarding-stanje\.md$/, razlog: "moze nositi token u toku postavke" },
     { obrazac: /(^|\/)proba-kanala(\/|$)/, razlog: "izolovani probni kanal sa bot tokenom" },
     { obrazac: /(^|\/)slike(\/|$)/, razlog: "generisane slike, do 20 MB dnevno" },
+    // Radni fajlovi koje bot pravi za klijenta (tabele, izvozi): isporuceni su u grupu cim
+    // nastanu, pa poslije oporavka ne znace nista, a znaju biti veliki.
+    { obrazac: /(^|\/)klijent-fajlovi(\/|$)/, razlog: "radni fajlovi za klijenta, isporuceni u grupu" },
     { obrazac: /(^|\/)projects(\/|$)/, razlog: "transkripti razgovora" },
     { obrazac: /(^|\/)inbox(\/|$)/, razlog: "dolazne fotografije klijenta" },
     { obrazac: /(^|\/)test-audit\.jsonl$/, razlog: "ostatak testova" },

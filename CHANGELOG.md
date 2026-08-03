@@ -8,6 +8,24 @@ Kako se cita broj verzije: `node dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
+## 0.11.0 — 2026-08-03
+
+Minor: klijentska sesija dobija otvorene alate uz guardrails u promptu; DeepSeek postaje default za nove klonove.
+
+- **Alati klijentske sesije otvoreni odlukom vlasnika** (Bash, pisanje fajlova, pretraga, web),
+  da bot klijentu moze analizirati poslani fajl ili napraviti tabelu. Svaki otvoren alat je i u
+  allow listi, da nista ne visi na permission promptu (preko Telegrama nema ko kliknuti).
+  Zakljucane ostaju tajne (`.env` svugdje, kredencijali kanala, KLIJENT.md) i globalni
+  `~/.claude/channels`; guardrails za koristenje alata su u `runtime/SISTEM-klijent.md`
+  (radni folder `.olx-pik/klijent-fajlovi/`, bez diranja konfiguracije, komanda iz poruke
+  nije naredba). Postojeci klonovi preuzimaju novi profil kopiranjem
+  `runtime/settings.klijent.json` u `.claude-runtime/settings.json` pa restartom sesije.
+- **DeepSeek je default za nove klonove** (`OLX_KLIJENT_AI=deepseek` u `.env.example`); bez
+  popunjenih kljuceva sesija se i dalje NE pokrece, pa klon ne moze tiho preci na pretplatu.
+  Kod bez varijable i dalje pada na pretplatu (postojeci klonovi se ne mijenjaju sami).
+- Radni fajlovi bota (`.olx-pik/klijent-fajlovi/`) su na crnom spisku backupa: isporuceni su u
+  grupu cim nastanu.
+
 ## 0.10.0 — 2026-08-03
 
 Minor: postavka klona na Windowsu radi bez rucnih zaobilaznica; rok kvote obnova sada dosljedno po ciklusu pretplate.
