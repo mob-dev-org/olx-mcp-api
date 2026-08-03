@@ -494,7 +494,8 @@ Provajder se za rucni rad bira komandom, ne globalnim podesavanjem:
 | Komanda | Sta radi |
 |---|---|
 | `claude` | Anthropic na pretplati. Default, nista se ne mijenja. |
-| `node scripts/claude-ds.mjs` | DeepSeek. Varijable vaze samo unutar tog procesa. Radi na obje platforme. |
+| `node scripts/claude-ds.mjs` | DeepSeek, gola razvojna sesija (globalni `~/.claude`). Varijable vaze samo unutar tog procesa. Radi na obje platforme. |
+| `node scripts/pokreni-klijenta.mjs` | Rucna KLIJENTSKA sesija: runtime klona, Telegram kanal, i DeepSeek kad je `OLX_KLIJENT_AI=deepseek` (mapiranje kroz `scripts/lib/sesija.mjs`). Radi na obje platforme. |
 | `node scripts/claude-ds.mjs --env` | Ispise podesavanja bez pokretanja sesije, za provjeru. Token se ne ispisuje. |
 | `npm run deepseek:proba` | Provjeri endpoint i tool calling bez pokretanja sesije. Cita isti `.env`. |
 
@@ -506,9 +507,11 @@ zvanicne DeepSeek dokumentacije:
 `ANTHROPIC_DEFAULT_HAIKU_MODEL` za pozadinske radnje i `ANTHROPIC_CUSTOM_MODEL_OPTION`
 za pro u `/model` biracu.
 
-Zasto podshell a ne globalni `export`: postavljen `ANTHROPIC_AUTH_TOKEN` u okruzenju
+Zasto okruzenje djeteta a ne globalni `export`: postavljen `ANTHROPIC_AUTH_TOKEN` u okruzenju
 terminala preuzima **svaku** narednu `claude` sesiju, u svakom projektu, i pretplata se
-tada ne koristi. Podshell to drzi unutar jedne komande.
+tada ne koristi. Zato obje skripte varijable postavljaju samo procesu koji pokrenu
+(`okruzenjeSesije` u `scripts/lib/sesija.mjs`, isti obrazac u `claude-ds.mjs`), a u shell ne
+exportuju nista.
 
 Detalji koji su se pokazali u radu:
 
@@ -521,6 +524,8 @@ Detalji koji su se pokazali u radu:
 - `ANTHROPIC_SMALL_FAST_MODEL` je zamijenjen sa `ANTHROPIC_DEFAULT_HAIKU_MODEL`, prvi je
   oznacen kao zastario u Claude Code dokumentaciji.
 - Ako su istovremeno postavljeni `ANTHROPIC_AUTH_TOKEN` i `ANTHROPIC_API_KEY`, API odbija
-  zahtjev. Funkcija zato radi `unset ANTHROPIC_API_KEY` prije pokretanja.
-- Vrijednosti sa razmakom u `deepseek.env` moraju biti u navodnicima, jer shell taj fajl
-  sourca, ne parsira kao dotenv.
+  zahtjev. Zato pogon brise `ANTHROPIC_API_KEY` iz okruzenja djeteta (`aiPogon` u
+  `scripts/lib/sesija.mjs`, polje `obrisi`; isto radi i `claude-ds.mjs`).
+- Pravilo STAROG puta, vrijedi samo za zaostali `~/.claude/deepseek.env`: vrijednosti sa
+  razmakom tamo moraju u navodnike, jer shell taj fajl sourca. Za `.env` klona to NE vazi,
+  njega parsira Node (`loadEnvFile`), bez navodnika.

@@ -27,8 +27,9 @@
 //
 // Pisan u Node-u umjesto basha namjerno: isti fajl radi na macOS-u (launchd poslovi `sesija`
 // i `admin-bot`, vidi scripts/instaliraj-cron.sh) i na Windowsu (Task Scheduler, vidi
-// deploy/windows/instaliraj-zadatke.ps1). Zato ne poziva scripts/pokreni-klijenta.sh nego
-// ponavlja njegove provjere i argumente; kad se mijenja jedno, mijenja se i drugo.
+// deploy/windows/instaliraj-zadatke.ps1). Zajednicka logika pokretanja (provjere, AI mapiranje,
+// argv, spawn) zivi u scripts/lib/sesija.mjs i dijeli se sa rucnim launcherom
+// scripts/pokreni-klijenta.mjs, pa se pokretaci ne mogu raziici.
 //
 // Restart nikad ne pada usred posla: i nocni i idle restart cekaju da sesija miruje. Aktivnost
 // se cita sa diska (transkripti sesije i Telegram inbox), ne iz procesa.
@@ -50,6 +51,15 @@ import {
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import {
+  aiPogon,
+  claudeArgv,
+  okruzenjeSesije,
+  pokreniClaude,
+  provjeriPreduslove,
+  sastaviPrompt,
+  stazeSesije,
+} from "./lib/sesija.mjs";
 
 const KORIJEN = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(KORIJEN);
@@ -68,36 +78,12 @@ if (TIP !== "klijent" && TIP !== "admin-bot") {
 }
 const JE_ADMIN = TIP === "admin-bot";
 
-const RUNTIME = join(KORIJEN, JE_ADMIN ? ".claude-runtime-admin" : ".claude-runtime");
-const TELEGRAM_DIR = join(RUNTIME, "channels", "telegram");
-const INBOX = join(TELEGRAM_DIR, "inbox");
+const STAZE = stazeSesije(TIP, KORIJEN);
+const RUNTIME = STAZE.runtime;
+const TELEGRAM_DIR = STAZE.telegramDir;
+const INBOX = STAZE.inbox;
 const PID_FAJL = join(KORIJEN, ".olx-pik", JE_ADMIN ? "cuvar-admin-bota.pid" : "cuvar-sesije.pid");
-const PROMPT_FAJL = JE_ADMIN ? "runtime/SISTEM-admin-bot.md" : "runtime/SISTEM-klijent.md";
-
-/**
- * Sastavi prompt sesije: pravila razgovora + profil klijenta + pamcenje u JEDAN fajl.
- *
- * Zasto sastavljanje a ne dva fajla: `--append-system-prompt-file` nije aditivan, sa dva fajla
- * vazi samo zadnji (izmjereno 30.07.2026). Radi se pri SVAKOM pokretanju, pa nocni restart sam
- * osvjezi pamcenje bez ijednog poziva alata.
- *
- * Kad sastavljanje padne, vraca se na gola pravila: bot bez pamcenja je bolji od mrtvog bota.
- */
-function sastaviPrompt() {
-  const r = spawnSync(process.execPath, ["scripts/sastavi-prompt.mjs", JE_ADMIN ? "admin-bot" : "klijent"], {
-    cwd: KORIJEN,
-    encoding: "utf8",
-  });
-  if (r.status === 0) {
-    // Na stdout ide samo putanja; stderr nosi eventualna upozorenja i ne smije je zagaditi.
-    const putanja = (r.stdout ?? "").trim().split("\n").pop() ?? "";
-    if (putanja && existsSync(putanja)) return putanja;
-  }
-  const zasto = r.error ? r.error.message : (r.stderr ?? "").trim().split("\n").pop() || `kod ${r.status}`;
-  log(`Sastavljanje prompta nije proslo (${zasto}), idem na ${PROMPT_FAJL} bez pamcenja.`);
-  return PROMPT_FAJL;
-}
-const MCP_PROFIL = JE_ADMIN ? "admin" : "klijent";
+const MCP_PROFIL = STAZE.mcpProfil;
 
 const RESTART_SAT = broj(process.env.OLX_SESIJA_RESTART_SAT, 3);
 const IDLE_SATI = broj(process.env.OLX_SESIJA_IDLE_SATI, JE_ADMIN ? 1 : 2);
@@ -119,62 +105,15 @@ function log(poruka) {
 }
 
 // ---- provjere prije starta ----
+// Logika u scripts/lib/sesija.mjs; ovdje samo ispis i izlaz, isti kao prije premjestanja.
 
-if (!existsSync(RUNTIME)) {
-  console.error(
-    JE_ADMIN
-      ? `Nema ${RUNTIME}. Pokreni prvo: node scripts/pripremi-admin-runtime.mjs <bot_token> <admin_telegram_id> [id_grupe]`
-      : `Nema ${RUNTIME}. Pokreni prvo: node scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>`,
-  );
-  process.exit(1);
-}
-if (!existsSync(join(KORIJEN, ".env"))) {
-  console.error(`Nema .env u ${KORIJEN}. Kopiraj .env.example i postavi OLX_TOKEN.`);
-  process.exit(1);
-}
-if (!JE_ADMIN && (process.env.OLX_MCP_PROFILE ?? "").trim().toLowerCase() !== "klijent") {
-  console.error("Upozorenje: OLX_MCP_PROFILE nije klijent u .env. Klijent ce vidjeti i admin alate.");
-}
-
-// ---- AI pogon sesije ----
-// Vraca { ok, env, obrisi, pogon, poruka }. Ne dira process.env: sve ide samo u okruzenje
-// djeteta, da cuvar ni slucajno ne preusmjeri neki drugi proces.
-
-const ANTHROPIC_VARIJABLE = [
-  "ANTHROPIC_BASE_URL",
-  "ANTHROPIC_AUTH_TOKEN",
-  "ANTHROPIC_API_KEY",
-  "ANTHROPIC_MODEL",
-  "ANTHROPIC_DEFAULT_HAIKU_MODEL",
-  "ANTHROPIC_CUSTOM_MODEL_OPTION",
-];
-
-function aiPogon() {
-  if (JE_ADMIN) {
-    // Admin bot je vlasnikov kanal i ide iskljucivo na pretplatu. Sve ANTHROPIC_* se brise
-    // da naslijedjen export sa masine ne moze tiho preusmjeriti sesiju.
-    return { ok: true, env: {}, obrisi: ANTHROPIC_VARIJABLE, pogon: "pretplata" };
+{
+  const preduslovi = provjeriPreduslove(TIP, KORIJEN, process.env);
+  if (preduslovi.greske.length > 0) {
+    for (const g of preduslovi.greske) console.error(g);
+    process.exit(1);
   }
-  const izbor = (process.env.OLX_KLIJENT_AI ?? "pretplata").trim().toLowerCase();
-  if (izbor !== "deepseek") {
-    // Danasnje ponasanje, nista se ne dira. Faza testiranja prvih klijenata ide na pretplati.
-    return { ok: true, env: {}, obrisi: [], pogon: "pretplata" };
-  }
-  const baseUrl = process.env.OLX_DEEPSEEK_BASE_URL;
-  const token = process.env.OLX_DEEPSEEK_AUTH_TOKEN;
-  if (!baseUrl || !token) {
-    return {
-      ok: false,
-      pogon: "deepseek",
-      poruka: "OLX_KLIJENT_AI=deepseek, a OLX_DEEPSEEK_BASE_URL ili OLX_DEEPSEEK_AUTH_TOKEN nije popunjen u .env.",
-    };
-  }
-  const env = { ANTHROPIC_BASE_URL: baseUrl, ANTHROPIC_AUTH_TOKEN: token };
-  if (process.env.OLX_DEEPSEEK_MODEL) env.ANTHROPIC_MODEL = process.env.OLX_DEEPSEEK_MODEL;
-  if (process.env.OLX_DEEPSEEK_HAIKU_MODEL) env.ANTHROPIC_DEFAULT_HAIKU_MODEL = process.env.OLX_DEEPSEEK_HAIKU_MODEL;
-  if (process.env.OLX_DEEPSEEK_TIMEOUT_MS) env.API_TIMEOUT_MS = process.env.OLX_DEEPSEEK_TIMEOUT_MS;
-  // API odbija zahtjev kad su AUTH_TOKEN i API_KEY postavljeni istovremeno.
-  return { ok: true, env, obrisi: ["ANTHROPIC_API_KEY"], pogon: "deepseek" };
+  for (const u of preduslovi.upozorenja) console.error(u);
 }
 
 // ---- zastita od dvostrukog pokretanja ----
@@ -459,7 +398,9 @@ function ugasiDijete() {
 }
 
 function pokreni() {
-  const ai = aiPogon();
+  // AI pogon (lib): ne dira process.env, sve ide samo u okruzenje djeteta, da cuvar ni
+  // slucajno ne preusmjeri neki drugi proces.
+  const ai = aiPogon(JE_ADMIN, process.env);
   if (!ai.ok) {
     log(`Sesija NIJE pokrenuta: ${ai.poruka} Novi pokusaj za 10 minuta.`);
     if (!javljenoBezKljuca) {
@@ -471,26 +412,17 @@ function pokreni() {
   }
   javljenoBezKljuca = false;
 
-  const okruzenje = {
-    ...process.env,
-    ...ai.env,
-    CLAUDE_CONFIG_DIR: RUNTIME,
-    TELEGRAM_STATE_DIR: TELEGRAM_DIR,
-    OLX_MCP_PROFILE: MCP_PROFIL,
-  };
-  for (const kljuc of ai.obrisi) delete okruzenje[kljuc];
-
-  const argv = [
-    "--channels", "plugin:telegram@claude-plugins-official",
-    "--append-system-prompt-file", sastaviPrompt(),
-    "--setting-sources", "user,project",
-  ];
-  dijete = spawn("claude", argv, {
+  dijete = pokreniClaude({
+    argv: claudeArgv(sastaviPrompt(TIP, KORIJEN, log)),
+    env: okruzenjeSesije({
+      osnova: process.env,
+      aiEnv: ai.env,
+      obrisi: ai.obrisi,
+      runtime: RUNTIME,
+      telegramDir: TELEGRAM_DIR,
+      mcpProfil: MCP_PROFIL,
+    }),
     cwd: KORIJEN,
-    env: okruzenje,
-    stdio: "inherit",
-    // Na Windowsu je claude .cmd shim, a njega Node bez shella odbija pokrenuti.
-    shell: process.platform === "win32",
   });
   startTs = Date.now();
   zdravljeAlarmirano = false;

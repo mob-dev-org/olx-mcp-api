@@ -3,7 +3,8 @@ name: olx-novi-klijent
 description: >-
   Kompletna tehnicka postavka novog klijentskog klona, od kloniranja do zivog bota: .env,
   KLIJENT.md, Telegram runtime za oba bota, cron poslovi, preflight. Okidaci: "novi klijent",
-  "postavi klijenta", "postavi sistem za", "onboarding klona", "kloniraj za klijenta".
+  "postavi klijenta", "postavi sistem za", "onboarding klona", "kloniraj za klijenta",
+  "postavi sve", "postavi sistem na novom racunaru".
 ---
 
 # Postavka novog klijenta, od nule do zivog bota
@@ -98,8 +99,12 @@ postoje samo na disku ove masine, a snapshoti se retroaktivno ne mogu vratiti.
 
 ## 3. Build
 
+Tri komande u tri poteza (PowerShell 5.1 nema `&&`):
+
 ```
-npm ci && npm run build && npm test
+npm ci
+npm run build
+npm test
 ```
 
 ## 4. Telegram runtime, oba bota
@@ -112,22 +117,28 @@ node scripts/pripremi-admin-runtime.mjs <admin_bot_token> <admin_telegram_id> [i
 - Prva komanda pravi `.claude-runtime/` (klijentska sesija), druga `.claude-runtime-admin/`
   (adminova sesija). Token svakog bota zivi u SVOM runtime folderu i sesije se ne mogu
   pomijesati: cuvar svakoj kaze njen folder kroz CLAUDE_CONFIG_DIR.
-- Windows: kredencijali pretplate zive u config diru, pa jednom po runtime-u
-  `set CLAUDE_CONFIG_DIR=.claude-runtime-admin` pa `claude login`. Isto i za
-  `.claude-runtime` AKO klijentska sesija ide na pretplatu; na DeepSeeku ne treba
-  (auth ide kroz `OLX_DEEPSEEK_AUTH_TOKEN` iz `.env`). macOS to ne treba, Keychain.
+- Windows: kredencijali pretplate zive u config diru, pa jednom po runtime-u u PowerShellu
+  `claude login`, i to PRIJE instalacije poslova (korak 5), jer instalater sesije startuje
+  odmah. Prvo obavezni klijentski runtime AKO sesija ide na pretplatu
+  (`$env:CLAUDE_CONFIG_DIR=".claude-runtime"` pa `claude login`); na DeepSeeku ne treba
+  (auth ide kroz `OLX_DEEPSEEK_AUTH_TOKEN` iz `.env`). Zatim isto sa
+  `.claude-runtime-admin` ako se postavlja admin bot (on je uvijek na pretplati).
+  macOS to ne treba, Keychain.
 - **Telegram plugin se instalira PO RUNTIME-u, ne globalno.** Plugin cache stoji u
   `$CLAUDE_CONFIG_DIR/plugins/`, pa instalacija u `~/.claude` klijentskoj sesiji ne znaci nista.
-  Bez ovog koraka bot ne odgovara na poruke, a jutarnji izvjestaji svejedno stizu (njih salje
-  cron mimo sesije), pa kvar lako prodje neopazeno:
+  Bez njega bot ne odgovara na poruke, a jutarnji izvjestaji svejedno stizu (njih salje cron
+  mimo sesije), pa kvar lako prodje neopazeno. Pripremi skripte ga instaliraju SAME na kraju
+  pripreme; provjeri njihov izlaz. Ako je instalacija pala (nema GitHub SSH kljuca za kloniranje
+  marketplacea, nema mreze), rucno:
 
   ```
   CLAUDE_CONFIG_DIR=.claude-runtime claude plugin marketplace add anthropics/claude-plugins-official
   CLAUDE_CONFIG_DIR=.claude-runtime claude plugin install telegram@claude-plugins-official
   ```
 
-  Isto ponovi sa `.claude-runtime-admin` ako se postavlja i admin bot. Marketplace se klonira
-  preko SSH-a, dakle masina treba GitHub SSH kljuc. Zauzima oko 38 MB po runtime-u.
+  PowerShell: `$env:CLAUDE_CONFIG_DIR=".claude-runtime"; claude plugin marketplace add ...` pa
+  `claude plugin install ...`. Isto ponovi sa `.claude-runtime-admin` ako se postavlja i admin
+  bot. Zauzima oko 38 MB po runtime-u.
 - **`bun` mora biti u PATH-u.** Plugin dize svoj MCP server sa `bun run`; bez njega bot cuti bez
   ijedne greske na vidljivom mjestu. Instalacija: https://bun.sh
 - Dodaj oba bota u odgovarajuce grupe na Telegramu.
@@ -143,6 +154,18 @@ node scripts/pripremi-admin-runtime.mjs <admin_bot_token> <admin_telegram_id> [i
   Id grupe se ocita iz `@getidsbot`. Prva komanda je idempotentna, druga pokazuje kome tacno idu
   izvjestaji. Izvjestaji krecu odmah; da bot POCNE odgovarati u novoj grupi, restartuj klijentsku
   sesiju (plugin cita `access.json` pri startu).
+
+## 4c. Prva proba sesije, u istom terminalu
+
+```
+node scripts/pokreni-klijenta.mjs
+```
+
+Radi na obje platforme i greska se vidi ODMAH u prvom planu (pogresan login, plugin, bun,
+token), umjesto da se trazi po logu cuvara. Kad bot odgovori na "zdravo" u grupi, ugasi
+sesiju sa Ctrl+C pa tek onda instaliraj poslove. Redoslijed je bitan: cuvar iz koraka 5
+odmah digne svoju sesiju, a dvije sesije na istom bot tokenu se sudaraju na Telegramu
+(dupli odgovori, 409).
 
 ## 5. Zakazani poslovi (snapshot, jutarnja poruka, sedmicni pregled, obje sesije)
 

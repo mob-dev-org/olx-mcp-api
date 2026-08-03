@@ -21,6 +21,7 @@
     "version": "node scripts/upisi-verziju.mjs && git add src/core/verzija.ts",
     "postversion": "npm run build",
     "chat": "bash scripts/claude-olx.sh",
+    "klijent": "node scripts/pokreni-klijenta.mjs",
     "deepseek:proba": "tsc && node scripts/deepseek-proba.mjs",
     "kanal:proba": "node scripts/proba-kanala.mjs",
     "most": "node scripts/telegram-most.mjs",

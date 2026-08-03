@@ -27,8 +27,9 @@ Ucitava se samo kad se diraju skripte ili deploy. Mapa cijelog pogona:
 
 ## Ugovori koji se lako zaborave
 
-- `scripts/cuvar-sesije.mjs` i `scripts/pokreni-klijenta.sh` ponavljaju iste argumente, isto AI
-  mapiranje I sastavljanje prompta: izmjena jednog povlaci izmjenu drugog.
+- Argv, AI mapiranje, provjere i sastavljanje prompta sesije zive SAMO u
+  `scripts/lib/sesija.mjs`; `scripts/cuvar-sesije.mjs` i `scripts/pokreni-klijenta.mjs` ih
+  importuju i ne smiju dodavati vlastite claude argumente mimo `claudeArgv`.
 - Sistemski prompt sesije se SASTAVLJA (`scripts/sastavi-prompt.mjs`), ne predaje se direktno:
   `--append-system-prompt-file` nije aditivan, sa dva fajla vazi samo zadnji (izmjereno
   30.07.2026). Ko doda novi dio prompta, dodaje ga u sastavljac.
@@ -65,8 +66,9 @@ Ucitava se samo kad se diraju skripte ili deploy. Mapa cijelog pogona:
 - Telegram plugin i njegov `bun` su ZAVISNOSTI POGONA, ne opcija. Plugin cache stoji u
   `$CLAUDE_CONFIG_DIR/plugins/`, dakle instalira se posebno za svaki runtime
   (`.claude-runtime`, `.claude-runtime-admin`); globalna instalacija u `~/.claude` klijentskoj
-  sesiji ne vrijedi nista. `pripremi-runtime.mjs` to NE radi, pa je korak u skillu i u
-  `provjeri-klon.mjs`.
+  sesiji ne vrijedi nista. Pripremi skripte ga instaliraju same (idempotentno, kroz
+  `scripts/lib/telegram-plugin.mjs`), ali instalacija moze pasti (SSH, mreza, bun), pa
+  preflight u `provjeri-klon.mjs` ostaje kapija.
 - Kvar plugina se ne vidi na jutarnjoj poruci: nju salje cron kroz `src/core/telegram.ts`, cist
   fetch mimo sesije i plugina. Bot moze mjesecima cutati na poruke dok izvjestaji uredno stizu.
   Zato preflight provjerava plugin i `bun` odvojeno od svega ostalog.

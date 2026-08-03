@@ -37,6 +37,11 @@ mogao provjeriti.
 7. **Telegram tok**: mtime `.claude-runtime/channels/telegram/inbox/` (stizu li poruke) naspram
    mtime `.claude-runtime/projects/` (odgovara li sesija). Inbox svjez a transkript star =
    ziva-ali-gluha sesija.
+7b. **Telegram plugin, bez Basha**: Glob nad
+   `.claude-runtime/plugins/cache/claude-plugins-official/telegram/*/.mcp.json`. Prazno = plugin
+   nije instaliran u runtime, bot ne prima poruke a cron izvjestaji svejedno stizu (najcesci
+   uzrok "bot cuti"). Popravka: rucne komande ispisuje preflight, ili ponovo izlaz pripremi
+   skripte. Ovo radi i kroz admin bota, gdje preflight (Bash) nije dostupan.
 8. **Lock ostaci**: `ls .olx-pik/**/*.lock .olx-pik/*.lock 2>/dev/null`; procitaj pid iz
    fajla i provjeri zivi li.
 

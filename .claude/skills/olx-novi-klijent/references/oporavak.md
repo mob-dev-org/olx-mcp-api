@@ -31,14 +31,19 @@ Backup NEMA nijedan token, namjerno. Svi se unose rucno, i svi su obnovljivi.
    - `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_ADMIN_CHAT_ID` — token od BotFathera
    - `OLX_MCP_PROFILE=klijent`, `OLX_MAX_SPEND_PER_DAY`
    - `OLX_KLIJENT`, `OLX_STANJE_REPO`, `OLX_STANJE_TOKEN` — bez njih nema ni novog backupa
-   - `OLX_DEEPSEEK_*` ako klon vozi DeepSeek, `OLX_SLIKA_API_KEY` ako se generisu slike
+   - `OLX_DEEPSEEK_*` ako klon vozi DeepSeek, `OLX_SLIKA_API_KEY` ako se generisu slike,
+     `OLX_VID_API_KEY` za objavu iz fotografije na DeepSeek pogonu (vision proxy)
 
-3. **Build.** `npm ci && npm run build`.
+3. **Build.** `npm ci`, pa `npm run build`, pa `npm test` (tri poteza; PowerShell 5.1 nema `&&`).
 
 4. **Telegram runtime.** `node scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>`,
-   pa `pripremi-admin-runtime.mjs` ako klon ima admin bota. Na Windowsu i Linuxu jos i
-   `claude login` sa `CLAUDE_CONFIG_DIR` po runtime folderu, jer kredencijali zive u config diru
-   i ne mogu se prenijeti.
+   pa `pripremi-admin-runtime.mjs` ako klon ima admin bota. Skripte na kraju SAME instaliraju
+   Telegram plugin u runtime (provjeri njihov izlaz; padne li, ispisu rucne komande), a `bun`
+   mora biti u PATH-u jer plugin njime dize svoj MCP server. Na Windowsu i Linuxu jos i
+   `claude login` po runtime folderu, jer kredencijali zive u config diru i ne mogu se
+   prenijeti: PowerShell `$env:CLAUDE_CONFIG_DIR=".claude-runtime"` pa `claude login`
+   (bash: `CLAUDE_CONFIG_DIR=.claude-runtime claude login`); na DeepSeek pogonu klijentski
+   runtime login ne treba.
 
 5. **Vracanje stanja.** Tek sada, kad runtime folderi postoje:
 
@@ -49,8 +54,9 @@ Backup NEMA nijedan token, namjerno. Svi se unose rucno, i svi su obnovljivi.
    Bez `--potvrdi` se odbija, jer vracanje u pogresan folder gazi dan rada. Postojeci fajlovi se
    NE prepisuju osim uz `--pregazi`.
 
-6. **Zakazani poslovi.** `scripts/instaliraj-cron.sh` ili
-   `deploy\windows\instaliraj-zadatke.ps1`. Posao `backup` se instalira samo kad je
+6. **Zakazani poslovi.** `scripts/instaliraj-cron.sh` ili na Windowsu
+   `powershell -ExecutionPolicy Bypass -File deploy\windows\instaliraj-zadatke.ps1` (pun oblik;
+   execution policy blokira goli poziv skripte). Posao `backup` se instalira samo kad je
    `OLX_STANJE_REPO` popunjen, pa provjeri da jeste prije ovog koraka.
 
 7. **Popis flote.** Upisi putanju klona u `~/.olx-klijenti.txt`. Taj fajl zivi na masini, ne u

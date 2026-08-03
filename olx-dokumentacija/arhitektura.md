@@ -175,6 +175,7 @@ dobiju polovicne analize.
 | audit log svake izmjene i troska (nosi i verziju) | pravo brisanje oglasa (`listings rm`) |
 | prijava da klon zaostaje za izdanjem (hook pri startu sesije) | izdanje i pustanje u flotu (`izdanje.mjs`, skill `olx-izdanje`) |
 | admin bot: nadzor i rad preko Telegrama | priprema admin runtime-a (jednom po klonu) |
+| cuvar drzi sesiju zivom (pad, nocni i idle restart) | rucna proba sesije u prvom planu: `node scripts/pokreni-klijenta.mjs` (prije nje ugasiti cuvara) |
 | biljezenje tokena u transkriptima sesija | `npm run tokeni -- --upisi` sedmicno (trajni dnevnik) |
 
 ## 6. Onboarding novog klijenta (rucni koraci, redom)
@@ -188,25 +189,37 @@ stavka FALI, sa klijentom se ne pocinje.
 2. `.env`: `OLX_TOKEN`, `OLX_MCP_PROFILE=klijent`, `OLX_MAX_SPEND_PER_DAY`, Telegram varijable,
    pa `OLX_KLIJENT` i `OLX_STANJE_REPO` za backup stanja (bez njih klijentovo pamcenje, izuzeca i
    snapshoti postoje samo na disku te masine).
-3. BotFather: novi bot, pa `/setprivacy` na Disable.
-4. `node scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>` — pravi izolovani
+3. Build: `npm ci`, pa `npm run build`, pa `npm test` (tri poteza; PowerShell 5.1 nema `&&`).
+4. BotFather: novi bot, pa `/setprivacy` na Disable.
+5. `node scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>` — pravi izolovani
    runtime (svoj bot, svoj allowlist, bez globalnih servera). Ta skripta radi SAMO jednom, na
    praznom klonu: svaku sljedecu grupu dodaje `telegram grupe dodaj <id>`, jer bi brisanje
    runtimea radi ponovne pripreme pobrisalo sva uparivanja.
-4b. Telegram plugin U TAJ runtime, jer plugin cache ide po `CLAUDE_CONFIG_DIR`:
+5b. Telegram plugin U TAJ runtime, jer plugin cache ide po `CLAUDE_CONFIG_DIR`. Pripremi
+   skripta ga instalira SAMA na kraju pripreme; provjeri njen izlaz. Ako je instalacija pala
+   (SSH kljuc, mreza), rucno:
    `CLAUDE_CONFIG_DIR=.claude-runtime claude plugin marketplace add anthropics/claude-plugins-official`
-   pa `... claude plugin install telegram@claude-plugins-official`. Uz to `bun` u PATH-u, jer
-   plugin njime dize svoj MCP server. Bez oba bot ne odgovara na poruke, ali izvjestaji stizu,
-   pa se kvar previdi.
-5. `npm ci && npm run build && npm test`.
-6. `scripts/instaliraj-cron.sh` (macOS) ili `deploy/windows/instaliraj-zadatke.ps1` (Windows):
+   pa `... claude plugin install telegram@claude-plugins-official` (PowerShell:
+   `$env:CLAUDE_CONFIG_DIR=".claude-runtime"; claude plugin marketplace add ...; claude plugin install ...`).
+   Uz to `bun` u PATH-u, jer plugin njime dize svoj MCP server. Bez oba bot ne odgovara na
+   poruke, ali izvjestaji stizu, pa se kvar previdi.
+5c. Windows, sesija na pretplati: jednom po runtime-u `$env:CLAUDE_CONFIG_DIR=".claude-runtime"`
+   pa `claude login`, i to PRIJE instalacije poslova (kredencijali zive u config diru; na
+   DeepSeeku ne treba, na macOS-u je pretplata u Keychainu).
+6. Prva proba sesije: `node scripts/pokreni-klijenta.mjs` u istom terminalu, na obje platforme.
+   Greska (login, plugin, bun, token) se vidi odmah u prvom planu. Ugasi sa Ctrl+C prije
+   sljedeceg koraka: cuvar odmah digne svoju sesiju, a dvije sesije na istom bot tokenu se
+   sudaraju na Telegramu.
+7. `scripts/instaliraj-cron.sh` (macOS) ili
+   `powershell -ExecutionPolicy Bypass -File deploy/windows/instaliraj-zadatke.ps1` (Windows):
    instalira poslove, ukljucujuci cuvara koji odmah digne sesiju, i backup kad je podesen.
-7. Dodaj putanju klona u `~/.olx-klijenti.txt` NA MASINI GDJE KLON ZIVI (azuriranja i AI runda).
-8. Test iz grupe: pitanje, objava sa slikom, i jedan trosak da se vidi tok potvrde.
-9. Opcion, admin bot: novi bot u BotFatheru (privacy NE dirati, ostaje ukljucen), pa
+8. Dodaj putanju klona u `~/.olx-klijenti.txt` NA MASINI GDJE KLON ZIVI (azuriranja i AI runda).
+9. Test iz grupe: pitanje, objava sa slikom, i jedan trosak da se vidi tok potvrde.
+10. Opcion, admin bot: novi bot u BotFatheru (privacy NE dirati, ostaje ukljucen), pa
    `node scripts/pripremi-admin-runtime.mjs <bot_token> <tvoj_id> [id_admin_grupe]`, pa ponovo
-   instalater poslova iz koraka 6. Na Windowsu jos i jedan `claude login` sa
-   `CLAUDE_CONFIG_DIR=.claude-runtime-admin` (na macOS-u ne treba, pretplata je u Keychainu).
+   instalater poslova iz koraka 7. Na Windowsu jos i jedan `claude login` sa
+   `$env:CLAUDE_CONFIG_DIR=".claude-runtime-admin"` (na macOS-u ne treba, pretplata je u
+   Keychainu).
 
 ## 7. Kako nova verzija dolazi do klijenata
 

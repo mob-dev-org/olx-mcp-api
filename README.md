@@ -4,8 +4,11 @@ Interni CLI i MCP server za upravljanje OLX.ba / PIK.ba shopovima. Jedno jezgro 
 
 ## Zahtjevi
 
-- Node.js 18 ili noviji (koristi se ugradjeni `fetch`).
+- Node.js 20.12 ili noviji (ispod toga se `.env` tiho preskace jer `loadEnvFile` ne postoji;
+  preflight to obara). Preporuka: 22 LTS.
 - Odobren API pristup za shop (Gold ili Platinum + odobrenje OLX/PIK podrske). Provjeri sa `olx whoami`.
+- Za klon koji vrti Telegram bota jos i `bun` u PATH-u (Telegram plugin njime dize svoj MCP
+  server; sam plugin instaliraju pripremi skripte).
 
 ## Brzi start
 
@@ -136,6 +139,11 @@ Puna mapa sa dijagramima je u `olx-dokumentacija/arhitektura.md` — nju procita
 - **Cuvar sesija** `scripts/cuvar-sesije.mjs [klijent|admin-bot]`: drzi sesiju zivom, nocni
   restart u 03h uz ciscenje inboxa, restart poslije mirovanja (klijent 2h, admin 1h) da
   kontekst i trosak ne rastu kroz dan.
+- **Rucna proba sesije** `node scripts/pokreni-klijenta.mjs`: ista klijentska sesija u ISTOM
+  terminalu, na obje platforme (Windows PowerShell ukljucen); greska se vidi odmah, umjesto po
+  logu cuvara. Prije probe ugasi cuvara ako radi, da dvije sesije ne dijele isti bot token.
+  Telegram plugin zivi u `.claude-runtime/plugins/` (po klonu, ne globalno) i instaliraju ga
+  pripremi skripte same.
 - **Cron poslovi bez modela** (nula tokena): snapshot pregleda 02:40, dnevne obnove i jutarnja
   poruka 07:20, backup stanja 08:10, sedmicni pregled ponedjeljkom 07:40. Vrti ih CLI
   (`posao dnevni`, `posao sedmicni`, `posao backup`, `stats snapshot`).
@@ -150,9 +158,11 @@ Puna mapa sa dijagramima je u `olx-dokumentacija/arhitektura.md` — nju procita
 
 Instalacija svih poslova: macOS `scripts/instaliraj-cron.sh` (launchd, po klonu; AI runda se
 instalira rucno jednom, uputa u sablonu), Windows
-`deploy/windows/instaliraj-zadatke.ps1` (Task Scheduler, isti termini). Na Windowsu admin bot
-trazi jos jedan `claude login` sa `CLAUDE_CONFIG_DIR=.claude-runtime-admin`, jer kredencijali
-tamo zive u config diru; na macOS-u su u Keychainu pa login ne treba.
+`deploy/windows/instaliraj-zadatke.ps1` (Task Scheduler, isti termini). Na Windowsu kredencijali
+pretplate zive u config diru, pa svaki runtime trazi svoj `claude login` PRIJE instalacije
+poslova: u PowerShellu `$env:CLAUDE_CONFIG_DIR=".claude-runtime"` pa `claude login` (kad
+klijentska sesija ide na pretplatu; na DeepSeeku ne treba), i isto sa `.claude-runtime-admin`
+za admin bota. Na macOS-u su u Keychainu pa login ne treba.
 
 ## Potrosnja tokena po klijentu
 
@@ -190,6 +200,9 @@ export OLX_TOKEN=tvoj_token        # zsh/bash; trajno dodaj u ~/.zshrc ili ~/.ba
 claude
 ```
 
+Windows PowerShell ekvivalenti: `copy .env.example .env`, `$env:OLX_TOKEN="tvoj_token"` za
+tekucu sesiju (trajno: `setx OLX_TOKEN "tvoj_token"` pa NOV terminal).
+
 Pri prvom otvaranju Claude Code pita da odobriš projektni MCP server `olx-pik`. Potvrdi, pa provjeri sa `/mcp`. Server preuzima `OLX_TOKEN` iz tvog okruzenja preko `${OLX_TOKEN:-}` u `.mcp.json` (prazan default ako varijabla nije postavljena).
 
 Alternativa bez `.mcp.json` (registracija samo za tebe, token ostaje lokalno):
@@ -201,23 +214,32 @@ claude mcp add olx-pik -s user \
   -- node "$(pwd)/dist/mcp/server.js"
 ```
 
+PowerShell (jedan red, bez `\` nastavaka):
+
+```powershell
+claude mcp add olx-pik -s user -e OLX_TOKEN=tvoj_token -e OLX_BASE_URL=https://api.olx.ba -- node "$PWD/dist/mcp/server.js"
+```
+
 Napomene:
 - Bez postavljenog `OLX_TOKEN` server se podigne, ali API pozivi vraćaju 401/403. Provjeri pristup sa `node --env-file=.env dist/cli/index.js whoami` ili kroz MCP alat `olx_whoami`.
 - Token nikad ne commitati. `.env` i pravi tokeni su u `.gitignore`.
 
 ## Claude Code skillovi
 
-Repozitorij nosi devet skillova u `.claude/skills/` (folder je skriven u file browserima jer pocinje tackom, ali je u gitu):
+Repozitorij nosi jedanaest skillova u `.claude/skills/` (folder je skriven u file browserima jer pocinje tackom, ali je u gitu):
 
+- `olx-novi-klijent`: ULAZNA TACKA za postavku novog klijentskog klona na novom racunaru, od
+  kloniranja do zivog bota (.env, Telegram runtime za oba bota, plugin, cron, preflight).
 - `olx-mcp-setup`: postavljanje i koristenje toolkita (token, MCP, CLI, troubleshooting).
 - `olx-analiza-profila`: analiza vlastitog profila i oglasa; analiza konkurenta po username-u.
 - `pik-olx-kreditni-savjetnik`: potrosnja kredita, izdvajanje, cjenovnik, strategija promocije.
-- `olx-shopovi-snimci`: obrada Excel snimaka Gold/Platinum shopova (razdvajanje po kantonima, poredjenje dva snimka).
+- `olx-shopovi-snimci`: obrada Excel snimaka shopova, sva cetiri PIK paketa (razdvajanje po kantonima, po potrebi i u odvojen fajl po nivou paketa, poredjenje dva snimka, telefon kandidata).
 - `olx-seo-oglasa`: naslov, podnaslov i format opisa; izvjestaj pa primjena tek uz potvrdu.
 - `olx-klijent-flow`: kandidat iz javnih podataka, onboarding sa tokenom, prvi potezi po ROI.
 - `olx-cron-obnove`: raspored obnova i ravnomjerno trosenje kvote (izvrsenje nosi CLI cron).
 - `olx-objava-artikla`: vodjena objava novog oglasa od slike do objave, sa provjerom nacrta.
 - `olx-serijski-posao`: posao kroz mnogo oglasa odjednom, preko podagenata iz `.claude/agents/`.
+- `olx-izdanje`: zatvaranje posla i pustanje koda u flotu klijenata (verzija, tag, `stabilno`).
 
 Dolaze automatski sa kloniranjem; nista se ne instalira posebno. Sistemski prompt nosi
 `CLAUDE.md` u korijenu (tvrde granice kroz `olx-dokumentacija/granice.md`), a po sloju se sama

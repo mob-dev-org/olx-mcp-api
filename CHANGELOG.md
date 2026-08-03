@@ -8,6 +8,36 @@ Kako se cita broj verzije: `node dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
+## 0.10.0 — 2026-08-03
+
+Minor: postavka klona na Windowsu radi bez rucnih zaobilaznica; rok kvote obnova sada dosljedno po ciklusu pretplate.
+
+- **Rok kvote obnova ide po ciklusu pretplate, kalendar nije rok.** Jedan prekidac
+  (`IZVOR_ROKA_KVOTE`) i jedna funkcija (`rokResetaKvote`); dnevni plan, onboarding i alarmi ne
+  mogu vise reci razlicit rok. Bez izvora je `dana_do_reseta` null umjesto izmisljenog broja;
+  spor mjerenja i ciklusa se biljezi za presudu 24.08.2026.
+
+- **Rucni launcher klijentske sesije radi na obje platforme, u istom terminalu:**
+  `node scripts/pokreni-klijenta.mjs` (i `npm run klijent`). Stari `pokreni-klijenta.sh` je
+  tanki omotac oko njega. Launcher, kao i cuvar, eksplicitno postavlja `OLX_MCP_PROFILE=klijent`
+  okruzenju sesije (stari .sh se oslanjao samo na .env).
+- **Telegram plugin instaliraju pripremi skripte same** (`pripremi-runtime.mjs`,
+  `pripremi-admin-runtime.mjs`), idempotentno; na pad ispisu rucne komande u bash i PowerShell
+  sintaksi i nastave. Zatvara klasu kvara "klon prodje preflight a bot cuti".
+- **Zajednicka logika pokretanja sesije u `scripts/lib/sesija.mjs`** (argv, AI mapiranje,
+  provjere, spawn sa Windows quotingom): cuvar i launcher je dijele pa se ne mogu raziici.
+  Usput popravljeno: `OLX_KLIJENT_AI=DeepSeek` velikim slovom je kroz bash launcher tiho padao
+  na pretplatu.
+- **Preflight (`provjeri-klon.mjs`)**: komande za popravku upotrebljive i u PowerShellu, nova
+  PAZNJA stavka za `claude login` po runtime folderu na Windowsu (pretplata), izvrsiva uputa
+  kad fali telegram .env/access.json.
+- **Dokumentacioni prolaz za postavku na novom racunaru**: README (Node 20.12 minimum, bun,
+  launcher, spisak skillova, PowerShell sintakse), skill `olx-novi-klijent` (okidac "postavi
+  sve", prva proba launcherom prije instalacije poslova, login prije poslova), `oporavak.md`,
+  `arhitektura.md`, `olx-mcp-setup`, `instaliraj-zadatke.ps1` (bun provjera, login upozorenje),
+  `SISTEM-admin-bot.md` (dozvoljene preporuke komandi), `olx-dijagnostika` (plugin provjera bez
+  Basha).
+
 ## 0.9.2 — 2026-08-03
 
 Patch: popravka testa, bez promjene ponasanja bota.

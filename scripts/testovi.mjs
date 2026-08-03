@@ -37,6 +37,18 @@ if (fajlovi.length === 0) {
   process.exit(1);
 }
 
+// Testovi pogona (scripts/lib) ne prolaze kroz build, pa se kupe direktno, istim eksplicitnim
+// obrascem. Njih smije biti nula (folder je mlad), dist/core provjera iznad ostaje kapija.
+const LIB = join(KORIJEN, "scripts", "lib");
+if (existsSync(LIB)) {
+  fajlovi.push(
+    ...readdirSync(LIB)
+      .filter((f) => f.endsWith(".test.mjs"))
+      .sort()
+      .map((f) => join(LIB, f)),
+  );
+}
+
 const dijete = spawn(process.execPath, ["--test", ...fajlovi, ...process.argv.slice(2)], {
   cwd: KORIJEN,
   stdio: "inherit",

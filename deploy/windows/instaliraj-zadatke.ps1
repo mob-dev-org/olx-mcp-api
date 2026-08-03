@@ -2,11 +2,13 @@
 # scripts/instaliraj-cron.sh + launchd sablona sa macOS-a, sa istim terminima:
 #
 #   sesija    cuvar klijentske Telegram sesije (scripts/cuvar-sesije.mjs), na prijavi korisnika
+#   admin-bot cuvar admin sesije, samo kad .claude-runtime-admin postoji (uslovni)
 #   snapshot  nocni snimak pregleda, svaki dan 02:40
 #   dnevno    obnove i jutarnja poruka, svaki dan 07:20
 #   sedmicno  sedmicni pregled, ponedjeljkom 07:40
+#   backup    backup stanja 08:10, samo kad je OLX_STANJE_REPO podesen (uslovni)
 #
-# Preduslovi: node i claude u PATH-u, .env sa OLX_TOKEN u korijenu klona.
+# Preduslovi: node, claude i bun u PATH-u, .env sa OLX_TOKEN u korijenu klona.
 #
 # Zadaci se registruju za prijavljenog korisnika i rade dok je korisnik prijavljen (bez
 # snimanja lozinke). StartWhenAvailable nadoknadjuje preskocen termin kad se racunar probudi,
@@ -31,6 +33,12 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
 }
 if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {
   throw "claude nije u PATH-u. Cuvar sesije bez njega ne moze dici sesiju."
+}
+# bun je zavisnost Telegram plugina (dize njegov MCP server). Upozorenje a ne throw: cron
+# izvjestaji rade i bez njega, ali bot na poruke tiho ne odgovara.
+if (-not (Get-Command bun -ErrorAction SilentlyContinue)) {
+  Write-Host "UPOZORENJE: bun nije u PATH-u. Telegram plugin bez njega ne dize MCP server, pa bot ne odgovara na poruke."
+  Write-Host "            Instalacija: powershell -c `"irm bun.sh/install.ps1 | iex`""
 }
 if (-not (Test-Path (Join-Path $Korijen "dist\cli\index.js"))) {
   Write-Host "Nema dist\. Pokrecem build."
@@ -80,7 +88,9 @@ Registruj -Sufiks "sesija" -Komanda "node scripts\cuvar-sesije.mjs" `
 
 # Admin bot je opcion po klonu: zadatak se registruje samo kad je runtime pripremljen
 # (node scripts\pripremi-admin-runtime.mjs). Na Windowsu prije prvog starta treba i jednom
-# claude login sa CLAUDE_CONFIG_DIR=.claude-runtime-admin (kredencijali zive u config diru).
+# claude login po runtime folderu ($env:CLAUDE_CONFIG_DIR=".claude-runtime-admin" pa claude
+# login), jer kredencijali zive u config diru. Isto vazi i za .claude-runtime kad klijentska
+# sesija ide na pretplatu (OLX_KLIJENT_AI nije deepseek).
 if (Test-Path (Join-Path $Korijen ".claude-runtime-admin")) {
   Registruj -Sufiks "admin-bot" -Komanda "node scripts\cuvar-sesije.mjs admin-bot" `
     -Trigger (New-ScheduledTaskTrigger -AtLogOn) -Trajni $true
@@ -104,6 +114,24 @@ if ((Test-Path $EnvFajl) -and (Select-String -Path $EnvFajl -Pattern '^OLX_STANJ
 } else {
   Write-Host "PRESKACEM posao backup: OLX_STANJE_REPO nije podesen u .env. Klijentsko stanje ostaje samo na ovom disku."
 }
+
+# Kredencijali pretplate zive u config diru runtime foldera; bez logina sesija na pretplati
+# pada u krug (RestartCount 10) bez vidljive greske. Samo upozorenje: trag prijave je
+# .credentials.json, a ime fajla nije nas ugovor pa odsustvo ne prekida instalaciju.
+function UpozoriBezLogina {
+  param([string]$Runtime, [string]$Naziv)
+  if ((Test-Path (Join-Path $Korijen $Runtime)) -and -not (Test-Path (Join-Path $Korijen "$Runtime\.credentials.json"))) {
+    Write-Host "UPOZORENJE: u $Runtime nema traga prijave. Ako $Naziv ide na pretplatu, uradi jednom:"
+    Write-Host "            `$env:CLAUDE_CONFIG_DIR=`"$Runtime`" pa claude login"
+  }
+}
+$KlijentAi = ""
+if (Test-Path $EnvFajl) {
+  $Red = Select-String -Path $EnvFajl -Pattern '^OLX_KLIJENT_AI=(.*)$' | Select-Object -Last 1
+  if ($Red) { $KlijentAi = $Red.Matches[0].Groups[1].Value.Trim().ToLower() }
+}
+if ($KlijentAi -ne "deepseek") { UpozoriBezLogina -Runtime ".claude-runtime" -Naziv "klijentska sesija" }
+UpozoriBezLogina -Runtime ".claude-runtime-admin" -Naziv "admin bot (uvijek pretplata)"
 
 # Sesije ne cekaju sljedecu prijavu korisnika, krecu odmah.
 Start-ScheduledTask -TaskName "ba.codefactory.olx.$Ime.sesija"

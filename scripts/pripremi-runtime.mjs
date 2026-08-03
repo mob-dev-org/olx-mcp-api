@@ -19,6 +19,7 @@
 import { chmodSync, existsSync, mkdirSync, writeFileSync, copyFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { instalirajTelegramPlugin } from "./lib/telegram-plugin.mjs";
 
 const KORIJEN = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -75,15 +76,28 @@ try {
 
 console.log(`Runtime pripremljen: ${RUNTIME}`);
 console.log("");
+
+// Telegram plugin ide odmah u runtime: bez njega bot ne prima poruke, a jutarnji izvjestaji
+// svejedno stizu (njih salje cron mimo sesije), pa se kvar previdi. Neuspjeh ne rusi pripremu;
+// preflight (provjeri-klon.mjs) ostaje kapija.
+const plugin = instalirajTelegramPlugin(RUNTIME);
+console.log("");
+
+let korak = 0;
+const stavka = (tekst) => console.log(`  ${++korak}. ${tekst}`);
 console.log("Sljedeci koraci:");
-console.log("  1. U .env ovog klona postavi OLX_TOKEN, OLX_MCP_PROFILE=klijent i OLX_MAX_SPEND_PER_DAY.");
-console.log("  2. U BotFatheru za ovog bota: /setprivacy -> Disable (inace bot ne vidi poruke u grupi).");
+stavka("U .env ovog klona postavi OLX_TOKEN, OLX_MCP_PROFILE=klijent i OLX_MAX_SPEND_PER_DAY.");
+stavka("U BotFatheru za ovog bota: /setprivacy -> Disable (inace bot ne vidi poruke u grupi).");
+if (!plugin.ok) {
+  stavka("Instaliraj Telegram plugin rucno (komande iznad), pa provjeri: node scripts/provjeri-klon.mjs");
+}
 if (process.platform === "win32") {
-  console.log("  3. Ako sesija ide na pretplatu (OLX_KLIJENT_AI nije deepseek), jednom po klonu:");
-  console.log("     set CLAUDE_CONFIG_DIR=.claude-runtime i pokreni claude login (kredencijali zive u config diru).");
-  console.log("  4. Instaliraj poslove: powershell -ExecutionPolicy Bypass -File deploy\\windows\\instaliraj-zadatke.ps1");
-  console.log("  5. Rucni test sesije: node scripts/cuvar-sesije.mjs");
+  stavka("Ako sesija ide na pretplatu (OLX_KLIJENT_AI nije deepseek), jednom po klonu u PowerShellu:");
+  console.log('     $env:CLAUDE_CONFIG_DIR=".claude-runtime" pa claude login (kredencijali zive u config diru).');
+  console.log("     Sa OLX_KLIJENT_AI=deepseek login ne treba: auth ide kroz OLX_DEEPSEEK_AUTH_TOKEN iz .env.");
+  stavka("Instaliraj poslove: powershell -ExecutionPolicy Bypass -File deploy\\windows\\instaliraj-zadatke.ps1");
+  stavka("Rucni test sesije (u istom terminalu): node scripts/pokreni-klijenta.mjs");
 } else {
-  console.log("  3. Instaliraj poslove: scripts/instaliraj-cron.sh");
-  console.log("  4. Rucni test sesije: scripts/pokreni-klijenta.sh ili node scripts/cuvar-sesije.mjs");
+  stavka("Instaliraj poslove: scripts/instaliraj-cron.sh");
+  stavka("Rucni test sesije: node scripts/pokreni-klijenta.mjs ili node scripts/cuvar-sesije.mjs");
 }

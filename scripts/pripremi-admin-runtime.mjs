@@ -19,6 +19,7 @@
 import { chmodSync, existsSync, mkdirSync, writeFileSync, copyFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { instalirajTelegramPlugin } from "./lib/telegram-plugin.mjs";
 
 const KORIJEN = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -77,20 +78,31 @@ try {
 
 console.log(`Admin runtime pripremljen: ${RUNTIME}`);
 console.log("");
+
+// Telegram plugin ide odmah u runtime, isto kao u pripremi-runtime.mjs: bez njega bot ne prima
+// poruke. Neuspjeh ne rusi pripremu; preflight (provjeri-klon.mjs) ostaje kapija.
+const plugin = instalirajTelegramPlugin(RUNTIME);
+console.log("");
+
+let korak = 0;
+const stavka = (tekst) => console.log(`  ${++korak}. ${tekst}`);
 console.log("Sljedeci koraci:");
-console.log("  1. BotFather: privacy za ovog bota OSTAJE UKLJUCEN (nista ne diraj; ako je ranije");
+stavka("BotFather: privacy za ovog bota OSTAJE UKLJUCEN (nista ne diraj; ako je ranije");
 console.log("     gasen, /setprivacy -> Enable). Suprotno od klijentskog bota.");
 if (idGrupe) {
-  console.log(`  2. Dodaj bota u admin grupu ${idGrupe}. U grupi ga oznaci ili mu odgovori na poruku.`);
+  stavka(`Dodaj bota u admin grupu ${idGrupe}. U grupi ga oznaci ili mu odgovori na poruku.`);
 } else {
-  console.log("  2. Bot radi samo u tvom DM-u. Za zajednicku grupu pokreni ponovo sa [id_grupe].");
+  stavka("Bot radi samo u tvom DM-u. Za zajednicku grupu pokreni ponovo sa [id_grupe].");
+}
+if (!plugin.ok) {
+  stavka("Instaliraj Telegram plugin rucno (komande iznad), pa provjeri: node scripts/provjeri-klon.mjs");
 }
 if (process.platform === "win32") {
-  console.log("  3. Windows: kredencijali pretplate zive u config diru, pa jednom po klonu:");
-  console.log("     set CLAUDE_CONFIG_DIR=.claude-runtime-admin i pokreni claude login.");
-  console.log("  4. Instaliraj poslove: powershell -File deploy\\windows\\instaliraj-zadatke.ps1");
+  stavka("Windows: kredencijali pretplate zive u config diru, pa jednom po klonu u PowerShellu:");
+  console.log('     $env:CLAUDE_CONFIG_DIR=".claude-runtime-admin" pa claude login.');
+  stavka("Instaliraj poslove: powershell -File deploy\\windows\\instaliraj-zadatke.ps1");
 } else {
-  console.log("  3. macOS: login ne treba (pretplata je u Keychainu, zajednicka za sve sesije).");
-  console.log("  4. Instaliraj poslove ponovo da se doda cuvar admin bota: scripts/instaliraj-cron.sh");
+  stavka("macOS: login ne treba (pretplata je u Keychainu, zajednicka za sve sesije).");
+  stavka("Instaliraj poslove ponovo da se doda cuvar admin bota: scripts/instaliraj-cron.sh");
 }
-console.log("  5. Rucni test: node scripts/cuvar-sesije.mjs admin-bot");
+stavka("Rucni test: node scripts/cuvar-sesije.mjs admin-bot");

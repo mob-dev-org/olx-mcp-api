@@ -10,13 +10,17 @@ description: >-
 
 Ovaj skill ti pomaze da postavis i koristis interni toolkit za OLX.ba / PIK.ba shopove.
 Toolkit ima jedno jezgro i dva lica: CLI (`dist/cli/index.js`) i MCP server
-(`dist/mcp/server.js`). Sve putanje su relativne na korijen repoa. Detalji su u `README.md` i `PLAN.md`.
+(`dist/mcp/server.js`). Sve putanje su relativne na korijen repoa. Detalji su u `README.md` i
+`olx-dokumentacija/arhitektura.md`.
 
 Cilj: dovesti korisnika do stanja gdje `whoami` vraca nalog, a MCP alati rade u Claude Code.
+Za KOMPLETNU postavku klijentskog klona (Telegram botovi, cron poslovi, preflight) ovo nije
+dovoljno: to vodi skill `olx-novi-klijent`.
 
 ## Preduslovi
 
-- Node.js 18+ (toolkit koristi ugradjeni `fetch`).
+- Node.js 20.12+ (ispod toga se `.env` tiho preskace jer `loadEnvFile` ne postoji; preflight
+  to obara). Preporuka: 22 LTS.
 - Odobren API pristup za shop. API vrlo vjerovatno trazi poslovni Shop (Gold/Platinum) i
   odobrenje OLX/PIK podrske. Bez toga pozivi vracaju 403. Ovo se ne aktivira samoposluzno.
 
@@ -29,7 +33,8 @@ Cilj: dovesti korisnika do stanja gdje `whoami` vraca nalog, a MCP alati rade u 
    ```
 2. Token. Preporuceno je vec dobijen Bearer token (po korisniku). Postavi ga na jedan od nacina:
    - U `.env` (u korijenu): `OLX_TOKEN=...` (CLI ga cita preko `--env-file=.env`).
-   - Ili u shell okruzenje: `export OLX_TOKEN=...` (MCP `.mcp.json` ga preuzima preko `${OLX_TOKEN}`).
+   - Ili u shell okruzenje: `export OLX_TOKEN=...` (PowerShell: `$env:OLX_TOKEN="..."` za
+     sesiju, `setx OLX_TOKEN "..."` trajno); MCP `.mcp.json` ga preuzima preko `${OLX_TOKEN}`.
    - Alternativa: `OLX_USERNAME` + `OLX_PASSWORD` (toolkit sam radi login), ili stari
      `OLX_CLIENT_ID` + `OLX_CLIENT_TOKEN`.
 3. Test pristupa (blocker, uradi prvo):
@@ -45,6 +50,10 @@ Cilj: dovesti korisnika do stanja gdje `whoami` vraca nalog, a MCP alati rade u 
      -e OLX_TOKEN=tvoj_token \
      -e OLX_BASE_URL=https://api.olx.ba \
      -- node "$(pwd)/dist/mcp/server.js"
+   ```
+   PowerShell (jedan red, bez `\` nastavaka):
+   ```powershell
+   claude mcp add olx-pik -s user -e OLX_TOKEN=tvoj_token -e OLX_BASE_URL=https://api.olx.ba -- node "$PWD/dist/mcp/server.js"
    ```
 
 ## Token nikad u git
@@ -101,8 +110,9 @@ servera, ne pamti se.
 
 - 403 / AUTH na svaki poziv: shop nema odobren API pristup. Nije problem koda; treba aktivacija kod podrske.
 - MCP server se ne pojavi: provjeri da `dist/` postoji (build), da je `.mcp.json` u korijenu repoa,
-  i da je `OLX_TOKEN` izvezen u okruzenju iz kojeg je pokrenut `claude` (ako koristis GUI launcher,
-  env iz `~/.zshrc` mozda ne stigne; tad koristi `claude mcp add -s user` sa tokenom).
+  i da je `OLX_TOKEN` izvezen u okruzenju iz kojeg je pokrenut `claude` (macOS GUI launcher: env iz
+  `~/.zshrc` mozda ne stigne; Windows: varijabla postavljena sa `$env:` vazi samo u toj sesiji, za
+  trajno treba `setx` pa NOV terminal; u oba slucaja pomaze `claude mcp add -s user` sa tokenom).
 - MCP kasni na prvom startu: povecaj `MCP_TIMEOUT` (ms).
 - Stdout mora ostati cist JSON-RPC. Server poruke pise na stderr, to ne diraj.
 - TypeScript greske pri buildu: popravi ih bez mijenjanja ponasanja, bez `any`, zadrzi strict mode.

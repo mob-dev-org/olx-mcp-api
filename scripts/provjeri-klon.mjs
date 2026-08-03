@@ -233,7 +233,12 @@ else paznja("KLIJENT-javno.md", "bot ne zna ton, footer ni granice klijenta", `$
   if (!existsSync(rt)) {
     fali("Telegram runtime", "sesija se ne moze pokrenuti bez .claude-runtime", "node scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>");
   } else if (!existsSync(join(tg, ".env")) || !existsSync(join(tg, "access.json"))) {
-    fali("Telegram runtime", ".claude-runtime postoji ali fali telegram .env ili access.json", "ponovi pripremu runtime-a");
+    // "Ponovi pripremu" nije izvrsivo: pripremi skripta odbija postojeci runtime.
+    fali(
+      "Telegram runtime",
+      ".claude-runtime postoji ali fali telegram .env ili access.json",
+      `obrisi ${rt} pa ponovo: node scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id> (PAZNJA: brisanje gubi postojeca uparivanja)`,
+    );
   } else {
     const grupe = grupeIzAccessa(rt);
     ok("Telegram runtime pripremljen", `${grupe.length} ${grupe.length === 1 ? "grupa" : "grupa"} u access.json`);
@@ -256,17 +261,43 @@ else paznja("KLIJENT-javno.md", "bot ne zna ton, footer ni granice klijenta", `$
     }
     if (verzija) ok("Telegram plugin", `verzija ${verzija} u ${rt}`);
     else {
+      // Instalaciju sada rade pripremi skripte same; kad plugin fali, njihova instalacija je
+      // pala (najcesce: nema GitHub SSH kljuca za kloniranje marketplacea, ili nema mreze).
+      // Komanda za popravku po platformi: prefiks dodjela i && ne postoje u PowerShellu 5.1.
       fali(
         "Telegram plugin",
-        `nije instaliran u ${rt}, pa sesija ne prima poruke (cron izvjestaji svejedno rade, zato se kvar previdi)`,
-        `CLAUDE_CONFIG_DIR=${rt} claude plugin marketplace add anthropics/claude-plugins-official && CLAUDE_CONFIG_DIR=${rt} claude plugin install telegram@claude-plugins-official`,
+        `nije instaliran u ${rt}, pa sesija ne prima poruke (cron izvjestaji svejedno rade, zato se kvar previdi); auto instalaciju radi pripremi skripta, pad je najcesce SSH kljuc ili mreza`,
+        WIN
+          ? `$env:CLAUDE_CONFIG_DIR="${rt}"; claude plugin marketplace add anthropics/claude-plugins-official; claude plugin install telegram@claude-plugins-official`
+          : `CLAUDE_CONFIG_DIR=${rt} claude plugin marketplace add anthropics/claude-plugins-official && CLAUDE_CONFIG_DIR=${rt} claude plugin install telegram@claude-plugins-official`,
       );
     }
 
     // Plugin dize svoj MCP server sa `bun run` (vidi njegov .mcp.json). Bez buna server ne krene,
     // a greska se ne vidi nigdje osim u logu sesije.
     if (komandaPostoji("bun")) ok("bun u PATH-u", "pogon Telegram plugina");
-    else fali("bun u PATH-u", "Telegram plugin dize MCP server sa `bun run`, bez njega bot tiho ne odgovara", "instaliraj bun: https://bun.sh");
+    else
+      fali(
+        "bun u PATH-u",
+        "Telegram plugin dize MCP server sa `bun run`, bez njega bot tiho ne odgovara",
+        WIN ? 'powershell -c "irm bun.sh/install.ps1 | iex"' : "instaliraj bun: https://bun.sh",
+      );
+
+    // Na Windowsu kredencijali pretplate zive u config diru (na macOS-u u Keychainu), pa svaki
+    // runtime trazi svoj `claude login`. Bez toga klon prodje preflight a sesija se ne moze
+    // autentifikovati. Trag prijave je .credentials.json u config diru; PAZNJA a ne FALI, jer
+    // ime fajla nije nas ugovor pa odsustvo ne smije blokirati. DeepSeek klonove ne dira
+    // (auth ide kroz OLX_DEEPSEEK_AUTH_TOKEN).
+    const klijentAi = (process.env.OLX_KLIJENT_AI ?? "pretplata").trim().toLowerCase();
+    if (WIN && klijentAi !== "deepseek") {
+      if (existsSync(join(rt, ".credentials.json"))) ok("Prijava pretplate u runtime-u", `trag u ${rt}`);
+      else
+        paznja(
+          "Prijava pretplate u runtime-u",
+          `nema traga prijave u ${rt}, pa sesija na pretplati vjerovatno ne moze da se autentifikuje`,
+          `$env:CLAUDE_CONFIG_DIR="${rt}" pa claude login (jednom po runtime folderu)`,
+        );
+    }
   }
 }
 
@@ -311,7 +342,7 @@ else paznja("KLIJENT-javno.md", "bot ne zna ton, footer ni granice klijenta", `$
     // nema fajla ili proces mrtav
   }
   if (radi) ok("Cuvar sesije radi");
-  else paznja("Cuvar sesije", "ne radi (normalno ako poslovi jos nisu instalirani ili je masina svjeze podignuta)", "instalira ga korak zakazanih poslova; rucno: node scripts/cuvar-sesije.mjs");
+  else paznja("Cuvar sesije", "ne radi (normalno ako poslovi jos nisu instalirani ili je masina svjeze podignuta)", "instalira ga korak zakazanih poslova; rucna proba u prvom planu: node scripts/pokreni-klijenta.mjs, a pogon: node scripts/cuvar-sesije.mjs");
 }
 
 // 9. Snapshot svjezina (temelj mjerenja pregleda)

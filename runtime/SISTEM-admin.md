@@ -19,11 +19,12 @@ Dodaje se povrh `CLAUDE.md` kroz `scripts/claude-olx.sh`. Klijentski runtime ovo
 - `node scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>` pravi `.claude-runtime/`:
   vlastiti `CLAUDE_CONFIG_DIR` i `TELEGRAM_STATE_DIR`, pa svaki klon ima svoj bot i nijedan
   globalni MCP server. U BotFatheru obavezno `/setprivacy` pa `Disable`.
-- `scripts/pokreni-klijenta.sh` pokrece klijentsku sesiju rucno (prvi test pri onboardingu).
+- `node scripts/pokreni-klijenta.mjs` pokrece klijentsku sesiju rucno (prvi test pri
+  onboardingu), u istom terminalu, na obje platforme.
 - U pogonu sesije drzi `scripts/cuvar-sesije.mjs [klijent|admin-bot]`: restart na pad, nocni
   restart u 03h (tada cisti i Telegram inbox) i restart poslije neaktivnosti (klijent 2h,
-  admin-bot 1h), da kontekst ne raste kroz dan. Ponavlja argumente iz `pokreni-klijenta.sh`;
-  kad se mijenja jedno, mijenja se i drugo.
+  admin-bot 1h), da kontekst ne raste kroz dan. Zajednicka logika pokretanja (argv, AI
+  mapiranje, provjere) zivi u `scripts/lib/sesija.mjs` i dijele je oba pokretaca.
 - AI pogon klijentske sesije bira `OLX_KLIJENT_AI` u `.env` klona: `pretplata` (default, faza
   testiranja) ili `deepseek` (OLX_DEEPSEEK_* varijable; bez njih se sesija ne pokrece). Nista
   se ne konfigurise u zshrc-u ni globalno po masini.
