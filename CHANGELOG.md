@@ -8,6 +8,15 @@ Kako se cita broj verzije: `node dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
+## 0.9.2 — 2026-08-03
+
+Patch: popravka testa, bez promjene ponasanja bota.
+
+- **Test simbolickog linka se na Windowsu bez Developer Mode ili admin prava vise ne racuna kao
+  pad.** Pravljenje direktorijumskog simlinka na takvim Windows masinama baca EPERM prije nego
+  test stigne provjeriti sta zeli; test to sada prepozna i preskoci umjesto da rusi testnu kapiju.
+  Na macOS/Linux se test i dalje izvrsava nepromijenjen.
+
 ## 0.9.1 — 2026-08-02
 
 Patch: sporan rok kvote se klijentu ne izgovara.
