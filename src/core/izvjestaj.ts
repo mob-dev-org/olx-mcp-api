@@ -224,6 +224,10 @@ export interface DnevniPodaci {
   mrtvi?: { broj: number; dana: number } | null;
   // Oglasi preskoceni u danasnjoj obnovi zbog liste izuzetaka. Sadrzaj, ne okidac.
   izuzeti?: number;
+  // Klijent jos nije rekao kako zeli automatske obnove, pa nista nije obnovljeno. Prvi put
+  // (podsjetnik false) ide puno pitanje sa listom i okida slanje; poslije samo jedna linija
+  // u poruci koja se ionako salje.
+  obnove_pitanje?: { kandidata: number; naslovi: string[]; podsjetnik: boolean } | null;
 }
 
 /**
@@ -239,6 +243,8 @@ export function dnevniVrijedanSlanja(d: DnevniPodaci): boolean {
     (d.promjena !== null && d.promjena.rastu.length > 0) ||
     // Kandidata ima a nista nije obnovljeno: to je kvar vrijedan poruke, ne tisina.
     (d.obnovljeno === 0 && d.plan.za_obnovu > 0) ||
+    // Prvo pitanje o automatskim obnovama se salje uvijek; podsjetnik nije okidac.
+    (d.obnove_pitanje != null && !d.obnove_pitanje.podsjetnik) ||
     // Dospio termin izdvajanja trazi potez, a trosak se javlja isti dan. Ostale dopune
     // (mrtvi, izuzeti, miruju) su sadrzaj za poruku koja se ionako salje, ne okidaci.
     (d.dospjelo ?? 0) > 0 ||
@@ -254,10 +260,33 @@ export function dnevniTekst(d: DnevniPodaci): string {
   const r: string[] = [];
   r.push(`Dnevni pregled${d.username ? ` - ${d.username}` : ""}`, "");
 
-  if (d.obnovljeno === null) {
+  if (d.obnove_pitanje && !d.obnove_pitanje.podsjetnik) {
+    // Prvo pitanje o automatskim obnovama: puna lista ide JEDNOM, poslije samo podsjetnik.
+    const p = d.obnove_pitanje;
+    r.push(`Danas je ${p.kandidata} tvojih oglasa moglo biti besplatno obnovljeno, ali nisam dirao nijedan: prvo mi reci kako zelis da radim sa obnovama.`);
+    if (p.naslovi.length > 0) {
+      r.push("", "Neki od njih:");
+      for (const n of p.naslovi) r.push(`- ${skrati(n)}`);
+      if (p.kandidata > p.naslovi.length) r.push(`… i jos ${p.kandidata - p.naslovi.length}.`);
+    }
+    r.push(
+      "",
+      "Odgovori na ovu poruku jednom od opcija:",
+      "- obnavljaj sve automatski, cim platforma dozvoli",
+      "- rasporedi ravnomjerno kroz cijeli mjesec",
+      "- svaki oglas na odredjen broj dana",
+      "- neke artikle uvijek preskaci, samo reci koje",
+      "- nista automatski, obnova samo kad ti kazes",
+      "Dok ne odgovoris, nista ne obnavljam sam od sebe.",
+    );
+  } else if (d.obnove_pitanje) {
+    r.push("Podsjetnik: automatske obnove jos ne rade, cekam tvoju odluku kako zelis (sve automatski, ravnomjerno, na odredjeni broj dana, ili nista automatski).");
+  } else if (d.obnovljeno === null) {
     r.push(`Za obnovu danas: ${d.plan.za_obnovu} oglasa (probni rezim, nista nije obnovljeno).`);
   } else if (d.obnovljeno > 0) {
     r.push(`Obnovljeno danas: ${d.obnovljeno} oglasa, besplatno.`);
+  } else if (d.plan.obnove_stanje === "iskljuceno") {
+    r.push("Nista nije obnovljeno: automatske obnove su iskljucene po tvom izboru.");
   } else if (d.plan.kandidata === 0) {
     r.push("Nijedan oglas danas nije bio dostupan za obnovu.");
   } else {
@@ -280,6 +309,10 @@ export function dnevniTekst(d: DnevniPodaci): string {
 
     if (preostalo === 0) {
       r.push("Besplatna kvota je potrosena do kraja.");
+    } else if (d.plan.obnove_stanje !== "auto") {
+      // Bez odluke ili sa iskljucenim obnovama tempo ne postoji, pa se i ne javlja: broj koji
+      // se nece izvrsavati zvuci kao obecanje.
+      if (rok) r.push(rok);
     } else if (d.plan.kvota_neostvariva) {
       // Kvota je veca od onoga sto katalog fizicki moze potrositi. Pravi razlog je PRAG po
       // oglasu, ne broj oglasa: isti oglas se besplatno obnavlja tek nakon praga platforme.

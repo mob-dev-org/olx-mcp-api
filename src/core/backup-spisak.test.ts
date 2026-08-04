@@ -132,3 +132,23 @@ test("prolazan zahtjev za restart sesije se ne salje u backup", () => {
   assert.equal(r.preskoci.length, 2);
   for (const p of r.preskoci) assert.match(p.razlog, /restart/);
 });
+
+test("arhiva skinutih artikala ide u backup, ukljucujuci slike ravno u mapi id-a", () => {
+  const r = razvrstaj(
+    [
+      ".olx-pik/arhiva-artikala/78059920/oglas.json",
+      ".olx-pik/arhiva-artikala/78059920/01.jpg",
+      ".olx-pik/arhiva-artikala/78059920/02.webp",
+    ],
+    {} as NodeJS.ProcessEnv,
+  );
+  assert.equal(r.uzmi.length, 3, "json i slike arhive su jedini primjerak, moraju u backup");
+  assert.equal(r.preskoci.length, 0);
+  assert.equal(r.nepoznato.length, 0);
+});
+
+test("REGRESIJA: da su slike arhive u podmapi 'slike', crni obrazac bi ih tiho izbacio", () => {
+  // Ovo dokumentuje ZASTO su fajlovi ravno u <id>/: crn() se provjerava prije bijelog spiska.
+  const r = razvrstaj([".olx-pik/arhiva-artikala/78059920/slike/01.jpg"], {} as NodeJS.ProcessEnv);
+  assert.equal(r.preskoci.length, 1, "podmapa slike pada na crni obrazac, zato je ne koristimo");
+});

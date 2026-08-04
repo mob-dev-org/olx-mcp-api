@@ -17,7 +17,7 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
-export const STRATEGIJE = ["ravnomjerno", "sve-dostupno", "interval"] as const;
+export const STRATEGIJE = ["ravnomjerno", "sve-dostupno", "interval", "iskljuceno"] as const;
 export type RitamStrategija = (typeof STRATEGIJE)[number];
 
 export interface Ritam {
@@ -26,6 +26,12 @@ export interface Ritam {
   dana?: number;
   /** Kada je zapisano; prazno kad je podrazumijevani, dakle klijent nije nista rekao. */
   kada?: string;
+  /**
+   * Kada je jutarnja poruka PITALA klijenta kako zeli obnove. Postoji da puna lista kandidata
+   * ode jednom, a narednih dana ostane samo podsjetnik u jednoj liniji. Odluka klijenta
+   * (`kada`) ovo polje cini nebitnim.
+   */
+  pitano?: string;
 }
 
 /**
@@ -68,14 +74,18 @@ export function normalizujRitam(sirovo: unknown): Ritam {
   if (!sirovo || typeof sirovo !== "object") return RITAM_PODRAZUMIJEVANI;
   const o = sirovo as Record<string, unknown>;
   const strategija = STRATEGIJE.find((s) => s === o.strategija);
-  if (!strategija) return RITAM_PODRAZUMIJEVANI;
   const kada = typeof o.kada === "string" && o.kada ? o.kada : undefined;
+  // `pitano` prezivljava i pokvarenu strategiju: da se puna lista kandidata ne ponovi samo
+  // zato sto je neko rucno dirao fajl.
+  const pitano = typeof o.pitano === "string" && o.pitano ? o.pitano : undefined;
+  const rep = { ...(kada ? { kada } : {}), ...(pitano ? { pitano } : {}) };
+  if (!strategija) return { ...RITAM_PODRAZUMIJEVANI, ...rep };
 
-  if (strategija !== "interval") return { strategija, ...(kada ? { kada } : {}) };
+  if (strategija !== "interval") return { strategija, ...rep };
 
   const dana = Number(o.dana);
-  if (!Number.isFinite(dana) || dana < 1 || dana > INTERVAL_MAX) return RITAM_PODRAZUMIJEVANI;
-  return { strategija, dana: Math.floor(dana), ...(kada ? { kada } : {}) };
+  if (!Number.isFinite(dana) || dana < 1 || dana > INTERVAL_MAX) return { ...RITAM_PODRAZUMIJEVANI, ...rep };
+  return { strategija, dana: Math.floor(dana), ...rep };
 }
 
 /** Je li trgovac ikad rekao svoj ritam. Po ovome bot odlucuje da li ga uopste vrijedi pitati. */

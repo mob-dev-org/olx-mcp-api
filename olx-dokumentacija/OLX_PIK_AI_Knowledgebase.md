@@ -162,7 +162,7 @@ Sve tri poluge rade zajedno. Nijedna sama nije dovoljna. Izdvajanje ne spašava 
 - Kredit je virtuelna valuta za servise vidljivosti (objava u naplativim kategorijama, izdvajanje, akcijska cijena).
 - Cijena izdvajanja je dinamična. Raste sa konkurencijom u kategoriji i brojem dana. U manjem broju kategorija je fiksna. Tačan iznos se vidi tek na koraku izdvajanja, zato uvijek prvo dohvati cijenu preko API-ja.
 - Kartična dopuna nosi veće bonuse od SMS-a (veći iznosi, veći bonus). Za veće budžete kartično je isplativije.
-- Paketi (interno, ne dijeliti klijentima). Cijene sa PDV-om sa stranice paketa, provjereno 26.07.2026.: Bronze 59 KM, Silver 79 KM, Gold 119 KM, Platinum 299 KM. Mjesečni bonus kredita po paketu (Bronze 750, Silver 1.100, Gold 1.800, Platinum 4.600) je iz iste provjere, ali se PROČITA sa naloga prije nego uđe u računicu, jer se paketi mijenjaju (vidi `pravila-brojeva.md`, razred B). Gold nosi logo na naslovnici, Platinum ekskluzivnu poziciju. Shop nema limit na broj oglasa. Paket se mijenja bilo kad, bez ugovora. Probni period nosi 500 kredita kroz 30 dana.
+- Paketi (interno, ne dijeliti klijentima). Cijene sa PDV-om sa stranice paketa, provjereno 26.07.2026.: Bronze 59 KM, Silver 79 KM, Gold 119 KM, Platinum 299 KM. Mjesečni bonus kredita po paketu (Bronze 750, Silver 1.100, Gold 1.800, Platinum 4.600) je iz iste provjere, ali se PROČITA sa naloga prije nego uđe u računicu, jer se paketi mijenjaju (vidi `pravila-brojeva.md`, razred B). Gold nosi logo na naslovnici, Platinum ekskluzivnu poziciju. Shop IMA limit na broj oglasa po paketu (saznato 04.08.2026: Gold 2.000 artikala); u zbir ulaze i aktivni i skriveni oglasi zajedno, pa skrivanje ne oslobađa mjesto, oslobađa ga samo završavanje (`pravila-brojeva.md`, razred B). Paket se mijenja bilo kad, bez ugovora. Probni period nosi 500 kredita kroz 30 dana.
 
 ### 5.6 Video (Video Stories)
 
@@ -176,7 +176,8 @@ izvor je interni vodič. Tretirati kao NEPOTVRĐENO dok se ne nađe zvanični iz
 ### 5.7 Pravila i česte greške
 
 - Zabranjeno brisati pa ponovo dodavati isti artikal isti dan radi dolaska na vrh. To je spam i moderatori uklanjaju takve oglase. Umjesto toga koristi obnovu ili produženje promocije.
-- Kad artikla nema na stanju, ne briši (gubiš historiju i preglede). Koristi "Sakrij" ili završi oglas.
+- Kad artikla nema na stanju, ne briši (gubiš historiju i preglede). Koristi "Sakrij" ili završi oglas. Pri izboru vodi računa o limitu paketa: skriven oglas i dalje zauzima mjesto u limitu, završen ne (`pravila-brojeva.md`).
+- Završen oglas se na platformi NE MOŽE ponovo objaviti: opcija ponovne objave završenih je postojala i platforma ju je ukinula (saznato 04.08.2026). Povratak završenog artikla znači novu objavu.
 - Naslovi moraju biti u skladu s pravilima (za auto: proizvođač plus model, bez nabrajanja).
 
 ---

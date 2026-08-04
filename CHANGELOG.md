@@ -8,6 +8,26 @@ Kako se cita broj verzije: `node dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
+## 0.12.0 — 2026-08-04
+
+Minor: artikal se moze skinuti sa shopa i kasnije vratiti identican; automatske obnove krecu tek kad klijent izabere ritam.
+
+- **Skini artikal, vrati kad stigne.** Na "skini / preuzmi / spremi ovaj artikal" bot sacuva
+  kompletan oglas sa originalnim slikama lokalno (`.olx-pik/arhiva-artikala/`), pa oglas sakrije.
+  "Vrati" ga otkrije odmah, besplatno i identicnog; kad oglasa vise nema, objavi se novi iz
+  sacuvanog kroz postojecu potvrdu troska, a izuzece od obnova predje na novi broj oglasa.
+  Arhiva ulazi u backup kao jedini primjerak slika. Tri nova MCP alata (`olx_skini_artikal`,
+  `olx_arhiva`, `olx_vrati_artikal`); pravog brisanja i dalje nema. Kad namjera nije jasna,
+  bot prvo pita zeli li covjek artikal skloniti i sacuvati, zavrsiti kao prodan, ili samo
+  preskakati u obnovama.
+- **Automatske obnove tek na odluku klijenta.** Dok ritam nije zapisan, dnevni posao ne obnavlja
+  nista: prva jutarnja poruka pita klijenta kako zeli (broj i lista danas dostupnih oglasa, pet
+  ponudjenih odgovora), narednih dana ostaje samo podsjetnik u jednoj liniji. Ritam dobija i
+  opciju "iskljuceno". VAZI I ZA POSTOJECE KLONOVE: poslije azuriranja obnove staju dok klijent
+  ne odgovori na jutarnje pitanje, ili se ritam upise unaprijed.
+- Dokumentacija: Gold paket ima limit od 2.000 artikala i u njega ulaze i skriveni oglasi (mjesto
+  oslobadja samo zavrsavanje); opciju ponovne objave zavrsenih oglasa platforma je ukinula.
+
 ## 0.11.0 — 2026-08-03
 
 Minor: klijentska sesija dobija otvorene alate uz guardrails u promptu; DeepSeek postaje default za nove klonove.

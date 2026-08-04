@@ -21,6 +21,7 @@ import { loadConfig } from "./config.js";
 import { putanjaIzuzeca } from "./izuzeca.js";
 import { KONKURENTI_DIR } from "./konkurenti.js";
 import { putanjaPamcenja } from "./pamcenje.js";
+import { mapaArhive } from "./arhiva.js";
 import { mapaPozadine } from "./pozadina.js";
 import { PLAN_FILE } from "./plan-fajl.js";
 import { mapaPrijedloga } from "./prijedlozi.js";
@@ -57,6 +58,15 @@ export function bijeliSpisak(env: NodeJS.ProcessEnv = process.env): StavkaSpiska
       putanja: mapaPozadine(env),
       obrazac: /^(pozadina\.json|slika\.(jpe?g|png|webp|gif))$/,
       opis: "stalna pozadina za generisanje slika",
+    },
+    // Arhiva skinutih artikala: kad oglas nestane sa platforme, ovi fajlovi su JEDINI
+    // primjerak originalnih slika, dakle nezamjenjivi. Binarno u backupu, kao i pozadina;
+    // raste samo eksplicitnom odlukom klijenta (nema automatskog arhiviranja). Slike su
+    // namjerno ravno u <id>/, ne u podmapi "slike": crni obrazac za slike/ bi ih tiho izbacio.
+    {
+      putanja: mapaArhive(env),
+      obrazac: /^\d+\/(oglas\.json|\d{2}\.(jpe?g|png|webp|gif))$/,
+      opis: "arhiva skinutih artikala, jedini primjerak slika",
     },
     // Serija stanja kvote. Nezamjenjiva retroaktivno, kao i snapshoti pregleda: po njoj se
     // vidi KAD se kvota obnavlja, a API taj datum ne vraca.

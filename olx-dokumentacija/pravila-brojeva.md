@@ -22,7 +22,8 @@ jer korisnik dobije broj u koji vjeruje.
 - Bonus na dopunu kredita karticom: ispod 10 KM nema bonusa, 10 do 49 KM je 20 posto,
   50 do 149 KM je 25 posto, 150 do 199 KM je 30 posto, 200 KM i više je 40 posto.
 - Probni period pri prvom otvaranju shopa: 30 dana i 500 kredita.
-- Broj aktivnih oglasa u besplatnim kategorijama: klasični od 20 do 60, PRO 200, shop bez limita.
+- Broj aktivnih oglasa u besplatnim kategorijama: klasični od 20 do 60, PRO 200. Shop ima limit
+  po paketu (razred B, red o limitu oglasa).
 - Zarada kredita kroz prijave: 3 kredita za prvu prihvaćenu prijavu, 1 za naknadnu, 2 za prijavu
   nedozvoljenog naslova.
 
@@ -62,6 +63,11 @@ jer korisnik dobije broj u koji vjeruje.
   periodu. Poređenja i alarmi idu na ostvarivo, ne na sirovu kvotu (`ostvarivihObnova` u
   `src/core/stats.ts`).
 - Trenutno stanje kredita.
+- **Limit broja oglasa po paketu.** Saznato 04.08.2026: Gold paket nosi limit od 2.000 artikala.
+  U taj zbir ulaze i AKTIVNI i SKRIVENI oglasi zajedno, pa skrivanje NE oslobađa mjesto; mjesto
+  oslobađa samo završavanje oglasa. Limit se prije računice pročita sa naloga
+  (`olx_listing_limits`), jer se paketi mijenjaju. Posljedica za shopove blizu limita: artikal
+  koji se dugo neće vraćati na stanje bolje je završiti nego kriti.
 - Broj aktivnih, skrivenih, isteklih i završenih oglasa.
 - Koji su oglasi već izdvojeni.
 - Mjesečni bonus kredita po paketu. Gold 1.800 i Platinum 4.600 su iz naše dokumentacije, ali

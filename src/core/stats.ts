@@ -8,7 +8,7 @@
 // treba izracunata metrika. Ove funkcije sazmu podatke PRIJE nego sto stignu do AI-a.
 
 import { linkOglasa } from "./link.js";
-import { RITAM_PODRAZUMIJEVANI, type Ritam, type RitamStrategija } from "./ritam-obnova.js";
+import { RITAM_PODRAZUMIJEVANI, type Ritam, type RitamStrategija, ritamZapisan } from "./ritam-obnova.js";
 import type {
   CategoryAttribute,
   Listing,
@@ -945,6 +945,12 @@ export interface DnevniPlanObnova {
   kvota_neostvariva: boolean;
   /** Koji ritam je primijenjen; ide u izvjestaj da klijent zna po cemu se radi. */
   ritam: RitamStrategija;
+  /**
+   * Smiju li obnove uopste ici automatski. "auto" kad je klijent rekao svoj ritam,
+   * "ceka_odluku" dok nije rekao nista (nista se ne obnavlja, jutarnja poruka ga pita),
+   * "iskljuceno" kad je izricito rekao da automatskih obnova ne zeli.
+   */
+  obnove_stanje: "auto" | "ceka_odluku" | "iskljuceno";
 }
 
 export interface DnevniPlanUlaz {
@@ -993,8 +999,14 @@ export function dnevniPlanObnova(ulaz: DnevniPlanUlaz): DnevniPlanObnova {
     strop === Number.POSITIVE_INFINITY ? Number.POSITIVE_INFINITY : ostvarivihObnova(strop, dana, imaShop, imaPro);
   const zaPotrositi = Math.min(preostalo, ostvarivo);
 
+  // Odluka klijenta je kapija ispred svega: dok je nema, nista se ne obnavlja samo od sebe,
+  // nego ga jutarnja poruka pita (odluka vlasnika 04.08.2026). Cilj se i tada racuna, da
+  // poruka moze reci koliko bi se danas moglo.
+  const stanje: DnevniPlanObnova["obnove_stanje"] =
+    ritam.strategija === "iskljuceno" ? "iskljuceno" : ritamZapisan(ritam) ? "auto" : "ceka_odluku";
+
   let cilj: number;
-  if (preostalo === 0) {
+  if (preostalo === 0 || stanje === "iskljuceno") {
     cilj = 0;
   } else if (ritam.strategija === "sve-dostupno") {
     // Trgovac je rekao da hoce sve sto platforma da. Kvota je jedina granica.
@@ -1017,9 +1029,10 @@ export function dnevniPlanObnova(ulaz: DnevniPlanUlaz): DnevniPlanObnova {
     ostvarivo: Number.isFinite(ostvarivo) ? ostvarivo : 0,
     cilj_danas: Number.isFinite(cilj) ? cilj : 0,
     kandidata,
-    za_obnovu: Math.min(cilj, kandidata),
+    za_obnovu: stanje === "auto" ? Math.min(cilj, kandidata) : 0,
     kvota_neostvariva: preostalo > 0 && Number.isFinite(ostvarivo) && preostalo > ostvarivo,
     ritam: ritam.strategija,
+    obnove_stanje: stanje,
   };
 }
 

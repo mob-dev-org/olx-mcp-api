@@ -480,6 +480,7 @@ test("dnevniPlanObnova ne javlja neostvarivu kvotu kad je ona ostvariva", () => 
     sadaTs: pocetakMjeseca,
     aktivnihOglasa: 500,
     imaShop: true,
+    ritam: { strategija: "ravnomjerno", kada: "2026-07-01T00:00:00.000Z" },
   });
   assert.equal(p.kvota_neostvariva, false, "500 oglasa kroz mjesec uz prag 7 dana pokrije 1800");
   assert.equal(p.za_obnovu, Math.min(p.cilj_danas, 50), "za_obnovu ostaje manji od cilja i kandidata");
@@ -822,10 +823,12 @@ test("provjeriNacrt je zadovoljan kad je sve popunjeno", () => {
 test("dnevniPlanObnova rasporedjuje ostvarivo na preostale dane i staje na broju kandidata", () => {
   // Bez `aktivnihOglasa` nema stropa ni ostvarivog, pa se pada na sirovu kvotu kroz dane. Tada se
   // rok NE smije izgovoriti korisniku, jer je kraj kalendarskog mjeseca samo pretpostavka.
+  const ODLUCEN = { strategija: "ravnomjerno", kada: "2026-07-01T00:00:00.000Z" } as const;
   const puno = dnevniPlanObnova({
     refreshLimits: limits({ free_limit: 1800, free_count: 800 }),
     kandidata: 500,
     sadaTs: SADA - 10 * DAN,
+    ritam: ODLUCEN,
   });
   assert.equal(puno.dana_do_reseta, 11);
   assert.equal(puno.rok_poznat, false, "bez ciklusa pretplate rok nije poznat");
@@ -836,6 +839,7 @@ test("dnevniPlanObnova rasporedjuje ostvarivo na preostale dane i staje na broju
     refreshLimits: limits({ free_limit: 1800, free_count: 800 }),
     kandidata: 20,
     sadaTs: SADA - 10 * DAN,
+    ritam: ODLUCEN,
   });
   assert.equal(malo.za_obnovu, 20, "ne moze se obnoviti vise nego sto ima kandidata");
 
@@ -962,4 +966,30 @@ test("mrtviOglasi hvata oglas sa mnogo pregleda ali bez prirasta, sto stara mjer
 test("mrtviOglasi vraca null umjesto da cijeli katalog proglasi mrtvim bez podataka", () => {
   assert.equal(mrtviOglasi([], SADA, 60), null);
   assert.equal(mrtviOglasi([{ verzija: 2, ts: SADA, oglasi: [{ id: 1, views: 0 }] }], SADA, 60), null);
+});
+
+test("dnevniPlanObnova ne obnavlja nista dok klijent ne kaze svoj ritam", () => {
+  // Odluka vlasnika 04.08.2026: automatske obnove nisu default. Bez zapisanog ritma
+  // (`kada` prazno) posao ne dira nista, a cilj se i dalje racuna da poruka moze reci
+  // koliko bi se danas moglo.
+  const ulaz = {
+    refreshLimits: { free_limit: 1800, free_count: 300, paid_count: 0, listing_count: 0 },
+    kandidata: 40,
+    sadaTs: SADA,
+    aktivnihOglasa: 120,
+    imaShop: true,
+  };
+  const bezOdluke = dnevniPlanObnova(ulaz);
+  assert.equal(bezOdluke.obnove_stanje, "ceka_odluku");
+  assert.equal(bezOdluke.za_obnovu, 0, "bez odluke se nista ne obnavlja");
+  assert.ok(bezOdluke.cilj_danas > 0, "cilj se i dalje racuna, za tekst pitanja");
+
+  const iskljucio = dnevniPlanObnova({ ...ulaz, ritam: { strategija: "iskljuceno", kada: "2026-08-01T00:00:00.000Z" } });
+  assert.equal(iskljucio.obnove_stanje, "iskljuceno");
+  assert.equal(iskljucio.za_obnovu, 0);
+  assert.equal(iskljucio.cilj_danas, 0);
+
+  const odlucio = dnevniPlanObnova({ ...ulaz, ritam: { strategija: "ravnomjerno", kada: "2026-08-01T00:00:00.000Z" } });
+  assert.equal(odlucio.obnove_stanje, "auto");
+  assert.ok(odlucio.za_obnovu > 0, "sa odlukom obnove rade kao i prije");
 });

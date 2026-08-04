@@ -8,7 +8,7 @@ import { dnevniTekst, dnevniVrijedanSlanja, type DnevniPodaci } from "./izvjesta
 function podaci(overrides: Partial<DnevniPodaci> = {}): DnevniPodaci {
   return {
     username: "test",
-    plan: { kvota: 1800, preostalo: 1500, dana_do_reseta: 10, rok_poznat: true, rok_izvor: "ciklus", ostvarivo: 400, cilj_danas: 0, kandidata: 0, za_obnovu: 0, kvota_neostvariva: false, ritam: "ravnomjerno" },
+    plan: { kvota: 1800, preostalo: 1500, dana_do_reseta: 10, rok_poznat: true, rok_izvor: "ciklus", ostvarivo: 400, cilj_danas: 0, kandidata: 0, za_obnovu: 0, kvota_neostvariva: false, ritam: "ravnomjerno", obnove_stanje: "auto" as const },
     obnovljeno: 0,
     neuspjelih_obnova: 0,
     alarmi: { ok: true, alarmi: [] },
@@ -43,7 +43,7 @@ test("obnovljeni oglasi, alarmi ili rast pregleda cine poruku vrijednom", () => 
 
 test("kvar obnove (kandidata ima, nista obnovljeno) je vrijedan poruke, ne tisina", () => {
   assert.equal(
-    dnevniVrijedanSlanja(podaci({ obnovljeno: 0, plan: { kvota: 1800, preostalo: 1500, dana_do_reseta: 10, rok_poznat: true, rok_izvor: "ciklus", ostvarivo: 400, cilj_danas: 5, kandidata: 5, za_obnovu: 5, kvota_neostvariva: false, ritam: "ravnomjerno" } })),
+    dnevniVrijedanSlanja(podaci({ obnovljeno: 0, plan: { kvota: 1800, preostalo: 1500, dana_do_reseta: 10, rok_poznat: true, rok_izvor: "ciklus", ostvarivo: 400, cilj_danas: 5, kandidata: 5, za_obnovu: 5, kvota_neostvariva: false, ritam: "ravnomjerno", obnove_stanje: "auto" as const } })),
     true,
   );
   assert.equal(dnevniVrijedanSlanja(podaci({ neuspjelih_obnova: 2 })), true);
@@ -80,6 +80,7 @@ function plan(overrides: Partial<DnevniPodaci["plan"]> = {}): DnevniPodaci["plan
     za_obnovu: 16,
     kvota_neostvariva: false,
     ritam: "ravnomjerno",
+    obnove_stanje: "auto" as const,
     ...overrides,
   };
 }
@@ -205,4 +206,28 @@ test("razmak manji od dana se ne izgovara kao nula", () => {
     }),
   );
   assert.match(t, /Pregledi u zadnjih 1 dan: 12 novih\./);
+});
+
+test("prvo pitanje o obnovama okida slanje, podsjetnik ne", () => {
+  // Uz pitanje plan uvijek nosi "ceka_odluku" (dnevniPlanObnova), pa i test: sa "auto" bi
+  // poruka uz pitanje obecala i tempo, sto je bas ono sto se ovdje zabranjuje.
+  const cekaPlan = { ...podaci().plan, obnove_stanje: "ceka_odluku" as const };
+  const prvo = podaci({ plan: cekaPlan, obnove_pitanje: { kandidata: 14, naslovi: ["Patike Nike 42"], podsjetnik: false } });
+  assert.equal(dnevniVrijedanSlanja(prvo), true, "puno pitanje se salje uvijek");
+  const t = dnevniTekst(prvo);
+  assert.match(t, /14 tvojih oglasa/);
+  assert.match(t, /Patike Nike 42/);
+  assert.match(t, /i jos 13/);
+  assert.match(t, /nista ne obnavljam sam/i);
+  assert.ok(!/Tempo oko/.test(t), "tempo se ne obecava dok odluke nema");
+
+  const podsjetnik = podaci({ plan: cekaPlan, obnove_pitanje: { kandidata: 14, naslovi: [], podsjetnik: true } });
+  assert.equal(dnevniVrijedanSlanja(podsjetnik), false, "podsjetnik nije okidac");
+  assert.match(dnevniTekst(podsjetnik), /Podsjetnik: automatske obnove jos ne rade/);
+});
+
+test("iskljucene obnove se u tekstu kazu kao izbor klijenta, bez tempa", () => {
+  const t = dnevniTekst(podaci({ obnovljeno: 0, plan: { ...podaci().plan, obnove_stanje: "iskljuceno" as const, ritam: "iskljuceno" as const } }));
+  assert.match(t, /iskljucene po tvom izboru/);
+  assert.ok(!/Tempo oko/.test(t));
 });

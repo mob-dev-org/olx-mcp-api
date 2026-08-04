@@ -7,6 +7,7 @@ import {
   bezSklonjenog,
   jeIzuzet,
   odvojiIzuzete,
+  preneseno,
   saDodatim,
   spisak,
   ucitajIzuzeca,
@@ -91,4 +92,27 @@ test("citanje i upis prezive krug kroz disk, a pokvaren fajl daje prazan spisak"
 
   upisiIzuzeca({} as Izuzeca, fajl);
   assert.deepEqual(ucitajIzuzeca(fajl), {});
+});
+
+test("preneseno seli izuzece na novi id pri ponovnoj objavi", () => {
+  const iz = saDodatim({}, 42, "obnova", "sezonski artikal", KADA);
+  const poslije = preneseno(iz, 42, 99, "2026-09-01T00:00:00.000Z");
+  assert.equal(poslije["42"], undefined, "stari kljuc se brise");
+  assert.equal(jeIzuzet(poslije, 99, "obnova"), true);
+  assert.equal(jeIzuzet(poslije, 99, "izdvajanje"), false, "opseg se prenosi tacno, ne siri");
+  assert.equal(poslije["99"]?.razlog, "sezonski artikal");
+});
+
+test("preneseno bez starog izuzeca ne mijenja nista", () => {
+  const iz = saDodatim({}, 5, "sve", null, KADA);
+  assert.deepEqual(preneseno(iz, 42, 99, KADA), iz);
+});
+
+test("preneseno na id koji vec ima izuzece spaja opsege", () => {
+  let iz = saDodatim({}, 42, "obnova", "stari razlog", KADA);
+  iz = saDodatim(iz, 99, "izdvajanje", null, KADA);
+  const poslije = preneseno(iz, 42, 99, KADA);
+  assert.equal(jeIzuzet(poslije, 99, "obnova"), true);
+  assert.equal(jeIzuzet(poslije, 99, "izdvajanje"), true);
+  assert.equal(poslije["99"]?.razlog, "stari razlog", "razlog starog ima prednost kad novi nema svoj");
 });

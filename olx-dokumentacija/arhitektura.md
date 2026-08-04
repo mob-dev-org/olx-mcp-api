@@ -49,6 +49,13 @@ sistem raste uz klijenta: sesija se resetuje svaku noc, a pamcenje se tada ponov
 pa bot od prve poruke zna ton, footer i navike bez ijednog poziva alata. `KLIJENT.md` u tome NE
 ucestvuje: on nosi tokene i komercijalni dogovor i ostaje zabranjen klijentskoj sesiji.
 
+Skidanje artikala: kad artikla nema na stanju, bot ga na zahtjev arhivira
+(`.olx-pik/arhiva-artikala/<id>/`, opis oglasa + originalne slike kao bajtovi) pa sakrije
+(`olx_skini_artikal`). Povratak (`olx_vrati_artikal`) skriven oglas samo otkrije; kad oglasa
+vise nema, objavi novi iz arhive sa originalnim slikama i prenese izuzece na novi broj. Arhiva
+ide u backup (jedini primjerak slika kad oglas nestane) i raste samo eksplicitnom odlukom
+klijenta.
+
 Granice pogona:
 
 - Klijentsku sesiju pogoni ono sto kaze `OLX_KLIJENT_AI` u `.env` klona: `pretplata` dok prvih
@@ -96,7 +103,7 @@ flowchart TB
     subgraph dan["Svaki dan"]
         s1["02:40 snapshot<br/>snimi preglede svih oglasa u fajl<br/>bez ovoga nema trendova"]
         s2["03:00 nocni restart sesije<br/>kontekst na nulu, ciscenje inboxa<br/>radi cuvar-sesije.mjs"]
-        s3["07:20 dnevni posao<br/>obnove unutar besplatne kvote<br/>pa jutarnja poruka u SVE grupe"]
+        s3["07:20 dnevni posao<br/>obnove unutar besplatne kvote<br/>TEK kad klijent izabere ritam<br/>pa jutarnja poruka u SVE grupe"]
         s8["08:10 backup stanja<br/>pamcenje, izuzeca, audit, snapshoti<br/>na privatnu granu klijenta"]
     end
     subgraph sedmica["Sedmicno"]
@@ -124,6 +131,12 @@ jednom.
 
 Backup je jedini posao koji je uslovan: instalira se samo kad je `OLX_STANJE_REPO` popunjen u
 `.env`. Bez toga bi svako jutro pao i slao alarm, a klon bi imao jedan pokvaren zadatak vise.
+
+Automatske obnove NISU ukljucene same od sebe (odluka vlasnika 04.08.2026): dok klijent ne kaze
+svoj ritam, dnevni posao ne obnavlja nista, a prva jutarnja poruka ga pita kako zeli (sa brojem i
+listom danas dostupnih oglasa, narednih dana samo podsjetnik u jednoj liniji). Njegov odgovor bot
+zapise kao ritam (`.olx-pik/ritam-obnova.json`, ukljucujuci i "iskljuceno"), a pojedinacne
+artikle sklanja lista izuzetaka (`.olx-pik/izuzeca.json`).
 
 Kome idu izvjestaji: svakoj grupi pod `groups` u `.claude-runtime/channels/telegram/access.json`,
 plus `TELEGRAM_CHAT_ID` iz `.env` kao dopuni, dedupirano. Isti fajl odlucuje i od koga bot PRIMA

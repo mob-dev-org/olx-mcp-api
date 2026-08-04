@@ -115,6 +115,21 @@ export function odvojiIzuzete<T extends { id: number }>(
   return { prolaze, preskoceni };
 }
 
+/**
+ * Prenos izuzeca sa starog oglasa na novi, pri ponovnoj objavi iz arhive: novi oglas dobija
+ * novi id, a odluka vlasnika ("ovaj ne diraj") se odnosi na ARTIKAL, ne na broj. Bez prenosa
+ * bi se ponovo objavljen artikal tiho vratio u automatsku obnovu.
+ */
+export function preneseno(izuzeca: Izuzeca, stariId: number, noviId: number, kada: string): Izuzeca {
+  const staro = izuzeca[String(stariId)];
+  if (!staro) return izuzeca;
+  let novo: Izuzeca = { ...izuzeca };
+  delete novo[String(stariId)];
+  if (staro.obnova) novo = saDodatim(novo, noviId, "obnova", staro.razlog, kada);
+  if (staro.izdvajanje) novo = saDodatim(novo, noviId, "izdvajanje", staro.razlog, kada);
+  return novo;
+}
+
 /** Spisak za prikaz: id, oba opsega i razlog, sortirano po id-u da izlaz bude stabilan. */
 export function spisak(izuzeca: Izuzeca): { id: number; obnova: boolean; izdvajanje: boolean; razlog: string | null; kada: string }[] {
   return Object.entries(izuzeca)

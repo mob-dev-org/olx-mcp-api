@@ -17,7 +17,7 @@ import { matchCatalog, summarizeMatches } from "../core/match.js";
 import type { PikItem, KatalogItem, OverrideEntry } from "../core/match.js";
 import { loadKatalog } from "../core/katalog.js";
 import { alarmiNaloga, danCiklusaIzIsteka, dnevniPlanObnova, efekatIzdvajanja, mrtviOglasi, pragObnove, promjenaKonkurenta, promjenaPregleda } from "../core/stats.js";
-import { intervalUzPrag, poIntervalu, ucitajRitam } from "../core/ritam-obnova.js";
+import { intervalUzPrag, poIntervalu, ucitajRitam, upisiRitam } from "../core/ritam-obnova.js";
 import { izmjereniDanReseta, ucitajKvotuDnevnik, zapisiKvotu } from "../core/kvota-dnevnik.js";
 import { ucitajKonkurenta, upisiKonkurenta } from "../core/konkurenti.js";
 import type { OnboardingDetalj } from "../core/stats.js";
@@ -1661,6 +1661,16 @@ posao
       // bi pola kataloga izgledalo mrtvo samo zato sto jos nije stiglo dobiti pregled.
       const mrtviSirovo = mrtviOglasi(snapshoti, sadaTs);
       const mrtvi = mrtviSirovo && mrtviSirovo.period_dana >= 14 ? mrtviSirovo : null;
+      // Bez odluke klijenta se nista ne obnavlja: prvi put ide puno pitanje sa listom (do 10,
+      // granice.md), narednih dana samo podsjetnik u poruci koja se ionako salje.
+      const obnovePitanje =
+        plan.obnove_stanje === "ceka_odluku"
+          ? {
+              kandidata: kandidati.length,
+              naslovi: kandidati.slice(0, 10).map((l) => l.title ?? String(l.id)),
+              podsjetnik: Boolean(ritam.pitano),
+            }
+          : null;
       const podaci = {
         username: user,
         plan,
@@ -1674,6 +1684,7 @@ posao
         potroseno_kredita: potroseno,
         mrtvi: mrtvi && mrtvi.oglasi.length > 0 ? { broj: mrtvi.oglasi.length, dana: mrtvi.period_dana } : null,
         izuzeti: izuzetiDanas.length,
+        obnove_pitanje: obnovePitanje,
       };
       const tekst = dnevniTekst(podaci);
 
@@ -1689,6 +1700,11 @@ posao
       // ove provjere mjesecima cutke ostajao bez jutarnje poruke, a log bi tvrdio uspjeh.
       if (!opts.suho && !opts.bezSlanja && poslano === 0) {
         throw new Error(BEZ_ODREDISTA);
+      }
+      // Puno pitanje je stiglo do klijenta: zabiljezi, da sutra ide samo podsjetnik. Tek
+      // poslije uspjesnog slanja, jer neposlano pitanje nije pitanje.
+      if (obnovePitanje && !obnovePitanje.podsjetnik && poslano > 0) {
+        upisiRitam({ ...ritam, pitano: new Date().toISOString() });
       }
       out({ plan, obnovljeno, neuspjelih, poslano_poruka: poslano, tekst });
     } catch (e) {

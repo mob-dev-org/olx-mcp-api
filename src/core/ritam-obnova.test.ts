@@ -57,3 +57,20 @@ test("poIntervalu propusta samo oglase kojima je proslo dovoljno", () => {
   const naRedu = poIntervalu(oglasi, 7, sada).map((o) => o.id);
   assert.deepEqual(naRedu, [1, 3, 4], "oglas od 2 dana ceka, oglas bez podatka se propusta");
 });
+
+test("normalizujRitam poznaje 'iskljuceno' i cuva 'pitano'", () => {
+  assert.deepEqual(normalizujRitam({ strategija: "iskljuceno", kada: "2026-08-04T07:20:00.000Z" }), {
+    strategija: "iskljuceno",
+    kada: "2026-08-04T07:20:00.000Z",
+  });
+  // `pitano` prezivljava i normalizaciju i pokvarenu strategiju: bez toga bi rucno diranje
+  // fajla klijentu ponovo poslalo puno pitanje sa listom.
+  assert.deepEqual(normalizujRitam({ strategija: "ravnomjerno", pitano: "2026-08-04T07:20:00.000Z" }), {
+    strategija: "ravnomjerno",
+    pitano: "2026-08-04T07:20:00.000Z",
+  });
+  assert.deepEqual(normalizujRitam({ strategija: "nepostojeca", pitano: "2026-08-04T07:20:00.000Z" }), {
+    strategija: "ravnomjerno",
+    pitano: "2026-08-04T07:20:00.000Z",
+  });
+});

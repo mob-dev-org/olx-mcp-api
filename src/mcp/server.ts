@@ -32,7 +32,9 @@ import { nadjiPoUpitu } from "../core/match.js";
 import { PLAN_FILE, upisiPlan, zauzmiKljuc } from "../core/plan-fajl.js";
 import { buildPlan, planSazetak, type PlanKandidat } from "../core/plan.js";
 import { opisiSliku, vidKonfigurisan } from "../core/vid.js";
-import { OPSEZI, bezSklonjenog, odvojiIzuzete, saDodatim, spisak, ucitajIzuzeca, upisiIzuzeca } from "../core/izuzeca.js";
+import { OPSEZI, bezSklonjenog, odvojiIzuzete, preneseno, saDodatim, spisak, ucitajIzuzeca, upisiIzuzeca } from "../core/izuzeca.js";
+import { kompaktSpisak, mapaZapisa, noviZapis, planVracanja, preuzmiSlike, saOznakomObjave, ucitajSveZapise, ucitajZapis, upisiZapis, velicinaArhive } from "../core/arhiva.js";
+import type { Listing } from "../core/types.js";
 import { INTERVAL_MAX, STRATEGIJE, intervalUzPrag, normalizujRitam, ritamZapisan, ucitajRitam, upisiRitam } from "../core/ritam-obnova.js";
 import { POZADINA_OPIS_MAX, obrisiPozadinu, sacuvajPozadinu, sazetakPozadine, ucitajPozadinu } from "../core/pozadina.js";
 import { DOPUNA_MAX, ODNOSI, RECEPTI, RECEPT_POZADINA, ZADANI_ODNOS, generisiSliku, maxDnevno, provjeriDopunu, provjeriZahtjevSlike, slikaKonfigurisana, type Odnos } from "../core/slika.js";
@@ -1568,7 +1570,7 @@ server.registerTool(
   {
     title: "Ritam obnavljanja oglasa",
     description:
-      "Kojim ritmom se oglasi automatski obnavljaju. 'ravnomjerno' rasporedi kroz ciklus, 'sve-dostupno' dize svaki oglas koji platforma da, 'interval' dize isti oglas svakih N dana. Radnja 'procitaj' ne trazi strategiju. Platforma besplatnu obnovu istog oglasa daje tek nakon praga, pa se kraci interval podize na prag i to se javi. Ne trosi kredite.",
+      "Kojim ritmom se oglasi automatski obnavljaju. 'ravnomjerno' rasporedi kroz ciklus, 'sve-dostupno' dize svaki oglas koji platforma da, 'interval' dize isti oglas svakih N dana, 'iskljuceno' ne obnavlja nista automatski. DOK VLASNIK NE IZABERE, dnevni posao ne obnavlja nista i pita ga u jutarnjoj poruci; njegov odgovor se zapisuje ovim alatom. Radnja 'procitaj' ne trazi strategiju. Kraci interval od praga platforme se podize na prag i to se javi. Ne trosi kredite.",
     inputSchema: {
       radnja: z.enum(["procitaj", "postavi"]),
       strategija: z.enum(STRATEGIJE).optional().describe("obavezno za postavi"),
@@ -1675,6 +1677,176 @@ server.registerTool(
     annotations: destructiveOp,
   },
   (args) => run((c) => c.finishListing(args.id)),
+);
+
+server.registerTool(
+  "olx_skini_artikal",
+  {
+    title: "Skini artikal (arhiviraj pa sakrij)",
+    description:
+      "Kad artikla nema na stanju a vratice se: sacuva oglas i ORIGINALNE slike lokalno, pa sakrije oglas. Besplatno i reverzibilno; povratak je olx_vrati_artikal. Prije poziva potvrdi sa korisnikom o kojem se oglasu radi.",
+    inputSchema: { id: z.number().int() },
+    annotations: writeOp,
+  },
+  (args) =>
+    run(async (c) => {
+      const oglas = await c.getListing(args.id);
+      const zapis = noviZapis(oglas, new Date().toISOString());
+      const { fajlovi, neuspjele } = await preuzmiSlike(zapis.meta.url_slika, mapaZapisa(args.id));
+      zapis.meta.fajlovi_slika = fajlovi;
+      zapis.meta.neuspjele_slike = neuspjele;
+      // Ponovno arhiviranje ne smije zaboraviti da je artikal ranije vec objavljen iz arhive.
+      const stari = ucitajZapis(args.id);
+      if (stari?.meta.ponovo_objavljen) zapis.meta.ponovo_objavljen = stari.meta.ponovo_objavljen;
+      upisiZapis(zapis);
+      const vecSkriven = oglas.visible === false;
+      if (!vecSkriven) await c.hideListing(args.id);
+      return {
+        id: args.id,
+        naslov: oglas.title,
+        vec_bio_skriven: vecSkriven,
+        sacuvano_slika: fajlovi.length,
+        neuspjele_slike: neuspjele,
+        // Dok je oglas samo skriven, otkrivanje vraca SVE i bez arhive; arhiva je osiguranje
+        // za slucaj da oglas kasnije zavrsi ili nestane.
+        napomena: neuspjele.length > 0 ? "dio slika nije sacuvan u arhivu; otkrivanje skrivenog oglasa svejedno vraca sve slike" : null,
+      };
+    }),
+);
+
+server.registerTool(
+  "olx_arhiva",
+  {
+    title: "Arhiva skinutih artikala",
+    description:
+      "Lokalna arhiva artikala skinutih sa shopa (olx_skini_artikal). Radnja 'lista' vraca pregled, 'detalj' pun zapis jednog artikla po originalnom broju oglasa.",
+    inputSchema: { radnja: z.enum(["lista", "detalj"]), id: z.number().int().optional() },
+    annotations: readOnly,
+  },
+  async (args) => {
+    try {
+      if (args.radnja === "detalj") {
+        if (!args.id) return errResult("Radnja 'detalj' trazi id.");
+        const zapis = ucitajZapis(args.id);
+        return zapis ? ok(zapis) : errResult(`U arhivi nema zapisa za oglas ${args.id}.`);
+      }
+      const zapisi = ucitajSveZapise();
+      const velicinaMb = Math.round((velicinaArhive() / 1_048_576) * 10) / 10;
+      return ok({ ukupno: zapisi.length, velicina_mb: velicinaMb, artikli: kompaktSpisak(zapisi) });
+    } catch (e) {
+      return errResult(String(e instanceof Error ? e.message : e));
+    }
+  },
+);
+
+server.registerTool(
+  "olx_vrati_artikal",
+  {
+    title: "Vrati skinuti artikal",
+    description:
+      "Vraca ranije skinut artikal (id = originalni broj, vidi olx_arhiva lista). Skriven oglas samo otkrije, besplatno. Kad oglasa vise nema, objavi NOVI iz arhive sa originalnim slikama: prije potvrde korisnika pozovi olx_draft_check; u naplatnim kategorijama bez confirm=true samo javi cijenu.",
+    inputSchema: {
+      id: z.number().int(),
+      confirm: z.boolean().default(false).describe("true tek nakon sto korisnik potvrdi eventualnu cijenu objave"),
+      ignorisi_prethodnu_objavu: z.boolean().default(false).describe("true samo kad korisnik izricito zeli jos jedan primjerak vec vracenog artikla"),
+      potvrdi_spornu_robu: POTVRDA_ROBE,
+    },
+    annotations: writeOp,
+  },
+  (args) =>
+    run(async (c) => {
+      const zapis = ucitajZapis(args.id);
+      let oglas: Listing | null = null;
+      try {
+        oglas = await c.getListing(args.id);
+      } catch {
+        oglas = null; // zavrsen ili obrisan: planVracanja odlucuje moze li iz arhive
+      }
+      const plan = planVracanja(zapis, oglas);
+      if (plan.radnja === "stoj") return { radnja: "nista", zasto: plan.zasto };
+      if (plan.radnja === "otkrij") {
+        await c.unhideListing(args.id);
+        return { radnja: "otkriven", id: args.id, link: linkOglasa(args.id, oglas?.slug) };
+      }
+      if (!zapis) return { radnja: "nista", zasto: "nema arhive" }; // planVracanja ovo vec brani
+
+      // Brana duple objave: ista arhiva je vec jednom vracena i taj novi oglas jos zivi.
+      const ranije = zapis.meta.ponovo_objavljen;
+      if (ranije && !args.ignorisi_prethodnu_objavu) {
+        let noviAktivan = false;
+        try {
+          noviAktivan = (await c.getListing(ranije.novi_id)).visible !== false;
+        } catch {
+          noviAktivan = false;
+        }
+        if (noviAktivan) {
+          return {
+            radnja: "nista",
+            zasto: `artikal je vec vracen kao oglas ${ranije.novi_id} i taj oglas je aktivan; za jos jedan primjerak pozovi sa ignorisi_prethodnu_objavu: true`,
+          };
+        }
+      }
+
+      // Kljuc brani paralelnu duplu objavu (dvije poruke u isto vrijeme).
+      const otpusti = zauzmiKljuc(".olx-pik/arhiva-objava");
+      try {
+        const create = { ...zapis.create };
+        if (create.city_id === undefined && config.defaultCityId !== undefined) create.city_id = config.defaultCityId;
+        if (create.country_id === undefined && config.defaultCountryId !== undefined) create.country_id = config.defaultCountryId;
+        const draft = await c.createListing(create, { confirm: args.confirm, potvrdiRobu: args.potvrdi_spornu_robu });
+        const kada = new Date().toISOString();
+
+        const mapa = mapaZapisa(args.id);
+        if (zapis.meta.fajlovi_slika.length > 0) {
+          let slike;
+          try {
+            slike = await c.uploadImageFiles(draft.id, zapis.meta.fajlovi_slika.map((f) => resolve(mapa, f)));
+          } catch (e) {
+            // STOP prije objave: oglas bez slika se ne objavljuje. Draft ostaje da se ne izgubi.
+            return {
+              radnja: "prekinuto_prije_objave",
+              draft_id: draft.id,
+              zasto: `slike nisu poslane (${String(e instanceof Error ? e.message : e)}); oglas NIJE objavljen, pokusaj ponovo ili posalji slike pa objavi`,
+            };
+          }
+          // Redoslijed uploada prati arhivu, pa je prva slika iz odgovora glavna. imageId
+          // postoji samo u odgovoru uploada, arhiva ga nema.
+          const glavna = slike[0]?.id;
+          if (glavna !== undefined) {
+            try {
+              await c.setMainImage(draft.id, glavna);
+            } catch {
+              // glavna ostaje po defaultu API-ja; nije razlog da objava padne
+            }
+          }
+        }
+
+        const objava = await c.publishListing(draft.id, { confirm: args.confirm, potvrdiRobu: args.potvrdi_spornu_robu });
+        // Odluka "ovaj ne diraj" prati ARTIKAL, ne broj oglasa: prenesi izuzece na novi id.
+        const izuzeca = ucitajIzuzeca();
+        const prenesenaIzuzeca = preneseno(izuzeca, args.id, draft.id, kada);
+        if (prenesenaIzuzeca !== izuzeca) upisiIzuzeca(prenesenaIzuzeca);
+        upisiZapis(saOznakomObjave(zapis, draft.id, kada));
+
+        let slug: unknown;
+        try {
+          slug = (await c.getListing(draft.id)).slug;
+        } catch {
+          slug = undefined;
+        }
+        return {
+          radnja: "objavljen_iz_arhive",
+          stari_id: args.id,
+          novi_id: draft.id,
+          poslano_slika: zapis.meta.fajlovi_slika.length,
+          izuzece_preneseno: prenesenaIzuzeca !== izuzeca,
+          status: (objava as { status?: unknown }).status ?? null,
+          link: linkOglasa(draft.id, slug),
+        };
+      } finally {
+        otpusti();
+      }
+    }),
 );
 
 server.registerTool(
