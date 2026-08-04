@@ -24,11 +24,13 @@ test("aiPogon: deepseek bez varijabli NE pokrece sesiju", () => {
   assert.match(r.poruka, /OLX_DEEPSEEK_BASE_URL ili OLX_DEEPSEEK_AUTH_TOKEN/);
 });
 
-test("aiPogon: deepseek mapira OLX_DEEPSEEK_* u ANTHROPIC_* i brise API_KEY", () => {
+test("aiPogon: deepseek mapira OLX_DEEPSEEK_* u ANTHROPIC_*, brise API_KEY i ODBIJA pro model", () => {
   const r = aiPogon(false, {
     OLX_KLIJENT_AI: "deepseek",
     OLX_DEEPSEEK_BASE_URL: "https://api.deepseek.com/anthropic",
     OLX_DEEPSEEK_AUTH_TOKEN: "tajna",
+    // Pro modeli su iskljuceni potpuno (odluka vlasnika 04.08.2026: nenamjeran pro je kostao
+    // 1.68 USD u jednom danu): ime sa segmentom "pro" pada na flash default.
     OLX_DEEPSEEK_MODEL: "deepseek-v4-pro",
     OLX_DEEPSEEK_HAIKU_MODEL: "deepseek-v4-flash",
     OLX_DEEPSEEK_TIMEOUT_MS: "600000",
@@ -37,7 +39,7 @@ test("aiPogon: deepseek mapira OLX_DEEPSEEK_* u ANTHROPIC_* i brise API_KEY", ()
   assert.deepEqual(r.env, {
     ANTHROPIC_BASE_URL: "https://api.deepseek.com/anthropic",
     ANTHROPIC_AUTH_TOKEN: "tajna",
-    ANTHROPIC_MODEL: "deepseek-v4-pro",
+    ANTHROPIC_MODEL: "deepseek-v4-flash",
     ANTHROPIC_DEFAULT_HAIKU_MODEL: "deepseek-v4-flash",
     API_TIMEOUT_MS: "600000",
   });

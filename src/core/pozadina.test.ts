@@ -153,3 +153,59 @@ test("sazetak govori covjeku sta je postavljeno", (t) => {
 test("opis pozadine smije biti duzi od dopune na receptu", () => {
   assert.ok(POZADINA_OPIS_MAX > 100, "inace nema smisla imati zasebnu granicu");
 });
+
+test("slot: postavlja se uz sliku, nova slika ga ne resetuje, samo-slot dopunjava postojecu", (t) => {
+  const { dir, env, fotografija } = klon();
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+
+  const r1 = sacuvajPozadinu(
+    { izvorSlike: fotografija("p.jpg"), slot: { sirinaPosto: 60, marginaDnaPosto: 12 } },
+    "2026-08-04T10:00:00.000Z",
+    env,
+  );
+  assert.ok(r1.ok);
+  assert.deepEqual(r1.pozadina.slot, { sidro: "dno-sredina", sirinaPosto: 60, marginaDnaPosto: 12 });
+
+  // zamjena slike bez slota: odluka o polozaju ostaje
+  const r2 = sacuvajPozadinu({ izvorSlike: fotografija("nova.png") }, "2026-08-04T11:00:00.000Z", env);
+  assert.ok(r2.ok);
+  assert.equal(r2.pozadina.slot?.sirinaPosto, 60);
+
+  // samo slot: dopuna bez diranja slike
+  const r3 = sacuvajPozadinu({ slot: { marginaDnaPosto: 5 } }, "2026-08-04T12:00:00.000Z", env);
+  assert.ok(r3.ok);
+  assert.equal(r3.pozadina.slot?.marginaDnaPosto, 5);
+  assert.equal(r3.pozadina.slot?.sirinaPosto, 60, "nedirnuto polje ostaje");
+  assert.ok(r3.pozadina.slika, "slika je i dalje tu");
+});
+
+test("slot: neispravan raspon pada, samo-slot bez pozadine pada sa uputom", (t) => {
+  const { dir, env, fotografija } = klon();
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+
+  const bezPozadine = sacuvajPozadinu({ slot: { sirinaPosto: 50 } }, "2026-08-04T10:00:00.000Z", env);
+  assert.ok(!bezPozadine.ok && /prvo zadaj sliku/.test(bezPozadine.razlog));
+
+  const losRaspon = sacuvajPozadinu(
+    { izvorSlike: fotografija("p.jpg"), slot: { sirinaPosto: 95 } },
+    "2026-08-04T10:00:00.000Z",
+    env,
+  );
+  assert.ok(!losRaspon.ok && /10 do 90/.test(losRaspon.razlog));
+});
+
+test("slot: stari zapis bez slota se cita bez slota, pokvaren slot ne obara citanje", (t) => {
+  const { dir, env, fotografija } = klon();
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+
+  sacuvajPozadinu({ izvorSlike: fotografija("p.jpg"), opis: "beton" }, "2026-07-31T10:00:00.000Z", env);
+  // simulacija starog izdanja: zapis bez slota, odnosno sa pokvarenim slotom
+  const fajl = putanjaPozadine(env);
+  writeFileSync(fajl, JSON.stringify({ opis: "beton", slika: "slika.jpg", postavljeno: "x" }));
+  assert.equal(ucitajPozadinu(env)?.slot, undefined, "stari zapis radi, slot se primijeni kasnije kao zadani");
+
+  writeFileSync(fajl, JSON.stringify({ opis: "beton", slika: "slika.jpg", slot: { sirinaPosto: "sve" } }));
+  const p = ucitajPozadinu(env);
+  assert.ok(p, "pokvaren slot ne obara pozadinu");
+  assert.equal(p.slot, undefined);
+});

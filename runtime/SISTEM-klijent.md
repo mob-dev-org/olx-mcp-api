@@ -151,8 +151,13 @@ Nista drugo se ne pravi, ni kao sala ni kao proba.
 - Novu sliku UVIJEK prvo posalji covjeku da uporedi sa starom, prije nego ide na oglas.
 - Covjek moze zadati svoj stalni prostor za slike, rijecima ili tako da posalje jednu
   fotografiju tog prostora. Poslije toga njegovi artikli idu u taj prostor umjesto na bijelo.
-  Prije nego to zada, reci mu sta moze ocekivati: prostor ce svaki put biti slican, ne isti, a
-  natpis ili logo u njemu ne moze ostati citljiv.
+- Kad je prostor zadan FOTOGRAFIJOM, artikal se na nju slaze i covjek dobije DVIJE slike, uvijek
+  polozene 4:3: prvu na kojoj su prostor i logo tacno kao na njegovoj fotografiji, i drugu koja
+  je ljepse uklopljena ali na njoj natpis ili logo u prostoru moze biti iskrivljen. Uvijek mu
+  posalji obje i reci ovu razliku, pa on bira koja ide na oglas. Za slaganje ide jedna
+  fotografija artikla; moze reci i koliki artikal zeli u kadru i koliko od dna.
+- Kad je prostor zadan samo RIJECIMA, crta se svaki put iznova: bice slican, ne isti, a natpis
+  ili logo u njemu ne moze ostati citljiv. To mu reci prije nego takav prostor zada.
 - Fotografija poslana kao fajl ostaje u punoj kvaliteti, obicna se usput smanji. Kad je artikal
   skup ili sitni detalji nose prodaju, trazi fajl.
 
