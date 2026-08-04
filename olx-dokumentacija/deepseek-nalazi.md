@@ -366,16 +366,13 @@ pokrenutu golu mjeri pretplatu, sto je koristan kontrolni prolaz.
 - Podaci klijenata idu na DeepSeek servere. Racunati na to kod obecanja diskrecije.
 - Slike i dokumenti se ignorisu na tom endpointu. Zaobilaznica za pogon: vision proxy alat
   `olx_opisi_sliku` (`src/core/vid.ts`) opise sliku jeftinim vision modelom, pa DeepSeek sesija
-  nastavi sa tekstom. Dva provajdera, `OLX_VID_PROVAJDER`:
+  nastavi sa tekstom. Iskljucivo Gemini (odluka vlasnika 04.08.2026; Anthropic varijanta
+  postojala do v0.12.1): `gemini-3.1-flash-lite`, oko $0.0007 po slici (izmjereno 1147
+  ulaznih, 294 izlazna tokena), na ISTOM kljucu kao generisanje slika (`OLX_SLIKA_API_KEY`).
 
-  | Provajder | Model | Po slici | Napomena |
-  |---|---|---|---|
-  | gemini (default, odluka vlasnika 04.08.2026) | gemini-3.1-flash-lite | oko $0.0007 (izmjereno 1147 ulaznih, 294 izlazna tokena) | koristi ISTI kljuc kao generisanje slika |
-  | anthropic | claude-haiku-4-5 | oko $0.003 | trazi vlastiti Anthropic kljuc |
-
-  Gemini je izabran kao preporuka jer generisanje slika (`olx_generiraj_sliku`) svakako trazi
-  Gemini kljuc, pa jedan adapter (`src/core/gemini.ts`) pokriva oba posla, i fotografije
-  klijenta idu samo jednom vanjskom servisu umjesto dvama. Oba imena modela su provjerena
+  Gemini je izabran jer generisanje slika (`olx_generiraj_sliku`) svakako trazi Gemini kljuc,
+  pa jedan adapter (`src/core/gemini.ts`) pokriva oba posla, i fotografije klijenta idu samo
+  jednom vanjskom servisu umjesto dvama. Oba imena modela su provjerena
   pozivom `/v1beta/models` 30.07.2026.
 
 ### Generisanje slike: cijena i sta je u njoj

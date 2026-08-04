@@ -34,9 +34,9 @@ test("regexTelefon prepoznaje isti broj naveden dvaput kao jedan rezultat", () =
   assert.equal(regexTelefon("Tel: 061 234 567, whatsapp isti broj 061234567"), "+387 61 234 567");
 });
 
-test("telefonKljuc pada na OLX_VID_API_KEY kad OLX_TELEFON_API_KEY nije postavljen", () => {
-  assert.equal(telefonKljuc({ OLX_VID_API_KEY: "vid-kljuc" }), "vid-kljuc");
-  assert.equal(telefonKljuc({ OLX_TELEFON_API_KEY: "t-kljuc", OLX_VID_API_KEY: "vid-kljuc" }), "t-kljuc");
+test("telefonKljuc NE pada na OLX_VID_API_KEY: tamo od 04.08.2026. stoji Gemini kljuc", () => {
+  assert.equal(telefonKljuc({ OLX_VID_API_KEY: "gemini-kljuc" }), undefined, "Gemini kljuc na Anthropic pozivu bi bio tihi kvar");
+  assert.equal(telefonKljuc({ OLX_TELEFON_API_KEY: "t-kljuc", OLX_VID_API_KEY: "gemini-kljuc" }), "t-kljuc");
   assert.equal(telefonKljuc({}), undefined);
 });
 
@@ -47,5 +47,6 @@ test("telefonModel ima default, env ga gazi", () => {
 
 test("telefonKonfigurisan prati da li postoji ijedan upotrebljiv kljuc", () => {
   assert.equal(telefonKonfigurisan({}), false);
-  assert.equal(telefonKonfigurisan({ OLX_VID_API_KEY: "x" }), true);
+  assert.equal(telefonKonfigurisan({ OLX_TELEFON_API_KEY: "x" }), true);
+  assert.equal(telefonKonfigurisan({ OLX_VID_API_KEY: "x" }), false, "vid kljuc je Gemini, telefon ga ne smije koristiti");
 });

@@ -640,9 +640,9 @@ server.registerTool(
     }),
 );
 
-// Vision proxy za sesije ciji glavni model nema vid (DeepSeek ignorise slike). Registruje se
-// SAMO kad je OLX_VID_API_KEY postavljen: klonovi na pretplati vide slike direktno i ovu semu
-// ne placaju u kontekstu.
+// Vision proxy za sesije ciji glavni model nema vid (DeepSeek ignorise slike). Iskljucivo
+// Gemini; registruje se SAMO kad postoji Gemini kljuc (OLX_SLIKA_API_KEY ili OLX_VID_API_KEY):
+// klonovi na pretplati vide slike direktno i ovu semu ne placaju u kontekstu.
 if (vidKonfigurisan()) {
   server.registerTool(
     "olx_opisi_sliku",

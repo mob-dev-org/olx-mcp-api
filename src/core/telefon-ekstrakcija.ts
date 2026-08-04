@@ -10,8 +10,9 @@
 //      jedan cijena ili sifra artikla) da bi cist regex bio pouzdan u svakom slucaju.
 //
 // Konfiguracija iz .env klona (vidi .env.example):
-//   OLX_TELEFON_API_KEY  kljuc za Haiku poziv; kad izostane pada na OLX_VID_API_KEY (isti
-//                        Anthropic nalog vec placa vid.ts pozive, nema razloga za drugi kljuc)
+//   OLX_TELEFON_API_KEY  Anthropic kljuc za Haiku poziv; jedino mjesto koje ga trazi (vid je
+//                        od 04.08.2026. iskljucivo Gemini, pa fallback na OLX_VID_API_KEY vise
+//                        ne postoji: tamo sada stoji Gemini kljuc koji Anthropic poziv odbija)
 //   OLX_TELEFON_MODEL    default claude-haiku-4-5
 //
 // Svaki Haiku poziv ide u .olx-pik/ai-usage.jsonl kroz zapisiAiPoziv (izvor "telefon").
@@ -83,7 +84,7 @@ export function regexTelefon(tekst: string): string | null {
 }
 
 export function telefonKljuc(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  return env.OLX_TELEFON_API_KEY || env.OLX_VID_API_KEY;
+  return env.OLX_TELEFON_API_KEY;
 }
 
 export function telefonModel(env: NodeJS.ProcessEnv = process.env): string {
@@ -116,7 +117,7 @@ function izvuciJson(tekst: string): { telefon: string | null } | null {
 
 /**
  * Vraca broj telefona iz slobodnog teksta, prvo regexom, pa Haiku modelom kad regex ne nadje
- * nista sigurno. Kad Haiku kljuc nije konfigurisan (OLX_TELEFON_API_KEY / OLX_VID_API_KEY), ne
+ * nista sigurno. Kad Haiku kljuc nije konfigurisan (OLX_TELEFON_API_KEY), ne
  * baca gresku nego se tiho oslanja samo na regex: ovo se zove za desetine kandidata u nizu i
  * nedostatak kljuca ne smije oboriti citav prolaz, samo mu smanjiti domet.
  */
