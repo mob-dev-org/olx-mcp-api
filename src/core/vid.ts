@@ -12,7 +12,7 @@
 //              fotografije klijenta
 //
 // Konfiguracija iz .env klona (vidi .env.example):
-//   OLX_VID_PROVAJDER  anthropic (default) ili gemini
+//   OLX_VID_PROVAJDER  gemini (default, odluka vlasnika 04.08.2026) ili anthropic
 //   OLX_VID_API_KEY    kljuc; kad je provajder gemini pada na OLX_SLIKA_API_KEY
 //   OLX_VID_MODEL      default po provajderu
 //   OLX_VID_BASE_URL   opciono, za kompatibilan endpoint drugog provajdera (samo anthropic)
@@ -47,7 +47,9 @@ const PODRAZUMIJEVANI_MODEL: Record<VidProvajder, string> = {
 };
 
 export function vidProvajder(env: NodeJS.ProcessEnv = process.env): VidProvajder {
-  return (env.OLX_VID_PROVAJDER ?? "").trim().toLowerCase() === "gemini" ? "gemini" : "anthropic";
+  // Gemini je default (odluka vlasnika 04.08.2026): postavka klijenta je onda samo jedan
+  // Gemini kljuc (OLX_SLIKA_API_KEY) i cijeli put slike radi. Anthropic ostaje izricitim izborom.
+  return (env.OLX_VID_PROVAJDER ?? "").trim().toLowerCase() === "anthropic" ? "anthropic" : "gemini";
 }
 
 /** Kljuc za vid. Na Geminiju pada na kljuc za generisanje slika, da se isti ne upisuje dvaput. */

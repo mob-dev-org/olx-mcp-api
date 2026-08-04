@@ -370,8 +370,8 @@ pokrenutu golu mjeri pretplatu, sto je koristan kontrolni prolaz.
 
   | Provajder | Model | Po slici | Napomena |
   |---|---|---|---|
-  | anthropic (default) | claude-haiku-4-5 | oko $0.003 | trazi vlastiti Anthropic kljuc |
-  | gemini | gemini-3.1-flash-lite | oko $0.0007 (izmjereno 1147 ulaznih, 294 izlazna tokena) | koristi ISTI kljuc kao generisanje slika |
+  | gemini (default, odluka vlasnika 04.08.2026) | gemini-3.1-flash-lite | oko $0.0007 (izmjereno 1147 ulaznih, 294 izlazna tokena) | koristi ISTI kljuc kao generisanje slika |
+  | anthropic | claude-haiku-4-5 | oko $0.003 | trazi vlastiti Anthropic kljuc |
 
   Gemini je izabran kao preporuka jer generisanje slika (`olx_generiraj_sliku`) svakako trazi
   Gemini kljuc, pa jedan adapter (`src/core/gemini.ts`) pokriva oba posla, i fotografije
