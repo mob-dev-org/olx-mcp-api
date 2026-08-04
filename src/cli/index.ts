@@ -16,7 +16,7 @@ import type { PlanKandidat, SponsorPlan } from "../core/plan.js";
 import { matchCatalog, summarizeMatches } from "../core/match.js";
 import type { PikItem, KatalogItem, OverrideEntry } from "../core/match.js";
 import { loadKatalog } from "../core/katalog.js";
-import { alarmiNaloga, danCiklusaIzIsteka, dnevniPlanObnova, efekatIzdvajanja, mrtviOglasi, pragObnove, promjenaKonkurenta, promjenaPregleda } from "../core/stats.js";
+import { alarmiNaloga, danCiklusaIzIsteka, dnevniPlanObnova, efekatIzdvajanja, mrtviOglasi, pragObnove, promjenaKonkurenta, promjenaPregleda, zakasnjeleSerije } from "../core/stats.js";
 import { intervalUzPrag, poIntervalu, ucitajRitam, upisiRitam } from "../core/ritam-obnova.js";
 import { izmjereniDanReseta, ucitajKvotuDnevnik, zapisiKvotu } from "../core/kvota-dnevnik.js";
 import { ucitajKonkurenta, upisiKonkurenta } from "../core/konkurenti.js";
@@ -1688,10 +1688,25 @@ posao
       };
       const tekst = dnevniTekst(podaci);
 
+      // Nadzor serije snapshota: snapshot posao moze proci a ne upisati fajl, ili ga launchd
+      // uopste ne pokrene, pa serija tiho stane i svi trendovi s njom. Kvar infrastrukture ide
+      // ADMINU, ne klijentu, svaki dan dok traje; provjera ne smije oboriti dnevni posao
+      // (isti obrazac kao provjera grupa u sedmicnom).
+      let nadzorSerija: string[] = [];
+      try {
+        nadzorSerija = zakasnjeleSerije(
+          [{ naziv: "dnevni snapshot pregleda", zadnjiTs: zadnjiSnapshot()?.ts ?? null, pragSati: 36, ocekivana: true }],
+          sadaTs,
+        );
+        if (nadzorSerija.length > 0 && !opts.suho) await javiAdminu(nadzorSerija.join("\n"));
+      } catch {
+        /* nadzor je dodatak: njegov pad ne smije zaustaviti jutarnju poruku */
+      }
+
       // Jutarnja poruka ide samo kad ima sta korisno reci; "sve isto kao juce" se preskace
       // da klijent ne nauci ignorisati poruke. Preskok NIJE greska.
       if (!opts.suho && !opts.bezSlanja && !dnevniVrijedanSlanja(podaci)) {
-        out({ plan, obnovljeno, neuspjelih, poslano_poruka: 0, preskoceno: "nista novo za javiti" });
+        out({ plan, obnovljeno, neuspjelih, poslano_poruka: 0, preskoceno: "nista novo za javiti", ...(nadzorSerija.length > 0 ? { nadzor_serija: nadzorSerija } : {}) });
         return;
       }
 
@@ -1706,7 +1721,7 @@ posao
       if (obnovePitanje && !obnovePitanje.podsjetnik && poslano > 0) {
         upisiRitam({ ...ritam, pitano: new Date().toISOString() });
       }
-      out({ plan, obnovljeno, neuspjelih, poslano_poruka: poslano, tekst });
+      out({ plan, obnovljeno, neuspjelih, poslano_poruka: poslano, tekst, ...(nadzorSerija.length > 0 ? { nadzor_serija: nadzorSerija } : {}) });
     } catch (e) {
       await posaoFail("dnevni", e);
     }

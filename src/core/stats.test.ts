@@ -24,6 +24,7 @@ import {
   profilStatistika,
   promjenaPregleda,
   provjeriNacrt,
+  zakasnjeleSerije,
   type OnboardingDetalj,
   type ViewsSnapshot,
 } from "./stats.js";
@@ -992,4 +993,44 @@ test("dnevniPlanObnova ne obnavlja nista dok klijent ne kaze svoj ritam", () => 
   const odlucio = dnevniPlanObnova({ ...ulaz, ritam: { strategija: "ravnomjerno", kada: "2026-08-01T00:00:00.000Z" } });
   assert.equal(odlucio.obnove_stanje, "auto");
   assert.ok(odlucio.za_obnovu > 0, "sa odlukom obnove rade kao i prije");
+});
+
+test("zakasnjeleSerije: svjeza serija ne alarmira, stara i nikad pokrenuta alarmiraju", () => {
+  const sada = 1_800_000_000;
+  const svjeza = zakasnjeleSerije([{ naziv: "snapshoti", zadnjiTs: sada - 5 * 3600, pragSati: 36, ocekivana: true }], sada);
+  assert.deepEqual(svjeza, []);
+
+  const stara = zakasnjeleSerije([{ naziv: "snapshoti", zadnjiTs: sada - 72 * 3600, pragSati: 36, ocekivana: true }], sada);
+  assert.equal(stara.length, 1);
+  assert.match(stara.join("\n"), /snapshoti/);
+  assert.match(stara.join("\n"), /3 dana/);
+
+  const nikad = zakasnjeleSerije([{ naziv: "konkurenti", zadnjiTs: null, pragSati: 26, ocekivana: true }], sada);
+  assert.equal(nikad.length, 1);
+  assert.match(nikad.join("\n"), /nikad nije pocela/);
+});
+
+test("zakasnjeleSerije: neocekivana serija nikad ne alarmira, granica tacno na pragu prolazi", () => {
+  const sada = 1_800_000_000;
+  const neocekivana = zakasnjeleSerije(
+    [
+      { naziv: "konkurenti", zadnjiTs: null, pragSati: 26, ocekivana: false },
+      { naziv: "konkurenti-stari", zadnjiTs: sada - 100 * 3600, pragSati: 26, ocekivana: false },
+    ],
+    sada,
+  );
+  assert.deepEqual(neocekivana, []);
+
+  // Tacno na pragu jos nije kasnjenje: alarm ide tek PREKO praga.
+  const naPragu = zakasnjeleSerije([{ naziv: "snapshoti", zadnjiTs: sada - 36 * 3600, pragSati: 36, ocekivana: true }], sada);
+  assert.deepEqual(naPragu, []);
+
+  const vise = zakasnjeleSerije(
+    [
+      { naziv: "snapshoti", zadnjiTs: sada - 72 * 3600, pragSati: 36, ocekivana: true },
+      { naziv: "konkurenti", zadnjiTs: null, pragSati: 26, ocekivana: true },
+    ],
+    sada,
+  );
+  assert.equal(vise.length, 2);
 });
