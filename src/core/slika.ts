@@ -33,7 +33,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { brojPozivaDanas, zapisiAiPoziv } from "./ai-dnevnik.js";
 import { loadConfig } from "./config.js";
-import { pozoviGemini, type GeminiDioZahtjeva } from "./gemini.js";
+import { modelDozvoljen, pozoviGemini, type GeminiDioZahtjeva } from "./gemini.js";
 import { opisZaRecept, ucitajPozadinu } from "./pozadina.js";
 import { zapisiZahtjevSlike } from "./slike-trag.js";
 import { normalizujTekst, tokeni } from "./tekst.js";
@@ -434,6 +434,21 @@ export async function generisiSliku(opcije: OpcijeGenerisanja): Promise<Generisa
     throw new Error("OLX_SLIKA_API_KEY nije postavljen u .env, generisanje slike nije dostupno.");
   }
 
+  // Model se cita i provjerava ODMAH: pro model pada prije nego se potrosi ijedan lokalni rad,
+  // a odbijanje ostaje u tragu zahtjeva. pozoviGemini ima istu branu kao mrezu sigurnosti.
+  const model = process.env.OLX_SLIKA_MODEL || "gemini-3.1-flash-lite-image";
+  const dozvolaModela = modelDozvoljen(model);
+  if (!dozvolaModela.ok) {
+    zapisiZahtjevSlike({
+      recept: opcije.recept,
+      dopuna: opcije.dopuna,
+      ulaznihSlika: opcije.ulazneSlike?.length ?? 0,
+      odbijeno: true,
+      razlog: dozvolaModela.razlog,
+    });
+    throw new Error(`Radnja je zaustavljena: ${dozvolaModela.razlog}. Javi administratoru.`);
+  }
+
   // Brana sadrzaja ide PRIJE plafona i prije skidanja ulaznih slika: neispravan zahtjev ne smije
   // ni potrositi mrezu ni dobiti "plafon je dostignut" kao razlog. Brana je i u semi MCP alata,
   // ali ovdje je jedina koja vazi za svakog pozivaoca jezgra.
@@ -515,7 +530,6 @@ export async function generisiSliku(opcije: OpcijeGenerisanja): Promise<Generisa
     throw new Error(`Nepodrzan odnos strana: ${odnos}. Podrzano: ${ODNOSI.join(", ")}.`);
   }
 
-  const model = process.env.OLX_SLIKA_MODEL || "gemini-3.1-flash-lite-image";
   const baza = process.env.OLX_SLIKA_BASE_URL || "https://generativelanguage.googleapis.com/v1beta";
   const pocetak = Date.now();
 
