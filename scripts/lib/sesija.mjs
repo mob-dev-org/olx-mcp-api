@@ -81,8 +81,12 @@ export function aiPogon(jeAdmin, env) {
     };
   }
   const izlaz = { ANTHROPIC_BASE_URL: baseUrl, ANTHROPIC_AUTH_TOKEN: token };
-  if (env.OLX_DEEPSEEK_MODEL) izlaz.ANTHROPIC_MODEL = env.OLX_DEEPSEEK_MODEL;
-  if (env.OLX_DEEPSEEK_HAIKU_MODEL) izlaz.ANTHROPIC_DEFAULT_HAIKU_MODEL = env.OLX_DEEPSEEK_HAIKU_MODEL;
+  // Default modela je flash, uvijek (odluka vlasnika 04.08.2026, cijena). Bez fallbacka bi
+  // sesija poslala Claude ime modela, a endpoint `claude-opus-5` mapira na pro, pa bi
+  // izostavljena varijabla tiho znacila skuplji model. Pro ostaje izbor po klijentu kroz
+  // OLX_DEEPSEEK_MODEL; sta se time gubi pise u deepseek-nalazi.md.
+  izlaz.ANTHROPIC_MODEL = env.OLX_DEEPSEEK_MODEL || "deepseek-v4-flash";
+  izlaz.ANTHROPIC_DEFAULT_HAIKU_MODEL = env.OLX_DEEPSEEK_HAIKU_MODEL || "deepseek-v4-flash";
   if (env.OLX_DEEPSEEK_TIMEOUT_MS) izlaz.API_TIMEOUT_MS = env.OLX_DEEPSEEK_TIMEOUT_MS;
   // API odbija zahtjev kad su AUTH_TOKEN i API_KEY postavljeni istovremeno.
   return { ok: true, env: izlaz, obrisi: ["ANTHROPIC_API_KEY"], pogon: "deepseek" };

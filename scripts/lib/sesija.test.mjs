@@ -45,6 +45,19 @@ test("aiPogon: deepseek mapira OLX_DEEPSEEK_* u ANTHROPIC_* i brise API_KEY", ()
   assert.deepEqual(r.obrisi, ["ANTHROPIC_API_KEY"]);
 });
 
+test("aiPogon: bez OLX_DEEPSEEK_MODEL default je flash, uvijek", () => {
+  // Odluka vlasnika 04.08.2026. Bez fallbacka bi endpoint Claude ime `claude-opus-5` mapirao
+  // na pro, pa bi izostavljena varijabla tiho znacila skuplji model.
+  const r = aiPogon(false, {
+    OLX_KLIJENT_AI: "deepseek",
+    OLX_DEEPSEEK_BASE_URL: "https://api.deepseek.com/anthropic",
+    OLX_DEEPSEEK_AUTH_TOKEN: "tajna",
+  });
+  assert.equal(r.ok, true);
+  assert.equal(r.env.ANTHROPIC_MODEL, "deepseek-v4-flash");
+  assert.equal(r.env.ANTHROPIC_DEFAULT_HAIKU_MODEL, "deepseek-v4-flash");
+});
+
 test("aiPogon: admin uvijek pretplata i brise sve ANTHROPIC varijable", () => {
   const r = aiPogon(true, { OLX_KLIJENT_AI: "deepseek", OLX_DEEPSEEK_BASE_URL: "x", OLX_DEEPSEEK_AUTH_TOKEN: "y" });
   assert.equal(r.pogon, "pretplata");

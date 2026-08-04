@@ -32,10 +32,13 @@ odmah u zahtjev. Kompatibilnost je time rijesena bez podesavanja.
 | Cijena prije troska (ponovljeno 30.07.2026.) | poziva samo `olx_get_listing`, cijenu ne trazi | poziva `olx_get_listing` I `olx_sponsor_price` |
 
 Ponovljeno mjerenje 30.07.2026. sa 52 aktivne seme potvrdjuje nalaz: flash ne dodje do cijene prije
-troska ni kad se pita direktno. Za klijentsku sesiju to znaci `OLX_DEEPSEEK_MODEL=deepseek-v4-pro`,
-a flash samo kao `OLX_DEEPSEEK_HAIKU_MODEL` za pozadinske radnje. Brana u kodu (`confirm`) i dalje
-stoji nezavisno od modela, ali sesija koja ne pita za cijenu je sesija koja klijentu ne moze reci
-koliko nesto kosta.
+troska ni kad se pita direktno. Brana u kodu (`confirm`) stoji nezavisno od modela, ali sesija koja
+ne pita za cijenu je sesija koja klijentu ne moze sama reci koliko nesto kosta.
+
+**Odluka vlasnika 04.08.2026: default modela je ipak flash, uvijek, zbog cijene.** Fallback je u
+`scripts/lib/sesija.mjs` (bez varijable bi endpoint Claude ime mapirao na pro, pa bi prazan `.env`
+tiho znacio skuplji model). `OLX_DEEPSEEK_MODEL=deepseek-v4-pro` ostaje izbor PO KLIJENTU za
+shopove gdje bot treba sam dolaziti do cijene izdvajanja; gornji nalaz je razlog i dalje vazi.
 
 Imena modela: endpoint prihvata i `deepseek-v4-flash` i `deepseek-v4-pro` direktno. Mapiranje
 Claude imena radi takodjer: `claude-opus-5` daje `deepseek-v4-pro`, `claude-haiku-4-5` daje
