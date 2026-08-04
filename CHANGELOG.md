@@ -8,6 +8,16 @@ Kako se cita broj verzije: `node dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
+## 0.12.1 — 2026-08-04
+
+Patch: default DeepSeek modela je flash, uvijek.
+
+- `.env.example` za nove klonove ide na `deepseek-v4-flash`, a kod dobija isti fallback i kad
+  varijable nema (endpoint bi Claude ime inace mapirao na pro, pa je prazan `.env` tiho znacio
+  skuplji model). `deepseek-v4-pro` ostaje izbor po klijentu kroz `OLX_DEEPSEEK_MODEL`; razlog
+  i mjerenje u `deepseek-nalazi.md`. Postojeci klonovi sa eksplicitnim pro u `.env` se ne
+  mijenjaju sami: linija se mijenja rucno.
+
 ## 0.12.0 — 2026-08-04
 
 Minor: artikal se moze skinuti sa shopa i kasnije vratiti identican; automatske obnove krecu tek kad klijent izabere ritam.
