@@ -33,7 +33,7 @@ import { PLAN_FILE, upisiPlan, zauzmiKljuc } from "../core/plan-fajl.js";
 import { buildPlan, planSazetak, type PlanKandidat } from "../core/plan.js";
 import { opisiSliku, vidKonfigurisan } from "../core/vid.js";
 import { OPSEZI, bezSklonjenog, odvojiIzuzete, preneseno, saDodatim, spisak, ucitajIzuzeca, upisiIzuzeca } from "../core/izuzeca.js";
-import { kompaktSpisak, mapaZapisa, noviZapis, planVracanja, preuzmiSlike, saOznakomObjave, ucitajSveZapise, ucitajZapis, upisiZapis, velicinaArhive } from "../core/arhiva.js";
+import { arhivirajIzZivog, kompaktSpisak, mapaZapisa, noviZapis, planReaktivacije, planVracanja, preuzmiSlike, ucitajSveZapise, ucitajZapis, upisiZapis, velicinaArhive, type ArhivskiZapis } from "../core/arhiva.js";
 import type { Listing } from "../core/types.js";
 import { INTERVAL_MAX, STRATEGIJE, intervalUzPrag, normalizujRitam, ritamZapisan, ucitajRitam, upisiRitam } from "../core/ritam-obnova.js";
 import { POZADINA_OPIS_MAX, obrisiPozadinu, sacuvajPozadinu, sazetakPozadine, ucitajPozadinu } from "../core/pozadina.js";
@@ -1770,82 +1770,77 @@ server.registerTool(
       }
       if (!zapis) return { radnja: "nista", zasto: "nema arhive" }; // planVracanja ovo vec brani
 
-      // Brana duple objave: ista arhiva je vec jednom vracena i taj novi oglas jos zivi.
-      const ranije = zapis.meta.ponovo_objavljen;
-      if (ranije && !args.ignorisi_prethodnu_objavu) {
-        let noviAktivan = false;
-        try {
-          noviAktivan = (await c.getListing(ranije.novi_id)).visible !== false;
-        } catch {
-          noviAktivan = false;
-        }
-        if (noviAktivan) {
+      // Tok objave iz arhive (brana duple objave, create, slike, publish, prenos izuzeca)
+      // zivi u core (c.objaviIzArhive) i dijele ga vracanje, reaktivacija i CLI.
+      const r = await c.objaviIzArhive(zapis, {
+        confirm: args.confirm,
+        potvrdiRobu: args.potvrdi_spornu_robu,
+        ignorisiPrethodnu: args.ignorisi_prethodnu_objavu,
+      });
+      if (r.radnja !== "objavljen_iz_arhive") return r;
+      const { slug, ...ostalo } = r;
+      return { ...ostalo, link: linkOglasa(r.novi_id, slug) };
+    }),
+);
+
+server.registerTool(
+  "olx_reaktiviraj_oglas",
+  {
+    title: "Reaktiviraj zavrsen oglas",
+    description:
+      "Vraca ZAVRSEN oglas u zivot objavom NOVOG oglasa sa istim podacima i originalnim slikama (API ne moze zavrsen oglas vratiti u aktivne; pregledi i pitanja se ne prenose). Samo za artikal koji se vratio na stanje ili je greskom zavrsen, NE kao trik za rang. Kad se cijena na zavrsenom oglasu ne vidi, alat stane i trazi parametar cijena. Prije potvrde korisnika pozovi olx_draft_check; u naplatnim kategorijama bez confirm=true samo javi cijenu. Za skriven oglas koristi olx_vrati_artikal.",
+    inputSchema: {
+      id: z.number().int().describe("broj zavrsenog oglasa"),
+      cijena: z.number().positive().optional().describe("cijena novog oglasa u KM, obavezna kad je original bez citljive cijene"),
+      confirm: z.boolean().default(false).describe("true tek nakon sto korisnik potvrdi eventualnu cijenu objave"),
+      ignorisi_prethodnu_objavu: z.boolean().default(false).describe("true samo kad korisnik izricito zeli jos jedan primjerak vec vracenog artikla"),
+      potvrdi_spornu_robu: POTVRDA_ROBE,
+    },
+    annotations: writeOp,
+  },
+  (args) =>
+    run(async (c) => {
+      let oglas: Listing | null = null;
+      try {
+        oglas = await c.getListing(args.id);
+      } catch {
+        oglas = null; // zavrsen oglas moze biti necitljiv: planReaktivacije odlucuje moze li iz arhive
+      }
+      const zapis = ucitajZapis(args.id);
+      const plan = planReaktivacije(oglas, zapis, { zadataCijena: args.cijena });
+      if (plan.radnja === "stoj") return { radnja: "nista", zasto: plan.zasto };
+      if (plan.radnja === "otkrij") {
+        await c.unhideListing(args.id);
+        return { radnja: "otkriven", id: args.id, link: linkOglasa(args.id, oglas?.slug) };
+      }
+      // "publish" grana postoji u planReaktivacije za slucaj da mjerenje potvrdi da publish
+      // radi nad zavrsenim oglasom; ovaj alat je ne pali dok mjerenje ne prodje.
+      let zaObjavu: ArhivskiZapis;
+      if (plan.radnja === "objavi_iz_zivog" && oglas) {
+        zaObjavu = await arhivirajIzZivog(oglas, { cijena: plan.cijena });
+        if (zaObjavu.meta.fajlovi_slika.length === 0) {
           return {
             radnja: "nista",
-            zasto: `artikal je vec vracen kao oglas ${ranije.novi_id} i taj oglas je aktivan; za jos jedan primjerak pozovi sa ignorisi_prethodnu_objavu: true`,
+            zasto: "nijedna slika sa zavrsenog oglasa se nije mogla preuzeti; oglas bez slika se ne objavljuje",
+            neuspjele_slike: zaObjavu.meta.neuspjele_slike,
           };
         }
+      } else {
+        if (!zapis) return { radnja: "nista", zasto: "nema arhive" }; // planReaktivacije ovo vec brani
+        zaObjavu = zapis;
       }
-
-      // Kljuc brani paralelnu duplu objavu (dvije poruke u isto vrijeme).
-      const otpusti = zauzmiKljuc(".olx-pik/arhiva-objava");
-      try {
-        const create = { ...zapis.create };
-        if (create.city_id === undefined && config.defaultCityId !== undefined) create.city_id = config.defaultCityId;
-        if (create.country_id === undefined && config.defaultCountryId !== undefined) create.country_id = config.defaultCountryId;
-        const draft = await c.createListing(create, { confirm: args.confirm, potvrdiRobu: args.potvrdi_spornu_robu });
-        const kada = new Date().toISOString();
-
-        const mapa = mapaZapisa(args.id);
-        if (zapis.meta.fajlovi_slika.length > 0) {
-          let slike;
-          try {
-            slike = await c.uploadImageFiles(draft.id, zapis.meta.fajlovi_slika.map((f) => resolve(mapa, f)));
-          } catch (e) {
-            // STOP prije objave: oglas bez slika se ne objavljuje. Draft ostaje da se ne izgubi.
-            return {
-              radnja: "prekinuto_prije_objave",
-              draft_id: draft.id,
-              zasto: `slike nisu poslane (${String(e instanceof Error ? e.message : e)}); oglas NIJE objavljen, pokusaj ponovo ili posalji slike pa objavi`,
-            };
-          }
-          // Redoslijed uploada prati arhivu, pa je prva slika iz odgovora glavna. imageId
-          // postoji samo u odgovoru uploada, arhiva ga nema.
-          const glavna = slike[0]?.id;
-          if (glavna !== undefined) {
-            try {
-              await c.setMainImage(draft.id, glavna);
-            } catch {
-              // glavna ostaje po defaultu API-ja; nije razlog da objava padne
-            }
-          }
-        }
-
-        const objava = await c.publishListing(draft.id, { confirm: args.confirm, potvrdiRobu: args.potvrdi_spornu_robu });
-        // Odluka "ovaj ne diraj" prati ARTIKAL, ne broj oglasa: prenesi izuzece na novi id.
-        const izuzeca = ucitajIzuzeca();
-        const prenesenaIzuzeca = preneseno(izuzeca, args.id, draft.id, kada);
-        if (prenesenaIzuzeca !== izuzeca) upisiIzuzeca(prenesenaIzuzeca);
-        upisiZapis(saOznakomObjave(zapis, draft.id, kada));
-
-        let slug: unknown;
-        try {
-          slug = (await c.getListing(draft.id)).slug;
-        } catch {
-          slug = undefined;
-        }
-        return {
-          radnja: "objavljen_iz_arhive",
-          stari_id: args.id,
-          novi_id: draft.id,
-          poslano_slika: zapis.meta.fajlovi_slika.length,
-          izuzece_preneseno: prenesenaIzuzeca !== izuzeca,
-          status: (objava as { status?: unknown }).status ?? null,
-          link: linkOglasa(draft.id, slug),
-        };
-      } finally {
-        otpusti();
-      }
+      const r = await c.objaviIzArhive(zaObjavu, {
+        confirm: args.confirm,
+        potvrdiRobu: args.potvrdi_spornu_robu,
+        ignorisiPrethodnu: args.ignorisi_prethodnu_objavu,
+      });
+      if (r.radnja !== "objavljen_iz_arhive") return r;
+      const { slug, ...ostalo } = r;
+      return {
+        ...ostalo,
+        neuspjele_slike: zaObjavu.meta.neuspjele_slike.length > 0 ? zaObjavu.meta.neuspjele_slike : undefined,
+        link: linkOglasa(r.novi_id, slug),
+      };
     }),
 );
 
