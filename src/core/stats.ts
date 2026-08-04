@@ -1309,6 +1309,36 @@ export function alarmiNaloga(
   return { ok: alarmi.length === 0, alarmi };
 }
 
+// ===== nadzor vremenskih serija =====
+
+export interface SerijaZaNadzor {
+  naziv: string;
+  // Unix ts zadnjeg snimka; null kad serija nema nijedan snimak.
+  zadnjiTs: number | null;
+  pragSati: number;
+  // Serija koja se jos ne ocekuje (npr. konkurenti bez ijednog potvrdjenog) nikad ne alarmira.
+  ocekivana: boolean;
+}
+
+// Posao moze proci a ne upisati nista, ili ga launchd uopste ne pokrene: serija tada tiho
+// stane i svaki racun nad njom (trendovi, efekat izdvajanja, diff konkurenata) stane s njom,
+// a posaoFail to ne vidi jer procesa nije ni bilo. Ova provjera hvata upravo tu rupu.
+export function zakasnjeleSerije(serije: SerijaZaNadzor[], sadaTs: number): string[] {
+  const poruke: string[] = [];
+  for (const s of serije) {
+    if (!s.ocekivana) continue;
+    if (s.zadnjiTs === null) {
+      poruke.push(`Serija "${s.naziv}" nikad nije pocela: nema nijednog snimka.`);
+      continue;
+    }
+    const sati = (sadaTs - s.zadnjiTs) / 3600;
+    if (sati > s.pragSati) {
+      poruke.push(`Serija "${s.naziv}" stoji: zadnji snimak prije ${zaokruzi(sati / 24, 1)} dana (prag ${s.pragSati} h).`);
+    }
+  }
+  return poruke;
+}
+
 // ===== efekat izdvajanja iz dnevnih snapshota =====
 
 export interface ViewsSnapshotOglas {
