@@ -65,11 +65,16 @@ naglas.
   iskljucivo kroz taj alat, pa se dalje radi sa tekstualnim opisom koji je vratio.
 - Kad tog alata nema, sesija slike vidi sama i citanje fajla je ispravan put.
 - Ni u jednom slucaju se ne izmislja sadrzaj slike koja nije ni vidjena ni opisana.
-- **Stalna pozadina se ne obecava kao ista.** Kad je klijent zadao pozadinu (`olx_pozadina`), ona
-  se svaki put crta iznova, pa je slicna a nikad identicna: nijansa, tekstura i svjetlo variraju
-  medju oglasima. Tekst i logo na pozadini model iskrivljuje, isto kao natpise na pakovanjima, pa
-  se brendirana pozadina ne nudi. Ovo se kaze klijentu PRIJE nego pozadinu postavi, ne poslije
-  kad uporedi dva oglasa.
+- **Stalna pozadina sa SLIKOM daje dvije verzije, i to se kaze unaprijed.** Kad je klijent zadao
+  pozadinu sa slikom (`olx_pozadina`), artikal se na nju SLAZE u kodu: slozena slika ima pozadinu
+  i logo tacno kao original, uvijek u 4:3. Uz nju se nudi i Gemini DORADJENA varijanta (ljepse
+  svjetlo i sjena), na kojoj logo i tekst pozadine NISU garantovani, jer model sliku precrtava.
+  Klijent uvijek bira izmedju te dvije; obecava se identicna pozadina SAMO za slozenu verziju.
+  Pozadina zadana samo OPISOM se i dalje crta iznova (slicna, nikad ista) i za nju vazi staro
+  upozorenje: tekst i logo ce biti iskrivljeni.
+- **Pro modeli su iskljuceni u kodu.** Svaki Gemini model sa "pro" segmentom u imenu se odbija
+  (brana u `pozoviGemini`), bez izuzetka: izmjereno 04.08.2026. da nenamjeran pro model kosta
+  1.68 USD u jednom danu. Isto vazi za pogonski model sesije (OLX_DEEPSEEK_MODEL).
 - **Generisana slika prikazuje artikal koji se oglasava, i nista drugo.** Alat
   (`olx_generiraj_sliku`) postoji da fotografija artikla dobije cist prostor i ravno svjetlo, ne
   da crta sadrzaj po zelji. U klijentskom profilu to je i tvrdo zatvoreno: recept se bira sa

@@ -36,6 +36,7 @@ import { loadConfig } from "./config.js";
 import { modelDozvoljen, pozoviGemini, type GeminiDioZahtjeva } from "./gemini.js";
 import { opisZaRecept, ucitajPozadinu } from "./pozadina.js";
 import { zapisiZahtjevSlike } from "./slike-trag.js";
+import { izreziArtikal, normalizujPozadinu, slaganjeDostupno, slozi, ZADANI_SLOT, type Slot } from "./slaganje.js";
 import { normalizujTekst, tokeni } from "./tekst.js";
 import { medijskiTip } from "./vid.js";
 
@@ -130,6 +131,19 @@ export const RECEPTI: Record<string, string> = {
  * koju je klijent prilozio, inace slika laze kupca.
  */
 export const RECEPTI_BEZ_FOTOGRAFIJE = new Set(["profil"]);
+
+/**
+ * Dorada SLOZENE slike (slaganje.ts): artikal je vec zalijepljen na pravu pozadinu, model smije
+ * popraviti samo uklapanje. NAMJERNO nije u RECEPTI: klijentska sema recepta je enum kljuceva
+ * RECEPTI, pa se dorada ne moze pozvati direktno, samo kroz tok slaganja. Bez OKVIR recenice:
+ * kadar je vec odredjen platnom i model ga ne smije mijenjati.
+ */
+export const RECEPT_DORADE_SLAGANJA =
+  "You are given one photo of a product already placed on its backdrop. Improve only the blending: " +
+  "match the light on the product to the scene and add a soft realistic contact shadow under it. " +
+  "Do not move, resize, rotate or redraw the product. Do not change, redraw or replace the " +
+  "background, its colours, its layout, or any text or logo in it. Do not add any text, watermark, " +
+  "price tag, border or frame. Photographic realism.";
 
 /** Najduza dopuna koju klijent smije dodati na recept. */
 export const DOPUNA_MAX = 100;
@@ -237,6 +251,8 @@ export interface ZahtjevZaProvjeru {
   ulaznihSlika: number;
   /** `klijent` dobija tvrde granice; `admin` razvija recepte i ostaje slobodan. */
   profil: "admin" | "klijent";
+  /** Trazeni odnos strana, kad ga je pozivalac zadao. */
+  odnos?: string;
 }
 
 /**
@@ -249,6 +265,24 @@ export interface ZahtjevZaProvjeru {
  * Cista funkcija, bez diska i mreze, da je test moze pozvati direktno.
  */
 export function provjeriZahtjevSlike(zahtjev: ZahtjevZaProvjeru): NalazDopune {
+  // Mehanicki uslovi toka slaganja vaze za OBA profila: nisu politika sadrzaja nego zahtjev
+  // kompozicije. Jedna fotografija artikla, i uvijek 4:3 (odluka vlasnika 04.08.2026): platno
+  // je stalna pozadina klijenta, pa drugi odnos ne postoji.
+  if (zahtjev.recept === RECEPT_POZADINA) {
+    if (zahtjev.ulaznihSlika > 1) {
+      return {
+        ok: false,
+        razlog: `recept "${RECEPT_POZADINA}" slaze JEDNU fotografiju artikla na pozadinu; posalji najbolju od poslanih`,
+      };
+    }
+    if (zahtjev.odnos !== undefined && zahtjev.odnos !== "4:3") {
+      return {
+        ok: false,
+        razlog: `recept "${RECEPT_POZADINA}" uvijek pravi sliku 4:3, jer je platno stalna pozadina; izostavi odnos`,
+      };
+    }
+  }
+
   const dopuna = zahtjev.dopuna?.trim();
   if (zahtjev.profil === "admin") {
     // Admin pise cijeli prompt sam, jer tako i nastaju novi recepti. Dopuna mu nije predvidjena,
@@ -321,6 +355,12 @@ export interface GenerisanaSlika {
   izlazTokena: number;
   danas: number;
   plafon: number;
+  /** Tok slaganja: deterministicki slozena slika (pozadina i logo piksel identicni originalu). */
+  slozena?: { putanja: string; bajtova: number };
+  /** Tok slaganja: da li je Gemini dorada prosla; kad nije, `putanja` pokazuje na slozenu. */
+  dorada?: { ok: boolean; greska?: string };
+  /** Tekst za covjeka: sta koja slika garantuje. */
+  napomena?: string;
 }
 
 /**
@@ -458,6 +498,7 @@ export async function generisiSliku(opcije: OpcijeGenerisanja): Promise<Generisa
     dopuna: opcije.dopuna,
     ulaznihSlika,
     profil: loadConfig().mcpProfil,
+    odnos: opcije.odnos,
   });
   zapisiZahtjevSlike({
     recept: opcije.recept,
@@ -472,17 +513,13 @@ export async function generisiSliku(opcije: OpcijeGenerisanja): Promise<Generisa
 
   const plafon = maxDnevno();
   const danas = brojPozivaDanas(IZVOR);
-  if (danas >= plafon) {
-    throw new Error(
-      `Dnevni plafon generisanja slika je dostignut (${danas}/${plafon}). Sutra se brojac resetuje, ` +
-        `ili se plafon mijenja kroz OLX_SLIKA_MAX_DNEVNO.`,
-    );
-  }
+  const plafonDostignut = danas >= plafon;
 
   // Stalna pozadina klijenta. Trazi je samo recept koji je za nju i pravljen; bez postavljene
   // pozadine se odbija odmah, jer bi inace recept ostao bez podloge i model bi je izmislio.
   let pozadinaZaRecept: string | undefined;
   let slikaPozadine: string | undefined;
+  let slotPozadine: Slot | undefined;
   if (opcije.recept === RECEPT_POZADINA) {
     const pozadina = ucitajPozadinu();
     if (!pozadina) {
@@ -493,6 +530,20 @@ export async function generisiSliku(opcije: OpcijeGenerisanja): Promise<Generisa
     }
     pozadinaZaRecept = opisZaRecept(pozadina);
     slikaPozadine = pozadina.slika;
+    slotPozadine = pozadina.slot;
+  }
+
+  // Pozadina sa SLIKOM ide tokom slaganja (deterministicka kompozicija u kodu, pa dorada);
+  // pozadina zadana samo opisom nema sta da se lijepi, pa ostaje na starom putu crtanja.
+  const tokSlaganja = opcije.recept === RECEPT_POZADINA && Boolean(slikaPozadine);
+
+  // Slaganje samo po sebi ne trosi AI poziv, pa dostignut plafon tamo preskace samo doradu;
+  // svaki drugi put staje ovdje kao i prije.
+  if (plafonDostignut && !tokSlaganja) {
+    throw new Error(
+      `Dnevni plafon generisanja slika je dostignut (${danas}/${plafon}). Sutra se brojac resetuje, ` +
+        `ili se plafon mijenja kroz OLX_SLIKA_MAX_DNEVNO.`,
+    );
   }
 
   const zadane = (opcije.ulazneSlike ?? []).slice(0, MAX_ULAZNIH);
@@ -501,6 +552,23 @@ export async function generisiSliku(opcije: OpcijeGenerisanja): Promise<Generisa
   for (const ulaz of zadane) {
     ulazne.push(jeUrl(ulaz) ? await skiniUlaznuSliku(ulaz) : ulaz);
   }
+  if (tokSlaganja && slikaPozadine) {
+    const artikalPutanja = ulazne[0];
+    if (!artikalPutanja) {
+      throw new Error(`Recept "${RECEPT_POZADINA}" trazi fotografiju artikla koja se slaze na pozadinu.`);
+    }
+    return slozIDoradi({
+      kljuc,
+      model,
+      artikalPutanja,
+      slikaPozadine,
+      slot: slotPozadine ?? ZADANI_SLOT,
+      danas,
+      plafon,
+      plafonDostignut,
+    });
+  }
+
   // Slika pozadine ide NA KRAJ i ne racuna se u MAX_ULAZNIH: ona nije klijentova fotografija
   // artikla nego stalna referenca. Red je bitan na dva mjesta: odnos strana se uzima od PRVE
   // slike (mora ostati artikal), a prompt na pozadinu pokazuje kao na POSLJEDNJU (opisZaRecept).
@@ -530,15 +598,31 @@ export async function generisiSliku(opcije: OpcijeGenerisanja): Promise<Generisa
     throw new Error(`Nepodrzan odnos strana: ${odnos}. Podrzano: ${ODNOSI.join(", ")}.`);
   }
 
+  const r = await pozoviIUpisi({ kljuc, model, dijelovi, odnos });
+  return { ...r, model, danas: danas + 1, plafon };
+}
+
+interface RezultatPoziva {
+  putanja: string;
+  mime: string;
+  bajtova: number;
+  ulazTokena: number;
+  izlazTokena: number;
+}
+
+/**
+ * Jedan Gemini poziv sa slikom na izlazu: posalji, upisi fajl, zabiljezi potrosnju. Dijele ga
+ * obicno generisanje i dorada slozene slike; uspjeh i pad idu u ai-usage.jsonl kao i prije.
+ */
+async function pozoviIUpisi(p: { kljuc: string; model: string; dijelovi: GeminiDioZahtjeva[]; odnos: Odnos }): Promise<RezultatPoziva> {
   const baza = process.env.OLX_SLIKA_BASE_URL || "https://generativelanguage.googleapis.com/v1beta";
   const pocetak = Date.now();
-
   try {
     const rezultat = await pozoviGemini({
-      kljuc,
-      model,
-      dijelovi,
-      slikaNaIzlazu: { odnos },
+      kljuc: p.kljuc,
+      model: p.model,
+      dijelovi: p.dijelovi,
+      slikaNaIzlazu: { odnos: p.odnos },
       baseUrl: baza,
     });
 
@@ -558,33 +642,93 @@ export async function generisiSliku(opcije: OpcijeGenerisanja): Promise<Generisa
     zapisiAiPoziv({
       izvor: IZVOR,
       zadatak: "generisanje_slike",
-      model,
+      model: p.model,
       ulazTokena,
       izlazTokena,
       trajanjeMs: Date.now() - pocetak,
       ok: true,
     });
 
-    return {
-      putanja,
-      model,
-      mime: slika.mime,
-      bajtova: bajtovi.length,
-      ulazTokena,
-      izlazTokena,
-      danas: danas + 1,
-      plafon,
-    };
+    return { putanja, mime: slika.mime, bajtova: bajtovi.length, ulazTokena, izlazTokena };
   } catch (e) {
     const greska = String(e instanceof Error ? e.message : e);
     zapisiAiPoziv({
       izvor: IZVOR,
       zadatak: "generisanje_slike",
-      model,
+      model: p.model,
       trajanjeMs: Date.now() - pocetak,
       ok: false,
       greska,
     });
     throw e;
   }
+}
+
+/**
+ * Tok slaganja za recept pozadina-klijenta sa slikom pozadine: izrez artikla i kompozicija su
+ * DETERMINISTICKI u kodu (pozadina i logo ostaju piksel identicni), pa Gemini dorada uklapanja.
+ * Klijent uvijek dobije obje slike; kad dorada padne ili je plafon dostignut, vraca se samo
+ * slozena, sa napomenom umjesto greske: slozena slika je vec upotrebljiv rezultat.
+ */
+async function slozIDoradi(p: {
+  kljuc: string;
+  model: string;
+  artikalPutanja: string;
+  slikaPozadine: string;
+  slot: Slot;
+  danas: number;
+  plafon: number;
+  plafonDostignut: boolean;
+}): Promise<GenerisanaSlika> {
+  const dostupno = await slaganjeDostupno();
+  if (!dostupno.ok) {
+    throw new Error(`Slaganje na pozadinu nije dostupno: ${dostupno.razlog}.`);
+  }
+
+  const izrez = await izreziArtikal(readFileSync(p.artikalPutanja));
+  const platno = await normalizujPozadinu(p.slikaPozadine);
+  const slozenaBajtovi = await slozi(platno, izrez, p.slot);
+
+  const dir = process.env.OLX_SLIKA_DIR || ".olx-pik/slike";
+  mkdirSync(dir, { recursive: true });
+  const pecat = new Date().toISOString().replace(/[:.]/g, "-");
+  const putanjaSlozene = resolve(dir, `slozena-${pecat}.png`);
+  writeFileSync(putanjaSlozene, slozenaBajtovi);
+
+  let doradjena: RezultatPoziva | null = null;
+  let doradaGreska: string | undefined;
+  if (p.plafonDostignut) {
+    doradaGreska = `dorada preskocena: dnevni plafon generisanja je dostignut (${p.danas}/${p.plafon})`;
+  } else {
+    try {
+      doradjena = await pozoviIUpisi({
+        kljuc: p.kljuc,
+        model: p.model,
+        dijelovi: [
+          { text: RECEPT_DORADE_SLAGANJA },
+          { inline_data: { mime_type: "image/png", data: slozenaBajtovi.toString("base64") } },
+        ],
+        // Uvijek 4:3: platno je stalna pozadina i drugi odnos za ovaj tok ne postoji.
+        odnos: "4:3",
+      });
+    } catch (e) {
+      doradaGreska = String(e instanceof Error ? e.message : e);
+    }
+  }
+
+  return {
+    putanja: doradjena?.putanja ?? putanjaSlozene,
+    model: p.model,
+    mime: doradjena?.mime ?? "image/png",
+    bajtova: doradjena?.bajtova ?? slozenaBajtovi.length,
+    ulazTokena: doradjena?.ulazTokena ?? 0,
+    izlazTokena: doradjena?.izlazTokena ?? 0,
+    danas: p.danas + (doradjena ? 1 : 0),
+    plafon: p.plafon,
+    slozena: { putanja: putanjaSlozene, bajtova: slozenaBajtovi.length },
+    dorada: { ok: doradjena !== null, ...(doradaGreska ? { greska: doradaGreska } : {}) },
+    napomena: doradjena
+      ? "Dvije slike: slozena ima pozadinu i logo tacno kao original, doradjena je ljepse uklopljena ali logo na pozadini nije garantovan. Posalji korisniku obje da izabere."
+      : `Napravljena je samo slozena slika (pozadina i logo tacno kao original); ${doradaGreska ?? "dorada nije prosla"}.`,
+  };
 }

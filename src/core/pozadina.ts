@@ -8,15 +8,18 @@
 //   - slika pozadine: ide modelu kao referenca, daje dosljedniji rezultat od opisa
 // Kad su zadana oba, slika vodi a opis joj se dodaje kao pojasnjenje.
 //
-// Sta ovo NIJE: pozadina se ne lijepi nego se svaki put crta iznova, jer Gemini tako radi (vidi
-// deepseek-nalazi.md). Rezultat je pozadina koja je svaki put SLICNA, nikad identicna. Tekst i
-// logo na pozadini ce biti iskrivljeni, isto kao natpisi na pakovanjima. Za doslovno istu
-// brendiranu pozadinu treba izrezivanje i lijepljenje, sto ovaj toolkit nema.
+// Od v0.13 pozadina sa SLIKOM se vise ne crta iznova nego se artikal na nju SLAZE u kodu
+// (slaganje.ts): izrez artikla se zalijepi na pravu sliku pozadine, pa su pozadina i logo na
+// slozenoj slici piksel identicni. Gemini poslije samo doradjuje svjetlo i sjenu, i ta doradjena
+// varijanta garanciju za logo nema; klijent dobije obje. `slot` u zapisu kaze gdje artikal
+// stoji (v1: dno sredina, sirina i margina u procentima). Pozadina zadana SAMO OPISOM i dalje
+// ide starim putem crtanja, jer bez slike nema sta da se lijepi.
 //
 // Sve o klijentu zivi u njegovom klonu (CLAUDE.md), pa i ovo: `.olx-pik/pozadina/`.
 
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { extname, join, resolve } from "node:path";
+import { basename, extname, join, resolve } from "node:path";
+import { provjeriSlot, ZADANI_SLOT, type Slot } from "./slaganje.js";
 
 /** Mapa je vlastita da bi backup mogao uzeti i JSON i sliku jednim obrascem, bez diranja diska. */
 export function mapaPozadine(env: NodeJS.ProcessEnv = process.env): string {
@@ -42,6 +45,20 @@ export interface Pozadina {
   slika?: string;
   /** Kad je postavljena, ISO. Sluzi da se covjeku moze reci otkad mu je pozadina takva. */
   postavljeno?: string;
+  /** Gdje artikal stoji pri slaganju. Stari zapisi ga nemaju: tada vazi ZADANI_SLOT. */
+  slot?: Slot;
+}
+
+/** Slot iz sirovog JSON-a, tolerantno: pokvaren ili nepotpun slot se ignorise, ne obara citanje. */
+function slotIzZapisa(sirovo: unknown): Slot | undefined {
+  if (!sirovo || typeof sirovo !== "object" || Array.isArray(sirovo)) return undefined;
+  const z = sirovo as Record<string, unknown>;
+  const slot: Slot = {
+    sidro: "dno-sredina",
+    sirinaPosto: Number(z.sirinaPosto),
+    marginaDnaPosto: Number(z.marginaDnaPosto),
+  };
+  return provjeriSlot(slot).ok ? slot : undefined;
 }
 
 /** Sacuvana slika uvijek nosi ovo ime, da je backup moze uzeti fiksnim obrascem. */
@@ -61,11 +78,13 @@ export function ucitajPozadinu(env: NodeJS.ProcessEnv = process.env): Pozadina |
     // U JSON-u stoji samo ime fajla, ne puna putanja: klon se smije preseliti ili preimenovati.
     const slika = imeSlikeIzZapisa ? join(mapaPozadine(env), imeSlikeIzZapisa) : undefined;
     const postavljeno = typeof zapis.postavljeno === "string" ? zapis.postavljeno : undefined;
+    const slot = slotIzZapisa(zapis.slot);
     if (!opis && !(slika && existsSync(slika))) return null;
     return {
       ...(opis ? { opis } : {}),
       ...(slika && existsSync(slika) ? { slika } : {}),
       ...(postavljeno ? { postavljeno } : {}),
+      ...(slot ? { slot } : {}),
     };
   } catch {
     // pokvaren zapis se tretira kao da pozadine nema; klijent je postavi ponovo
@@ -82,13 +101,40 @@ export type NalazPozadine = { ok: true; pozadina: Pozadina } | { ok: false; razl
  * Postavljanje je uvijek potpuna zamjena, ne dopuna: pozadina je jedna i mora biti jednoznacna.
  */
 export function sacuvajPozadinu(
-  unos: { opis?: string; izvorSlike?: string },
+  unos: { opis?: string; izvorSlike?: string; slot?: { sirinaPosto?: number; marginaDnaPosto?: number } },
   sada: string = new Date().toISOString(),
   env: NodeJS.ProcessEnv = process.env,
 ): NalazPozadine {
   const opis = unos.opis?.trim();
   const izvor = unos.izvorSlike?.trim();
+  const postojeca = ucitajPozadinu(env);
+
+  // Slot polazi od postojece odluke (nova slika ne resetuje poziciju artikla), pa od zadanog,
+  // i preko toga idu polja koja je klijent sada zadao.
+  const slot: Slot = {
+    ...(postojeca?.slot ?? ZADANI_SLOT),
+    ...(unos.slot?.sirinaPosto !== undefined ? { sirinaPosto: unos.slot.sirinaPosto } : {}),
+    ...(unos.slot?.marginaDnaPosto !== undefined ? { marginaDnaPosto: unos.slot.marginaDnaPosto } : {}),
+  };
+  const nalazSlota = provjeriSlot(slot);
+  if (!nalazSlota.ok) return { ok: false, razlog: nalazSlota.razlog };
+
   if (!opis && !izvor) {
+    // Samo polozaj: dopuna vec postavljene pozadine, bez diranja slike i opisa.
+    if (unos.slot !== undefined && postojeca) {
+      const zapis: Record<string, unknown> = { postavljeno: postojeca.postavljeno ?? sada, slot };
+      if (postojeca.opis) zapis.opis = postojeca.opis;
+      if (postojeca.slika) zapis.slika = basename(postojeca.slika);
+      const fajl = putanjaPozadine(env);
+      const privremeni = `${fajl}.tmp`;
+      writeFileSync(privremeni, `${JSON.stringify(zapis, null, 2)}\n`, "utf8");
+      renameSync(privremeni, fajl);
+      const ucitana = ucitajPozadinu(env);
+      return ucitana ? { ok: true, pozadina: ucitana } : { ok: false, razlog: "pozadina se nije dala procitati poslije upisa" };
+    }
+    if (unos.slot !== undefined) {
+      return { ok: false, razlog: "polozaj artikla se podesava na vec postavljenoj pozadini; prvo zadaj sliku pozadine" };
+    }
     return { ok: false, razlog: "zadaj opis pozadine, sliku pozadine, ili oboje" };
   }
 
@@ -112,7 +158,7 @@ export function sacuvajPozadinu(
     if (ime.startsWith("slika.")) rmSync(join(mapa, ime), { force: true });
   }
 
-  const zapis: Record<string, unknown> = { postavljeno: sada };
+  const zapis: Record<string, unknown> = { postavljeno: sada, slot };
   if (opis) zapis.opis = opis;
   if (izvor && ekstenzija) {
     copyFileSync(izvor, join(mapa, imeSlike(ekstenzija)));

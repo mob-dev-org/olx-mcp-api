@@ -120,3 +120,8 @@ test("bez popisa na disku ciscenje je bez posla", (t) => {
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   assert.equal(pocistiPotrosene(Date.now(), env), 0);
 });
+
+test("slozena slika iz toka slaganja je nasa slika i ulazi u ciscenje", () => {
+  const env = { OLX_SLIKA_DIR: ".olx-pik/slike" } as NodeJS.ProcessEnv;
+  assert.equal(nasaSlika(".olx-pik/slike/slozena-2026-08-04T15-00-00-000Z.png", env), true);
+});

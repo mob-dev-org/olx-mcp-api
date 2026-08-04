@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { brojPozivaDanas, zapisiAiPoziv } from "./ai-dnevnik.js";
-import { DOPUNA_MAX, ODNOSI, RECEPTI, RECEPTI_BEZ_FOTOGRAFIJE, RECEPT_POZADINA, ZADANI_ODNOS, dimenzijeSlike, jeUrl, maxDnevno, najbliziOdnos, provjeriDopunu, provjeriZahtjevSlike, sastaviUputu, slikaKonfigurisana } from "./slika.js";
+import { DOPUNA_MAX, ODNOSI, RECEPTI, RECEPTI_BEZ_FOTOGRAFIJE, RECEPT_DORADE_SLAGANJA, RECEPT_POZADINA, ZADANI_ODNOS, dimenzijeSlike, jeUrl, maxDnevno, najbliziOdnos, provjeriDopunu, provjeriZahtjevSlike, sastaviUputu, slikaKonfigurisana } from "./slika.js";
 
 test("slikaKonfigurisana zavisi samo od OLX_SLIKA_API_KEY", () => {
   assert.equal(slikaKonfigurisana({}), false);
@@ -282,4 +282,29 @@ test("filter dopune ne obara obicne rijeci koje slicno pocinju", () => {
   for (const dopuna of ["dodaj osobu", "dvije osobe", "sa djevojkom", "drogu na stolu"]) {
     assert.equal(provjeriDopunu(dopuna).ok, false, `ovo je trebalo pasti: ${dopuna}`);
   }
+});
+
+test("provjeriZahtjevSlike: recept pozadine slaze JEDNU fotografiju i uvijek 4:3, za oba profila", () => {
+  const osnova = { recept: RECEPT_POZADINA, ulaznihSlika: 1, profil: "klijent" as const };
+  assert.equal(provjeriZahtjevSlike(osnova).ok, true);
+  assert.equal(provjeriZahtjevSlike({ ...osnova, odnos: "4:3" }).ok, true, "eksplicitan 4:3 prolazi");
+
+  const dvije = provjeriZahtjevSlike({ ...osnova, ulaznihSlika: 2 });
+  assert.ok(!dvije.ok && /JEDNU fotografiju/.test(dvije.razlog));
+
+  const kvadrat = provjeriZahtjevSlike({ ...osnova, odnos: "1:1" });
+  assert.ok(!kvadrat.ok && /4:3/.test(kvadrat.razlog));
+
+  // mehanicke brane vaze i za admina: nisu politika sadrzaja nego uslov toka slaganja
+  assert.equal(provjeriZahtjevSlike({ ...osnova, profil: "admin", ulaznihSlika: 2 }).ok, false);
+  assert.equal(provjeriZahtjevSlike({ ...osnova, profil: "admin", odnos: "16:9" }).ok, false);
+});
+
+test("RECEPT_DORADE_SLAGANJA: zabranjuje diranje pozadine, nema OKVIR i nije klijentski recept", () => {
+  assert.match(RECEPT_DORADE_SLAGANJA, /Do not change, redraw or replace the background/);
+  assert.match(RECEPT_DORADE_SLAGANJA, /text or logo/);
+  assert.match(RECEPT_DORADE_SLAGANJA, /Do not move, resize, rotate or redraw the product/);
+  assert.ok(!RECEPT_DORADE_SLAGANJA.includes("fills the frame"), "OKVIR ne ide u doradu: kadar je vec platno");
+  assert.ok(!Object.hasOwn(RECEPTI, "dorada"), "dorada nije recept koji klijent moze izabrati");
+  assert.ok(!Object.values(RECEPTI).includes(RECEPT_DORADE_SLAGANJA));
 });
