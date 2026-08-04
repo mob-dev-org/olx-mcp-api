@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sablon. Ne instalira se rucno: scripts/instaliraj-cron.sh zamijeni KLIJENT i KORIJEN.
+
+  Zasto launchd a ne Claude cron: CronCreate u Claude Code zivi samo u sesiji i istice za 7 dana.
+  Ovaj posao mora raditi i kad nijedna Claude sesija nije otvorena.
+
+  RunAtLoad je false namjerno: restart racunara ne smije pokrenuti obnovu van reda.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>ba.codefactory.olx.KLIJENT.konkurenti</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>cd KORIJEN &amp;&amp; node dist/cli/index.js posao konkurenti</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>KORIJEN</string>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>15</integer>
+    <key>Minute</key><integer>0</integer>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>KORIJEN/.olx-pik/cron-konkurenti.log</string>
+  <key>StandardErrorPath</key>
+  <string>KORIJEN/.olx-pik/cron-konkurenti.log</string>
+</dict>
+</plist>

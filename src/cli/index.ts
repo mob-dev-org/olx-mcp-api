@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, rmSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync, existsSync } from "node:fs";
 import { dirname, join, resolve as resolvePath } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -16,12 +16,13 @@ import type { PlanKandidat, SponsorPlan } from "../core/plan.js";
 import { matchCatalog, summarizeMatches } from "../core/match.js";
 import type { PikItem, KatalogItem, OverrideEntry } from "../core/match.js";
 import { loadKatalog } from "../core/katalog.js";
-import { alarmiNaloga, danCiklusaIzIsteka, dnevniPlanObnova, efekatIzdvajanja, mrtviOglasi, pragObnove, promjenaKonkurenta, promjenaPregleda } from "../core/stats.js";
+import { agregatIzListe, alarmiNaloga, danCiklusaIzIsteka, dnevniPlanObnova, efekatIzdvajanja, mrtviOglasi, pogodjenaUparivanja, pragObnove, promjenaKonkurenta, promjenaPregleda, signaliKonkurenta, type SignaliKonkurenta } from "../core/stats.js";
 import { intervalUzPrag, poIntervalu, ucitajRitam, upisiRitam } from "../core/ritam-obnova.js";
 import { izmjereniDanReseta, ucitajKvotuDnevnik, zapisiKvotu } from "../core/kvota-dnevnik.js";
-import { ucitajKonkurenta, upisiKonkurenta } from "../core/konkurenti.js";
+import { KONKURENTI_DIR, snimciZaBrisanje, ucitajKonkurenta, upisiKonkurenta } from "../core/konkurenti.js";
+import { aktivnaUparivanja, predloziUparivanja, saPrijedlozima, ucitajKonkurentiStanje, upisiKonkurentiStanje } from "../core/konkurenti-spisak.js";
 import type { OnboardingDetalj } from "../core/stats.js";
-import { dnevniTekst, dnevniVrijedanSlanja, onboardingMarkdown, onboardingTelegram, sedmicniTekst } from "../core/izvjestaj.js";
+import { dnevniTekst, dnevniVrijedanSlanja, konkurentiTekst, konkurentiVrijedanSlanja, onboardingMarkdown, onboardingTelegram, sedmicniTekst } from "../core/izvjestaj.js";
 import { chatIdovi, izaberiOdredista, javiAdminu, posaljiPoruku, provjeriChat, type NalazChata } from "../core/telegram.js";
 import {
   citajPristup,
@@ -1180,7 +1181,13 @@ stats
       }
       const prije = snimci[snimci.length - 2]!;
       const sada = snimci[snimci.length - 1]!;
-      out(promjenaKonkurenta(username, prije, sada));
+      // Puni diff trazi izvjestaj (v1 snimci); lagani v2 snimci nemaju izvjestaj, pa se za njih
+      // vracaju dnevni signali, koji ionako pokrivaju cijene, obnove i izdvajanje.
+      if (prije.izvjestaj && sada.izvjestaj) {
+        out(promjenaKonkurenta(username, { ...prije, izvjestaj: prije.izvjestaj }, { ...sada, izvjestaj: sada.izvjestaj }));
+      } else {
+        out(signaliKonkurenta(username, prije, sada, { pragCijenePosto: ucitajKonkurentiStanje().parametri.prag_cijene_posto }));
+      }
     } catch (e) {
       fail(e);
     }
@@ -1852,6 +1859,116 @@ posao
       out({ grana: p.grana, ishod: ishod.vrsta, upisano: upisano.length, sumnjivi, nepoznato });
     } catch (e) {
       await posaoFail("backup", e);
+    }
+  });
+
+// Dnevno snimanje konkurenata i poruka o promjenama. Poseban posao (oko 15h) umjesto jahanja
+// na jutarnjem: obilazak veceg spiska konkurenata je minutama mrezni posao (throttle po pozivu)
+// i ne smije zadrzavati jutarnju poruku. Bez modela, bez kredita: sve su GET pozivi.
+posao
+  .command("konkurenti")
+  .description("Snimi konkurente, izracunaj promjene (cijena, obnova, izdvajanje) i javi klijentu")
+  .option("--suho", "ispisi ali ne salji i ne upisuj prijedloge", false)
+  .action(async (opts: { suho?: boolean }) => {
+    try {
+      let stanje = ucitajKonkurentiStanje();
+      // Prazan spisak nije greska: posao je instaliran na svakom klonu, a spisak se puni tek
+      // kad klijent zatrazi pracenje.
+      if (stanje.konkurenti.length === 0) {
+        out({ preskoceno: "spisak konkurenata je prazan" });
+        return;
+      }
+      const otpusti = zauzmiKljuc(`${KONKURENTI_DIR}/posao`);
+      try {
+        const c = await withAuth();
+        const kada = new Date().toISOString();
+        const signali: SignaliKonkurenta[] = [];
+        const greske: string[] = [];
+        const snimljeniDanas: string[] = [];
+        let brojPoziva = 0;
+        for (const k of stanje.konkurenti) {
+          try {
+            const lagano = await c.snimiKonkurentaLagano(k.username);
+            brojPoziva += lagano.broj_poziva;
+            upisiKonkurenta({ verzija: 2, ts: lagano.ts, username: k.username, agregat: agregatIzListe(lagano.oglasi), oglasi: lagano.oglasi });
+            snimljeniDanas.push(k.username);
+            const snimci = ucitajKonkurenta(k.username);
+            if (snimci.length >= 2) {
+              const prije = snimci[snimci.length - 2]!;
+              const sada = snimci[snimci.length - 1]!;
+              const s = signaliKonkurenta(k.username, prije, sada, { pragCijenePosto: stanje.parametri.prag_cijene_posto });
+              if (s.ima_promjena) signali.push(s);
+            }
+          } catch (e) {
+            // Pad jednog konkurenta ne rusi ostale: skupi, pa zbirno adminu.
+            greske.push(`${k.username}: ${String(e instanceof Error ? e.message : e)}`);
+          }
+        }
+
+        // Novi kandidati za uparivanje nad danasnjim snimcima. Odbijeni i vec predlozeni parovi
+        // se ne nude ponovo (filtrira predloziUparivanja), pa je ovo idempotentno iz dana u dan.
+        let noviKandidati = 0;
+        try {
+          const moji = (await c.listAllByState("active", await c.resolveUsername())).map((o) => ({ id: o.id, title: o.title }));
+          let radno = stanje;
+          for (const username of snimljeniDanas) {
+            const snimci = ucitajKonkurenta(username);
+            const zadnji = snimci[snimci.length - 1];
+            if (!zadnji) continue;
+            const prijedlozi = predloziUparivanja(moji, zadnji.oglasi.map((o) => ({ id: o.id, title: o.title })), username, radno.uparivanja, kada);
+            const r = saPrijedlozima(radno, prijedlozi);
+            radno = r.stanje;
+            noviKandidati += r.dodano;
+          }
+          if (!opts.suho && radno !== stanje) {
+            upisiKonkurentiStanje(radno);
+            stanje = radno;
+          }
+        } catch (e) {
+          greske.push(`prijedlozi uparivanja: ${String(e instanceof Error ? e.message : e)}`);
+        }
+
+        const pogodci = pogodjenaUparivanja(signali, aktivnaUparivanja(stanje));
+
+        // Retencija: dnevni snimci stariji od cuvanje_dana se prorjede na jedan po sedmici.
+        let obrisano = 0;
+        try {
+          const imena = readdirSync(KONKURENTI_DIR).filter((f) => f.endsWith(".json"));
+          const zaBrisanje = snimciZaBrisanje(imena, danasnjiDatum(), stanje.parametri.cuvanje_dana);
+          if (!opts.suho) for (const f of zaBrisanje) rmSync(join(KONKURENTI_DIR, f));
+          obrisano = zaBrisanje.length;
+        } catch {
+          // odrzavanje, ne posao: pad retencije ne smije oboriti izvjestaj
+        }
+
+        const podaci = { signali, pogodci, novi_kandidati: noviKandidati, gresaka: greske.length };
+        const tekst = konkurentiTekst(podaci);
+        let poslano = 0;
+        // Poruka ide samo na dogadjaj: "nista novo" se ne salje (konkurentiVrijedanSlanja).
+        if (!opts.suho && konkurentiVrijedanSlanja(podaci)) {
+          poslano = await posaljiPoruku(tekst);
+          if (poslano === 0) throw new Error(BEZ_ODREDISTA);
+        }
+        if (!opts.suho && greske.length > 0) {
+          await javiAdminu(`Posao konkurenti: ${greske.length} od ${stanje.konkurenti.length} konkurenata nije snimljeno:\n${greske.slice(0, 10).join("\n")}`);
+        }
+        out({
+          konkurenata: stanje.konkurenti.length,
+          snimljeno: snimljeniDanas.length,
+          broj_poziva: brojPoziva,
+          sa_promjenom: signali.length,
+          pogodaka_na_uparenim: pogodci.length,
+          novih_kandidata: noviKandidati,
+          obrisano_starih_snimaka: obrisano,
+          poslano_poruka: poslano,
+          ...(poslano > 0 || opts.suho ? { tekst } : {}),
+          ...(greske.length > 0 ? { greske: greske.slice(0, 10) } : {}),
+        });
+      } finally {
+        otpusti();
+      }
+    } catch (e) {
+      await posaoFail("konkurenti", e);
     }
   });
 

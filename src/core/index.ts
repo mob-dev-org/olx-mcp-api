@@ -1116,6 +1116,46 @@ export class OlxClient {
     return { izvjestaj, top_oglasi: topOglasi, broj_poziva: pozivi, trajanje_ms: Date.now() - start };
   }
 
+  /**
+   * Lagani snimak konkurenta za dnevni monitoring: SAMO lista aktivnih oglasa, bez profila i
+   * zavrsenih (~30% manje poziva od punog izvjestaja). Cijena, sponsored i date zadnje obnove
+   * dolaze iz same liste, a to su tacno signali koji se dnevno prate. Pun izvjestaj
+   * (statsKonkurent) ostaje za analizu na zahtjev.
+   */
+  async snimiKonkurentaLagano(username: string): Promise<{
+    ts: number;
+    username: string;
+    oglasi: {
+      id: number;
+      title: string;
+      price?: number;
+      sponsored?: number;
+      date?: number;
+      has_discount?: boolean;
+      discounted_price?: number;
+      refresh_available?: boolean;
+    }[];
+    broj_poziva: number;
+  }> {
+    const aktivni = await this.listAllByState("active", username);
+    const oglasi = aktivni.map((o) => ({
+      id: o.id,
+      title: o.title,
+      ...(typeof o.price === "number" ? { price: o.price } : {}),
+      ...(typeof o.sponsored === "number" ? { sponsored: o.sponsored } : {}),
+      ...(typeof o.date === "number" ? { date: o.date } : {}),
+      ...(typeof o.has_discount === "boolean" ? { has_discount: o.has_discount } : {}),
+      ...(typeof o.discounted_price === "number" ? { discounted_price: o.discounted_price } : {}),
+      ...(typeof o.refresh_available === "boolean" ? { refresh_available: o.refresh_available } : {}),
+    }));
+    return {
+      ts: Math.floor(Date.now() / 1000),
+      username,
+      oglasi,
+      broj_poziva: Math.max(1, Math.ceil(aktivni.length / 20)),
+    };
+  }
+
   // Telefon kandidata iz javnog teksta: API ga ne vraca kao polje ni za jedan tudji nalog
   // (privatni podaci se ne vracaju za tudje naloge), pa se cita iz opisa shopa i prvih
   // brojOglasa najskorijih aktivnih oglasa. Ekstrakcija (regex pa Haiku) je u telefon-ekstrakcija.ts.

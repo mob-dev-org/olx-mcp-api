@@ -24,8 +24,11 @@ import {
   kompaktListing,
   mrtviOglasi,
   provjeriNacrt,
+  agregatIzListe,
   type OglasPregledi,
 } from "../core/stats.js";
+import { ucitajKonkurenta, upisiKonkurenta } from "../core/konkurenti.js";
+import { bezKonkurenta, odluciUparivanje, predloziUparivanja, saKonkurentom, saPrijedlozima, ucitajKonkurentiStanje, upisiKonkurentiStanje } from "../core/konkurenti-spisak.js";
 import { onboardingMarkdown, onboardingTelegram } from "../core/izvjestaj.js";
 import { ucitajSnapshote } from "../core/snapshoti.js";
 import { nadjiPoUpitu } from "../core/match.js";
@@ -142,10 +145,9 @@ const SAMO_ADMIN = new Set([
   "olx_city",
   "olx_canton_cities",
   "olx_find_category",
-  // Analiticki alati koji klijentu ne trebaju u svakodnevnom radu. Njihovo izbacivanje stedi
-  // vise nego skracivanje proze, a analiza konkurenta i mjerenje efekta izdvajanja su ionako
-  // posao koji se radi iz admin sesije.
-  "olx_competitor_report",
+  // Mjerenje efekta izdvajanja klijentu ne treba u svakodnevnom radu; izbacivanje stedi vise
+  // nego skracivanje proze. olx_competitor_report je od pracenja konkurencije KLIJENTSKI alat
+  // (vlasnik pita za svog konkurenta), pa vise nije na ovom spisku.
   "olx_sponsor_effect",
 ]);
 
@@ -1013,6 +1015,108 @@ server.registerTool(
     annotations: readOnly,
   },
   (args) => run((c) => c.statsKonkurent(args.username, args.top_views)),
+);
+
+server.registerTool(
+  "olx_konkurenti",
+  {
+    title: "Pracenje konkurencije",
+    description:
+      "Spisak konkurenata koje dnevni posao snima (promjene cijena, obnove, izdvajanje) i uparivanje tvojih artikala sa njihovim, da se dogadjaj na artiklu koji i ti prodajes javi posebno. radnja: lista | dodaj (username) | ukloni (username) | predlozi_parove (kandidati po slicnosti naslova, ceka potvrdu; username opciono suzi na jednog) | odluci_par (moj_id, njihov_id, odluka). Odbijen par se ne nudi ponovo.",
+    inputSchema: {
+      radnja: z.enum(["lista", "dodaj", "ukloni", "predlozi_parove", "odluci_par"]),
+      username: z.string().min(1).optional(),
+      biljeska: z.string().optional(),
+      moj_id: z.number().int().optional(),
+      njihov_id: z.number().int().optional(),
+      odluka: z.enum(["potvrdi", "odbij"]).optional(),
+    },
+    annotations: writeOp,
+  },
+  (args) =>
+    run(async (c) => {
+      const stanje = ucitajKonkurentiStanje();
+      const kada = new Date().toISOString();
+
+      if (args.radnja === "lista") {
+        const poStatusu = { potvrdjeno: 0, predlozeno: 0, odbijeno: 0 };
+        for (const u of stanje.uparivanja) poStatusu[u.status] += 1;
+        return {
+          parametri: stanje.parametri,
+          konkurenti: stanje.konkurenti,
+          uparivanja: poStatusu,
+          ceka_potvrdu: stanje.uparivanja
+            .filter((u) => u.status === "predlozeno")
+            .slice(0, 10)
+            .map((u) => ({ moj_id: u.moj_id, moj_naslov: u.moj_naslov, konkurent: u.konkurent, njihov_id: u.njihov_id, njihov_naslov: u.njihov_naslov, ocjena: u.ocjena })),
+        };
+      }
+
+      if (args.radnja === "dodaj") {
+        if (!args.username) throw new Error("Radnja 'dodaj' trazi username.");
+        // Provjera da nalog postoji PRIJE upisa: pogresno ukucan username bi se inace tiho
+        // snimao svaki dan i nikad nista ne vratio.
+        await c.userProfile(args.username);
+        const novo = saKonkurentom(stanje, { username: args.username, dodao: "klijent", kada, ...(args.biljeska ? { biljeska: args.biljeska } : {}) });
+        if (novo === stanje) return { radnja: "nista", zasto: `${args.username} je vec na spisku` };
+        upisiKonkurentiStanje(novo);
+        return { radnja: "dodan", username: args.username, ukupno_konkurenata: novo.konkurenti.length };
+      }
+
+      if (args.radnja === "ukloni") {
+        if (!args.username) throw new Error("Radnja 'ukloni' trazi username.");
+        const novo = bezKonkurenta(stanje, args.username);
+        if (novo === stanje) return { radnja: "nista", zasto: `${args.username} nije na spisku` };
+        upisiKonkurentiStanje(novo);
+        return { radnja: "uklonjen", username: args.username, napomena: "uklonjena su i njegova uparivanja; stari snimci ostaju na disku" };
+      }
+
+      if (args.radnja === "odluci_par") {
+        if (args.moj_id === undefined || args.njihov_id === undefined || !args.odluka) {
+          throw new Error("Radnja 'odluci_par' trazi moj_id, njihov_id i odluku (potvrdi ili odbij).");
+        }
+        const { stanje: novo, nadjeno } = odluciUparivanje(stanje, args.moj_id, args.njihov_id, args.odluka, kada);
+        if (!nadjeno) return { radnja: "nista", zasto: `par ${args.moj_id} - ${args.njihov_id} ne postoji medju prijedlozima` };
+        upisiKonkurentiStanje(novo);
+        return { radnja: args.odluka === "potvrdi" ? "potvrdjen" : "odbijen", moj_id: args.moj_id, njihov_id: args.njihov_id };
+      }
+
+      // predlozi_parove
+      const ciljani = args.username
+        ? stanje.konkurenti.filter((k) => k.username.toLowerCase() === args.username?.toLowerCase())
+        : stanje.konkurenti;
+      if (ciljani.length === 0) {
+        return { radnja: "nista", zasto: args.username ? `${args.username} nije na spisku (radnja 'dodaj')` : "spisak konkurenata je prazan (radnja 'dodaj')" };
+      }
+      const moji = (await c.listAllByState("active", await c.resolveUsername())).map((o) => ({ id: o.id, title: o.title }));
+      let radno = stanje;
+      let dodano = 0;
+      for (const k of ciljani) {
+        let snimci = ucitajKonkurenta(k.username);
+        if (snimci.length === 0) {
+          // Jos nijedan dnevni snimak: napravi lagani odmah, da prijedlozi ne cekaju sutra.
+          const lagano = await c.snimiKonkurentaLagano(k.username);
+          upisiKonkurenta({ verzija: 2, ts: lagano.ts, username: k.username, agregat: agregatIzListe(lagano.oglasi), oglasi: lagano.oglasi });
+          snimci = ucitajKonkurenta(k.username);
+        }
+        const zadnji = snimci[snimci.length - 1];
+        if (!zadnji) continue;
+        const prijedlozi = predloziUparivanja(moji, zadnji.oglasi.map((o) => ({ id: o.id, title: o.title })), k.username, radno.uparivanja, kada);
+        const rezultat = saPrijedlozima(radno, prijedlozi);
+        radno = rezultat.stanje;
+        dodano += rezultat.dodano;
+      }
+      if (radno !== stanje) upisiKonkurentiStanje(radno);
+      return {
+        radnja: "predlozeno",
+        novih_prijedloga: dodano,
+        ceka_potvrdu: radno.uparivanja
+          .filter((u) => u.status === "predlozeno")
+          .slice(0, 10)
+          .map((u) => ({ moj_id: u.moj_id, moj_naslov: u.moj_naslov, konkurent: u.konkurent, njihov_id: u.njihov_id, njihov_naslov: u.njihov_naslov, ocjena: u.ocjena })),
+        uputa: "potvrda ili odbijanje: radnja odluci_par sa moj_id i njihov_id",
+      };
+    }),
 );
 
 server.registerTool(

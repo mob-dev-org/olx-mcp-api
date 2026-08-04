@@ -8,7 +8,7 @@
 //   telegram  = dnevna i sedmicna poruka, mora stati u jednu poruku i biti citljiva na telefonu
 
 import { danaRijec } from "./stats.js";
-import type { AlarmiNaloga, DnevniPlanObnova, OnboardingIzvjestaj, PromjenaPregleda } from "./stats.js";
+import type { AlarmiNaloga, DnevniPlanObnova, OnboardingIzvjestaj, PogodakUparivanja, PromjenaPregleda, SignaliKonkurenta } from "./stats.js";
 import type { PlanSazetak } from "./plan.js";
 
 // Telegram lomi poruke duze od 4096 znakova. Ciljamo znatno nize jer se duga poruka na telefonu
@@ -425,4 +425,71 @@ export function sedmicniTekst(s: SedmicniPodaci): string {
   }
 
   return r.join("\n");
+}
+
+// ===== dnevna poruka o konkurenciji (posao konkurenti, oko 15h) =====
+
+export interface KonkurentiPodaci {
+  /** Signali po konkurentu, samo oni sa promjenom. */
+  signali: SignaliKonkurenta[];
+  /** Dogadjaji na artiklima koje je klijent upario sa svojima: udarni dio poruke. */
+  pogodci: PogodakUparivanja[];
+  /** Novi prijedlozi uparivanja koji cekaju potvrdu klijenta. */
+  novi_kandidati: number;
+  /** Konkurenti koji danas nisu snimljeni (greska); detalji idu adminu, klijentu samo broj. */
+  gresaka: number;
+}
+
+/**
+ * Poruka se salje samo na dogadjaj, ne kao dnevna rubrika: "kod konkurencije nista novo" svaki
+ * dan trenira klijenta da poruke ignorise (isto pravilo kao dnevniVrijedanSlanja).
+ */
+export function konkurentiVrijedanSlanja(k: KonkurentiPodaci): boolean {
+  return k.pogodci.length > 0 || k.signali.some((s) => s.ima_promjena) || k.novi_kandidati > 0;
+}
+
+/**
+ * Poruka klijentu o promjenama kod konkurencije. Sastavlja je kod, ne model, pa ne kosta
+ * nijedan token. Redoslijed po vaznosti: prvo dogadjaji na UPARENIM artiklima (traze odluku o
+ * cijeni ili izdvajanju), pa sazetak po konkurentu, pa kandidati za uparivanje.
+ */
+export function konkurentiTekst(k: KonkurentiPodaci): string {
+  const r: string[] = [];
+  r.push("Konkurencija - promjene", "");
+
+  if (k.pogodci.length > 0) {
+    r.push("Na artiklima koje pratis:");
+    for (const p of k.pogodci.slice(0, 10)) r.push(`- ${p.detalj}`);
+    if (k.pogodci.length > 10) r.push(`… i jos ${k.pogodci.length - 10}.`);
+    r.push("");
+  }
+
+  const saPromjenom = k.signali.filter((s) => s.ima_promjena);
+  if (saPromjenom.length > 0) {
+    r.push("Po konkurentu:");
+    for (const s of saPromjenom.slice(0, 10)) {
+      const dijelovi: string[] = [];
+      const snizenja = s.cijene.filter((c) => c.posto < 0).length;
+      const poskupljenja = s.cijene.length - snizenja;
+      if (snizenja > 0) dijelovi.push(`snizio ${snizenja} ${snizenja === 1 ? "cijenu" : "cijene"}`);
+      if (poskupljenja > 0) dijelovi.push(`podigao ${poskupljenja} ${poskupljenja === 1 ? "cijenu" : "cijene"}`);
+      if (s.obnovljeni.length > 0) dijelovi.push(`obnovio ${s.obnovljeni.length}`);
+      if (s.izdvajanje.poceli.length > 0) dijelovi.push(`izdvojio ${s.izdvajanje.poceli.length}`);
+      if (s.izdvajanje.prestali.length > 0) dijelovi.push(`prestao izdvajati ${s.izdvajanje.prestali.length}`);
+      if (s.novi.length > 0) dijelovi.push(`dodao ${s.novi.length} novih`);
+      if (s.nestali.length > 0) dijelovi.push(`skinuo ${s.nestali.length}`);
+      r.push(`- ${s.username}: ${dijelovi.join(", ")}.`);
+    }
+    if (saPromjenom.length > 10) r.push(`… i jos ${saPromjenom.length - 10} konkurenata sa promjenama.`);
+    r.push("");
+  }
+
+  if (k.novi_kandidati > 0) {
+    r.push(
+      `Nasao sam ${k.novi_kandidati} ${k.novi_kandidati === 1 ? "artikal kod konkurencije koji lici" : "artikala kod konkurencije koji lice"} na tvoje. Odgovori mi "pokazi uparivanja" pa potvrdi ili odbij, da promjene cijena na njima pratim za tebe.`,
+    );
+  }
+  if (k.gresaka > 0) r.push(`Napomena: ${k.gresaka} konkurenata danas nije provjereno, pokusacu ponovo sutra.`);
+
+  return r.join("\n").trimEnd();
 }

@@ -152,3 +152,12 @@ test("REGRESIJA: da su slike arhive u podmapi 'slike', crni obrazac bi ih tiho i
   const r = razvrstaj([".olx-pik/arhiva-artikala/78059920/slike/01.jpg"], {} as NodeJS.ProcessEnv);
   assert.equal(r.preskoci.length, 1, "podmapa slike pada na crni obrazac, zato je ne koristimo");
 });
+
+test("spisak konkurenata i uparivanja ulazi u backup, uz postojece snimke konkurenata", () => {
+  const r = razvrstaj([".olx-pik/konkurenti.json", ".olx-pik/konkurenti/Shop-2026-08-04.json"], {} as NodeJS.ProcessEnv);
+  assert.deepEqual(
+    r.uzmi.map((s) => s.putanja),
+    [".olx-pik/konkurenti.json", ".olx-pik/konkurenti/Shop-2026-08-04.json"],
+  );
+  assert.deepEqual(r.nepoznato, []);
+});
