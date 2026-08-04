@@ -19,13 +19,29 @@ export interface KonkurentOglas {
   title: string;
   price?: number;
   sponsored?: number;
+  /** Unix ts ZADNJE OBNOVE (polje `date` sa liste), ne datum objave. Od verzije 2. */
+  date?: number;
+  has_discount?: boolean;
+  discounted_price?: number;
+  refresh_available?: boolean;
 }
 
+/** Agregat izracunat iz same liste, za snimke bez punog izvjestaja (verzija 2, lagani rezim). */
+export interface KonkurentAgregat {
+  broj: number;
+  sponzorisano: number;
+  median_cijene: number | null;
+}
+
+// Verzija 1: pun izvjestaj (profil + finished, 2 poziva vise po konkurentu). Verzija 2 (lagani
+// rezim dnevnog posla): samo lista aktivnih oglasa i agregat iz nje; cijena, sponsored i date
+// zadnje obnove ionako dolaze iz liste, a to su signali koji se dnevno prate.
 export interface KonkurentSnimak {
   verzija: number;
   ts: number;
   username: string;
-  izvjestaj: KonkurentIzvjestaj;
+  izvjestaj?: KonkurentIzvjestaj;
+  agregat?: KonkurentAgregat;
   oglasi: KonkurentOglas[];
 }
 
@@ -55,12 +71,44 @@ export function ucitajKonkurenta(username: string, dir: string = KONKURENTI_DIR)
   for (const f of readdirSync(dir).filter((f) => f.startsWith(prefiks) && f.endsWith(".json")).sort()) {
     try {
       const p = JSON.parse(readFileSync(`${dir}/${f}`, "utf8")) as KonkurentSnimak;
-      if (p && typeof p.ts === "number" && p.izvjestaj) snimci.push(p);
+      // v1 nosi izvjestaj, v2 (lagani) samo listu i agregat: oba su validna, lista je obavezna.
+      if (p && typeof p.ts === "number" && Array.isArray(p.oglasi)) snimci.push(p);
     } catch {
       console.error(`Snimak konkurenta ${f} nije citljiv JSON, preskacem.`);
     }
   }
   return snimci.sort((a, b) => a.ts - b.ts);
+}
+
+/**
+ * Retencija snimaka: dnevni snimci mladji od cuvanjeDana ostaju svi, stariji se prorjedjuju na
+ * jedan po ISO sedmici PO KONKURENTU (ostaje najnoviji u sedmici). Cista funkcija nad imenima
+ * fajlova; brisanje radi pozivalac. Sa 100 konkurenata dnevni snimci rastu ~1 MB dnevno, pa bi
+ * folder bez ovoga za godinu presao 300 MB a serija starija od mjesec ionako sluzi trendu, ne
+ * dnevnom diffu.
+ */
+export function snimciZaBrisanje(imenaFajlova: string[], danasIso: string, cuvanjeDana: number): string[] {
+  const granica = new Date(`${danasIso}T00:00:00Z`).getTime() - cuvanjeDana * 86_400_000;
+  // kljuc "user|iso-godina-sedmica" -> imena fajlova te sedmice, hronoloski
+  const poSedmici = new Map<string, string[]>();
+  for (const ime of [...imenaFajlova].sort()) {
+    const m = ime.match(/^(.+)-(\d{4}-\d{2}-\d{2})\.json$/);
+    if (!m?.[1] || !m[2]) continue;
+    const datum = new Date(`${m[2]}T00:00:00Z`);
+    if (Number.isNaN(datum.getTime()) || datum.getTime() >= granica) continue;
+    // ISO sedmica: cetvrtak iste sedmice odredjuje godinu i redni broj.
+    const d = new Date(datum);
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    const prviJanuar = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const sedmica = Math.ceil(((d.getTime() - prviJanuar.getTime()) / 86_400_000 + 1) / 7);
+    const kljuc = `${m[1]}|${d.getUTCFullYear()}-${sedmica}`;
+    const lista = poSedmici.get(kljuc) ?? [];
+    lista.push(ime);
+    poSedmici.set(kljuc, lista);
+  }
+  const zaBrisanje: string[] = [];
+  for (const lista of poSedmici.values()) zaBrisanje.push(...lista.slice(0, -1)); // najnoviji ostaje
+  return zaBrisanje.sort();
 }
 
 /** Usernameovi za koje postoji bar jedan snimak. */

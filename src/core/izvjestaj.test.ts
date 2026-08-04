@@ -3,7 +3,7 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { dnevniTekst, dnevniVrijedanSlanja, type DnevniPodaci } from "./izvjestaj.js";
+import { dnevniTekst, dnevniVrijedanSlanja, konkurentiTekst, konkurentiVrijedanSlanja, TELEGRAM_MEKI_LIMIT, type DnevniPodaci, type KonkurentiPodaci } from "./izvjestaj.js";
 
 function podaci(overrides: Partial<DnevniPodaci> = {}): DnevniPodaci {
   return {
@@ -230,4 +230,87 @@ test("iskljucene obnove se u tekstu kazu kao izbor klijenta, bez tempa", () => {
   const t = dnevniTekst(podaci({ obnovljeno: 0, plan: { ...podaci().plan, obnove_stanje: "iskljuceno" as const, ritam: "iskljuceno" as const } }));
   assert.match(t, /iskljucene po tvom izboru/);
   assert.ok(!/Tempo oko/.test(t));
+});
+
+// ===== poruka o konkurenciji =====
+
+function konkPodaci(overrides: Partial<KonkurentiPodaci> = {}): KonkurentiPodaci {
+  return { signali: [], pogodci: [], novi_kandidati: 0, gresaka: 0, ...overrides };
+}
+
+function signal(overrides: Record<string, unknown> = {}) {
+  return {
+    username: "Shop",
+    od_ts: 0,
+    do_ts: 1,
+    cijene: [],
+    obnovljeni: [],
+    izdvajanje: { poceli: [], prestali: [] },
+    novi: [],
+    nestali: [],
+    ima_promjena: true,
+    ...overrides,
+  };
+}
+
+test("konkurentiVrijedanSlanja: bez promjena se ne salje; promjena, pogodak ili kandidat salju", () => {
+  assert.equal(konkurentiVrijedanSlanja(konkPodaci()), false);
+  assert.equal(konkurentiVrijedanSlanja(konkPodaci({ gresaka: 3 })), false, "greske idu adminu, ne klijentu");
+  assert.equal(konkurentiVrijedanSlanja(konkPodaci({ novi_kandidati: 1 })), true);
+  assert.equal(
+    konkurentiVrijedanSlanja(konkPodaci({ signali: [signal({ novi: [{ id: 1, title: "X" }] }) as never] })),
+    true,
+  );
+  assert.equal(
+    konkurentiVrijedanSlanja(
+      konkPodaci({
+        pogodci: [{ moj_id: 1, moj_naslov: "M", konkurent: "Shop", njihov_id: 2, njihov_naslov: "N", tip: "cijena", detalj: "d" }],
+      }),
+    ),
+    true,
+  );
+});
+
+test("konkurentiTekst: pogodci na uparenim prvi, sazetak po konkurentu, duga lista se sijece na 10", () => {
+  const pogodci = Array.from({ length: 12 }, (_, i) => ({
+    moj_id: i,
+    moj_naslov: `Moj ${i}`,
+    konkurent: "Shop",
+    njihov_id: 100 + i,
+    njihov_naslov: `Njihov ${i}`,
+    tip: "cijena" as const,
+    detalj: `Shop snizio "Njihov ${i}" sa 100 na 90 KM (-10%); tvoj artikal: Moj ${i}`,
+  }));
+  const t = konkurentiTekst(
+    konkPodaci({
+      pogodci,
+      signali: [
+        signal({
+          cijene: [{ id: 1, title: "A", stara: 100, nova: 90, posto: -10 }],
+          obnovljeni: [{ id: 2, title: "B" }],
+          izdvajanje: { poceli: [{ id: 3, title: "C" }], prestali: [] },
+          novi: [{ id: 4, title: "D" }],
+        }) as never,
+      ],
+      novi_kandidati: 2,
+    }),
+  );
+  assert.ok(t.indexOf("Na artiklima koje pratis") < t.indexOf("Po konkurentu"), "pogodci idu prije sazetka");
+  assert.match(t, /… i jos 2\./);
+  assert.match(t, /Shop: snizio 1 cijenu, obnovio 1, izdvojio 1, dodao 1 novih\./);
+  assert.match(t, /2 artikala kod konkurencije/);
+  assert.doesNotMatch(t, /gresaka|greska/i, "detalji gresaka ne idu klijentu");
+});
+
+test("konkurentiTekst bez icega vraca samo naslov i ne prelazi meki limit na tipicnom danu", () => {
+  const prazan = konkurentiTekst(konkPodaci());
+  assert.equal(prazan, "Konkurencija - promjene");
+
+  const tipican = konkurentiTekst(
+    konkPodaci({
+      signali: Array.from({ length: 5 }, (_, i) => signal({ username: `Shop${i}`, obnovljeni: [{ id: i, title: "X" }] }) as never),
+      novi_kandidati: 3,
+    }),
+  );
+  assert.ok(tipican.length < TELEGRAM_MEKI_LIMIT, "tipicna poruka staje u meki limit");
 });

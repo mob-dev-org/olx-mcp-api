@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
-# Instalira launchd poslove za ovaj klon: nocni snapshot, jutarnja poruka, sedmicni pregled i
-# cuvar klijentske sesije (KeepAlive, vidi scripts/cuvar-sesije.mjs).
+# Instalira launchd poslove za ovaj klon: nocni snapshot, jutarnja poruka, sedmicni pregled,
+# dnevno snimanje konkurenata (15:00, tiho izadje dok je spisak prazan) i cuvar klijentske
+# sesije (KeepAlive, vidi scripts/cuvar-sesije.mjs).
 # Windows ekvivalent svega ovoga: deploy/windows/instaliraj-zadatke.ps1 (Task Scheduler).
 #
 # Zasto launchd a ne crontab: crontab na macOS-u ne dobija korisnicki PATH ni pristup do keychaina
@@ -19,7 +20,7 @@ cd "$KORIJEN"
 
 IME="${1:-$(basename "$KORIJEN")}"
 CILJ="$HOME/Library/LaunchAgents"
-POSLOVI=(snapshot dnevno sedmicno)
+POSLOVI=(snapshot dnevno sedmicno konkurenti)
 
 # Sesijski poslovi se instaliraju SAMO kad je njihov runtime pripremljen: cuvar bez
 # .claude-runtime odmah izlazi, pa bi KeepAlive vrtio pad svakih 30 sekundi u nedogled.

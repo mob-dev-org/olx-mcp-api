@@ -6,6 +6,7 @@
 #   snapshot  nocni snimak pregleda, svaki dan 02:40
 #   dnevno    obnove i jutarnja poruka, svaki dan 07:20
 #   sedmicno  sedmicni pregled, ponedjeljkom 07:40
+#   konkurenti dnevno snimanje konkurenata i poruka o promjenama, 15:00
 #   backup    backup stanja 08:10, samo kad je OLX_STANJE_REPO podesen (uslovni)
 #
 # Preduslovi: node, claude i bun u PATH-u, .env sa OLX_TOKEN u korijenu klona.
@@ -104,6 +105,10 @@ Registruj -Sufiks "dnevno" -Komanda "node dist\cli\index.js posao dnevni" `
 
 Registruj -Sufiks "sedmicno" -Komanda "node dist\cli\index.js posao sedmicni" `
   -Trigger (New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday -At 07:40)
+
+# Snimanje konkurenata u 15:00: tiho izadje dok je spisak konkurenata prazan.
+Registruj -Sufiks "konkurenti" -Komanda "node dist\cli\index.js posao konkurenti" `
+  -Trigger (New-ScheduledTaskTrigger -Daily -At 15:00)
 
 # Backup stanja u 08:10, poslije dnevnog posla, da uhvati sve sto je taj dan upisano.
 # Instalira se samo kad je repo stanja podesen: inace bi posao svako jutro pao i slao alarm.

@@ -24,6 +24,9 @@ import {
   profilStatistika,
   promjenaPregleda,
   provjeriNacrt,
+  agregatIzListe,
+  pogodjenaUparivanja,
+  signaliKonkurenta,
   type OnboardingDetalj,
   type ViewsSnapshot,
 } from "./stats.js";
@@ -992,4 +995,78 @@ test("dnevniPlanObnova ne obnavlja nista dok klijent ne kaze svoj ritam", () => 
   const odlucio = dnevniPlanObnova({ ...ulaz, ritam: { strategija: "ravnomjerno", kada: "2026-08-01T00:00:00.000Z" } });
   assert.equal(odlucio.obnove_stanje, "auto");
   assert.ok(odlucio.za_obnovu > 0, "sa odlukom obnove rade kao i prije");
+});
+
+test("signaliKonkurenta: prag sijece male promjene cijena, obnova po date, izdvajanje u oba smjera", () => {
+  const prije = {
+    ts: SADA - DAN,
+    oglasi: [
+      { id: 1, title: "Friteza", price: 100, date: SADA - 10 * DAN, sponsored: 0 },
+      { id: 2, title: "Rostilj", price: 200, date: SADA - 5 * DAN, sponsored: 0 },
+      { id: 3, title: "Toster", price: 50, date: SADA - 3 * DAN, sponsored: 2 },
+      { id: 4, title: "Nestaje", price: 10 },
+      { id: 6, title: "Na upit", price: 0 },
+    ],
+  };
+  const sada = {
+    ts: SADA,
+    oglasi: [
+      { id: 1, title: "Friteza", price: 89, date: SADA - 10 * DAN, sponsored: 0 },
+      { id: 2, title: "Rostilj", price: 204, date: SADA - 3600, sponsored: 1 },
+      { id: 3, title: "Toster", price: 50, date: SADA - 3 * DAN, sponsored: 0 },
+      { id: 5, title: "Novi artikal", price: 30 },
+      { id: 6, title: "Na upit", price: 120 },
+    ],
+  };
+  const s = signaliKonkurenta("Shop", prije, sada, { pragCijenePosto: 5 });
+  assert.equal(s.ima_promjena, true);
+  assert.equal(s.cijene.length, 1, "2% na rostilju je ispod praga, 0 -> 120 nije poredjenje cijena");
+  assert.equal(s.cijene[0]?.id, 1);
+  assert.equal(s.cijene[0]?.posto, -11);
+  assert.deepEqual(s.obnovljeni.map((o) => o.id), [2]);
+  assert.deepEqual(s.izdvajanje.poceli.map((o) => o.id), [2]);
+  assert.deepEqual(s.izdvajanje.prestali.map((o) => o.id), [3]);
+  assert.deepEqual(s.novi.map((o) => o.id), [5]);
+  assert.deepEqual(s.nestali.map((o) => o.id), [4]);
+
+  const isto = signaliKonkurenta("Shop", prije, prije, { pragCijenePosto: 5 });
+  assert.equal(isto.ima_promjena, false, "isti snimak dva puta nema promjena");
+});
+
+test("agregatIzListe broji sponzorisane i racuna median samo od upotrebljivih cijena", () => {
+  const a = agregatIzListe([
+    { id: 1, title: "A", price: 10, sponsored: 1 },
+    { id: 2, title: "B", price: 30 },
+    { id: 3, title: "C", price: 0 },
+  ]);
+  assert.deepEqual(a, { broj: 3, sponzorisano: 1, median_cijene: 20 });
+  assert.equal(agregatIzListe([]).median_cijene, null);
+});
+
+test("pogodjenaUparivanja filtrira signale na potvrdjene parove i pise gotove recenice", () => {
+  const signali = [
+    {
+      username: "Shop",
+      od_ts: 0,
+      do_ts: 1,
+      cijene: [{ id: 100, title: "Njihova friteza", stara: 120, nova: 99, posto: -17.5 }],
+      obnovljeni: [
+        { id: 100, title: "Njihova friteza" },
+        { id: 200, title: "Neuparen artikal" },
+      ],
+      izdvajanje: { poceli: [{ id: 100, title: "Njihova friteza" }], prestali: [] },
+      novi: [],
+      nestali: [],
+      ima_promjena: true,
+    },
+  ];
+  const uparivanja = [{ moj_id: 7, moj_naslov: "Moja friteza 8L", konkurent: "shop", njihov_id: 100 }];
+  const pogodci = pogodjenaUparivanja(signali, uparivanja);
+  assert.equal(pogodci.length, 3, "cijena + obnova + izdvajanje na uparenom; neuparen oglas ne ulazi");
+  const cijena = pogodci.find((p) => p.tip === "cijena");
+  assert.ok(cijena);
+  assert.match(cijena.detalj, /snizio/);
+  assert.match(cijena.detalj, /sa 120 na 99 KM/);
+  assert.match(cijena.detalj, /Moja friteza 8L/);
+  assert.equal(pogodjenaUparivanja(signali, []).length, 0, "bez potvrdjenih parova nema pogodaka");
 });

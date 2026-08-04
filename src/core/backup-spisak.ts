@@ -20,6 +20,7 @@ import { putanjaKvoteDnevnika } from "./kvota-dnevnik.js";
 import { loadConfig } from "./config.js";
 import { putanjaIzuzeca } from "./izuzeca.js";
 import { KONKURENTI_DIR } from "./konkurenti.js";
+import { putanjaKonkurenti } from "./konkurenti-spisak.js";
 import { putanjaPamcenja } from "./pamcenje.js";
 import { mapaArhive } from "./arhiva.js";
 import { mapaPozadine } from "./pozadina.js";
@@ -79,6 +80,9 @@ export function bijeliSpisak(env: NodeJS.ProcessEnv = process.env): StavkaSpiska
     { putanja: ".olx-pik/tokeni-dnevnik.jsonl", opis: "dnevni zbir potrosnje tokena" },
     { putanja: SNAPSHOT_DIR, obrazac: /^views-\d{4}-\d{2}-\d{2}\.json$/, opis: "dnevni snapshoti pregleda" },
     { putanja: KONKURENTI_DIR, obrazac: /^[A-Za-z0-9_-]+-\d{4}-\d{2}-\d{2}\.json$/, opis: "snimci konkurenata" },
+    // Odluka klijenta, kao izuzeca i ritam: koga prati i koji artikal je ciji pandan. Snimci se
+    // daju ponovo napraviti, uparivanja ne.
+    { putanja: putanjaKonkurenti(env), opis: "spisak konkurenata i uparivanja artikala" },
     { putanja: mapaPrijedloga(env), obrazac: /^runda-\d{4}-\d{2}-\d{2}\.md$/, opis: "prijedlozi sedmicne runde" },
     { putanja: "KLIJENT.md", opis: "interni kontekst o klijentu" },
     { putanja: "KLIJENT-javno.md", opis: "javni profil, ulazi u prompt" },

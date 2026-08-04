@@ -15,8 +15,10 @@ prijedloge koje klijent poslije odobrava svom botu.
    - `olx-seo-pisac` za najvise 10 najslabijih naslova (kratki, bez podnaslova, bez kljucnih
      rijeci).
    - `olx-trijaza` za mrtve oglase, najvise 10.
-   - `olx-konkurent` za usernameove iz `KLIJENT.md` ovog klona (sekcija o konkurentima). Ako
-     fajla ili sekcije nema, konkurente preskoci bez napomene.
+   - `olx-konkurent` za usernameove iz `.olx-pik/konkurenti.json` ovog klona (polje
+     `konkurenti[].username`; isti spisak koristi i dnevni posao konkurenata). Kad je spisak
+     prazan a klijentov profil pominje konkurenciju, u zavrsnom tekstu jednom recenicom
+     predlozi da klijent kaze koga da pratimo.
 5. Napisi prijedloge u fajl `.olx-pik/prijedlozi/runda-<danasnji datum YYYY-MM-DD>.md`:
    po stavci id oglasa, trenutni naslov, sta se predlaze (novi naslov/podnaslov, sakriti,
    zavrsiti, cijena), i jedna recenica zasto. Grupisi po tipu radnje da bot poslije moze

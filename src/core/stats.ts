@@ -916,6 +916,179 @@ export function promjenaKonkurenta(
   };
 }
 
+// ===== dnevni signali konkurenata (nad laganim v2 snimcima) =====
+
+// Oblici su strukturni (ne uvoze se iz konkurenti.ts) da se ne napravi ciklus uvoza:
+// konkurenti.ts vec uvozi KonkurentIzvjestaj odavde.
+export interface KonkurentSignalOglas {
+  id: number;
+  title: string;
+  price?: number;
+  sponsored?: number;
+  /** Unix ts zadnje obnove (polje `date` sa liste oglasa). */
+  date?: number;
+}
+
+export interface SignaliKonkurenta {
+  username: string;
+  od_ts: number;
+  do_ts: number;
+  /** Promjene cijene preko praga, sa procentom (negativan = snizenje). */
+  cijene: { id: number; title: string; stara: number; nova: number; posto: number }[];
+  /** Oglasi kojima se pomjerio `date`: konkurent ih je obnovio (ili izmijenio, API ne razlikuje). */
+  obnovljeni: { id: number; title: string }[];
+  izdvajanje: { poceli: { id: number; title: string }[]; prestali: { id: number; title: string }[] };
+  novi: { id: number; title: string; price?: number }[];
+  nestali: { id: number; title: string }[];
+  ima_promjena: boolean;
+}
+
+/**
+ * Tri dnevna signala po konkurentu koja je klijent trazio: cijena, obnova, izdvajanje, plus
+ * novi i nestali oglasi. Radi nad dva lagana snimka (samo lista aktivnih), jer sva tri signala
+ * dolaze iz liste bez poziva po oglasu. Prag cijene sijece sum: cjenkanje od par KM na skupom
+ * artiklu nije dogadjaj.
+ */
+export function signaliKonkurenta(
+  username: string,
+  prije: { ts: number; oglasi: KonkurentSignalOglas[] },
+  sada: { ts: number; oglasi: KonkurentSignalOglas[] },
+  parametri: { pragCijenePosto: number },
+): SignaliKonkurenta {
+  const prijePoId = new Map(prije.oglasi.map((o) => [o.id, o]));
+  const sadaPoId = new Map(sada.oglasi.map((o) => [o.id, o]));
+
+  const cijene: SignaliKonkurenta["cijene"] = [];
+  const obnovljeni: SignaliKonkurenta["obnovljeni"] = [];
+  const poceli: { id: number; title: string }[] = [];
+  const prestali: { id: number; title: string }[] = [];
+
+  for (const o of sada.oglasi) {
+    const staro = prijePoId.get(o.id);
+    if (!staro) continue;
+    const s = broj(staro.price);
+    const n = broj(o.price);
+    // Samo obje upotrebljive cijene se porede: 0 / "na upit" nije cijena nego nepoznanica.
+    if (s !== null && n !== null && s > 0 && n > 0 && s !== n) {
+      const posto = zaokruzi(((n - s) / s) * 100);
+      if (Math.abs(posto) >= parametri.pragCijenePosto) cijene.push({ id: o.id, title: o.title, stara: s, nova: n, posto });
+    }
+    if (typeof o.date === "number" && typeof staro.date === "number" && o.date > staro.date) {
+      obnovljeni.push({ id: o.id, title: o.title });
+    }
+    const sponzS = staro.sponsored ?? 0;
+    const sponzN = o.sponsored ?? 0;
+    if (sponzS === 0 && sponzN > 0) poceli.push({ id: o.id, title: o.title });
+    else if (sponzS > 0 && sponzN === 0) prestali.push({ id: o.id, title: o.title });
+  }
+
+  const novi = sada.oglasi.filter((o) => !prijePoId.has(o.id)).map((o) => ({ id: o.id, title: o.title, price: o.price }));
+  const nestali = prije.oglasi.filter((o) => !sadaPoId.has(o.id)).map((o) => ({ id: o.id, title: o.title }));
+
+  return {
+    username,
+    od_ts: prije.ts,
+    do_ts: sada.ts,
+    cijene,
+    obnovljeni,
+    izdvajanje: { poceli, prestali },
+    novi,
+    nestali,
+    ima_promjena: cijene.length + obnovljeni.length + poceli.length + prestali.length + novi.length + nestali.length > 0,
+  };
+}
+
+/** Agregat iz same liste oglasa, za lagane snimke bez punog izvjestaja. */
+export function agregatIzListe(oglasi: KonkurentSignalOglas[]): { broj: number; sponzorisano: number; median_cijene: number | null } {
+  const cijene = oglasi.map((o) => broj(o.price)).filter((c): c is number => c !== null && c > 0);
+  return {
+    broj: oglasi.length,
+    sponzorisano: oglasi.filter((o) => (o.sponsored ?? 0) > 0).length,
+    median_cijene: median(cijene),
+  };
+}
+
+export interface PogodakUparivanja {
+  moj_id: number;
+  moj_naslov: string;
+  konkurent: string;
+  njihov_id: number;
+  njihov_naslov: string;
+  tip: "cijena" | "obnova" | "izdvajanje_pocelo" | "izdvajanje_prestalo";
+  /** Gotova recenica za poruku klijentu. */
+  detalj: string;
+}
+
+/**
+ * Signali filtrirani na POTVRDJENA uparivanja: dogadjaj na artiklu koji i klijent prodaje je
+ * ono sto trazi potez, ostatak je pozadinski sum. Recenice su spremne za poruku.
+ */
+export function pogodjenaUparivanja(
+  signali: SignaliKonkurenta[],
+  uparivanja: { moj_id: number; moj_naslov: string; konkurent: string; njihov_id: number }[],
+): PogodakUparivanja[] {
+  const pogodci: PogodakUparivanja[] = [];
+  for (const s of signali) {
+    const parovi = uparivanja.filter((u) => u.konkurent.trim().toLowerCase() === s.username.trim().toLowerCase());
+    if (parovi.length === 0) continue;
+    const poNjihovom = new Map(parovi.map((u) => [u.njihov_id, u]));
+    for (const c of s.cijene) {
+      const par = poNjihovom.get(c.id);
+      if (!par) continue;
+      const smjer = c.nova < c.stara ? "snizio" : "podigao";
+      pogodci.push({
+        moj_id: par.moj_id,
+        moj_naslov: par.moj_naslov,
+        konkurent: s.username,
+        njihov_id: c.id,
+        njihov_naslov: c.title,
+        tip: "cijena",
+        detalj: `${s.username} ${smjer} "${c.title}" sa ${c.stara} na ${c.nova} KM (${c.posto > 0 ? "+" : ""}${c.posto}%); tvoj artikal: ${par.moj_naslov}`,
+      });
+    }
+    for (const o of s.obnovljeni) {
+      const par = poNjihovom.get(o.id);
+      if (!par) continue;
+      pogodci.push({
+        moj_id: par.moj_id,
+        moj_naslov: par.moj_naslov,
+        konkurent: s.username,
+        njihov_id: o.id,
+        njihov_naslov: o.title,
+        tip: "obnova",
+        detalj: `${s.username} obnovio "${o.title}"; tvoj artikal: ${par.moj_naslov}`,
+      });
+    }
+    for (const o of s.izdvajanje.poceli) {
+      const par = poNjihovom.get(o.id);
+      if (!par) continue;
+      pogodci.push({
+        moj_id: par.moj_id,
+        moj_naslov: par.moj_naslov,
+        konkurent: s.username,
+        njihov_id: o.id,
+        njihov_naslov: o.title,
+        tip: "izdvajanje_pocelo",
+        detalj: `${s.username} izdvojio "${o.title}"; tvoj artikal: ${par.moj_naslov}`,
+      });
+    }
+    for (const o of s.izdvajanje.prestali) {
+      const par = poNjihovom.get(o.id);
+      if (!par) continue;
+      pogodci.push({
+        moj_id: par.moj_id,
+        moj_naslov: par.moj_naslov,
+        konkurent: s.username,
+        njihov_id: o.id,
+        njihov_naslov: o.title,
+        tip: "izdvajanje_prestalo",
+        detalj: `${s.username} prestao izdvajati "${o.title}"; tvoj artikal: ${par.moj_naslov}`,
+      });
+    }
+  }
+  return pogodci;
+}
+
 // ===== dnevni i sedmicni posao =====
 
 export interface DnevniPlanObnova {
