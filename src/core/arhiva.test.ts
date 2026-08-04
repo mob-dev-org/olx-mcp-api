@@ -6,6 +6,8 @@ import { tmpdir } from "node:os";
 import {
   kompaktSpisak,
   mapirajZaKreiranje,
+  planReaktivacije,
+  zapisIzZavrsenog,
   MAX_BAJTA_SLIKE,
   nazivSlike,
   noviZapis,
@@ -142,4 +144,67 @@ test("preuzmiSlike: pad jedne ne rusi ostale, prevelika se odbija, redoslijed se
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("planReaktivacije: aktivan, istekao i nacrt stoje sa uputom, skriven se otkriva", () => {
+  const aktivan = planReaktivacije({ ...primjer, status: "active" }, null);
+  assert.equal(aktivan.radnja, "stoj");
+  assert.match((aktivan as { zasto: string }).zasto, /obnovom ili izdvajanjem/);
+
+  const istekao = planReaktivacije({ ...primjer, status: "expired" }, null);
+  assert.equal(istekao.radnja, "stoj");
+  assert.match((istekao as { zasto: string }).zasto, /obnovom/);
+
+  const nacrt = planReaktivacije({ ...primjer, status: "inactive" }, null);
+  assert.equal(nacrt.radnja, "stoj");
+
+  const skriven = planReaktivacije({ ...primjer, visible: false, status: "active" }, null);
+  assert.equal(skriven.radnja, "otkrij");
+});
+
+test("planReaktivacije: zavrsen sa cijenom i slikama ide iz zivog, bez cijene stoji dok se ne zada", () => {
+  const zavrsen: Listing = { ...primjer, status: "finished" };
+  const izZivog = planReaktivacije(zavrsen, null);
+  assert.deepEqual(izZivog, { radnja: "objavi_iz_zivog", cijena: 250 });
+
+  // Zavrseni oglasi znaju vratiti cijenu 0 ("na upit"): nula i "ne znam" nisu isto.
+  const bezCijene = planReaktivacije({ ...zavrsen, price: 0 }, null);
+  assert.equal(bezCijene.radnja, "stoj");
+  assert.match((bezCijene as { zasto: string }).zasto, /zadaj cijenu/);
+
+  const saZadatom = planReaktivacije({ ...zavrsen, price: 0 }, null, { zadataCijena: 199 });
+  assert.deepEqual(saZadatom, { radnja: "objavi_iz_zivog", cijena: 199 });
+});
+
+test("planReaktivacije: bez slika ide iz arhive kad je ima, inace stoji; necitljiv oglas isto", () => {
+  const zavrsenBezSlika: Listing = { ...primjer, status: "finished", images: [] };
+  const bezicega = planReaktivacije(zavrsenBezSlika, null);
+  assert.equal(bezicega.radnja, "stoj");
+  assert.match((bezicega as { zasto: string }).zasto, /bez slika/);
+
+  const zapis = noviZapis(primjer, "2026-08-04T10:00:00.000Z");
+  zapis.meta.fajlovi_slika = ["01.jpg"];
+  assert.equal(planReaktivacije(zavrsenBezSlika, zapis).radnja, "objavi_iz_arhive");
+
+  // getListing pao (necitljiv zavrsen oglas): arhiva je jedini put, bez nje stoj.
+  assert.equal(planReaktivacije(null, zapis).radnja, "objavi_iz_arhive");
+  const nista = planReaktivacije(null, null);
+  assert.equal(nista.radnja, "stoj");
+  assert.match((nista as { zasto: string }).zasto, /arhive nema/);
+});
+
+test("planReaktivacije: publish grana se pali samo eksplicitnim flagom (dok mjerenje ne prodje)", () => {
+  const zavrsen: Listing = { ...primjer, status: "finished" };
+  assert.equal(planReaktivacije(zavrsen, null, { publishRadiNaFinished: true }).radnja, "publish");
+  assert.notEqual(planReaktivacije(zavrsen, null).radnja, "publish");
+});
+
+test("zapisIzZavrsenog: korisnikova cijena ulazi u create, porijeklo u nerekreirljivo", () => {
+  const zavrsen: Listing = { ...primjer, status: "finished", price: 0 };
+  const z = zapisIzZavrsenog(zavrsen, "2026-08-04T10:00:00.000Z", 199);
+  assert.equal(z.create.price, 199);
+  assert.equal(z.meta.nerekreirljivo.reaktivacija_iz_statusa, "finished");
+
+  const bezZadate = zapisIzZavrsenog({ ...primjer, status: "finished" }, "2026-08-04T10:00:00.000Z");
+  assert.equal(bezZadate.create.price, 250, "bez zadate cijene ostaje original");
 });
