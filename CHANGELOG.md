@@ -8,6 +8,19 @@ Kako se cita broj verzije: `node dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
+## 0.12.2 — 2026-08-04
+
+Patch: put slike ide iskljucivo na Gemini, najjeftiniji modeli su default svugdje.
+
+- **Vid (opis slike za pogon bez vida) je iskljucivo Gemini**: Anthropic varijanta i
+  `OLX_VID_PROVAJDER` su uklonjeni. Alat se registruje cim postoji `OLX_SLIKA_API_KEY`, pa je
+  postavka slika za klijenta jedan Gemini kljuc za sve (opis `gemini-3.1-flash-lite`,
+  generisanje `gemini-3.1-flash-lite-image`).
+- Ekstrakcija telefona vise ne pada na `OLX_VID_API_KEY` (tamo sada stoji Gemini kljuc koji
+  Anthropic poziv odbija): Haiku prolaz radi samo uz izricit `OLX_TELEFON_API_KEY`, bez njega
+  ostaje besplatni regex.
+- Uz flash default iz 0.12.1 time svaki AI poziv ide na najjeftiniji model svog provajdera.
+
 ## 0.12.1 — 2026-08-04
 
 Patch: default DeepSeek modela je flash, uvijek.
