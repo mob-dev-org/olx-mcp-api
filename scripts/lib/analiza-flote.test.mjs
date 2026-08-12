@@ -4,7 +4,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { analizirajFlotu, PRAGOVI_DEFAULT } from "./analiza-flote.mjs";
+import { analizirajFlotu, PRAGOVI_DEFAULT, formatVelicina } from "./analiza-flote.mjs";
 
 const MB = 1024 ** 2;
 const GB = 1024 ** 3;
@@ -177,6 +177,40 @@ test("nova kategorija: prazna na pocetku, ima sadrzaj na kraju -> nalaz", () => 
   assert.equal(n.kategorija, "disk");
   assert.equal(n.klon, "klon1");
   assert.match(n.tekst, /bila prazna, sad ima 20 MB/);
+});
+
+test("nova kategorija: pojavila se ali je ISPOD praga -> nema nalaza", () => {
+  const kategorijePrvi = praznoKategorije();
+  const kategorijeZadnji = praznoKategorije();
+  kategorijeZadnji.olx_pik_resursi = { bajta: 708, broj: 1 }; // stvarni slucaj, 708 bajta
+
+  const prvi = diskRed({ ts: "2026-08-09T09:00:00.000Z", ukupnoBajta: 1000 * MB, kategorije: kategorijePrvi });
+  const zadnji = diskRed({ ts: "2026-08-12T09:00:00.000Z", ukupnoBajta: 1000 * MB, kategorije: kategorijeZadnji });
+
+  const r = analizirajFlotu({
+    periodOd: PERIOD_OD,
+    periodDo: PERIOD_DO,
+    podaciPoKlonu: { klon1: { diskRedovi: [prvi, zadnji], memorijaAgregat: null } },
+  });
+  assert.equal(r.nalazi.filter((x) => x.tekst.includes("olx_pik_resursi")).length, 0);
+});
+
+test("nova kategorija: pojavila se i JESTE iznad praga -> nalaz sa citljivom velicinom", () => {
+  const kategorijePrvi = praznoKategorije();
+  const kategorijeZadnji = praznoKategorije();
+  kategorijeZadnji.olx_pik_resursi = { bajta: 15 * MB, broj: 4 };
+
+  const prvi = diskRed({ ts: "2026-08-09T09:00:00.000Z", ukupnoBajta: 1000 * MB, kategorije: kategorijePrvi });
+  const zadnji = diskRed({ ts: "2026-08-12T09:00:00.000Z", ukupnoBajta: 1000 * MB, kategorije: kategorijeZadnji });
+
+  const r = analizirajFlotu({
+    periodOd: PERIOD_OD,
+    periodDo: PERIOD_DO,
+    podaciPoKlonu: { klon1: { diskRedovi: [prvi, zadnji], memorijaAgregat: null } },
+  });
+  const n = r.nalazi.find((x) => x.tekst.includes("olx_pik_resursi"));
+  assert.ok(n);
+  assert.match(n.tekst, /bila prazna, sad ima 15 MB/);
 });
 
 test("nova kategorija: node_modules i dist NE aktiviraju pravilo cak i kad skoce sa 0", () => {
@@ -418,6 +452,7 @@ test("PRAGOVI_DEFAULT sadrzi ocekivane kljuceve", () => {
   // pisan prije te dopune i ostao je na starom spisku, kod je bio ispravan.
   assert.deepEqual(Object.keys(PRAGOVI_DEFAULT).sort(), [
     "cpuProsjekPostotak",
+    "novaKategorijaMinMb",
     "padSlobodneMemorijeGb",
     "rastDiskaApsolutniMb",
     "rastDiskaPostotak",
@@ -425,6 +460,20 @@ test("PRAGOVI_DEFAULT sadrzi ocekivane kljuceve", () => {
     "rastTranskriptaMb",
     "udioSkokaZaJedanDan",
   ]);
+});
+
+// ---- formatVelicina: nikad "0 MB" ----
+
+test("formatVelicina: ispod 1 MB prikazuje u KB, nikad '0 MB'", () => {
+  assert.equal(formatVelicina(708), "1 KB");
+  assert.equal(formatVelicina(500 * 1024), "500 KB");
+  assert.ok(!formatVelicina(708).includes("0 MB"));
+});
+
+test("formatVelicina: 1 MB i vise prikazuje u MB na jednu decimalu", () => {
+  assert.equal(formatVelicina(MB), "1 MB");
+  assert.equal(formatVelicina(1.5 * MB), "1.5 MB");
+  assert.equal(formatVelicina(300 * MB), "300 MB");
 });
 
 // ---- 9. klon koji najvise trosi procesor ----

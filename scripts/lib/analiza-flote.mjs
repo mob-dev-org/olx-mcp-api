@@ -31,6 +31,7 @@ export const PRAGOVI_DEFAULT = {
   rastSwapaPostotakPoena: 15, // rast udjela iskoristenog swapa (postotni poeni, ne relativni %)
   udioSkokaZaJedanDan: 0.6, // ako JEDAN dan nosi >= 60% ukupne promjene perioda, to je "skok"
   cpuProsjekPostotak: 15, // prosjecan CPU% klona kroz period da bi bio vrijedan pomena
+  novaKategorijaMinMb: 10, // ispod ovoga pojava kategorije nije vrijedna pomena (par stotina KB je normalan sum)
 };
 
 // Kategorije diska na koje se primjenjuje pravilo "bila prazna, sad ima sadrzaj". node_modules i
@@ -71,6 +72,20 @@ function z1(n) {
   return Math.round(n * 10) / 10;
 }
 
+/**
+ * Citljiv prikaz velicine za nalaze: ispod 1 MB prikazuje u KB (cijeli broj), inace u MB na jednu
+ * decimalu. Bez ovoga par stotina bajta zaokruzi na "0 MB" i nalaz postane besmislen (izmjereno
+ * na kategoriji olx_pik_resursi, 12.08.2026). Koristiti na SVAKOM mjestu gdje se velicina u MB
+ * ispisuje korisniku, ne samo ovdje.
+ */
+export function formatVelicina(bajta) {
+  const megabajta = mb(bajta);
+  if (Math.abs(megabajta) < 1) {
+    return `${Math.round(bajta / 1024)} KB`;
+  }
+  return `${z1(megabajta)} MB`;
+}
+
 /** "2026-08-12T09:00:00.000Z" -> "2026-08-12". `null` na nevaljan ulaz. */
 function datumIso(ts) {
   return typeof ts === "string" && ts.length >= 10 ? ts.slice(0, 10) : null;
@@ -100,7 +115,7 @@ function analizirajRastDiska(klon, diskRedovi, pragovi) {
   const pogadjaPostotak = deltaPct !== null && deltaPct >= pragovi.rastDiskaPostotak;
   if (!pogadjaApsolutno && !pogadjaPostotak) return null;
 
-  let tekst = `${klon}: disk narastao ${z1(deltaMb)} MB`;
+  let tekst = `${klon}: disk narastao ${formatVelicina(deltaBajta)}`;
   if (deltaPct !== null) tekst += ` (${z1(deltaPct)}%)`;
   tekst += ` u periodu, sa ${z1(gb(prvi.ukupno_bajta))} na ${z1(gb(zadnji.ukupno_bajta))} GB.`;
 
@@ -127,15 +142,20 @@ function analizirajRastDiska(klon, diskRedovi, pragovi) {
   return nalaz("disk", klon, tekst, "info");
 }
 
-/** 2. Kategorija koja je bila prazna (0 bajta) na pocetku a ima sadrzaj na kraju perioda. */
-function analizirajNoveKategorije(klon, prvi, zadnji) {
+/**
+ * 2. Kategorija koja je bila prazna (0 bajta) na pocetku a ima sadrzaj na kraju perioda, i taj
+ * sadrzaj je dovoljno velik (>= `pragovi.novaKategorijaMinMb`) da vrijedi pomena. Pojava od par
+ * stotina bajta se desava rutinski (npr. jedan prazan log fajl) i tiho se preskace, nije nalaz.
+ */
+function analizirajNoveKategorije(klon, prvi, zadnji, pragovi) {
   const rezultat = [];
+  const pragBajta = pragovi.novaKategorijaMinMb * 1024 ** 2;
   for (const k of KATEGORIJE_ZA_NOVU_KATEGORIJU) {
     const prviBajta = prvi.kategorije?.[k]?.bajta;
     const zadnjiBajta = zadnji.kategorije?.[k]?.bajta;
-    if (prviBajta === 0 && typeof zadnjiBajta === "number" && zadnjiBajta > 0) {
+    if (prviBajta === 0 && typeof zadnjiBajta === "number" && zadnjiBajta >= pragBajta) {
       rezultat.push(
-        nalaz("disk", klon, `${klon}: kategorija ${k} je bila prazna, sad ima ${z1(mb(zadnjiBajta))} MB.`, "info"),
+        nalaz("disk", klon, `${klon}: kategorija ${k} je bila prazna, sad ima ${formatVelicina(zadnjiBajta)}.`, "info"),
       );
     }
   }
@@ -161,12 +181,13 @@ function analizirajTranskript(klon, prvi, zadnji, pragovi) {
   const prviBajta = prvi.kategorije?.transkripti?.bajta;
   const zadnjiBajta = zadnji.kategorije?.transkripti?.bajta;
   if (typeof prviBajta !== "number" || typeof zadnjiBajta !== "number") return null;
-  const deltaMb = mb(zadnjiBajta - prviBajta);
+  const deltaBajta = zadnjiBajta - prviBajta;
+  const deltaMb = mb(deltaBajta);
   if (deltaMb < pragovi.rastTranskriptaMb) return null;
   return nalaz(
     "transkripti",
     klon,
-    `${klon}: transkripti narasli ${z1(deltaMb)} MB u periodu (pokazatelj obima razgovora, ne mjera potrosnje tokena).`,
+    `${klon}: transkripti narasli ${formatVelicina(deltaBajta)} u periodu (pokazatelj obima razgovora, ne mjera potrosnje tokena).`,
     "info",
   );
 }
@@ -454,7 +475,7 @@ export function analizirajFlotu({
     const nRast = analizirajRastDiska(klon, diskRedovi, pragovi);
     if (nRast) nalazi.push(nRast);
 
-    for (const n of analizirajNoveKategorije(klon, prvi, zadnji)) nalazi.push(n);
+    for (const n of analizirajNoveKategorije(klon, prvi, zadnji, pragovi)) nalazi.push(n);
 
     const nStraza = analizirajStrazu(klon, memorijaAgregat);
     if (nStraza) nalazi.push(nStraza);
