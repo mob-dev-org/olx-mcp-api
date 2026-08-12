@@ -16,10 +16,11 @@
 // scripts/cuvar-sesije.mjs (SESIJA_PID_FAJL, PID_FAJL konstante). Bez PID fajla ili sa mrtvim
 // procesom ovaj CLI kaze "ne radi" i ne pokusava nista drugo (ne trazi proces po cwd ni imenu).
 
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { procitajEnv } from "./lib/envfajl.mjs";
+import { listajPodmapeSaOlxPik } from "./lib/klonovi.mjs";
 import {
   agregiraj,
   citajProcese,
@@ -141,18 +142,19 @@ async function stanjeKlona(korijenKlona) {
   return stavke;
 }
 
+// Tanak poziv na scripts/lib/klonovi.mjs. Ponasanje MORA ostati identicno: root koji se ne moze
+// citati i dalje javlja tacnu gresku na stderr i gasi proces (CLI kontekst, ne biblioteka), dok
+// listajPodmapeSaOlxPik sam po sebi (biblioteka) samo vraca prazan niz i nikad ne baca. Zato se
+// citljivost root direktorija provjerava ovdje (ista provjera kao ranije), a stvarno listanje i
+// filtriranje po .olx-pik podfolderu radi zajednicki modul.
 function listajKlonove(rootDir) {
-  let stavke;
   try {
-    stavke = readdirSync(rootDir, { withFileTypes: true });
+    readdirSync(rootDir, { withFileTypes: true });
   } catch (e) {
     console.error(`Ne mogu citati ${rootDir}: ${e.message}`);
     process.exit(1);
   }
-  return stavke
-    .filter((s) => s.isDirectory() && existsSync(join(rootDir, s.name, ".olx-pik")))
-    .map((s) => s.name)
-    .sort();
+  return listajPodmapeSaOlxPik(rootDir).map((putanja) => basename(putanja));
 }
 
 // ---- pregled ----
