@@ -8,6 +8,25 @@ Kako se cita broj verzije: `node dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
+## Nije izdano
+
+Iza prekidaca `OLX_SESIJA_STRAZAR` (default iskljuceno, opt in po klonu): cuvar sesije moze
+GASITI sesiju na prag mirovanja i na nocni termin umjesto da je restartuje, i sam preuzeti
+Telegram strazu dok sesija spava.
+
+- Bez `OLX_SESIJA_STRAZAR` u `.env` ponasanje ostaje bajt za bajt danasnje: nocni restart
+  (`OLX_SESIJA_RESTART_SAT`) i idle restart (`OLX_SESIJA_IDLE_SATI`) samo ciste kontekst, sesija
+  ostaje dignuta.
+- Kad je ukljucen (za oba tipa sesije, ili samo `admin`, ili samo `klijent`): na isti prag i isti
+  termin cuvar sesiju ugasi, pa sam polluje `getUpdates` (bez potvrde offseta) dok je sesija
+  mrtva, i digne je na prvu poruku.
+- Dobitak: klon u mirovanju pada sa ~200 do 500 MB na ~10 do 20 MB.
+- Placa se hladnim startom: prva poruka poslije mirovanja ceka da sesija (claude + MCP + plugin)
+  ustane, procjena 5 do 15 s.
+- Jutarnja cron poruka (07:20) ide kroz `src/core/telegram.ts` mimo sesije, pa je nocno gasenje ne
+  dira i ne budi sesiju zbog nje.
+- Detalji i preporuceni redoslijed uvodjenja: `.env.example`, sekcija CUVAR SESIJE.
+
 ## 0.12.2 — 2026-08-04
 
 Patch: put slike ide iskljucivo na Gemini, najjeftiniji modeli su default svugdje.

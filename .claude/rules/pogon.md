@@ -81,6 +81,16 @@ Ucitava se samo kad se diraju skripte ili deploy. Mapa cijelog pogona:
 - Otkrivanje grupa preko `getUpdates` se NE pokusava. Zivu sesiju drzi Telegram plugin i on je
   jedini konzumer pollinga; drugi bi joj krao poruke. Zato ni `my_chat_member` nije dostupan i
   id nove grupe se ocita rucno.
+- **Izuzetak: strazar rezim.** Zabrana iznad vazi dok sesija ZIVI: dva `getUpdates` konzumera na
+  istom tokenu daju 409 Conflict. Cuvar u strazar rezimu (`OLX_SESIJA_STRAZAR`) smije pollovati,
+  ali SAMO dok je sesija ugasena, i mora prestati prije nego je digne.
+- Straza nikad ne salje `offset`. Offsetom se update POTVRDJUJE, a potvrdjena poruka je pojedena
+  poruka: obradjuje je plugin kad sesija ustane, ne cuvar.
+- Straza nikad ne salje `allowed_updates`. Telegram PAMTI zadnju poslanu postavku (izostavljen
+  parametar znaci "koristi prethodnu"), pa bi straza koja ga posalje suzila set tipova update-a i
+  sebi i pluginu, sve do sljedeceg starta plugina.
+- Straza zove samo `getUpdates` i `sendChatAction`, nikad `deleteWebhook`, `setWebhook` ni
+  `setMyCommands`.
 - Prelazak grupe u supergrupu MIJENJA `chat_id`. Zato `telegram grupe provjeri` mrtvu grupu samo
   javi adminu i nikad je ne uklanja sam: isti unos je i dozvola za dolazne poruke, pa bi ga jedna
   HTTP greska utisala u oba smjera.

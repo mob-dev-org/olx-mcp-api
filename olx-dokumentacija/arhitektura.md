@@ -24,7 +24,7 @@ flowchart LR
         disk[("Disk klona<br/>.olx-pik: audit, snapshoti, prijedlozi<br/>.claude-runtime i .claude-runtime-admin")]
     end
 
-    cuvar["Cuvar sesija<br/>cuvar-sesije.mjs klijent i admin-bot"] -.->|"drzi zive, nocni restart 03h,<br/>idle restart: klijent 2h, admin 1h"| sesija
+    cuvar["Cuvar sesija<br/>cuvar-sesije.mjs klijent i admin-bot"] -.->|"drzi zive, nocni restart 03h,<br/>idle restart: klijent 2h, admin 1h<br/>OLX_SESIJA_STRAZAR: idle/nocni GASE,<br/>cuvar strazari i budi na poruku"| sesija
     cuvar -.-> asesija
 
     tg <--> sesija
@@ -102,7 +102,7 @@ Nista od ovoga ne poziva model osim AI runde. Termini su razmaknuti namjerno.
 flowchart TB
     subgraph dan["Svaki dan"]
         s1["02:40 snapshot<br/>snimi preglede svih oglasa u fajl<br/>bez ovoga nema trendova"]
-        s2["03:00 nocni restart sesije<br/>kontekst na nulu, ciscenje inboxa<br/>radi cuvar-sesije.mjs"]
+        s2["03:00 nocni restart sesije<br/>kontekst na nulu, ciscenje inboxa<br/>radi cuvar-sesije.mjs<br/>uz strazar rezim: gasenje, budi se na poruku"]
         s3["07:20 dnevni posao<br/>obnove unutar besplatne kvote<br/>TEK kad klijent izabere ritam<br/>pa jutarnja poruka u SVE grupe"]
         s8["08:10 backup stanja<br/>pamcenje, izuzeca, audit, snapshoti<br/>na privatnu granu klijenta"]
     end
@@ -112,8 +112,8 @@ flowchart TB
         s5["nedjelja 21:00 AI runda<br/>analiza + prijedlozi po klijentu<br/>admin pretplata, read-only"]
     end
     subgraph stalno["Stalno"]
-        s6["cuvar klijentske sesije<br/>pao bot: digni ga<br/>5 brzih padova: javi adminu<br/>2h mirovanja: ocisti kontekst"]
-        s7["cuvar admin bot sesije (opcion)<br/>ista mehanika, idle prag 1h<br/>jer se kontekst cisti cesce"]
+        s6["cuvar klijentske sesije<br/>pao bot: digni ga<br/>5 brzih padova: javi adminu<br/>2h mirovanja: ocisti kontekst<br/>strazar rezim (opt in): idle/nocni GASE"]
+        s7["cuvar admin bot sesije (opcion)<br/>ista mehanika, idle prag 1h<br/>jer se kontekst cisti cesce<br/>strazar rezim (opt in): idle/nocni GASE"]
     end
 
     s1 --> s3
@@ -188,7 +188,7 @@ dobiju polovicne analize.
 | audit log svake izmjene i troska (nosi i verziju) | pravo brisanje oglasa (`listings rm`) |
 | prijava da klon zaostaje za izdanjem (hook pri startu sesije) | izdanje i pustanje u flotu (`izdanje.mjs`, skill `olx-izdanje`) |
 | admin bot: nadzor i rad preko Telegrama | priprema admin runtime-a (jednom po klonu) |
-| cuvar drzi sesiju zivom (pad, nocni i idle restart) | rucna proba sesije u prvom planu: `node scripts/pokreni-klijenta.mjs` (prije nje ugasiti cuvara) |
+| cuvar drzi sesiju zivom (pad, nocni i idle restart; strazar rezim opt in po klonu, prvo admin bot) | rucna proba sesije u prvom planu: `node scripts/pokreni-klijenta.mjs` (prije nje ugasiti cuvara) |
 | biljezenje tokena u transkriptima sesija | `npm run tokeni -- --upisi` sedmicno (trajni dnevnik) |
 
 ## 6. Onboarding novog klijenta (rucni koraci, redom)
