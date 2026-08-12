@@ -123,6 +123,9 @@ export function crniObrasci(): { obrazac: RegExp; razlog: string }[] {
     { obrazac: /\.pid$/, razlog: "pid" },
     // Prolazan marker kojim vanjski proces trazi restart sesije; cuvar ga obrise po obradi.
     { obrazac: /(^|\/)restart-(sesije|admin-bota)$/, razlog: "prolazan zahtjev za restart" },
+    // Debounce marker zaustavljanja alarma o pritiska na masinu; vidi pritisak-masine.mjs.
+    // Zastarjela vrijednost sa druge masine u backupu bi lazno produzila debounce prozor.
+    { obrazac: /(^|\/)pritisak-alarm-zadnji\.json$/, razlog: "prolazna oznaka pritiska alarma" },
     { obrazac: /\.alarm$/, razlog: "alarm masine" },
     { obrazac: /(^|\/)node_modules(\/|$)/, razlog: "zavisnosti" },
     { obrazac: /(^|\/)dist(\/|$)/, razlog: "build izlaz" },

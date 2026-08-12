@@ -134,6 +134,17 @@ test("prolazan zahtjev za restart sesije se ne salje u backup", () => {
   for (const p of r.preskoci) assert.match(p.razlog, /restart/);
 });
 
+test("prolazna oznaka pritiska alarma se ne salje u backup", () => {
+  // Debounce marker zaustavljanja alarma o pritiska na masinu (vidi pritisak-masine.mjs).
+  // Zivi samo sekundama i cuvar ga obrise; zastarjela vrijednost sa druge masine u backupu
+  // bi samo lazno produzila ili skratila debounce prozor.
+  const r = razvrstaj([".olx-pik/pritisak-alarm-zadnji.json"]);
+  assert.equal(r.uzmi.length, 0);
+  assert.equal(r.nepoznato.length, 0);
+  assert.equal(r.preskoci.length, 1);
+  assert.match(r.preskoci[0]!.razlog, /pritisak|alarm|prolazn/);
+});
+
 test("arhiva skinutih artikala ide u backup, ukljucujuci slike ravno u mapi id-a", () => {
   const r = razvrstaj(
     [
@@ -152,4 +163,14 @@ test("REGRESIJA: da su slike arhive u podmapi 'slike', crni obrazac bi ih tiho i
   // Ovo dokumentuje ZASTO su fajlovi ravno u <id>/: crn() se provjerava prije bijelog spiska.
   const r = razvrstaj([".olx-pik/arhiva-artikala/78059920/slike/01.jpg"], {} as NodeJS.ProcessEnv);
   assert.equal(r.preskoci.length, 1, "podmapa slike pada na crni obrazac, zato je ne koristimo");
+});
+
+test("REGRESIJA: disk telemetrija je pokrivena postojecim obrascem za resursi folder", () => {
+  // Novi fajl disk telemetrije (disk-YYYY-MM.jsonl) zivi u istom folderu kao memorijska
+  // telemetrija (resursi-YYYY-MM.jsonl). Oba trebaju biti na crnom spisku kroz obrazac za
+  // folder resursi/. Test sprijecava slucajni premjestaj bez da se primijeti.
+  const r = razvrstaj([".olx-pik/resursi/disk-2026-08.jsonl"], {} as NodeJS.ProcessEnv);
+  assert.equal(r.preskoci.length, 1, "disk telemetrija treba biti pokrivena crnim obrascem resursi/");
+  assert.equal(r.uzmi.length, 0);
+  assert.equal(r.nepoznato.length, 0);
 });
