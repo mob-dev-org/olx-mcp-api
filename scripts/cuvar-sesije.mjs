@@ -14,6 +14,10 @@
 //   3. Restart na neaktivnost (klijent 2h, admin-bot 1h): "ociscen kontekst po zavrsetku
 //      posla" bez ikakve logike u samoj sesiji. Restart je jeftin, placa se samo ponovno
 //      kesiranje prefiksa na prvoj sljedecoj poruci.
+//   4. Strazar rezim (opciono, OLX_SESIJA_STRAZAR): idle prag i nocni termin sesiju GASE
+//      umjesto da je restartuju, jer restart memoriju nikad ne vrati a sesija je ~95% otiska
+//      klona. Cuvar tada sam strazari nad bot tokenom i digne sesiju na prvu poruku. Bez
+//      prekidaca je svaki put ispod nepromijenjen.
 //
 // Razlike po tipu: runtime dir (.claude-runtime / .claude-runtime-admin), sistemski prompt
 // (SISTEM-klijent.md / SISTEM-admin-bot.md), MCP profil (klijent / admin), PID fajl i AI pogon:
@@ -34,10 +38,23 @@
 // Restart nikad ne pada usred posla: i nocni i idle restart cekaju da sesija miruje. Aktivnost
 // se cita sa diska (transkripti sesije i Telegram inbox), ne iz procesa.
 //
+// Strazar rezim ima dva stanja umjesto jednog: SESIJA_ZIVA i STRAZA. Granica izmedju njih je
+// tvrda i nosi cijeli dizajn: Telegram dopusta samo JEDNOG getUpdates konzumera po tokenu, pa
+// straza radi iskljucivo dok je sesija mrtva. Straza nikad ne potvrdjuje offset, dakle poruku
+// vidi a ne pojede; kad sesija ustane, plugin povuce istu poruku ponovo i obradi je svojim
+// normalnim putem (allowlist, inbox, kanal). Nista se ne gubi ni kad budjenje padne, jer poruka
+// do obrade ostaje nepotvrdjena na Telegramu. Detalji i ostale granice su u scripts/lib/straza.mjs.
+//
+// Start cuvara (boot masine, ponovno pokretanje posla) i u strazar rezimu dize sesiju kao i
+// prije: pokvaren setup (login, plugin, bun) se tako otkrije odmah kroz mehaniku brzih padova,
+// a ne tek na prvu klijentovu poruku. U strazu se ulazi samo kroz idle prag i nocni termin.
+//
 // Podesavanja kroz .env (sve opciono):
 //   OLX_SESIJA_RESTART_SAT   sat nocnog restarta, default 3
 //   OLX_SESIJA_IDLE_SATI     sati mirovanja prije restarta, default 2 (klijent) / 1 (admin-bot)
 //   OLX_SESIJA_INBOX_DANA    starost inbox fajlova koji se brisu, default 7
+//   OLX_SESIJA_STRAZAR       strazar rezim: prazno (default) iskljuceno, 1/true/da oba tipa,
+//                            admin samo admin bot, klijent samo klijentska sesija
 
 import { spawn, spawnSync } from "node:child_process";
 import {
@@ -60,6 +77,13 @@ import {
   sastaviPrompt,
   stazeSesije,
 } from "./lib/sesija.mjs";
+import {
+  POLL_TIMEOUT_S,
+  posaljiTyping,
+  procitajBotToken,
+  strazarUkljucen,
+  strazi,
+} from "./lib/straza.mjs";
 
 const KORIJEN = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(KORIJEN);
@@ -88,6 +112,16 @@ const MCP_PROFIL = STAZE.mcpProfil;
 const RESTART_SAT = broj(process.env.OLX_SESIJA_RESTART_SAT, 3);
 const IDLE_SATI = broj(process.env.OLX_SESIJA_IDLE_SATI, JE_ADMIN ? 1 : 2);
 const INBOX_DANA = broj(process.env.OLX_SESIJA_INBOX_DANA, 7);
+// Prekidac je po tipu sesije, ne samo po klonu, jer se rezim uvodi postepeno: prvo admin bot
+// (koristi se najrjedje a nosi punu drugu sesiju), pa klijentska sesija istog klona, pa flota.
+const STRAZAR = strazarUkljucen(process.env, JE_ADMIN);
+// Pauza prije prvog poll-a. Plugin poller (bun) umire na EOF stdina i forsira izlaz za 2s, a
+// njegov watchdog za sirocad radi na 5s. Ko krene ranije, dobije 409 jer token nije slobodan.
+const STRAZA_GRACE_MS = 5_000;
+// Typing na Telegramu traje oko 5s, a hladni start sesije je duzi, pa se ponavlja. Krov je tvrd:
+// bolje da indikator stane nego da cuvar kuca u prazno bez granice ako budjenje zapne.
+const TIPING_INTERVAL_MS = 4_000;
+const TIPING_MAX = 8;
 // Nocni restart ceka da sesija miruje bar ovoliko, da ne presijece posao u toku.
 const MIRNO_PRIJE_RESTARTA_MIN = 15;
 const BRZI_PAD_MS = 60_000;
@@ -114,6 +148,9 @@ function log(poruka) {
     process.exit(1);
   }
   for (const u of preduslovi.upozorenja) console.error(u);
+  // Neprepoznata vrijednost prekidaca ne obara cuvara, ali se ne smije ni presuti u tisini:
+  // vlasnik bi mislio da rezim radi, a klon bi trosio memoriju kao i prije.
+  if (STRAZAR.upozorenje) console.error(STRAZAR.upozorenje);
 }
 
 // ---- zastita od dvostrukog pokretanja ----
@@ -360,6 +397,16 @@ let zadnjiNocni = "";
 let javljenoBezKljuca = false;
 let zdravljeAlarmirano = false;
 let klijentObavijesten = false;
+let strazaTrazena = false;
+let strazaOtkazi = null;
+let tipingTajmer = null;
+let strazaBezTokenaJavljeno = false;
+
+// Jedan izvor istine za "cuvar je u strazi": postoji kontroler kojim se straza prekida. Vrijedi
+// i tokom grace pauze prije prvog poll-a, jer se kontroler pravi prije nje.
+function uStrazi() {
+  return strazaOtkazi !== null;
+}
 
 // Gasenje djeteta koje stvarno gasi. Na Windowsu dijete je cmd.exe shim, pa bi kill() ubio
 // samo njega a claude bi preziveo kao siroce na istom bot tokenu (dvije sesije, dupli
@@ -445,6 +492,14 @@ function pokreni() {
     }
     if (gasenje) process.exit(0);
 
+    // Straza ide PRIJE grane restarta: idle prag i nocni termin u strazar rezimu sesiju gase, a
+    // ne dizu, pa ovdje nema onog `pokreni` za 3s. Bez prekidaca je zastavica uvijek dole.
+    if (strazaTrazena) {
+      strazaTrazena = false;
+      void uStrazu();
+      return;
+    }
+
     if (restartTrazen) {
       restartTrazen = false;
       setTimeout(pokreni, 3000);
@@ -479,10 +534,90 @@ function pokreni() {
 }
 
 function zatraziRestart(razlog) {
-  if (!dijete || dijete.exitCode !== null || restartTrazen) return;
+  if (!dijete || dijete.exitCode !== null || restartTrazen || strazaTrazena) return;
   log(`Restart sesije: ${razlog}.`);
   restartTrazen = true;
   ugasiDijete();
+}
+
+// Blizanac zatraziRestart za strazar rezim: sesija se gasi i NE dize ponovo, umjesto nje ostaje
+// straza. Razdvojeno namjerno, da put bez prekidaca ostane nepromijenjen.
+function zatraziGasenje(razlog) {
+  if (!dijete || dijete.exitCode !== null || restartTrazen || strazaTrazena) return;
+  log(`Gasim sesiju i ulazim u strazu: ${razlog}.`);
+  strazaTrazena = true;
+  ugasiDijete();
+}
+
+// Klijent ne smije gledati u tisinu dok sesija ustaje. Sve je best effort: greske se gutaju u
+// samom alatu, tajmer je unref pa ne drzi proces, i nista od ovoga ne smije zadrzati budjenje.
+function pokreniTiping(token, chatId) {
+  zaustaviTiping();
+  if (!chatId) return;
+  let poslano = 1;
+  void posaljiTyping({ token, chatId });
+  tipingTajmer = setInterval(() => {
+    if (gasenje || poslano >= TIPING_MAX) {
+      zaustaviTiping();
+      return;
+    }
+    poslano += 1;
+    void posaljiTyping({ token, chatId });
+  }, TIPING_INTERVAL_MS);
+  tipingTajmer.unref();
+}
+
+function zaustaviTiping() {
+  if (!tipingTajmer) return;
+  clearInterval(tipingTajmer);
+  tipingTajmer = null;
+}
+
+/**
+ * Straza: sesija je mrtva, cuvar sam ceka poruku na bot tokenu i na prvu digne sesiju.
+ *
+ * Token se cita ISKLJUCIVO iz runtime-a ovog tipa sesije, jer je to isti fajl iz kojeg ga cita
+ * Telegram plugin. `.env` klona nije alternativa: tamo stoji klijentski bot, pa bi admin cuvar
+ * strazario nad klijentskim botom, krao klijentu poruke i pravio 409 protiv zive sesije.
+ *
+ * Kad tokena nema, rezim se tiho odustaje i sesija se digne po danasnjem putu: bot koji trosi
+ * memoriju je losiji od bota, ali bot koji je gluh nije bot.
+ */
+async function uStrazu() {
+  const token = procitajBotToken(TELEGRAM_DIR);
+  if (!token) {
+    log(`Straza nije moguca: nema TELEGRAM_BOT_TOKEN u ${join(TELEGRAM_DIR, ".env")}. Dizem sesiju kao i bez strazar rezima.`);
+    if (!strazaBezTokenaJavljeno) {
+      strazaBezTokenaJavljeno = true;
+      await javiAdministratoru(
+        `Cuvar (${TIP}) u ${KORIJEN} ne moze u strazu: nema bot tokena u ${TELEGRAM_DIR}. Sesija radi stalno, strazar rezim je bez efekta.`,
+      );
+    }
+    pokreni();
+    return;
+  }
+  strazaBezTokenaJavljeno = false;
+
+  strazaOtkazi = new AbortController();
+  const otkazi = strazaOtkazi;
+  log(`Straza: sesija ugasena, cekam poruku (long poll ${POLL_TIMEOUT_S}s, offset se ne potvrdjuje).`);
+  await new Promise((r) => setTimeout(r, STRAZA_GRACE_MS));
+
+  let nalaz = { prekinuto: true };
+  if (!otkazi.signal.aborted) {
+    nalaz = await strazi({
+      token,
+      signal: otkazi.signal,
+      log,
+      alarm: (tekst) => javiAdministratoru(`Cuvar (${TIP}) u ${KORIJEN}: ${tekst}`),
+    });
+  }
+  strazaOtkazi = null;
+  if (nalaz.prekinuto) return;
+
+  log(`Straza: update ${nalaz.updateId} vidjen, dizem sesiju. Poruku obradjuje plugin, ne cuvar.`);
+  pokreniTiping(token, nalaz.chatId);
+  pokreni();
 }
 
 function lokalniDatum(d) {
@@ -496,9 +631,35 @@ function lokalniDatum(d) {
 const ZDRAVLJE_PRAG_MIN = 10;
 
 setInterval(() => {
-  if (!dijete || dijete.exitCode !== null || restartTrazen || gasenje) return;
+  if (gasenje) return;
 
   const sad = new Date();
+  const danas = lokalniDatum(sad);
+
+  // U strazi nema sesije, pa nema ni health checka ni mjerenja mirovanja. Ostaju dvije duznosti:
+  // vanjski zahtjev za restart se samo pokupi (sesija svjez `.env` cita pri budjenju), a nocno
+  // ciscenje inboxa i logova mora raditi i bez sesije, inace tiho stane onih noci koje klon
+  // prespava u strazi, pa inbox i cron logovi rastu bez granice.
+  if (uStrazi()) {
+    if (existsSync(RESTART_ZAHTJEV)) {
+      try {
+        unlinkSync(RESTART_ZAHTJEV);
+      } catch {
+        // ostaje do sljedece runde; u strazi nema sesije koju bi zahtjev mogao vrtjeti u krug
+      }
+      log("Zahtjev za restart pokupljen u strazi: nema sta restartovati, svjez .env se cita pri budjenju.");
+    }
+    if (sad.getHours() === RESTART_SAT && zadnjiNocni !== danas) {
+      zadnjiNocni = danas;
+      ocistiInbox();
+      skratiLogove();
+      log("Nocno ciscenje odradjeno u strazi, sesija se ne dize.");
+    }
+    return;
+  }
+
+  if (!dijete || dijete.exitCode !== null || restartTrazen || strazaTrazena) return;
+
   const inboxTs = najnovijiMtime(INBOX);
   const transkriptTs = najnovijiMtime(join(RUNTIME, "projects"));
   const aktivnost = Math.max(inboxTs, transkriptTs);
@@ -538,22 +699,33 @@ setInterval(() => {
     return;
   }
 
-  // Nocni restart: jednom dnevno u zadati sat, ali tek kad sesija miruje.
-  const danas = lokalniDatum(sad);
+  // Nocni restart: jednom dnevno u zadati sat, ali tek kad sesija miruje. U strazar rezimu je to
+  // nocno gasenje: sesija ustaje tek na prvu sljedecu poruku, a cron poslovi (jutarnja poruka u
+  // 07:20 kroz src/core/telegram.ts) ne idu kroz sesiju pa ih ovo ne dira.
   if (sad.getHours() === RESTART_SAT && zadnjiNocni !== danas) {
     if (mirnoMin >= MIRNO_PRIJE_RESTARTA_MIN) {
       zadnjiNocni = danas;
       ocistiInbox();
       skratiLogove();
-      zatraziRestart("nocno ciscenje konteksta");
+      if (STRAZAR.ukljucen) zatraziGasenje("nocno ciscenje konteksta");
+      else zatraziRestart("nocno ciscenje konteksta");
     }
     return;
   }
 
-  // Idle restart: samo ako je bilo aktivnosti POSLIJE zadnjeg starta, inace bi se prazna
-  // sesija restartovala u krug bez ikakvog razloga.
-  if (IDLE_SATI > 0 && aktivnost > startTs && mirnoMin >= IDLE_SATI * 60) {
-    zatraziRestart(`${IDLE_SATI}h bez aktivnosti, ciscenje konteksta`);
+  // Idle prag. Bez strazar rezima mora stajati uslov "bilo je aktivnosti POSLIJE starta", inace
+  // bi se prazna sesija restartovala u krug bez ikakvog razloga. U strazar rezimu se mirovanje
+  // mjeri od zadnje aktivnosti ILI od starta, sta je novije: prazna sesija se tada smije ugasiti
+  // jer je straza pokriva, cime se zatvara rupa u kojoj je sesija bez ijedne poruke zivjela do
+  // nocnog termina. Mjeri se od starta a ne odmah, da mehanika brzih padova stigne otkriti
+  // pokvaren setup prije nego klon ostane samo na strazi.
+  if (IDLE_SATI > 0) {
+    if (STRAZAR.ukljucen) {
+      const mirnoOdStarta = (Date.now() - Math.max(aktivnost, startTs)) / 60_000;
+      if (mirnoOdStarta >= IDLE_SATI * 60) zatraziGasenje(`${IDLE_SATI}h bez aktivnosti, gasim sesiju`);
+    } else if (aktivnost > startTs && mirnoMin >= IDLE_SATI * 60) {
+      zatraziRestart(`${IDLE_SATI}h bez aktivnosti, ciscenje konteksta`);
+    }
   }
 }, 60_000);
 
@@ -566,6 +738,10 @@ for (const sig of ["SIGINT", "SIGTERM"]) {
     } catch {
       // vec obrisan
     }
+    // Straza se prekida prije izlaza, da zahtjev u toku ne ostane visiti i da se long poll ne
+    // ponovi u procesu koji vise nije nadzornik.
+    if (strazaOtkazi) strazaOtkazi.abort();
+    zaustaviTiping();
     if (dijete && dijete.exitCode === null) ugasiDijete();
     else process.exit(0);
     // Ako se dijete ne ugasi za 10s, izlazimo svakako; launchd/Scheduler ce pocistiti.
@@ -583,5 +759,9 @@ process.on("exit", () => {
   }
 });
 
-log(`Cuvar sesije: nocni restart u ${RESTART_SAT}h, idle restart poslije ${IDLE_SATI}h, inbox se cisti poslije ${INBOX_DANA} dana.`);
+log(
+  STRAZAR.ukljucen
+    ? `Cuvar sesije, strazar rezim: nocni termin u ${RESTART_SAT}h i ${IDLE_SATI}h mirovanja GASE sesiju, cuvar tada strazari i budi je na prvu poruku. Inbox se cisti poslije ${INBOX_DANA} dana.`
+    : `Cuvar sesije: nocni restart u ${RESTART_SAT}h, idle restart poslije ${IDLE_SATI}h, inbox se cisti poslije ${INBOX_DANA} dana.`,
+);
 pokreni();
