@@ -11,7 +11,7 @@
 //   2. Nocni restart (podrazumijevano 03h): kontekst razgovora krece od nule svaki dan, pa
 //      trosak po poruci ne raste. Tom prilikom se iz Telegram inboxa brisu fajlovi stariji
 //      od 7 dana, jer ih sesija poslije restarta vise ne koristi.
-//   3. Restart na neaktivnost (klijent 2h, admin-bot 1h): "ociscen kontekst po zavrsetku
+//   3. Restart na neaktivnost (klijent 1h, admin-bot 30min): "ociscen kontekst po zavrsetku
 //      posla" bez ikakve logike u samoj sesiji. Restart je jeftin, placa se samo ponovno
 //      kesiranje prefiksa na prvoj sljedecoj poruci.
 //   4. Strazar rezim (opciono, OLX_SESIJA_STRAZAR): idle prag i nocni termin sesiju GASE
@@ -51,7 +51,7 @@
 //
 // Podesavanja kroz .env (sve opciono):
 //   OLX_SESIJA_RESTART_SAT   sat nocnog restarta, default 3
-//   OLX_SESIJA_IDLE_SATI     sati mirovanja prije restarta, default 2 (klijent) / 1 (admin-bot)
+//   OLX_SESIJA_IDLE_SATI     sati mirovanja prije restarta, default 1 (klijent) / 0.5 (admin-bot)
 //   OLX_SESIJA_INBOX_DANA    starost inbox fajlova koji se brisu, default 7
 //   OLX_SESIJA_STRAZAR       strazar rezim: prazno (default) iskljuceno, 1/true/da oba tipa,
 //                            admin samo admin bot, klijent samo klijentska sesija
@@ -110,7 +110,7 @@ const PID_FAJL = join(KORIJEN, ".olx-pik", JE_ADMIN ? "cuvar-admin-bota.pid" : "
 const MCP_PROFIL = STAZE.mcpProfil;
 
 const RESTART_SAT = broj(process.env.OLX_SESIJA_RESTART_SAT, 3);
-const IDLE_SATI = broj(process.env.OLX_SESIJA_IDLE_SATI, JE_ADMIN ? 1 : 2);
+const IDLE_SATI = broj(process.env.OLX_SESIJA_IDLE_SATI, JE_ADMIN ? 0.5 : 1);
 const INBOX_DANA = broj(process.env.OLX_SESIJA_INBOX_DANA, 7);
 // Prekidac je po tipu sesije, ne samo po klonu, jer se rezim uvodi postepeno: prvo admin bot
 // (koristi se najrjedje a nosi punu drugu sesiju), pa klijentska sesija istog klona, pa flota.

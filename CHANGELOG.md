@@ -27,6 +27,9 @@ Telegram strazu dok sesija spava.
   dira i ne budi sesiju zbog nje.
 - Detalji i preporuceni redoslijed uvodjenja: `.env.example`, sekcija CUVAR SESIJE.
 
+Default prag mirovanja (`OLX_SESIJA_IDLE_SATI`) prepolovljen: klijentska sesija sa 2 h na 1 h,
+admin bot sa 1 h na 0.5 h (30 min). Klon koji zeli staro ponasanje postavi vrijednost u `.env`.
+
 ## 0.12.2 — 2026-08-04
 
 Patch: put slike ide iskljucivo na Gemini, najjeftiniji modeli su default svugdje.
