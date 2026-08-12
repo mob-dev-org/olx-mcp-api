@@ -374,23 +374,32 @@ sekcija 1 do 8 ostaje netaknuto: isti klon po klijentu, isti MCP, isti cron posl
 Sesija je STALNO dignuta. Cuvar je samo cuva: pao bot digne ga, na nocni termin i na prag mirovanja
 je restartuje da ocisti kontekst. Memorija se drzi cijeli dan, bez obzira da li klijent pise.
 
+Crveno trosi memoriju stalno, zeleno je jeftino i samo ceka na mrezi.
+
 ```mermaid
 flowchart LR
     tg["Telegram grupa"] <-->|"poruke"| plugin
 
-    subgraph klon["Klon klijenta, 24 sata"]
-        cuvar["Cuvar sesije<br/>3 do 10 MB"]
-        plugin["Telegram plugin, bun poller<br/>oko 42 MB<br/>DRZI getUpdates"]
-        sesija["Claude sesija<br/>130 do 416 MB"]
-        mcp["MCP server<br/>3 do 30 MB"]
+    subgraph klon["Klon klijenta, 24 sata na 24"]
+        cuvar["<b>Cuvar sesije</b><br/><b>3 do 10 MB</b>"]
+        plugin["<b>bun poller</b><br/><b>42 MB</b><br/>drzi getUpdates"]
+        sesija["<b>Claude sesija</b><br/><b>130 do 416 MB</b>"]
+        mcp["<b>MCP server</b><br/><b>3 do 30 MB</b>"]
     end
 
-    cuvar -.->|"health check svakih 60 s<br/>nocni restart 03h<br/>idle restart 1h / 30min"| sesija
+    cuvar -.->|"health check svakih 60 s<br/>nocni restart 03h<br/>idle restart 1h / 30min<br/>kontekst se cisti, memorija ostaje"| sesija
     sesija --> plugin
     sesija --> mcp
     mcp --> olx["OLX / PIK API"]
 
-    zbir["Zbir po klonu: oko 200 do 500 MB<br/>isto i kad klijent ne pise nista"]
+    zbir["<b>Zbir po klonu: 200 do 500 MB</b><br/>isto i kad klijent ne pise nista"]
+
+    classDef skupo fill:#f6cfc2,stroke:#a33c19,stroke-width:2px,color:#3b1305
+    classDef jeftino fill:#c9e6da,stroke:#1f6b52,stroke-width:2px,color:#0b2b20
+    classDef vanjsko fill:#eceada,stroke:#6b675c,stroke-width:1px,color:#26241d
+    class sesija,mcp,plugin,zbir skupo
+    class cuvar jeftino
+    class tg,olx vanjsko
 ```
 
 Posljedica za flotu: deset klijenata na jednoj masini znaci deset takvih zbirova stalno, jer
@@ -404,27 +413,56 @@ preuzme Telegram strazu. Kad poruka stigne, digne sesiju i pusti plugin da poruk
 ```mermaid
 flowchart TB
     tg["Telegram grupa"]
-    cuvar["Cuvar sesije: JEDAN proces, zivi uvijek<br/>3 do 10 MB"]
+    cuvar["<b>Cuvar sesije</b><br/>jedan proces, zivi uvijek<br/><b>3 do 10 MB</b>"]
 
-    subgraph mirno["Faza A: mirovanje, ukupno 10 do 20 MB"]
-        straza["Straza nad bot tokenom<br/>getUpdates long poll BEZ offseta<br/>uzorak resursa svakih 30 min"]
+    subgraph mirno["FAZA A: mirovanje, ukupno 10 do 20 MB"]
+        straza["<b>Straza nad bot tokenom</b><br/>getUpdates long poll BEZ offseta<br/>uzorak resursa svakih 30 min"]
     end
 
-    subgraph budno["Faza B: rad, ukupno 200 do 500 MB"]
-        sesija["Claude sesija"]
-        plugin["bun poller, drzi getUpdates"]
-        mcp["MCP server"]
+    subgraph budno["FAZA B: rad, ukupno 200 do 500 MB"]
+        sesija["<b>Claude sesija</b>"]
+        plugin["<b>bun poller</b>, drzi getUpdates"]
+        mcp["<b>MCP server</b>"]
     end
 
     cuvar --> straza
     tg -->|"prva poruka poslije mirovanja"| straza
-    straza -->|"typing odmah, pa dizanje sesije<br/>hladni start 5 do 15 s<br/>straza staje PRIJE nego sesija ustane"| sesija
-    sesija -->|"prag mirovanja 1h / 30min ili nocni termin 03h<br/>pun uzorak resursa, pa gasenje"| straza
+    straza -->|"typing odmah, pa dizanje sesije<br/><b>hladni start 5 do 15 s</b><br/>straza staje PRIJE nego sesija ustane"| sesija
+    sesija -->|"<b>prag mirovanja</b> 1h / 30min ili nocni termin 03h<br/>pun uzorak resursa, pa gasenje"| straza
     sesija --> plugin
     sesija --> mcp
     plugin -->|"isti update povuce ponovo i obradi"| tg
     mcp --> olx2["OLX / PIK API"]
     cron["Cron poslovi i jutarnja poruka 07:20"] -->|"idu mimo sesije, ne bude je"| tg
+
+    classDef skupo fill:#f6cfc2,stroke:#a33c19,stroke-width:2px,color:#3b1305
+    classDef jeftino fill:#c9e6da,stroke:#1f6b52,stroke-width:2px,color:#0b2b20
+    classDef vanjsko fill:#eceada,stroke:#6b675c,stroke-width:1px,color:#26241d
+    class sesija,mcp,plugin skupo
+    class cuvar,straza jeftino
+    class tg,olx2,cron vanjsko
+```
+
+Zasto poruka ne moze propasti dok sesija ustaje:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant K as Klijent
+    participant T as Telegram
+    participant C as Cuvar u strazi
+    participant S as Sesija plus MCP
+
+    K->>T: poruka
+    C->>T: getUpdates BEZ offseta
+    T-->>C: update vidjen, NIJE potvrdjen
+    C->>T: typing, da klijent ne gleda u tisinu
+    C->>C: straza staje
+    C->>S: dizanje sesije
+    Note over C,S: hladni start 5 do 15 s, mjeri se i zapisuje
+    S->>T: getUpdates SA offsetom
+    T-->>S: ISTA poruka, jos neobradjena
+    S-->>K: odgovor
 ```
 
 Zivotni ciklus sesije, isti crtez kao stanje u kodu:
