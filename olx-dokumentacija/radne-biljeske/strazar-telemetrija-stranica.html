@@ -157,6 +157,23 @@
     overflow-x: auto;
   }
   .list .mermaid { min-width: 30rem; }
+
+  /* Ploca je bijela u OBA rezima, pa tekst unutra NE smije nasljedjivati svijetlu boju
+     tijela: bez ovoga su natpisi na granama tamni na tamnom u nocnoj temi. */
+  .list, .list * { color: #1e2024; }
+  .list .labelBkg,
+  .list .edgeLabel,
+  .list .edgeLabel span,
+  .list .edgeLabel p,
+  .list .edgeLabel div,
+  .list foreignObject div {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #1e2024 !important;
+  }
+  .list .edgeLabel rect,
+  .list .labelBkg rect { fill: #ffffff !important; }
+  .list .nodeLabel, .list .stateLabel, .list .titleText { color: #1e2024 !important; }
   .potpis {
     font-family: var(--font-data);
     font-size: 0.72rem;
