@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sablon. Instalira se RUCNO i samo JEDNOM na admin masini (kao ADMIN.saznanja, ADMIN.ai-runda i
+  ADMIN.backup-nadzor), jer skripta sama obilazi sve klonove iz ~/.olx-klijenti.txt.
+
+  Instalacija (KORIJEN je putanja glavnog repoa):
+    sed "s|KORIJEN|$PWD|g" deploy/launchd/ba.codefactory.olx.ADMIN.nadzor-flote.plist \
+      > ~/Library/LaunchAgents/ba.codefactory.olx.ADMIN.nadzor-flote.plist
+    launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/ba.codefactory.olx.ADMIN.nadzor-flote.plist
+
+  06:30 svaki dan (za razliku od ai-runda i backup-nadzor koji su sedmicni): Korak A skripte
+  (dnevna kolekcija CPU/disk/PSI/memorija po klonu) mora ici SVAKI DAN da uzorci u
+  masina-YYYY-MM.jsonl budu gusti, Korak B (agregirana analiza flote, poslana adminu na Telegram)
+  se sam odlucuje da li je proslo >= 3 dana (DANA_IZMEDJU_ANALIZA u scripts/nadzor-flote.mjs) i
+  preskace kad nije, pa dnevno zakazivanje ne znaci dnevni Telegram spam. Termin 06:30 je
+  razmaknut od saznanja (08:00), ai-runda (nedjelja 21:00) i backup-nadzor (ponedjeljak 09:00).
+
+  Izvor spiska klonova (podrazumijevano ~/.olx-klijenti.txt / OLX_KLIJENTI_POPIS) pokriva
+  uobicajen slucaj. Za folder-sken umjesto popisa dodaj argument u ProgramArguments ispod:
+    ... node scripts/nadzor-flote.mjs --svi ~/olx-klonovi
+
+  Gdje skripta pise stanje (masina-YYYY-MM.jsonl, cpu-stanje.json, zadnja-analiza.json,
+  analiza-YYYY-MM-DD.md) se moze promijeniti preko OLX_NADZOR_DIR (i izvor spiska klonova preko
+  OLX_KLIJENTI_ROOT/OLX_KLIJENTI_POPIS) kroz EnvironmentVariables kljuc, npr (OPCIONO, default
+  vec pokriva uobicajen slucaj, zato je ispod ostavljeno kao XML komentar a ne aktivan kljuc):
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>OLX_NADZOR_DIR</key>
+    <string>/Users/admin/olx-nadzor</string>
+    <key>OLX_KLIJENTI_ROOT</key>
+    <string>/Users/admin/olx-klonovi</string>
+  </dict>
+
+  ---- Windows (schtasks), samo dokumentovano, NEMA aktivnog ADMIN twina u
+  deploy/windows/instaliraj-zadatke.ps1: isti obrazac kao ostala tri ADMIN posla (ai-runda,
+  backup-nadzor, saznanja), koji svi bez izuzetka nemaju Windows twin u toj skripti. Rucna
+  komanda za admina na Windows masini:
+
+    schtasks /create /tn "OLX ADMIN nadzor-flote" ^
+      /tr "node C:\putanja\do\repoa\scripts\nadzor-flote.mjs" ^
+      /sc daily /st 06:30
+
+  ---- Linux, alternativa (cron), isti raspored:
+
+    30 6 * * * cd /putanja/do/repoa && node scripts/nadzor-flote.mjs >> .olx-pik/cron-nadzor-flote.log 2>&1
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>ba.codefactory.olx.ADMIN.nadzor-flote</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>cd KORIJEN &amp;&amp; node scripts/nadzor-flote.mjs</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>KORIJEN</string>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>6</integer>
+    <key>Minute</key><integer>30</integer>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>KORIJEN/.olx-pik/cron-nadzor-flote.log</string>
+  <key>StandardErrorPath</key>
+  <string>KORIJEN/.olx-pik/cron-nadzor-flote.log</string>
+</dict>
+</plist>
