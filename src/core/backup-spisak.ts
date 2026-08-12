@@ -110,6 +110,7 @@ export function crniObrasci(): { obrazac: RegExp; razlog: string }[] {
     { obrazac: /(^|\/)klijent-fajlovi(\/|$)/, razlog: "radni fajlovi za klijenta, isporuceni u grupu" },
     { obrazac: /(^|\/)projects(\/|$)/, razlog: "transkripti razgovora" },
     { obrazac: /(^|\/)inbox(\/|$)/, razlog: "dolazne fotografije klijenta" },
+    { obrazac: /(^|\/)resursi(\/|$)/, razlog: "telemetrija resursa masine i procesa, ne salje se u backup" },
     { obrazac: /(^|\/)test-audit\.jsonl$/, razlog: "ostatak testova" },
     { obrazac: /(^|\/)most-stanje\.json$/, razlog: "prolazni red poruka" },
     // Popis slika koje cekaju brisanje. Pokazuje na fajlove koji su i sami crni i koji ce nestati

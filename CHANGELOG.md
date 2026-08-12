@@ -30,6 +30,21 @@ Telegram strazu dok sesija spava.
 Default prag mirovanja (`OLX_SESIJA_IDLE_SATI`) prepolovljen: klijentska sesija sa 2 h na 1 h,
 admin bot sa 1 h na 0.5 h (30 min). Klon koji zeli staro ponasanje postavi vrijednost u `.env`.
 
+Telemetrija resursa pogona (`OLX_RESURSI_INTERVAL_MIN`, default 5 minuta dok sesija zivi;
+`OLX_RESURSI_INTERVAL_STRAZA_MIN`, default 30 minuta dok cuvar strazari; prva prazna ili 0 gasi
+telemetriju u cjelini): cuvar sesije (isti proces koji vec strazari, bez novog zakazanog posla)
+periodicno upisuje u `.olx-pik/resursi/resursi-YYYY-MM.jsonl` RSS cuvara i cijelog stabla sesije
+(sesija + MCP + bun poller, jednim `ps`/`Get-CimInstance` pozivom po uzorku), slobodnu memoriju i
+swap masine, i dogadjaje starta, pada i budjenja iz straze (sa trajanjem hladnog starta).
+
+- Na ulasku u strazu se uzima pun uzorak PRIJE gasenja sesije, jedini trenutak koji pokazuje
+  trosak neposredno prije spavanja.
+- Vrijeme provedeno u strazi se racuna prvenstveno iz parova gasenje-straze/budjenje (tacno), uz
+  periodicne uzorke kao fallback kad par nije zatvoren.
+- `node scripts/resursi.mjs pregled`, `izvjestaj [--dana N]` (i `--svi <root>` za vise klonova) i
+  `dijagnostika` daju vlasniku flote uvid u trosak resursa i sta poboljsati.
+- Nikad ne ide u backup stanja (crni spisak).
+
 ## 0.12.2 — 2026-08-04
 
 Patch: put slike ide iskljucivo na Gemini, najjeftiniji modeli su default svugdje.

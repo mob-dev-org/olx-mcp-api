@@ -50,6 +50,7 @@ test("veliko i prolazno se ne kopira", () => {
       ".olx-pik/bulk-price.lock",
       ".olx-pik/prompt-klijent.md",
       ".olx-pik/most-stanje.json",
+      ".olx-pik/resursi/resursi-2026-08.jsonl",
     ],
     {} as NodeJS.ProcessEnv,
   );
