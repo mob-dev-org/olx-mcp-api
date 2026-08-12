@@ -450,6 +450,20 @@ test("redUzorka: masina objekat se raspakuje u masina_* polja", () => {
   assert.equal(r.masina_load15, 7);
 });
 
+test("redUzorka: cpuKlonaPct se upisuje tacno, izostavljeno daje null", () => {
+  const saVrijednoscu = redUzorka({ cpuKlonaPct: 12.5 });
+  assert.equal(saVrijednoscu.cpu_klona_pct, 12.5);
+
+  const bezVrijednosti = redUzorka({});
+  assert.equal(bezVrijednosti.cpu_klona_pct, null);
+});
+
+test("redUzorka: SHEMA_VERZIJA je 2 i upisuje se u red", () => {
+  assert.equal(SHEMA_VERZIJA, 2);
+  const r = redUzorka();
+  assert.equal(r.shema, 2);
+});
+
 // ---- putanjaResursa ----
 
 test("putanjaResursa: default putanja sa vodecom nulom u mjesecu", () => {
@@ -652,6 +666,33 @@ test("agregiraj: prazan niz vraca sve null/0 bez pada", () => {
   assert.equal(r.cuvarRss.prosjekBajta, null);
   assert.deepEqual(r.savjeti, []);
   assert.deepEqual(r.padovi, { broj: 0 });
+  assert.equal(r.cpuKlona, null);
+});
+
+test("agregiraj: cpuKlona je null kad nijedan red nema cpu_klona_pct (sav period shema:1)", () => {
+  const redovi = [
+    redUzorka({ ts: "2026-08-12T08:00:00.000Z", intervalMin: 5, stabloRssBajta: 100_000_000 }),
+    redUzorka({ ts: "2026-08-12T08:05:00.000Z", intervalMin: 5, stabloRssBajta: 105_000_000 }),
+  ];
+  const r = agregiraj(redovi);
+  assert.equal(r.cpuKlona, null);
+});
+
+test("agregiraj: mjesoviti shema:1/shema:2 period racuna cpuKlona samo preko redova sa vrijednoscu", () => {
+  const redovi = [
+    // "shema:1" simulacija: cpu_klona_pct polje uopste ne postoji na redu (stari cuvar).
+    redUzorka({ ts: "2026-08-12T08:00:00.000Z", intervalMin: 5 }),
+    redUzorka({ ts: "2026-08-12T08:05:00.000Z", intervalMin: 5 }),
+    // "shema:2" simulacija: cuvar vec salje CPU% klona.
+    redUzorka({ ts: "2026-08-12T08:10:00.000Z", intervalMin: 5, cpuKlonaPct: 10 }),
+    redUzorka({ ts: "2026-08-12T08:15:00.000Z", intervalMin: 10, cpuKlonaPct: 20 }),
+  ];
+  const r = agregiraj(redovi);
+  assert.ok(r.cpuKlona !== null);
+  // Tezinski prosjek SAMO preko redova sa vrijednoscu: (10*5 + 20*10) / (5+10) = 250/15
+  assert.equal(r.cpuKlona.prosjekPct, 250 / 15);
+  assert.equal(r.cpuKlona.peakPct, 20);
+  assert.equal(r.cpuKlona.cpuPodaciOd, "2026-08-12T08:10:00.000Z");
 });
 
 test("agregiraj: normalan slucaj sa mjesavinom uzoraka i dogadjaja", () => {

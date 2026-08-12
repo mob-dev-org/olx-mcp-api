@@ -363,7 +363,10 @@ export function pomakKlona(putanjaKlona, mod) {
 
 // ---- red, fajl, rotacija ----
 
-export const SHEMA_VERZIJA = 1;
+// Verzija 2: dodato cpu_klona_pct (CPU% stabla procesa klona, vidi scripts/lib/cpu.mjs).
+// Stari redovi upisani sa shema:1 nemaju ovo polje pri citanju iz JSONL, sto se cita kao
+// `undefined`/nedostajuce polje, NE kao 0 - agregiraj() to tolerise (vidi cpuKlonaAgregat).
+export const SHEMA_VERZIJA = 2;
 
 /**
  * Gradi jedan red za JSONL. Cista funkcija: svako polje koje pozivalac ne proslijedi postaje
@@ -387,6 +390,7 @@ export function redUzorka({
   cuvarRssBajta,
   stabloRssBajta,
   stabloBrojProcesa,
+  cpuKlonaPct,
   masina,
 } = {}) {
   const m = masina ?? {};
@@ -408,6 +412,7 @@ export function redUzorka({
     cuvar_rss_bajta: cuvarRssBajta ?? null,
     stablo_rss_bajta: stabloRssBajta ?? null,
     stablo_broj_procesa: stabloBrojProcesa ?? null,
+    cpu_klona_pct: cpuKlonaPct ?? null,
     masina_ukupno_bajta: m.ukupnoBajta ?? null,
     masina_slobodno_bajta: m.slobodnoBajta ?? null,
     masina_swap_koristeno_bajta: m.swapKoristenoBajta ?? null,
@@ -581,6 +586,26 @@ function maksimumPolja(redovi, polje) {
 }
 
 /**
+ * Agregat CPU% stabla klona. `null` kad NIJEDAN red (uzorak ili dogadjaj) nema brojcanu
+ * `cpu_klona_pct` vrijednost - to je signal "klon jos nije nadogradjen na CPU telemetriju"
+ * (stariji shema:1 redovi), ne greska. Cim BAREM JEDAN red ima vrijednost (i mjesoviti
+ * shema:1/shema:2 period), vraca objekat: prosjek preko periodicnih uzoraka (isti obrazac kao
+ * stabloRss), peak preko svih redova, i ts prvog reda (hronoloski) koji ima vrijednost.
+ */
+function cpuKlonaAgregat(sortirano, uzorci) {
+  const imaBiloKoju = sortirano.some((r) => typeof r.cpu_klona_pct === "number");
+  if (!imaBiloKoju) return null;
+
+  const prviSaVrijednoscu = sortirano.find((r) => typeof r.cpu_klona_pct === "number");
+
+  return {
+    prosjekPct: tezinskiProsjekPolja(uzorci, "cpu_klona_pct"),
+    peakPct: maksimumPolja(sortirano, "cpu_klona_pct"),
+    cpuPodaciOd: prviSaVrijednoscu.ts,
+  };
+}
+
+/**
  * Agregira niz redova u kompaktan izvjestaj. Cista funkcija, sortira `redovi` po `ts` interno
  * (za razliku od vrijemeUStrazi, ne pretpostavlja da je pozivalac vec sortirao).
  */
@@ -595,6 +620,7 @@ export function agregiraj(redovi) {
       hladniStartovi: { broj: 0, prosjekMs: null, maxMs: null },
       padovi: { broj: 0 },
       masina: { prosjekSlobodnoBajta: null, prosjekSwapKoristenoBajta: null, prosjekLoad1: null },
+      cpuKlona: null,
       savjeti: [],
     };
   }
@@ -633,6 +659,8 @@ export function agregiraj(redovi) {
     prosjekSwapKoristenoBajta: tezinskiProsjekPolja(uzorci, "masina_swap_koristeno_bajta"),
     prosjekLoad1: tezinskiProsjekPolja(uzorci, "masina_load1"),
   };
+
+  const cpuKlona = cpuKlonaAgregat(sortirano, uzorci);
 
   // Pocetni, lako prosiriv skup uslovnih savjeta. Ne pokusava pokriti sve situacije, samo
   // najcesce simptome na koje je vrijedno upozoriti bez ljudske analize.
@@ -694,6 +722,7 @@ export function agregiraj(redovi) {
     hladniStartovi,
     padovi,
     masina,
+    cpuKlona,
     savjeti,
   };
 }
