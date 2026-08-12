@@ -369,6 +369,11 @@ backup vraca PODATKE, ne radni klon: tokeni se unose rucno, i to je namjerno.
 Ovo je jedina razlika u arhitekturi koju nosi grana `arhitektura-manji-resursi`. Sve ostalo iz
 sekcija 1 do 8 ostaje netaknuto: isti klon po klijentu, isti MCP, isti cron poslovi, isti backup.
 
+Iscrtana verzija ovih dijagrama, sa trakovima potrosnje i vremenskom trakom dana:
+<https://claude.ai/code/artifact/741fa916-9b97-4308-956d-eb5309bdf112>. Izvor stranice je u repou
+(`olx-dokumentacija/radne-biljeske/strazar-telemetrija-stranica.html`), pa se moze ponovo objaviti
+ako link istekne.
+
 ### 9.1 Danasnje stanje (default, i dalje vazi bez prekidaca)
 
 Sesija je STALNO dignuta. Cuvar je samo cuva: pao bot digne ga, na nocni termin i na prag mirovanja
@@ -450,8 +455,12 @@ sequenceDiagram
     autonumber
     participant K as Klijent
     participant T as Telegram
+    box rgb(201,230,218) jeftino, zivi uvijek
     participant C as Cuvar u strazi
+    end
+    box rgb(246,207,194) skupo, dize se na poruku
     participant S as Sesija plus MCP
+    end
 
     K->>T: poruka
     C->>T: getUpdates BEZ offseta
@@ -478,15 +487,20 @@ stateDiagram-v2
     Aktivna --> [*]: SIGINT / SIGTERM
 
     note right of Straza
-        Samo cuvar zivi.
+        Samo cuvar zivi, 10 do 20 MB.
         Straza nikad ne salje offset
         ni allowed_updates.
         Uzorak resursa svakih 30 min.
     end note
     note right of Aktivna
-        Sesija, MCP i bun poller.
+        Sesija, MCP i bun poller, 200 do 500 MB.
         Uzorak resursa svakih 5 min.
     end note
+
+    classDef budno fill:#f6cfc2,stroke:#a33c19,stroke-width:3px,color:#3b1305
+    classDef mirno fill:#c9e6da,stroke:#1f6b52,stroke-width:3px,color:#0b2b20
+    class Aktivna budno
+    class Straza mirno
 ```
 
 Zasto strazu drzi cuvar a ne novi Bun proces: offset je potvrda, a potvrdjena poruka je pojedena

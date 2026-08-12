@@ -1,0 +1,485 @@
+<title>Stražar i telemetrija</title>
+<style>
+  :root {
+    color-scheme: light;
+    --ground: #f1efe8;
+    --ink: #1e2024;
+    --ink-mid: #4f535a;
+    --ink-soft: #767a83;
+    --rule: #d6d2c6;
+    --skupo: #a33c19;
+    --skupo-blago: #f6cfc2;
+    --jeftino: #1f6b52;
+    --jeftino-blago: #c9e6da;
+    --lampa: #a8681b;
+    --sheet: #ffffff;
+    --sheet-rule: #ded9cb;
+    --trak-podloga: #e3dfd2;
+    --font-display: "Charter", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-data: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --ground: #17191c;
+      --ink: #eae8e2;
+      --ink-mid: #b6b9bf;
+      --ink-soft: #8b8f97;
+      --rule: #32363b;
+      --skupo: #e6866a;
+      --skupo-blago: #4a2418;
+      --jeftino: #7ec3a6;
+      --jeftino-blago: #1c3a2f;
+      --lampa: #dfa354;
+      --trak-podloga: #2a2e33;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground: #17191c;
+    --ink: #eae8e2;
+    --ink-mid: #b6b9bf;
+    --ink-soft: #8b8f97;
+    --rule: #32363b;
+    --skupo: #e6866a;
+    --skupo-blago: #4a2418;
+    --jeftino: #7ec3a6;
+    --jeftino-blago: #1c3a2f;
+    --lampa: #dfa354;
+    --trak-podloga: #2a2e33;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 17px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .stranica {
+    max-width: 62rem;
+    margin: 0 auto;
+    padding: clamp(1.75rem, 4vw, 3.5rem) clamp(1rem, 4vw, 2.25rem) 4rem;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(2rem, 4vw, 3rem);
+  }
+
+  .eyebrow {
+    font-family: var(--font-data);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0 0 0.6rem;
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 5vw, 2.9rem);
+    line-height: 1.08;
+    font-weight: 600;
+    margin: 0 0 0.75rem;
+    text-wrap: balance;
+  }
+
+  h2 {
+    font-family: var(--font-display);
+    font-size: clamp(1.3rem, 2.8vw, 1.6rem);
+    line-height: 1.25;
+    font-weight: 600;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  h3 {
+    font-size: 0.95rem;
+    font-weight: 650;
+    margin: 0;
+  }
+
+  p { margin: 0; max-width: 64ch; }
+  .lead { font-size: 1.1rem; color: var(--ink-mid); max-width: 56ch; }
+
+  section { display: flex; flex-direction: column; gap: 1rem; }
+  .glava { border-top: 1px solid var(--rule); padding-top: 1.25rem; display: flex; flex-direction: column; gap: 0.35rem; }
+
+  strong { font-weight: 680; }
+  .skupo-tekst { color: var(--skupo); font-weight: 680; }
+  .jeftino-tekst { color: var(--jeftino); font-weight: 680; }
+
+  code {
+    font-family: var(--font-data);
+    font-size: 0.85em;
+    background: var(--trak-podloga);
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+  }
+
+  /* Trakovi potrosnje */
+  .mjere { display: flex; flex-direction: column; gap: 0.9rem; }
+  .mjera { display: grid; grid-template-columns: minmax(8rem, 12rem) 1fr auto; gap: 0.3rem 1rem; align-items: center; }
+  .mjera-ime { font-size: 0.92rem; font-weight: 650; }
+  .mjera-ime span { display: block; font-weight: 400; font-size: 0.8rem; color: var(--ink-soft); }
+  .trak { height: 1.6rem; background: var(--trak-podloga); border-radius: 2px; overflow: hidden; }
+  .trak i { display: block; height: 100%; }
+  .trak.skupo i { background: var(--skupo); }
+  .trak.jeftino i { background: var(--jeftino); }
+  .mjera-broj {
+    font-family: var(--font-data);
+    font-variant-numeric: tabular-nums;
+    font-size: 1rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .mjera-broj.skupo { color: var(--skupo); }
+  .mjera-broj.jeftino { color: var(--jeftino); }
+
+  @media (max-width: 36rem) {
+    .mjera { grid-template-columns: 1fr auto; }
+    .mjera-ime { grid-column: 1 / -1; }
+  }
+
+  /* Dijagrami: bijeli list u oba rezima, jer mermaid crta svojom paletom */
+  .list {
+    background: var(--sheet);
+    border: 1px solid var(--sheet-rule);
+    border-radius: 3px;
+    padding: 1rem;
+    overflow-x: auto;
+  }
+  .list .mermaid { min-width: 30rem; }
+  .potpis {
+    font-family: var(--font-data);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0.5rem 0 0;
+  }
+
+  .legenda { display: flex; flex-wrap: wrap; gap: 0.4rem 1.25rem; font-size: 0.82rem; color: var(--ink-mid); }
+  .legenda span { display: inline-flex; align-items: center; gap: 0.4rem; }
+  .kvadrat { width: 0.8rem; height: 0.8rem; border-radius: 2px; border: 1px solid; }
+  .kvadrat.skupo { background: var(--skupo-blago); border-color: var(--skupo); }
+  .kvadrat.jeftino { background: var(--jeftino-blago); border-color: var(--jeftino); }
+  .kvadrat.podatak { background: #fbe4b0; border-color: #8f5714; }
+
+  .biljeska {
+    border-left: 3px solid var(--lampa);
+    padding-left: 0.9rem;
+    color: var(--ink-mid);
+    max-width: 64ch;
+  }
+  .biljeska strong { color: var(--ink); }
+
+  ul { margin: 0; padding-left: 1.1rem; max-width: 64ch; display: flex; flex-direction: column; gap: 0.4rem; }
+  li::marker { color: var(--ink-soft); }
+
+  .stanje { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1.25rem; }
+  .stanje ul { list-style: none; padding: 0; gap: 0.5rem; }
+  .stanje li { font-size: 0.92rem; display: flex; gap: 0.55rem; align-items: baseline; }
+  .tacka { font-family: var(--font-data); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.1rem 0.4rem; border-radius: 2px; white-space: nowrap; }
+  .tacka.ok { background: var(--jeftino-blago); color: var(--jeftino); }
+  .tacka.ceka { background: var(--trak-podloga); color: var(--lampa); }
+</style>
+
+<div class="stranica">
+
+  <header>
+    <p class="eyebrow">Grana arhitektura-manji-resursi</p>
+    <h1>Stražar i telemetrija</h1>
+    <p class="lead">
+      Klon koji miruje više ne drži sesiju u memoriji, i od sada sam zapisuje koliko troši.
+    </p>
+  </header>
+
+  <section>
+    <div class="glava"><h2>Potrošnja, jedan klon</h2></div>
+    <div class="mjere">
+      <div class="mjera">
+        <div class="mjera-ime">Danas, cijeli dan <span>sesija plus MCP plus bun poller</span></div>
+        <div class="trak skupo"><i style="width:100%"></i></div>
+        <div class="mjera-broj skupo">200 do 500 MB</div>
+      </div>
+      <div class="mjera">
+        <div class="mjera-ime">Stražar, u mirovanju <span>samo čuvar</span></div>
+        <div class="trak jeftino"><i style="width:4%"></i></div>
+        <div class="mjera-broj jeftino">10 do 20 MB</div>
+      </div>
+    </div>
+    <div class="glava" style="border-top:none;padding-top:0.5rem"><h3>Deset klijenata na jednoj mašini, dok niko ne piše</h3></div>
+    <div class="mjere">
+      <div class="mjera">
+        <div class="mjera-ime">Danas</div>
+        <div class="trak skupo"><i style="width:100%"></i></div>
+        <div class="mjera-broj skupo">2 do 5 GB</div>
+      </div>
+      <div class="mjera">
+        <div class="mjera-ime">Stražar</div>
+        <div class="trak jeftino"><i style="width:4%"></i></div>
+        <div class="mjera-broj jeftino">0.1 do 0.2 GB</div>
+      </div>
+    </div>
+    <p class="biljeska">
+      Granica prestaje biti <strong>broj klijenata</strong> i postaje <strong>broj istovremeno
+      aktivnih razgovora</strong>.
+    </p>
+  </section>
+
+  <section>
+    <div class="glava">
+      <p class="eyebrow">Danas, default bez prekidača</p>
+      <h2>Sve stoji dignuto</h2>
+    </div>
+    <div class="legenda">
+      <span><i class="kvadrat skupo"></i> troši memoriju stalno</span>
+      <span><i class="kvadrat jeftino"></i> jeftino, čeka na mreži</span>
+    </div>
+    <div class="list">
+      <pre class="mermaid">
+%%{init: {"theme":"base","themeVariables":{"fontSize":"15px","primaryTextColor":"#101315","lineColor":"#2b2f34","edgeLabelBackground":"#ffffff","clusterBkg":"#f5f3ec","clusterBorder":"#b9b4a5"}}}%%
+flowchart LR
+    tg["Telegram grupa"]
+
+    subgraph klon["Klon klijenta, 24 sata na 24"]
+        cuvar["<b>Cuvar sesije</b><br/><b>3 do 10 MB</b>"]
+        plugin["<b>bun poller</b><br/><b>42 MB</b><br/>drzi getUpdates"]
+        sesija["<b>Claude sesija</b><br/><b>130 do 416 MB</b>"]
+        mcp["<b>MCP server</b><br/><b>3 do 30 MB</b>"]
+    end
+
+    tg <--> plugin
+    cuvar -.->|"nocni restart 03h<br/>idle restart 1h / 30min<br/>kontekst se cisti, memorija ostaje"| sesija
+    sesija --> plugin
+    sesija --> mcp
+    mcp --> olx["OLX / PIK API"]
+
+    classDef skupo fill:#f6cfc2,stroke:#a33c19,stroke-width:2px,color:#3b1305
+    classDef jeftino fill:#c9e6da,stroke:#1f6b52,stroke-width:2px,color:#0b2b20
+    classDef vanjsko fill:#eceada,stroke:#6b675c,stroke-width:1px,color:#26241d
+    class sesija,mcp,plugin skupo
+    class cuvar jeftino
+    class tg,olx vanjsko
+      </pre>
+    </div>
+    <p class="potpis">Slika 1. Restart čisti kontekst, ne memoriju</p>
+  </section>
+
+  <section>
+    <div class="glava">
+      <p class="eyebrow">Nova grana, iza OLX_SESIJA_STRAZAR</p>
+      <h2>Dvije faze istog klona</h2>
+    </div>
+    <div class="list">
+      <pre class="mermaid">
+%%{init: {"theme":"base","themeVariables":{"fontSize":"15px","primaryTextColor":"#101315","lineColor":"#2b2f34","edgeLabelBackground":"#ffffff","clusterBkg":"#f5f3ec","clusterBorder":"#b9b4a5"}}}%%
+flowchart TB
+    tg["Telegram grupa"]
+    cuvar["<b>Cuvar sesije</b><br/>jedan proces, zivi uvijek<br/><b>3 do 10 MB</b>"]
+
+    subgraph mirno["FAZA A: mirovanje, ukupno 10 do 20 MB"]
+        straza["<b>Straza nad bot tokenom</b><br/>getUpdates long poll<br/>BEZ offseta, poruka se ne pojede"]
+    end
+
+    subgraph budno["FAZA B: rad, ukupno 200 do 500 MB"]
+        sesija["<b>Claude sesija</b>"]
+        plugin["<b>bun poller</b>"]
+        mcp["<b>MCP server</b>"]
+    end
+
+    cuvar --> straza
+    tg -->|"prva poruka"| straza
+    straza -->|"typing odmah,<br/>pa dizanje sesije<br/><b>hladni start 5 do 15 s</b>"| sesija
+    sesija -->|"<b>prag mirovanja</b> 1h / 30min<br/>ili nocni termin 03h<br/>pun uzorak, pa gasenje"| straza
+    sesija --> plugin
+    sesija --> mcp
+    plugin -->|"isti update povuce i obradi"| tg
+    mcp --> olx["OLX / PIK API"]
+    cron["Cron poslovi, jutarnja poruka 07:20"] -->|"mimo sesije, ne bude je"| tg
+
+    classDef skupo fill:#f6cfc2,stroke:#a33c19,stroke-width:2px,color:#3b1305
+    classDef jeftino fill:#c9e6da,stroke:#1f6b52,stroke-width:2px,color:#0b2b20
+    classDef vanjsko fill:#eceada,stroke:#6b675c,stroke-width:1px,color:#26241d
+    class sesija,mcp,plugin skupo
+    class cuvar,straza jeftino
+    class tg,olx,cron vanjsko
+      </pre>
+    </div>
+    <p class="potpis">Slika 2. Zeleno živi uvijek, crveno se diže samo kad treba</p>
+    <p class="biljeska">
+      <strong>Zašto stražu drži čuvar.</strong> Offset je potvrda, a potvrđena poruka je pojedena
+      poruka: straža samo gleda. Dva čitača istog tokena daju grešku 409, pa straža mora prestati
+      prije nego sesija ustane.
+    </p>
+  </section>
+
+  <section>
+    <div class="glava"><h2>Dan jednog klijenta</h2></div>
+    <div class="list">
+      <pre class="mermaid">
+%%{init: {"theme":"base","themeVariables":{"fontSize":"14px","gridColor":"#cfcabb","sectionBkgColor":"#f5f3ec","altSectionBkgColor":"#ffffff","taskBkgColor":"#2f7a5f","taskBorderColor":"#1f6b52","taskTextColor":"#ffffff","taskTextDarkColor":"#ffffff","taskTextOutsideColor":"#1e2024","critBkgColor":"#b8461f","critBorderColor":"#8f3316"}}}%%
+gantt
+    title Kad je klon budan a kad spava
+    dateFormat HH:mm
+    axisFormat %H:%M
+    todayMarker off
+
+    section Danas
+    Sesija dignuta bez prekida 200 do 500 MB :crit, d1, 00:00, 1439m
+
+    section Strazar
+    Straza 10 do 20 MB        :s1, 00:00, 555m
+    Rad jutarnji razgovor     :crit, s2, 09:15, 45m
+    Straza 10 do 20 MB        :s3, 10:00, 260m
+    Rad novi oglasi           :crit, s4, 14:20, 70m
+    Straza 10 do 20 MB        :s5, 15:30, 165m
+    Rad vecernje pitanje      :crit, s6, 18:15, 40m
+    Straza do jutra           :s7, 18:55, 305m
+      </pre>
+    </div>
+    <p class="potpis">Slika 3. Isti dan, dva režima. Crveno je ono što troši</p>
+    <p>
+      U primjeru je klon budan <strong>oko 2.5 sata</strong>, a ostalih
+      <strong>21.5 sati</strong> košta kao jedan mali proces.
+    </p>
+  </section>
+
+  <section>
+    <div class="glava"><h2>Prelazi i hladni start</h2></div>
+    <div class="list">
+      <pre class="mermaid">
+%%{init: {"theme":"base","themeVariables":{"fontSize":"15px","primaryColor":"#eceada","primaryTextColor":"#1e2024","primaryBorderColor":"#5f5b51","lineColor":"#22262b","noteBkgColor":"#fdefcf","noteTextColor":"#3a2508","noteBorderColor":"#a8681b","labelBackgroundColor":"#ffffff","labelColor":"#1e2024"}}}%%
+stateDiagram-v2
+    [*] --> Aktivna: cuvar pokrenut
+    Aktivna --> Aktivna: poruka resetuje sat mirovanja
+    Aktivna --> Straza: prag mirovanja 1h klijent / 30min admin<br/>ili nocni termin 03h
+    Straza --> Aktivna: prvi update vidjen<br/>mjeri se hladni start
+    Straza --> [*]: SIGINT
+    Aktivna --> [*]: SIGINT
+
+    note right of Straza
+        10 do 20 MB
+        uzorak svakih 30 min
+    end note
+    note right of Aktivna
+        200 do 500 MB
+        uzorak svakih 5 min
+    end note
+
+    classDef budno fill:#f6cfc2,stroke:#a33c19,stroke-width:3px,color:#3b1305,font-weight:bold
+    classDef mirno fill:#c9e6da,stroke:#1f6b52,stroke-width:3px,color:#0b2b20,font-weight:bold
+    class Aktivna budno
+    class Straza mirno
+      </pre>
+    </div>
+    <p class="potpis">Slika 4. Životni ciklus sesije</p>
+    <div class="list">
+      <pre class="mermaid">
+%%{init: {"theme":"base","themeVariables":{"fontSize":"15px","primaryTextColor":"#101315","actorBkg":"#eceada","actorBorder":"#5f5b51","actorTextColor":"#1e2024","actorLineColor":"#5f5b51","signalColor":"#22262b","signalTextColor":"#1e2024","noteBkgColor":"#fdefcf","noteBorderColor":"#a8681b","noteTextColor":"#3a2508","sequenceNumberColor":"#ffffff","labelBoxBkgColor":"#c9e6da","labelTextColor":"#0b2b20"}}}%%
+sequenceDiagram
+    autonumber
+    participant K as Klijent
+    participant T as Telegram
+    box rgb(201,230,218) jeftino, zivi uvijek
+    participant C as Cuvar u strazi
+    end
+    box rgb(246,207,194) skupo, dize se na poruku
+    participant S as Sesija plus MCP
+    end
+
+    K->>T: poruka
+    C->>T: getUpdates BEZ offseta
+    T-->>C: update vidjen, NIJE potvrdjen
+    C->>T: typing, da klijent ne gleda u tisinu
+    C->>C: straza staje
+    C->>S: dizanje sesije
+    Note over C,S: hladni start 5 do 15 s, mjeri se i zapisuje
+    S->>T: getUpdates sa offsetom
+    T-->>S: ISTA poruka, jos neobradjena
+    S-->>K: odgovor
+      </pre>
+    </div>
+    <p class="potpis">Slika 5. Zašto poruka ne može propasti</p>
+  </section>
+
+  <section>
+    <div class="glava"><h2>Telemetrija</h2></div>
+    <p>Mjeri isti čuvar. Bez novog zakazanog posla, isti kod na macOS, Linux i Windows.</p>
+    <div class="legenda">
+      <span><i class="kvadrat jeftino"></i> mjeri</span>
+      <span><i class="kvadrat podatak"></i> zapis i komande</span>
+    </div>
+    <div class="list">
+      <pre class="mermaid">
+%%{init: {"theme":"base","themeVariables":{"fontSize":"15px","primaryTextColor":"#101315","lineColor":"#2b2f34","edgeLabelBackground":"#ffffff"}}}%%
+flowchart TB
+    cuvar["<b>Cuvar sesije</b><br/>uzorak 5 min aktivno, 30 min u strazi<br/>pomak po klonu iz hasha putanje"]
+    ps["<b>Jedan sistemski poziv</b><br/>ps na macOS i Linux<br/>Get-CimInstance na Windows"]
+    stablo["<b>Zbir memorije stabla</b><br/>sesija plus MCP plus bun poller"]
+    masina["<b>Stanje masine</b><br/>slobodna memorija, swap, load"]
+    jsonl[("<b>resursi-YYYY-MM.jsonl</b><br/>fajl po mjesecu, 12 mjeseci<br/>NIKAD u backup")]
+    cli["<b>node scripts/resursi.mjs</b><br/>pregled | izvjestaj | dijagnostika"]
+
+    cuvar --> ps --> stablo --> jsonl
+    cuvar --> masina --> jsonl
+    cuvar -->|"dogadjaji: start, pad,<br/>gasenje straze, budjenje"| jsonl
+    jsonl --> cli --> covjek["Vlasnik flote"]
+
+    classDef mjeri fill:#c9e6da,stroke:#1f6b52,stroke-width:3px,color:#0b2b20
+    classDef podatak fill:#fbe4b0,stroke:#8f5714,stroke-width:3px,color:#3a2508
+    classDef vanjsko fill:#eceada,stroke:#5f5b51,stroke-width:2px,color:#1e2024
+    class cuvar,ps,stablo,masina mjeri
+    class jsonl,cli podatak
+    class covjek vanjsko
+      </pre>
+    </div>
+    <p class="potpis">Slika 6. Od uzorka do izvještaja</p>
+    <ul>
+      <li>
+        <strong>Vrijeme u straži</strong> se računa iz parova gašenje i buđenje, ne iz broja uzoraka.
+        Interval nije konstantan, pa bi broj uzoraka lagao.
+      </li>
+      <li>
+        <strong>Zbir memorije po procesima je gornja granica</strong>, duplo broji dijeljene
+        biblioteke. Odlučuju slobodna memorija i swap.
+      </li>
+    </ul>
+    <p class="biljeska">
+      <strong>Izmjereno danas, bez ijedne klijentske sesije:</strong> slobodno oko 3 GB od 16 GB,
+      swap <span class="skupo-tekst">13.5 GB od 14.3 GB</span>. Ograničenje nije memorija klijenata
+      nego ono što je već zauzeto.
+    </p>
+  </section>
+
+  <section>
+    <div class="glava"><h2>Gdje je posao stao</h2></div>
+    <div class="stanje">
+      <div>
+        <h3>Na grani, 471 test prolazi</h3>
+        <ul>
+          <li><span class="tacka ok">Gotovo</span> <span>Stražar režim</span></li>
+          <li><span class="tacka ok">Gotovo</span> <span>Pragovi 1 h i 30 min</span></li>
+          <li><span class="tacka ok">Gotovo</span> <span>Telemetrija i tri komande</span></li>
+        </ul>
+      </div>
+      <div>
+        <h3>Prije klijenata</h3>
+        <ul>
+          <li><span class="tacka ceka">Čeka</span> <span>Ručna provjera sa probnim bot tokenom</span></li>
+          <li><span class="tacka ceka">Čeka</span> <span><code>dijagnostika</code> na Linuxu i Windowsu</span></li>
+          <li><span class="tacka ceka">Čeka</span> <span>Uvođenje: admin bot, pa klijent, pa flota</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+</div>

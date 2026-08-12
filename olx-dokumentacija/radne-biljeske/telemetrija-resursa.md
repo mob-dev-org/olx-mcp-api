@@ -7,6 +7,11 @@ poboljsati, a da za to ne pamti razlicite sistemske komande po platformi.
 Ova biljeska je zapis odluka i stanja rada. Korisnicka dokumentacija varijabli ide u `.env.example`
 (sekcija CUVAR SESIJE), a sta je uslo u izdanje u `CHANGELOG.md`.
 
+Slike: <https://claude.ai/code/artifact/741fa916-9b97-4308-956d-eb5309bdf112> (sest dijagrama,
+trakovi potrosnje, dan klijenta, hladni start). Izvor stranice stoji uz ovu biljesku
+(`strazar-telemetrija-stranica.html`), pa se stranica moze ponovo objaviti iz repoa. Isti dijagrami
+u tekstualnom obliku su u `olx-dokumentacija/arhitektura.md`, sekcija 9.
+
 ## Odluka: uzorkuje cuvar sesije, ne novi posao
 
 Razmatrane tri opcije:
