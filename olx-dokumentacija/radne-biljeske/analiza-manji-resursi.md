@@ -134,3 +134,34 @@ Cijena i rizici, otvoreno:
    prvo na admin botu jednog klona, pa mjerenje, pa klijentska sesija, pa flota.
 3. Repoe ne cijepati. Ako ikad zatreba granica prema klijentu, rjesenje je profil i
    podfolder, ne drugi repo.
+
+## 5. Naknadna ideja: zajednicki API+MCP servis za sve klijente (12.08.2026)
+
+Prijedlog vlasnika poslije prihvatanja strazara: API i MCP u poseban repo kao servis koji
+je STALNO pokrenut za sve klijente, svaki klijent svoj Bun za Telegram, svaki klijent svoja
+sesija; ukupno mozda tri repozitorija. Presuda: ODBACITI za danasnju flotu klonova.
+
+* MCP proces nije trosak vrijedan dijeljenja: 3 do 30 MB, zivi samo dok zivi sesija
+  (dijete sesije kroz stdio). U strazar rezimu legne zajedno sa sesijom, pa je klon u
+  mirovanju na 10 do 20 MB. Zajednicki servis je budan 24/7 i na jednoj masini sa par
+  klonova je neto GUBITAK memorije, ne dobitak.
+* Nas MCP je namjerno jednoklijentski: OLX_TOKEN iz .env klona, stanje u `.olx-pik/`
+  klona, audit klona. Zajednicki servis trazi multi tenant prepravku (centralno skladiste
+  svih tokena, rutiranje po klijentu, audit po tenantu, HTTP transport umjesto stdio),
+  a centralizacija tokena je i sigurnosni korak unazad.
+* Blast radius: bug zajednickog servisa rusi sve klijente odjednom; danas lose izdanje
+  pogadja samo klonove koji su ga povukli, kroz kapiju taga `stabilno`.
+* Poseban Bun po klijentu ne moze pored plugina (dva getUpdates konzumera na istom
+  tokenu = 409), a potrebu "neko slusa dok sesija spava" vec pokriva straza u cuvaru.
+* Troskovi cijepanja repoa ostaju isti kao u tacki 2 (hardkodirane putanje resursa,
+  skillovi iz projektnog foldera, atomski tag `stabilno`, 44 % commita preko granice).
+
+Kad bi imalo smisla: pivot na centralni server proizvod, gdje klijenti nemaju vlastite
+masine ni klonove. Tada zajednicki HTTP MCP postaje legitimna arhitektura (stateless MCP
+revizija 2026-07-28 je pravljena bas za to), ali to je novi proizvod i poslovna odluka,
+ne optimizacija resursa: sesija po klijentu i tada ostaje najskuplji dio.
+
+Zelja iz istog razgovora "stalno budan mali proces koji dize Claude Code na poruku i gasi
+ga poslije mirovanja" je vec IZVEDENA: to je strazar rezim (tacka 2 preporuka). Jedina
+razlika prema zamisli je da strazu drzi postojeci cuvar (Node, 3 do 10 MB), ne novi Bun,
+jer cuvar poruku gleda bez potvrde offseta pa je plugin poslije normalno obradi.
