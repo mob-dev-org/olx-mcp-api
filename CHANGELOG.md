@@ -27,6 +27,22 @@ Telegram strazu dok sesija spava.
   dira i ne budi sesiju zbog nje.
 - Detalji i preporuceni redoslijed uvodjenja: `.env.example`, sekcija CUVAR SESIJE.
 
+Novi ADMIN flotni posao `scripts/nadzor-flote.mjs` (deploy sablon
+`deploy/launchd/ba.codefactory.olx.ADMIN.nadzor-flote.plist`, instalira se rucno jednom, kao
+ostala tri ADMIN posla): svaki dan obidje sve klonove flote, sken diska po klonu, i upise dnevni
+uzorak stanja masine (CPU, PSI, memorija, load). Svaka 3 dana agregira dnevne redove u nalaze i
+salje sazetak adminu na Telegram.
+
+- CPU% klona (`SHEMA_VERZIJA 2`, polje `cpu_klona_pct`) racuna se iz DELTE kumulativnog CPU
+  vremena stabla procesa izmedju dva mjerenja, nikad iz trenutnog `%cpu`: sesija koja satima
+  miruje pa naglo pocne raditi bi sa trenutnim `%cpu` i dalje pokazivala nisko zauzece satima
+  poslije budjenja, razvuceno na sve satove mirovanja.
+- Novi nalaz: detekcija ugnijezdene kopije klona (klon kloniran unutar drugog klona), sto trosi
+  disk i zbunjuje skenove.
+- Pragovi u `scripts/lib/analiza-flote.mjs` (`PRAGOVI_DEFAULT`) su pocetna procjena, ne izvedena
+  iz stvarne serije mjerenja: treba ih ponovo pogledati kad se skupi par sedmica stvarnih
+  podataka.
+
 Default prag mirovanja (`OLX_SESIJA_IDLE_SATI`) prepolovljen: klijentska sesija sa 2 h na 1 h,
 admin bot sa 1 h na 0.5 h (30 min). Klon koji zeli staro ponasanje postavi vrijednost u `.env`.
 

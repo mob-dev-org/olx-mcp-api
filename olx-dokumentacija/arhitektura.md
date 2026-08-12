@@ -106,6 +106,9 @@ flowchart TB
         s3["07:20 dnevni posao<br/>obnove unutar besplatne kvote<br/>TEK kad klijent izabere ritam<br/>pa jutarnja poruka u SVE grupe"]
         s8["08:10 backup stanja<br/>pamcenje, izuzeca, audit, snapshoti<br/>na privatnu granu klijenta"]
     end
+    subgraph danAdmin["Svaki dan, ADMIN masina"]
+        s10["06:30 nadzor flote<br/>disk+CPU+PSI+memorija svih klonova<br/>svaka 3 dana i analiza na Telegram"]
+    end
     subgraph sedmica["Sedmicno"]
         s4["ponedjeljak 07:40<br/>sedmicni pregled u grupu:<br/>sta raste, sta miruje"]
         s9["ponedjeljak 09:00 nadzor backupa<br/>pita daljinski repo za svaki klon<br/>javi samo sto kasni"]
@@ -124,10 +127,11 @@ flowchart TB
 ```
 
 Zakazivanje: macOS launchd (instalira `scripts/instaliraj-cron.sh`, po klonu), Windows Task
-Scheduler (`deploy/windows/instaliraj-zadatke.ps1`). Dva posla su izuzetak i zive globalno na
+Scheduler (`deploy/windows/instaliraj-zadatke.ps1`). Tri posla su izuzetak i zive globalno na
 admin masini, jer sami obilaze sve klonove iz `~/.olx-klijenti.txt`: AI runda
-(`ADMIN.ai-runda.plist`) i nadzor backupa (`ADMIN.backup-nadzor.plist`), oba se instaliraju rucno
-jednom.
+(`ADMIN.ai-runda.plist`), nadzor backupa (`ADMIN.backup-nadzor.plist`) i nadzor flote
+(`ADMIN.nadzor-flote.plist`, jedini od ova tri koji se pokrece SVAKI DAN, ne sedmicno, jer dnevna
+kolekcija CPU/disk/PSI mora ostati gusta), sva tri se instaliraju rucno jednom.
 
 Backup je jedini posao koji je uslovan: instalira se samo kad je `OLX_STANJE_REPO` popunjen u
 `.env`. Bez toga bi svako jutro pao i slao alarm, a klon bi imao jedan pokvaren zadatak vise.
@@ -541,3 +545,37 @@ Dvije stvari koje se pri citanju brojeva lako promase:
 
 Detalji odluka i stanje rada: `olx-dokumentacija/radne-biljeske/telemetrija-resursa.md` i
 `olx-dokumentacija/radne-biljeske/strazar-rezim-razrada.md`.
+
+### 9.4 CPU po klonu i flotni nadzor (ista grana)
+
+`SHEMA_VERZIJA 2` u `scripts/lib/resursi.mjs` dodaje `cpu_klona_pct`: CPU% stabla procesa jednog
+klona (sesija + MCP + bun poller), racunat preko `scripts/lib/cpu.mjs`. Isto obrazlozenje kao za
+9.2: racuna se iz DELTE kumulativnog CPU vremena izmedju dva mjerenja, nikad iz trenutnog `%cpu`
+iz `ps`, jer bi sesija koja satima miruje pa naglo pocne raditi sa trenutnim `%cpu` i dalje
+pokazivala nisko zauzece satima poslije budjenja (razvuceno na sve satove mirovanja) umjesto
+odgovora na pitanje "ko jede procesor UPRAVO SADA". Stariji redovi (sema 1) nemaju ovo polje;
+tretira se kao `null` ("klon jos nije nadogradjen"), nikad kao `0`.
+
+Flotni posao `scripts/nadzor-flote.mjs` (deploy sablon
+`deploy/launchd/ba.codefactory.olx.ADMIN.nadzor-flote.plist`, instalira se rucno jednom kao AI
+runda i nadzor backupa, vidi sekciju 3) obilazi sve klonove svaki dan:
+
+- Korak A (svaki put): sken diska po klonu, detekcija ugnijezdenih kopija klona
+  (`pronadjiUgnijezdeneKopije` u `scripts/lib/klonovi.mjs`), dnevni uzorak stanja masine
+  (CPU/PSI/memorija/load) u `<nadzorDir>/masina-YYYY-MM.jsonl`.
+- Korak B (samo kad je proslo >= 3 dana od zadnje analize): agregira dnevne redove preko
+  `analizirajFlotu()` (`scripts/lib/analiza-flote.mjs`), upisuje nalaze u
+  `<nadzorDir>/analiza-YYYY-MM-DD.md` i salje sazetak adminu na Telegram.
+
+`<nadzorDir>` (gdje zivi stanje: `masina-YYYY-MM.jsonl`, `cpu-stanje.json`,
+`zadnja-analiza.json`, `analiza-YYYY-MM-DD.md`) se razrjesava ovim redoslijedom: env override
+`OLX_NADZOR_DIR` > `<izvorPutanja>/nadzor` kad spisak klonova dolazi iz folder-skena (`--svi` ili
+`OLX_KLIJENTI_ROOT`) > `~/olx-nadzor` kao fallback kad izvor spiska nije root (popis-fajl
+`~/.olx-klijenti.txt` / `OLX_KLIJENTI_POPIS`).
+
+Pragovi u `PRAGOVI_DEFAULT` (`scripts/lib/analiza-flote.mjs`) su pocetna procjena, ne izvedena iz
+stvarne serije mjerenja: cekaju par sedmica stvarnih podataka prije podesavanja. Pragovi telemetrije
+resursa iz 9.1 (`OLX_RESURSI_PRAG_SLOBODNO_MB`, `OLX_RESURSI_PRAG_SWAP_OMJER`,
+`OLX_RESURSI_PRAG_ALARM_SATI`) su odvojen mehanizam, po klonu, dokumentovani u `.env.example`.
+
+Detalji odluka: `olx-dokumentacija/radne-biljeske/nadzor-flote-cpu.md`.
