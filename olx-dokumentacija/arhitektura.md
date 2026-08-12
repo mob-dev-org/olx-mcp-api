@@ -24,7 +24,7 @@ flowchart LR
         disk[("Disk klona<br/>.olx-pik: audit, snapshoti, prijedlozi<br/>.claude-runtime i .claude-runtime-admin")]
     end
 
-    cuvar["Cuvar sesija<br/>cuvar-sesije.mjs klijent i admin-bot"] -.->|"drzi zive, nocni restart 03h,<br/>idle restart: klijent 2h, admin 1h<br/>OLX_SESIJA_STRAZAR: idle/nocni GASE,<br/>cuvar strazari i budi na poruku"| sesija
+    cuvar["Cuvar sesija<br/>cuvar-sesije.mjs klijent i admin-bot"] -.->|"drzi zive, nocni restart 03h,<br/>idle restart: klijent 1h, admin 30min<br/>OLX_SESIJA_STRAZAR: idle/nocni GASE,<br/>cuvar strazari i budi na poruku"| sesija
     cuvar -.-> asesija
 
     tg <--> sesija
@@ -112,8 +112,8 @@ flowchart TB
         s5["nedjelja 21:00 AI runda<br/>analiza + prijedlozi po klijentu<br/>admin pretplata, read-only"]
     end
     subgraph stalno["Stalno"]
-        s6["cuvar klijentske sesije<br/>pao bot: digni ga<br/>5 brzih padova: javi adminu<br/>2h mirovanja: ocisti kontekst<br/>strazar rezim (opt in): idle/nocni GASE"]
-        s7["cuvar admin bot sesije (opcion)<br/>ista mehanika, idle prag 1h<br/>jer se kontekst cisti cesce<br/>strazar rezim (opt in): idle/nocni GASE"]
+        s6["cuvar klijentske sesije<br/>pao bot: digni ga<br/>5 brzih padova: javi adminu<br/>1h mirovanja: ocisti kontekst<br/>strazar rezim (opt in): idle/nocni GASE<br/>uzorak resursa svakih 5 min"]
+        s7["cuvar admin bot sesije (opcion)<br/>ista mehanika, idle prag 30min<br/>jer se kontekst cisti cesce<br/>strazar rezim (opt in): idle/nocni GASE"]
     end
 
     s1 --> s3
@@ -363,3 +363,129 @@ ili nesreca, a backup koji prati nesrecu nije backup.
 
 Oporavak na novoj masini: `.claude/skills/olx-novi-klijent/references/oporavak.md`. Vazno je da
 backup vraca PODATKE, ne radni klon: tokeni se unose rucno, i to je namjerno.
+
+## 9. Otisak resursa: stalna sesija naspram strazara
+
+Ovo je jedina razlika u arhitekturi koju nosi grana `arhitektura-manji-resursi`. Sve ostalo iz
+sekcija 1 do 8 ostaje netaknuto: isti klon po klijentu, isti MCP, isti cron poslovi, isti backup.
+
+### 9.1 Danasnje stanje (default, i dalje vazi bez prekidaca)
+
+Sesija je STALNO dignuta. Cuvar je samo cuva: pao bot digne ga, na nocni termin i na prag mirovanja
+je restartuje da ocisti kontekst. Memorija se drzi cijeli dan, bez obzira da li klijent pise.
+
+```mermaid
+flowchart LR
+    tg["Telegram grupa"] <-->|"poruke"| plugin
+
+    subgraph klon["Klon klijenta, 24 sata"]
+        cuvar["Cuvar sesije<br/>3 do 10 MB"]
+        plugin["Telegram plugin, bun poller<br/>oko 42 MB<br/>DRZI getUpdates"]
+        sesija["Claude sesija<br/>130 do 416 MB"]
+        mcp["MCP server<br/>3 do 30 MB"]
+    end
+
+    cuvar -.->|"health check svakih 60 s<br/>nocni restart 03h<br/>idle restart 1h / 30min"| sesija
+    sesija --> plugin
+    sesija --> mcp
+    mcp --> olx["OLX / PIK API"]
+
+    zbir["Zbir po klonu: oko 200 do 500 MB<br/>isto i kad klijent ne pise nista"]
+```
+
+Posljedica za flotu: deset klijenata na jednoj masini znaci deset takvih zbirova stalno, jer
+mirovanje ne mijenja nista.
+
+### 9.2 Strazar rezim, ova grana (iza `OLX_SESIJA_STRAZAR`, opt in po klonu)
+
+Na isti prag mirovanja i isti nocni termin cuvar sesiju GASI umjesto da je restartuje, pa sam
+preuzme Telegram strazu. Kad poruka stigne, digne sesiju i pusti plugin da poruku obradi.
+
+```mermaid
+flowchart TB
+    tg["Telegram grupa"]
+    cuvar["Cuvar sesije: JEDAN proces, zivi uvijek<br/>3 do 10 MB"]
+
+    subgraph mirno["Faza A: mirovanje, ukupno 10 do 20 MB"]
+        straza["Straza nad bot tokenom<br/>getUpdates long poll BEZ offseta<br/>uzorak resursa svakih 30 min"]
+    end
+
+    subgraph budno["Faza B: rad, ukupno 200 do 500 MB"]
+        sesija["Claude sesija"]
+        plugin["bun poller, drzi getUpdates"]
+        mcp["MCP server"]
+    end
+
+    cuvar --> straza
+    tg -->|"prva poruka poslije mirovanja"| straza
+    straza -->|"typing odmah, pa dizanje sesije<br/>hladni start 5 do 15 s<br/>straza staje PRIJE nego sesija ustane"| sesija
+    sesija -->|"prag mirovanja 1h / 30min ili nocni termin 03h<br/>pun uzorak resursa, pa gasenje"| straza
+    sesija --> plugin
+    sesija --> mcp
+    plugin -->|"isti update povuce ponovo i obradi"| tg
+    mcp --> olx2["OLX / PIK API"]
+    cron["Cron poslovi i jutarnja poruka 07:20"] -->|"idu mimo sesije, ne bude je"| tg
+```
+
+Zivotni ciklus sesije, isti crtez kao stanje u kodu:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Aktivna: cuvar pokrenut
+    Aktivna --> Aktivna: poruka resetuje sat mirovanja
+    Aktivna --> Straza: prag mirovanja (1h klijent / 30min admin)<br/>ili nocni termin 03h
+    Straza --> Aktivna: prvi update vidjen<br/>mjeri se hladni start
+    Aktivna --> Aktivna: pad sesije, cuvar je digne
+    Straza --> [*]: SIGINT / SIGTERM
+    Aktivna --> [*]: SIGINT / SIGTERM
+
+    note right of Straza
+        Samo cuvar zivi.
+        Straza nikad ne salje offset
+        ni allowed_updates.
+        Uzorak resursa svakih 30 min.
+    end note
+    note right of Aktivna
+        Sesija, MCP i bun poller.
+        Uzorak resursa svakih 5 min.
+    end note
+```
+
+Zasto strazu drzi cuvar a ne novi Bun proces: offset je potvrda, a potvrdjena poruka je pojedena
+poruka. Straza smije samo GLEDATI. Uz to, dva `getUpdates` konzumera na istom tokenu daju 409, pa
+straza mora prestati prije nego sesija ustane; oboje je lakse garantovati u procesu koji sesiju i
+gasi i dize.
+
+### 9.3 Telemetrija resursa (ista grana)
+
+Mjeri isti cuvar, jer se ionako budi svakih 60 s i jedini zna PID sesije koju je sam pokrenuo.
+Nema novog zakazanog posla ni novog deploy fajla.
+
+```mermaid
+flowchart TB
+    cuvar["Cuvar sesije<br/>uzorak: 5 min aktivno, 30 min u strazi<br/>pomak po klonu iz hasha putanje"]
+    ps["Jedan poziv po uzorku:<br/>ps na macOS i Linux,<br/>Get-CimInstance na Windows"]
+    stablo["Zbir RSS-a stabla:<br/>sesija + MCP + bun poller"]
+    masina["Stanje masine:<br/>MemAvailable / vm_stat / freemem,<br/>swap, load"]
+    jsonl[(".olx-pik/resursi/resursi-YYYY-MM.jsonl<br/>fajl po mjesecu, cuva se 12 mjeseci<br/>CRNI spisak backupa")]
+    cli["node scripts/resursi.mjs<br/>pregled | izvjestaj | dijagnostika"]
+    covjek["Vlasnik flote"]
+
+    cuvar --> ps --> stablo --> jsonl
+    cuvar --> masina --> jsonl
+    cuvar -->|"dogadjaji: start, pad,<br/>gasenje-straze (pun uzorak),<br/>budjenje sa hladnim startom"| jsonl
+    jsonl --> cli --> covjek
+```
+
+Dvije stvari koje se pri citanju brojeva lako promase:
+
+- **Vrijeme u strazi se racuna iz parova `gasenje-straze` i `budjenje`**, ne iz udjela uzoraka. Kad
+  interval nije konstantan (5 min aktivno, 30 min u strazi), udio uzoraka daje sistematski pogresan
+  broj, a to je bas broj zbog kojeg se telemetrija i gleda. Udio uzoraka ostaje samo rezerva kad par
+  nije zatvoren.
+- **Zbir RSS-a je gornja granica**, jer duplo broji dijeljene biblioteke. Da li je masini tesko kazu
+  slobodna memorija i swap, pa savjeti u izvjestaju ne prijavljuju curenje na osnovu samog rasta
+  RSS-a.
+
+Detalji odluka i stanje rada: `olx-dokumentacija/radne-biljeske/telemetrija-resursa.md` i
+`olx-dokumentacija/radne-biljeske/strazar-rezim-razrada.md`.
