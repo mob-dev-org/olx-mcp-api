@@ -23,6 +23,7 @@ import {
   parsirajWinProcese,
   pomakKlona,
   ponderisaniProsjek,
+  putanjaDiska,
   putanjaResursa,
   redUzorka,
   rssStabla,
@@ -461,6 +462,18 @@ test("putanjaResursa: override kroz OLX_RESURSI_DIR", () => {
   assert.equal(r, "/tmp/moji-resursi/resursi-2026-12.jsonl");
 });
 
+// ---- putanjaDiska ----
+
+test("putanjaDiska: default putanja sa vodecom nulom u mjesecu", () => {
+  const r = putanjaDiska({}, new Date(2026, 0, 15));
+  assert.equal(r, ".olx-pik/resursi/disk-2026-01.jsonl");
+});
+
+test("putanjaDiska: override kroz OLX_RESURSI_DIR", () => {
+  const r = putanjaDiska({ OLX_RESURSI_DIR: "/tmp/moji-resursi" }, new Date(2026, 11, 1));
+  assert.equal(r, "/tmp/moji-resursi/disk-2026-12.jsonl");
+});
+
 // ---- upisiRed / citajRedove ----
 
 test("upisiRed pa citajRedove: pisanje i citanje dva reda", () => {
@@ -529,6 +542,26 @@ test("ocistiStareResurse: brise fajlove starije od cuvajMjeseci, cuva novije", (
 
 test("ocistiStareResurse: direktorij koji ne postoji vraca {obrisano:0} bez greske", () => {
   assert.deepEqual(ocistiStareResurse("/ne/postoji/nikad/ovaj/folder"), { obrisano: 0 });
+});
+
+test("ocistiStareResurse: cisti oba prefiksa (resursi-* i disk-*) u istom prolazu, ostalo ostaje netaknuto", () => {
+  const dir = mkdtempSync(join(tmpdir(), "resursi-test-"));
+  try {
+    writeFileSync(join(dir, "resursi-2025-01.jsonl"), "");
+    writeFileSync(join(dir, "resursi-2026-08.jsonl"), "");
+    writeFileSync(join(dir, "disk-2025-01.jsonl"), "");
+    writeFileSync(join(dir, "disk-2026-08.jsonl"), "");
+    writeFileSync(join(dir, "nesto-drugo.jsonl"), "");
+    const r = ocistiStareResurse(dir, { cuvajMjeseci: 6, sada: () => new Date(2026, 7, 15) });
+    assert.equal(r.obrisano, 2);
+    assert.equal(existsSync(join(dir, "resursi-2025-01.jsonl")), false);
+    assert.equal(existsSync(join(dir, "disk-2025-01.jsonl")), false);
+    assert.equal(existsSync(join(dir, "resursi-2026-08.jsonl")), true);
+    assert.equal(existsSync(join(dir, "disk-2026-08.jsonl")), true);
+    assert.equal(existsSync(join(dir, "nesto-drugo.jsonl")), true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 // ---- ponderisaniProsjek ----

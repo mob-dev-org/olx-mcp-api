@@ -93,6 +93,7 @@ import {
   upisiRed,
   uzorakMasine,
 } from "./lib/resursi.mjs";
+import { odluciAlarmMasine, provjeriPritisakMasine } from "./lib/pritisak-masine.mjs";
 
 const KORIJEN = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(KORIJEN);
@@ -135,6 +136,12 @@ const RESURSI_INTERVAL_STRAZA_MIN = broj(process.env.OLX_RESURSI_INTERVAL_STRAZA
 const RESURSI_UKLJUCENO = RESURSI_INTERVAL_MIN > 0;
 const RESURSI_DIR = process.env.OLX_RESURSI_DIR || ".olx-pik/resursi";
 const RESURSI_CUVAJ_MJESECI = 12;
+// Prag za alarm van reda kad je masina pod pritiskom (vidi scripts/lib/pritisak-masine.mjs).
+// Zavisi od RESURSI_UKLJUCENO: uzmiUzorak se rano vraca kad je telemetrija iskljucena, pa ovaj
+// alarm tada ne radi (namjerno, nema svjezeg uzorka masine bez telemetrije).
+const PRAG_SLOBODNO_BAJTA = broj(process.env.OLX_RESURSI_PRAG_SLOBODNO_MB, 2048) * 1024 * 1024;
+const PRAG_SWAP_OMJER = broj(process.env.OLX_RESURSI_PRAG_SWAP_OMJER, 0.85);
+const PRAG_ALARM_MS = broj(process.env.OLX_RESURSI_PRAG_ALARM_SATI, 6) * 60 * 60 * 1000;
 const KLON_IME = basename(KORIJEN);
 // Determinisan pomak po klonu (hash putanje, NE Math.random): kad vise klonova radi na istoj
 // masini, ne krenu svi u istoj sekundi u ps/powershell poziv. Stabilan kroz restarte cuvara.
@@ -480,6 +487,22 @@ async function uzmiUzorak(extraPolja, pidZaStablo) {
       pidZaStablo ? rssStabla(pidZaStablo) : Promise.resolve(null),
       uzorakMasine(),
     ]);
+    if (masina) {
+      const pritisak = provjeriPritisakMasine(masina, {
+        pragSlobodnoBajta: PRAG_SLOBODNO_BAJTA,
+        pragSwapOmjer: PRAG_SWAP_OMJER,
+      });
+      const odluka = odluciAlarmMasine({
+        pritisak,
+        sada: Date.now(),
+        korijenKlona: KORIJEN,
+        env: process.env,
+        pragMs: PRAG_ALARM_MS,
+      });
+      if (odluka.posalji) {
+        void javiAdministratoru(`Pritisak na masinu (${TIP}) u ${KORIJEN}: ${pritisak.razlog}.`);
+      }
+    }
     upisiDogadjaj({
       stabloRssBajta: stablo?.ukupnoBajta ?? null,
       stabloBrojProcesa: stablo?.brojProcesa ?? null,
