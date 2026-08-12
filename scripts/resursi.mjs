@@ -295,9 +295,9 @@ function punIzvjestaj(naslovOsnova, agregat, dana) {
   linije.push('  "dogadjaji+uzorci" = dijelom procijenjeno iz periodicnih uzoraka, "nepoznato" = nema signala)');
   linije.push("");
   const hs = agregat.hladniStartovi;
+  const fmtSekunde = (ms) => (ms !== null ? `${(ms / 1000).toFixed(1)}s` : "nepoznato");
   linije.push(
-    `Hladni startovi: ${hs.broj}, prosjecno ${hs.prosjekMs !== null ? (hs.prosjekMs / 1000).toFixed(1) : "nepoznato"}s, ` +
-      `najduzi ${hs.maxMs !== null ? (hs.maxMs / 1000).toFixed(1) : "nepoznato"}s`,
+    `Hladni startovi: ${hs.broj}, prosjecno ${fmtSekunde(hs.prosjekMs)}, najduzi ${fmtSekunde(hs.maxMs)}`,
   );
   linije.push(`Padovi: ${agregat.padovi.broj}`);
   linije.push("");
