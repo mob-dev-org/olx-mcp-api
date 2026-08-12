@@ -66,7 +66,7 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   aiPogon,
@@ -84,6 +84,15 @@ import {
   strazarUkljucen,
   strazi,
 } from "./lib/straza.mjs";
+import {
+  ocistiStareResurse,
+  pomakKlona,
+  putanjaResursa,
+  redUzorka,
+  rssStabla,
+  upisiRed,
+  uzorakMasine,
+} from "./lib/resursi.mjs";
 
 const KORIJEN = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(KORIJEN);
@@ -115,6 +124,37 @@ const INBOX_DANA = broj(process.env.OLX_SESIJA_INBOX_DANA, 7);
 // Prekidac je po tipu sesije, ne samo po klonu, jer se rezim uvodi postepeno: prvo admin bot
 // (koristi se najrjedje a nosi punu drugu sesiju), pa klijentska sesija istog klona, pa flota.
 const STRAZAR = strazarUkljucen(process.env, JE_ADMIN);
+
+// ---- telemetrija resursa (best effort, vidi scripts/lib/resursi.mjs) ----
+// Dva intervala jer aktivna sesija treba gusce uzorkovanje od mirne straze: RSS cuvara u strazi
+// je ravan, cesce uzorkovanje tamo ne bi nista pokazalo. Prva vrijednost prazna ili 0 gasi
+// telemetriju U CJELINI (i strazarsko uzorkovanje); druga sama za sebe, ako je 0, iskljucuje
+// SAMO uzorkovanje tokom straze.
+const RESURSI_INTERVAL_MIN = broj(process.env.OLX_RESURSI_INTERVAL_MIN, 5);
+const RESURSI_INTERVAL_STRAZA_MIN = broj(process.env.OLX_RESURSI_INTERVAL_STRAZA_MIN, 30);
+const RESURSI_UKLJUCENO = RESURSI_INTERVAL_MIN > 0;
+const RESURSI_DIR = process.env.OLX_RESURSI_DIR || ".olx-pik/resursi";
+const RESURSI_CUVAJ_MJESECI = 12;
+const KLON_IME = basename(KORIJEN);
+// Determinisan pomak po klonu (hash putanje, NE Math.random): kad vise klonova radi na istoj
+// masini, ne krenu svi u istoj sekundi u ps/powershell poziv. Stabilan kroz restarte cuvara.
+const RESURSI_POMAK_AKTIVNO = pomakKlona(KORIJEN, Math.max(1, RESURSI_INTERVAL_MIN));
+const RESURSI_POMAK_STRAZA = pomakKlona(KORIJEN, Math.max(1, RESURSI_INTERVAL_STRAZA_MIN));
+
+// Verzija koda se cita JEDNOM na startu (isti obrazac dinamickog importa kao javiAdministratoru
+// nize), keširano u konstanti da upisDogadjaj ostane potpuno sinhrona funkcija (bitno za SIGINT
+// handler, koji ne smije cekati na async). Kad je telemetrija iskljucena, import se PRESKACE u
+// potpunosti (nema ni ovog malog kasnjenja), da ponasanje ostane bajt za bajt isto kao danas.
+async function ucitajVerzijuKoda() {
+  try {
+    const modul = await import(pathToFileURL(join(KORIJEN, "dist", "core", "verzija.js")).href);
+    return modul.VERZIJA ?? null;
+  } catch {
+    return null;
+  }
+}
+const VERZIJA_KODA = RESURSI_UKLJUCENO ? await ucitajVerzijuKoda() : null;
+
 // Pauza prije prvog poll-a. Plugin poller (bun) umire na EOF stdina i forsira izlaz za 2s, a
 // njegov watchdog za sirocad radi na 5s. Ko krene ranije, dobije 409 jer token nije slobodan.
 const STRAZA_GRACE_MS = 5_000;
@@ -401,6 +441,81 @@ let strazaTrazena = false;
 let strazaOtkazi = null;
 let tipingTajmer = null;
 let strazaBezTokenaJavljeno = false;
+let zadnjaUzorkovanaMinuta = -1;
+let uzorakUToku = false;
+
+// ---- telemetrija resursa: pomocne funkcije ----
+// upisiDogadjaj je NAMJERNO potpuno sinhrona (appendFileSync unutar upisiRed): sigurno je
+// pozvati je bilo gdje, ukljucujuci SIGINT/SIGTERM handler tik prije process.exit, bez brige da
+// upis nece stici. Kad je RESURSI_UKLJUCENO false, vraca se odmah bez ikakvog I/O.
+
+function upisiDogadjaj(polja) {
+  if (!RESURSI_UKLJUCENO) return;
+  try {
+    const red = redUzorka({
+      ts: new Date().toISOString(),
+      klon: KLON_IME,
+      tip: TIP,
+      verzijaKoda: VERZIJA_KODA,
+      sesijaZiva: !!dijete && dijete.exitCode === null,
+      uStrazi: uStrazi(),
+      cuvarRssBajta: process.memoryUsage().rss,
+      ...polja,
+    });
+    upisiRed(putanjaResursa(process.env), red);
+  } catch {
+    // telemetrija nikad ne smije srusiti cuvara
+  }
+}
+
+// Async dio: sabira RSS stabla procesa (ako je dat rootPid) i stanje masine, pa upise red preko
+// upisiDogadjaj. `uzorakUToku` sprjecava preklapanje ako prethodni uzorak jos traje (subprocess
+// poziv duze od ocekivanog). Uvijek razrijesi Promise (i kad je telemetrija iskljucena ili je
+// uzorak vec u toku), da pozivalac (npr. zatraziGasenje) moze sigurno vezati .finally() na nju.
+async function uzmiUzorak(extraPolja, pidZaStablo) {
+  if (!RESURSI_UKLJUCENO || uzorakUToku) return;
+  uzorakUToku = true;
+  try {
+    const [stablo, masina] = await Promise.all([
+      pidZaStablo ? rssStabla(pidZaStablo) : Promise.resolve(null),
+      uzorakMasine(),
+    ]);
+    upisiDogadjaj({
+      stabloRssBajta: stablo?.ukupnoBajta ?? null,
+      stabloBrojProcesa: stablo?.brojProcesa ?? null,
+      masina,
+      ...extraPolja,
+    });
+  } catch {
+    // best effort
+  } finally {
+    uzorakUToku = false;
+  }
+}
+
+// Poziva se ODMAH poslije budjenja iz straze: ceka da transkript sesije prvi put pokaze
+// aktivnost (proxy za "sesija je spremna", isto sto zadnjaAktivnost() vec koristi), pa upise
+// trajanje hladnog starta. Kratkotrajan tajmer (unref-ovan, ne drzi proces zivim), sa krovom da
+// nikad ne visi ako budjenje zapne.
+function mjeriHladniStartIObjavi(trenutakBudjenja) {
+  if (!RESURSI_UKLJUCENO) return;
+  const ROK_MS = 60_000;
+  const KORAK_MS = 500;
+  const ciljniStartTs = startTs;
+  const pocetak = Date.now();
+  const tajmer = setInterval(() => {
+    if (najnovijiMtime(join(RUNTIME, "projects")) > ciljniStartTs) {
+      clearInterval(tajmer);
+      upisiDogadjaj({ dogadjaj: "budjenje", hladniStartMs: Date.now() - trenutakBudjenja });
+      return;
+    }
+    if (Date.now() - pocetak >= ROK_MS) {
+      clearInterval(tajmer);
+      upisiDogadjaj({ dogadjaj: "budjenje", hladniStartMs: null });
+    }
+  }, KORAK_MS);
+  tajmer.unref();
+}
 
 // Jedan izvor istine za "cuvar je u strazi": postoji kontroler kojim se straza prekida. Vrijedi
 // i tokom grace pauze prije prvog poll-a, jer se kontroler pravi prije nje.
@@ -479,6 +594,7 @@ function pokreni() {
     // bez zapisa nema ciscenja sirocadi poslije nasilnog gasenja cuvara, ali sesija radi
   }
   log(`Sesija pokrenuta (pid ${dijete.pid ?? "?"}, pogon ${ai.pogon}, profil ${MCP_PROFIL}).`);
+  upisiDogadjaj({ dogadjaj: "start" });
 
   dijete.on("error", (e) => {
     console.error(`Sesija se nije pokrenula: ${e.message}. Da li je claude u PATH-u?`);
@@ -508,6 +624,7 @@ function pokreni() {
 
     const trajanje = Date.now() - startTs;
     log(`Sesija pala (code ${code}, signal ${signal ?? "-"}) poslije ${Math.round(trajanje / 1000)}s.`);
+    upisiDogadjaj({ dogadjaj: "pad", exitCode: code, exitSignal: signal ?? null, trajanjeSesijeMs: trajanje });
     if (trajanje < BRZI_PAD_MS) {
       brzihPadova += 1;
     } else {
@@ -546,7 +663,13 @@ function zatraziGasenje(razlog) {
   if (!dijete || dijete.exitCode !== null || restartTrazen || strazaTrazena) return;
   log(`Gasim sesiju i ulazim u strazu: ${razlog}.`);
   strazaTrazena = true;
-  ugasiDijete();
+  // Pun uzorak (RSS stabla + masina) PRIJE signala gasenja, dok je proces jos ziv: ovo je jedini
+  // trenutak koji pokazuje koliko je klijent trosio neposredno prije nego je "legao" u strazu.
+  // uzmiUzorak() UVIJEK razrijesi svoj Promise (i kad je telemetrija iskljucena ili je drugi
+  // uzorak vec u toku), pa .finally() garantuje da se dijete ugasi bez obzira na telemetriju.
+  // Kasnjenje gasenja je ograniceno na exec timeout unutar resursi.mjs (par sekundi najvise).
+  const pidPrijeGasenja = dijete.pid;
+  uzmiUzorak({ dogadjaj: "gasenje-straze", razlog }, pidPrijeGasenja).finally(() => ugasiDijete());
 }
 
 // Klijent ne smije gledati u tisinu dok sesija ustaje. Sve je best effort: greske se gutaju u
@@ -615,9 +738,11 @@ async function uStrazu() {
   strazaOtkazi = null;
   if (nalaz.prekinuto) return;
 
+  const trenutakBudjenja = Date.now();
   log(`Straza: update ${nalaz.updateId} vidjen, dizem sesiju. Poruku obradjuje plugin, ne cuvar.`);
   pokreniTiping(token, nalaz.chatId);
   pokreni();
+  mjeriHladniStartIObjavi(trenutakBudjenja);
 }
 
 function lokalniDatum(d) {
@@ -636,6 +761,22 @@ setInterval(() => {
   const sad = new Date();
   const danas = lokalniDatum(sad);
 
+  // Uzorkovanje resursa: razmaknuto po klonu (RESURSI_POMAK_*), radi u OBA stanja (straza i
+  // aktivna sesija), gusce dok je sesija ziva. Fire-and-forget (void), ne blokira ostatak tika.
+  if (RESURSI_UKLJUCENO) {
+    const jeUStrazi = uStrazi();
+    const trenutniInterval = jeUStrazi ? RESURSI_INTERVAL_STRAZA_MIN : RESURSI_INTERVAL_MIN;
+    if (trenutniInterval > 0) {
+      const pomak = jeUStrazi ? RESURSI_POMAK_STRAZA : RESURSI_POMAK_AKTIVNO;
+      const minutaOdEpoha = Math.floor(Date.now() / 60_000);
+      if (minutaOdEpoha % trenutniInterval === pomak % trenutniInterval && minutaOdEpoha !== zadnjaUzorkovanaMinuta) {
+        zadnjaUzorkovanaMinuta = minutaOdEpoha;
+        const pidZaStablo = !jeUStrazi && dijete && dijete.exitCode === null ? dijete.pid : null;
+        void uzmiUzorak({ intervalMin: trenutniInterval }, pidZaStablo);
+      }
+    }
+  }
+
   // U strazi nema sesije, pa nema ni health checka ni mjerenja mirovanja. Ostaju dvije duznosti:
   // vanjski zahtjev za restart se samo pokupi (sesija svjez `.env` cita pri budjenju), a nocno
   // ciscenje inboxa i logova mora raditi i bez sesije, inace tiho stane onih noci koje klon
@@ -653,6 +794,7 @@ setInterval(() => {
       zadnjiNocni = danas;
       ocistiInbox();
       skratiLogove();
+      if (RESURSI_UKLJUCENO) ocistiStareResurse(RESURSI_DIR, { cuvajMjeseci: RESURSI_CUVAJ_MJESECI });
       log("Nocno ciscenje odradjeno u strazi, sesija se ne dize.");
     }
     return;
@@ -707,6 +849,7 @@ setInterval(() => {
       zadnjiNocni = danas;
       ocistiInbox();
       skratiLogove();
+      if (RESURSI_UKLJUCENO) ocistiStareResurse(RESURSI_DIR, { cuvajMjeseci: RESURSI_CUVAJ_MJESECI });
       if (STRAZAR.ukljucen) zatraziGasenje("nocno ciscenje konteksta");
       else zatraziRestart("nocno ciscenje konteksta");
     }
@@ -733,6 +876,7 @@ for (const sig of ["SIGINT", "SIGTERM"]) {
   process.on(sig, () => {
     gasenje = true;
     log(`Primljen ${sig}, gasim sesiju i izlazim.`);
+    upisiDogadjaj({ dogadjaj: "cuvar-gasenje" });
     try {
       unlinkSync(PID_FAJL);
     } catch {
@@ -764,4 +908,5 @@ log(
     ? `Cuvar sesije, strazar rezim: nocni termin u ${RESTART_SAT}h i ${IDLE_SATI}h mirovanja GASE sesiju, cuvar tada strazari i budi je na prvu poruku. Inbox se cisti poslije ${INBOX_DANA} dana.`
     : `Cuvar sesije: nocni restart u ${RESTART_SAT}h, idle restart poslije ${IDLE_SATI}h, inbox se cisti poslije ${INBOX_DANA} dana.`,
 );
+upisiDogadjaj({ dogadjaj: "cuvar-start" });
 pokreni();
