@@ -478,10 +478,11 @@ export function citajRedove(putanje) {
 }
 
 /**
- * Brise fajlove `resursi-YYYY-MM.jsonl` I `disk-YYYY-MM.jsonl` starije od `cuvajMjeseci`, u
- * istom prolazu kroz direktorij. Try/catch oko citavog poziva i oko svakog pojedinacnog
- * brisanja: jedan fajl koji se ne da obrisati ne prekida ciscenje ostalih. Direktorij koji ne
- * postoji vraca {obrisano: 0} bez greske.
+ * Brise fajlove `resursi-YYYY-MM.jsonl`, `disk-YYYY-MM.jsonl` I `masina-YYYY-MM.jsonl` (potonji
+ * pise scripts/nadzor-flote.mjs u nadzor-dir, dnevni uzorak masine za flotnu analizu) starije od
+ * `cuvajMjeseci`, u istom prolazu kroz direktorij. Try/catch oko citavog poziva i oko svakog
+ * pojedinacnog brisanja: jedan fajl koji se ne da obrisati ne prekida ciscenje ostalih.
+ * Direktorij koji ne postoji vraca {obrisano: 0} bez greske.
  */
 export function ocistiStareResurse(dir, { cuvajMjeseci = 12, sada = () => new Date() } = {}) {
   let obrisano = 0;
@@ -489,7 +490,7 @@ export function ocistiStareResurse(dir, { cuvajMjeseci = 12, sada = () => new Da
     if (!existsSync(dir)) return { obrisano: 0 };
     const danas = sada();
     for (const ime of readdirSync(dir)) {
-      const m = ime.match(/^(?:resursi|disk)-(\d{4})-(\d{2})\.jsonl$/);
+      const m = ime.match(/^(?:resursi|disk|masina)-(\d{4})-(\d{2})\.jsonl$/);
       if (!m) continue;
       const godina = Number(m[1]);
       const mjesecIndeks = Number(m[2]) - 1;

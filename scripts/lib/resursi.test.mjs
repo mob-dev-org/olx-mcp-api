@@ -578,6 +578,20 @@ test("ocistiStareResurse: cisti oba prefiksa (resursi-* i disk-*) u istom prolaz
   }
 });
 
+test("ocistiStareResurse: cisti i treci prefiks masina-* (nadzor-flote.mjs dnevni uzorak masine)", () => {
+  const dir = mkdtempSync(join(tmpdir(), "resursi-test-"));
+  try {
+    writeFileSync(join(dir, "masina-2025-01.jsonl"), "");
+    writeFileSync(join(dir, "masina-2026-08.jsonl"), "");
+    const r = ocistiStareResurse(dir, { cuvajMjeseci: 6, sada: () => new Date(2026, 7, 15) });
+    assert.equal(r.obrisano, 1);
+    assert.equal(existsSync(join(dir, "masina-2025-01.jsonl")), false);
+    assert.equal(existsSync(join(dir, "masina-2026-08.jsonl")), true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 // ---- ponderisaniProsjek ----
 
 test("ponderisaniProsjek: normalan slucaj", () => {
