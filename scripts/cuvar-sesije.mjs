@@ -85,15 +85,18 @@ import {
   strazi,
 } from "./lib/straza.mjs";
 import {
+  citajProcese,
   ocistiStareResurse,
+  pidoviStabla,
   pomakKlona,
   putanjaResursa,
   redUzorka,
-  rssStabla,
   upisiRed,
   uzorakMasine,
+  zbirStabla,
 } from "./lib/resursi.mjs";
 import { odluciAlarmMasine, provjeriPritisakMasine } from "./lib/pritisak-masine.mjs";
+import { cpuStabla } from "./lib/cpu.mjs";
 
 const KORIJEN = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(KORIJEN);
@@ -450,6 +453,11 @@ let tipingTajmer = null;
 let strazaBezTokenaJavljeno = false;
 let zadnjaUzorkovanaMinuta = -1;
 let uzorakUToku = false;
+// Perzistira CPU baznu liniju (kumulativno CPU vrijeme po pidu) IZMEDJU tikova, u memoriji
+// procesa cuvara (ne na disku - cuvar je dugotrajan proces, restart cuvara prirodno resetuje
+// bazu, novi prvi uzorak poslije restarta ce imati cpuKlonaPct: null dok se ne uspostavi nova
+// baza, sto je ocekivano i bezopasno).
+let cpuStanjeKlona = null;
 
 // ---- telemetrija resursa: pomocne funkcije ----
 // upisiDogadjaj je NAMJERNO potpuno sinhrona (appendFileSync unutar upisiRed): sigurno je
@@ -483,10 +491,22 @@ async function uzmiUzorak(extraPolja, pidZaStablo) {
   if (!RESURSI_UKLJUCENO || uzorakUToku) return;
   uzorakUToku = true;
   try {
-    const [stablo, masina] = await Promise.all([
-      pidZaStablo ? rssStabla(pidZaStablo) : Promise.resolve(null),
+    const [procesi, masina] = await Promise.all([
+      pidZaStablo ? citajProcese() : Promise.resolve(null),
       uzorakMasine(),
     ]);
+    const stablo = procesi ? zbirStabla(procesi, pidZaStablo) : null;
+    const pidovi = procesi ? pidoviStabla(procesi, pidZaStablo) : null;
+
+    let cpuKlonaPct = null;
+    if (pidovi) {
+      const cpuRezultat = await cpuStabla(pidovi, {
+        prethodnoStanje: cpuStanjeKlona,
+        sadaMs: Date.now(),
+      });
+      cpuStanjeKlona = cpuRezultat.stanjeZaSutra;
+      cpuKlonaPct = cpuRezultat.pct;
+    }
     if (masina) {
       const pritisak = provjeriPritisakMasine(masina, {
         pragSlobodnoBajta: PRAG_SLOBODNO_BAJTA,
@@ -506,6 +526,7 @@ async function uzmiUzorak(extraPolja, pidZaStablo) {
     upisiDogadjaj({
       stabloRssBajta: stablo?.ukupnoBajta ?? null,
       stabloBrojProcesa: stablo?.brojProcesa ?? null,
+      cpuKlonaPct,
       masina,
       ...extraPolja,
     });

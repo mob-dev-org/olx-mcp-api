@@ -149,6 +149,43 @@ export function zbirStabla(procesi, rootPid) {
   return { ukupnoBajta, brojProcesa };
 }
 
+/**
+ * Isti obilazak stabla kao zbirStabla, ali vraca niz PID-ova cijelog stabla (root + svi potomci)
+ * umjesto agregirane RSS sume. Koristi ga cuvar da dobije spisak pid-ova za cpuStabla (cpu.mjs)
+ * bez DRUGOG poziva citajProcese() - RSS (zbirStabla) i CPU (cpuStabla) dijele JEDAN citajProcese()
+ * rezultat. `null` ako rootPid nije u `procesi` (isti uslov kao zbirStabla).
+ */
+export function pidoviStabla(procesi, rootPid) {
+  if (!Array.isArray(procesi)) return null;
+  if (!procesi.some((p) => p.pid === rootPid)) return null;
+
+  const djecaPoRoditelju = new Map();
+  const poPidu = new Map();
+  for (const p of procesi) {
+    poPidu.set(p.pid, p);
+    if (!djecaPoRoditelju.has(p.ppid)) djecaPoRoditelju.set(p.ppid, []);
+    djecaPoRoditelju.get(p.ppid).push(p.pid);
+  }
+
+  const posjeceno = new Set();
+  const red = [rootPid];
+  const pidovi = [];
+
+  while (red.length > 0) {
+    const pid = red.shift();
+    if (posjeceno.has(pid)) continue;
+    posjeceno.add(pid);
+    const proces = poPidu.get(pid);
+    if (!proces) continue;
+    pidovi.push(pid);
+    for (const dijetePid of djecaPoRoditelju.get(pid) ?? []) {
+      if (!posjeceno.has(dijetePid)) red.push(dijetePid);
+    }
+  }
+
+  return pidovi;
+}
+
 /** citajProcese pa zbirStabla. `null` ako bilo koji korak padne. */
 export async function rssStabla(rootPid, opts = {}) {
   const procesi = await citajProcese(opts);

@@ -21,6 +21,7 @@ import {
   parsirajSwapusage,
   parsirajVmStatSlobodno,
   parsirajWinProcese,
+  pidoviStabla,
   pomakKlona,
   ponderisaniProsjek,
   putanjaDiska,
@@ -183,6 +184,33 @@ test("zbirStabla: proces koji navodno pokazuje na samog sebe se broji jednom", (
   const procesi = [{ pid: 1, ppid: 1, rssBajta: 10 }];
   const r = zbirStabla(procesi, 1);
   assert.deepEqual(r, { ukupnoBajta: 10, brojProcesa: 1 });
+});
+
+// ---- pidoviStabla ----
+
+test("pidoviStabla: root sa dvoje djece i unukom vraca sve pid-ove stabla", () => {
+  const procesi = [
+    { pid: 1, ppid: 0, rssBajta: 10 },
+    { pid: 2, ppid: 1, rssBajta: 20 },
+    { pid: 3, ppid: 1, rssBajta: 30 },
+    { pid: 4, ppid: 2, rssBajta: 40 },
+  ];
+  const r = pidoviStabla(procesi, 1);
+  assert.deepEqual([...r].sort(), [1, 2, 3, 4]);
+});
+
+test("pidoviStabla: rootPid koji ne postoji u nizu vraca null", () => {
+  const procesi = [{ pid: 1, ppid: 0, rssBajta: 10 }];
+  assert.equal(pidoviStabla(procesi, 999), null);
+});
+
+test("pidoviStabla: ciklus u ppid podacima ne zapinje u beskonacnu petlju", () => {
+  const procesi = [
+    { pid: 1, ppid: 2, rssBajta: 10 },
+    { pid: 2, ppid: 1, rssBajta: 20 },
+  ];
+  const r = pidoviStabla(procesi, 1);
+  assert.deepEqual([...r].sort(), [1, 2]);
 });
 
 // ---- rssStabla ----
