@@ -12,7 +12,7 @@
 
 import { existsSync, readFileSync as readFileSyncNode, readdirSync as readdirSyncNode } from "node:fs";
 import { homedir as homedirNode } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 
 /**
  * Parsira sirov tekst popisa klonova (~/.olx-klijenti.txt, jedna putanja po liniji). Cista
@@ -126,4 +126,57 @@ function nadjiFolderSken(rootDir, { readdirSync, existsSync: postoji }) {
   }
   const klonovi = filtrirajOlxPikUlaze(rootDir, citano.ulazi, postoji);
   return { klonovi, izvor: "root", izvorPutanja: rootDir, greska: null };
+}
+
+// Poddirektoriji koje ugnijezdena provjera nikad ne otvara: node_modules i dist su generisani
+// (mogu imati desetine hiljada stavki, a nikad nisu klon niti ce klon sadrzavati sami sebe unutar
+// njih), .git je interna git struktura. Isti duh kao skip logika u disk.mjs.
+const PRESKOCI_PODFOLDER = new Set(["node_modules", ".git", "dist"]);
+
+/**
+ * Trazi klon slucajno kopiran UNUTAR drugog klona (npr. `cp -a` greskom napravljen unutar
+ * samog sebe: `klon/klon/.olx-pik/...`). Motivacija: takva kopija zagadjuje flotski nadzor, klon
+ * se "vidi" dvaput ili se disk mjeri pogresno.
+ *
+ * Provjera je namjerno PLITKA: za svaki `klon` iz ulaznog niza cita se SAMO jedan nivo
+ * (`readdirSync(klonPutanja, {withFileTypes:true})`), nikad rekurzivno dublje. Klon moze imati
+ * `node_modules` sa desetinama hiljada fajlova/foldera, pa dubok rekurzivni sken svakog klona ne
+ * dolazi u obzir za rutinski nadzor; `node_modules`, `.git` i `dist` se iz istog razloga (i jer
+ * po prirodi nikad nisu ugnijezdena kopija klona) preskacu bez otvaranja.
+ *
+ * Za svaki preostali poddirektorij se provjerava `postoji(<poddirektorij>/.olx-pik)`: ako
+ * postoji, poddirektorij je ugnijezdena kopija. `readdirSync` je u try/catch po klonu, klon koji
+ * u medjuvremenu nestane ili na koji nema pristupa se tiho preskace (best effort, ne baca), ne
+ * prekida obradu ostalih klonova.
+ *
+ * `klonovi` je niz APSOLUTNIH putanja (isti oblik kao `klonovi` iz `nadjiKlonove`/
+ * `listajPodmapeSaOlxPik`). Vraca ravan niz `{ klon, putanja }` preko SVIH ulaznih klonova
+ * (ne grupisano po klonu): `klon` je basename klon-foldera, `putanja` je apsolutna putanja
+ * ugnijezdene kopije. Ako `klonovi` nije niz, vraca prazan niz bez bacanja.
+ */
+export function pronadjiUgnijezdeneKopije(klonovi, { readdirSync = readdirSyncNode, existsSync: postoji = existsSync } = {}) {
+  if (!Array.isArray(klonovi)) return [];
+
+  const rezultat = [];
+  for (const klonPutanja of klonovi) {
+    let ulazi;
+    try {
+      ulazi = readdirSync(klonPutanja, { withFileTypes: true });
+    } catch {
+      continue; // klon nestao ili nema pristupa, tiho preskoci
+    }
+
+    const imeKlonaBase = basename(klonPutanja);
+    for (const ulaz of ulazi) {
+      if (!ulaz.isDirectory()) continue;
+      if (PRESKOCI_PODFOLDER.has(ulaz.name)) continue;
+
+      const putanjaPodfoldera = join(klonPutanja, ulaz.name);
+      if (postoji(join(putanjaPodfoldera, ".olx-pik"))) {
+        rezultat.push({ klon: imeKlonaBase, putanja: putanjaPodfoldera });
+      }
+    }
+  }
+
+  return rezultat;
 }

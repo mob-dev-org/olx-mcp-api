@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
-import { nadjiKlonove, listajPodmapeSaOlxPik, parsirajPopis } from "./klonovi.mjs";
+import { nadjiKlonove, listajPodmapeSaOlxPik, parsirajPopis, pronadjiUgnijezdeneKopije } from "./klonovi.mjs";
 
 // ---- pomocnici ----
 
@@ -223,4 +223,66 @@ test("nadjiKlonove: cliRoot koji postoji ali je prazan (nema klonova) NIJE gresk
   const readdirSync = () => [];
   const r = nadjiKlonove({ cliRoot: "/prazan-root", readdirSync, existsSync: () => false });
   assert.deepEqual(r, { klonovi: [], izvor: "root", izvorPutanja: "/prazan-root", greska: null });
+});
+
+// ---- pronadjiUgnijezdeneKopije ----
+
+// Lazni readdirSync za pronadjiUgnijezdeneKopije: mapa klonPutanja -> niz imena poddirektorija
+// (svi tretirani kao direktorijum), ili Error da simulira neuspjeh.
+function laznReaddirZaKlon(mapa) {
+  return (klonPutanja) => {
+    const v = mapa[klonPutanja];
+    if (v instanceof Error) throw v;
+    if (!v) throw new Error(`ENOENT: no such file or directory, scandir '${klonPutanja}'`);
+    return v.map((name) => ({ name, isDirectory: () => true }));
+  };
+}
+
+test("pronadjiUgnijezdeneKopije: klon bez ugnijezdene kopije daje prazan niz", () => {
+  const readdirSync = laznReaddirZaKlon({ "/root/klon-a": ["src", "scripts"] });
+  const existsSync = () => false;
+  const r = pronadjiUgnijezdeneKopije(["/root/klon-a"], { readdirSync, existsSync });
+  assert.deepEqual(r, []);
+});
+
+test("pronadjiUgnijezdeneKopije: klon sa tacno jednom ugnijezdenom kopijom", () => {
+  const readdirSync = laznReaddirZaKlon({ "/root/klon-a": ["src", "klon-a"] });
+  const existsSync = (p) => p === join("/root/klon-a", "klon-a", ".olx-pik");
+  const r = pronadjiUgnijezdeneKopije(["/root/klon-a"], { readdirSync, existsSync });
+  assert.deepEqual(r, [{ klon: "klon-a", putanja: join("/root/klon-a", "klon-a") }]);
+});
+
+test("pronadjiUgnijezdeneKopije: dva klona, samo jedan ima ugnijezdenu kopiju", () => {
+  const readdirSync = laznReaddirZaKlon({
+    "/root/klon-a": ["src"],
+    "/root/klon-b": ["src", "klon-b"],
+  });
+  const existsSync = (p) => p === join("/root/klon-b", "klon-b", ".olx-pik");
+  const r = pronadjiUgnijezdeneKopije(["/root/klon-a", "/root/klon-b"], { readdirSync, existsSync });
+  assert.deepEqual(r, [{ klon: "klon-b", putanja: join("/root/klon-b", "klon-b") }]);
+});
+
+test("pronadjiUgnijezdeneKopije: node_modules/.git/dist se ne provjeravaju, cak ni ako bi existsSync lagao", () => {
+  const readdirSync = laznReaddirZaKlon({ "/root/klon-a": ["node_modules", ".git", "dist"] });
+  // existsSync namjerno vraca true za SVAKU putanju: da dokaze da funkcija za preskocene
+  // poddirektorije uopste ne poziva postoji(...).
+  const existsSync = () => true;
+  const r = pronadjiUgnijezdeneKopije(["/root/klon-a"], { readdirSync, existsSync });
+  assert.deepEqual(r, []);
+});
+
+test("pronadjiUgnijezdeneKopije: readdirSync koji baci za jedan klon ne prekida obradu ostalih", () => {
+  const readdirSync = laznReaddirZaKlon({
+    "/root/klon-a": new Error("EACCES: permission denied"),
+    "/root/klon-b": ["klon-b"],
+  });
+  const existsSync = (p) => p === join("/root/klon-b", "klon-b", ".olx-pik");
+  const r = pronadjiUgnijezdeneKopije(["/root/klon-a", "/root/klon-b"], { readdirSync, existsSync });
+  assert.deepEqual(r, [{ klon: "klon-b", putanja: join("/root/klon-b", "klon-b") }]);
+});
+
+test("pronadjiUgnijezdeneKopije: klonovi nije niz vraca prazan niz bez bacanja", () => {
+  assert.deepEqual(pronadjiUgnijezdeneKopije(undefined), []);
+  assert.deepEqual(pronadjiUgnijezdeneKopije(null), []);
+  assert.deepEqual(pronadjiUgnijezdeneKopije("nije-niz"), []);
 });
