@@ -8,12 +8,12 @@ Kako se cita broj verzije: `node dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
-## Neizdano
+## 0.13.0 — 2026-08-13
 
-Radi na grani `analiza-jutarnjeg-posla`, jos nije prosao kroz `npm version` (verzija se ne
-mijenja usred rada, samo na izdanju). Sekcija se pretvara u brojanu stavku kad se ova grana
-pusti; do tada je ovo mjesto gdje stoji sta cijeka izdanje. Prate ga `docs/stories/1.1.*` i
-`docs/stories/1.2.*`.
+Minor: kvota za nove objave se racuna automatski, alarm za istek paketa eskalira, i novi opseg
+`objava` daje klijentu nacin da odluci prioritet kad katalog udari u limit kategorije. Uz to,
+jutarnji posao (`posao dnevni`, `stats snapshot`) prvi put ima integracione testove. Prate ga
+`docs/stories/1.1.*` i `docs/stories/1.2.*`.
 
 - **Integracioni testovi za jutarnji posao**: `posao dnevni` i `stats snapshot` orkestracija u
   `src/cli/index.ts` (1912 linija, do sada bez ijednog testa) dobila je pokrivenost preko
