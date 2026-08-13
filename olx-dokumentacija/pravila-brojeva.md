@@ -68,6 +68,15 @@ jer korisnik dobije broj u koji vjeruje.
   oslobađa samo završavanje oglasa. Limit se prije računice pročita sa naloga
   (`olx_listing_limits`), jer se paketi mijenjaju. Posljedica za shopove blizu limita: artikal
   koji se dugo neće vraćati na stanje bolje je završiti nego kriti.
+  Od 13.08.2026. `olx_profile_stats` računa ovo automatski po grupi kategorija (`objava_limit`:
+  `preostalo`, `iskoristeno_procenat`, `status`) preko `limitObjave()` u `src/core/stats.ts` —
+  ne treba ručno oduzimati `listings` od `limit`. `unlimited: true` grupe (mjereno na Gold
+  paketu: `cars`, `real-estate`) preskaču računicu. Kad je odgovor API-ja `limit <= 0` a
+  `unlimited` nije true, tretira se kao NEPOZNAT limit (status `slobodno`), ne kao dostignut —
+  namjerna odluka da nedokumentovana grupa ne pali lažni alarm. Kad grupa dođe na
+  `blizu_limita`/`dostignut` (default prag 90%), `olx_account_alerts` javlja alarm
+  `objava_limit`, a `olx_izuzeca` sa opsegom `objava` je mjesto gdje klijent označi koji artikli
+  prvi idu "u stranu" da se mjesto oslobodi — vidi `docs/stories/1.2.limit-objave-alarmi-prioritet.story.md`.
 - Broj aktivnih, skrivenih, isteklih i završenih oglasa.
 - Koji su oglasi već izdvojeni.
 - Mjesečni bonus kredita po paketu. Gold 1.800 i Platinum 4.600 su iz naše dokumentacije, ali
