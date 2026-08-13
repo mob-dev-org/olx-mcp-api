@@ -981,6 +981,15 @@ export class OlxClient {
     const username = await this.resolveUsername();
     const limits = await this.refreshLimits();
     pozivi += 1;
+    // Limit oglasa po paketu nije dokumentovan i na nekim nalozima vraca gresku, pa ne smije
+    // oboriti cijelu statistiku.
+    let listingLimits: unknown;
+    try {
+      listingLimits = await this.listingLimits();
+      pozivi += 1;
+    } catch {
+      listingLimits = undefined;
+    }
     const aktivni = await this.listAllByState("active", username);
     pozivi += Math.max(1, Math.ceil(aktivni.length / 20));
     const [istekli, skriveni, neaktivni, zavrseni] = await Promise.all([
@@ -1020,6 +1029,7 @@ export class OlxClient {
         zavrseni: zavrseni.meta.total,
       },
       pregledi,
+      listingLimits,
       sadaTs: Math.floor(Date.now() / 1000),
     });
     return { statistika, broj_poziva: pozivi, trajanje_ms: Date.now() - start };
@@ -1161,11 +1171,17 @@ export class OlxClient {
     return oglasIzvjestaj(await this.getListing(id), Math.floor(Date.now() / 1000));
   }
 
-  // Alarmi naloga, 3 poziva.
+  // Alarmi naloga, 4 poziva (me, refreshLimits, listExpired, listingLimits).
   async statsAlarmi(pragovi: AlarmiPragovi = {}): Promise<AlarmiNaloga & { broj_poziva: number }> {
     const me = await this.me();
     const username = await this.resolveUsername();
-    const [limits, istekli] = await Promise.all([this.refreshLimits(), this.listExpired(username, 1)]);
+    const [limits, istekli, listingLimits] = await Promise.all([
+      this.refreshLimits(),
+      this.listExpired(username, 1),
+      // Limit oglasa po paketu nije dokumentovan i na nekim nalozima vraca gresku, pa ne smije
+      // oboriti cijele alarme.
+      this.listingLimits().catch(() => undefined),
+    ]);
     const rezultat = alarmiNaloga(
       me,
       limits,
@@ -1173,8 +1189,9 @@ export class OlxClient {
       Math.floor(Date.now() / 1000),
       { danCiklusaRezerva: this.config.danCiklusaKvote, ...pragovi },
       izmjereniDanReseta(ucitajKvotuDnevnik()),
+      listingLimits,
     );
-    return { ...rezultat, broj_poziva: 3 };
+    return { ...rezultat, broj_poziva: 4 };
   }
 }
 

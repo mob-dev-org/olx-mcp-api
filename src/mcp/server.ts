@@ -34,7 +34,7 @@ import { buildPlan, planSazetak, type PlanKandidat } from "../core/plan.js";
 import { opisiSliku, vidKonfigurisan } from "../core/vid.js";
 import { OPSEZI, bezSklonjenog, odvojiIzuzete, preneseno, saDodatim, spisak, ucitajIzuzeca, upisiIzuzeca } from "../core/izuzeca.js";
 import { kompaktSpisak, mapaZapisa, noviZapis, planVracanja, preuzmiSlike, saOznakomObjave, ucitajSveZapise, ucitajZapis, upisiZapis, velicinaArhive } from "../core/arhiva.js";
-import type { Listing } from "../core/types.js";
+import type { Listing, ListingSummary } from "../core/types.js";
 import { INTERVAL_MAX, STRATEGIJE, intervalUzPrag, normalizujRitam, ritamZapisan, ucitajRitam, upisiRitam } from "../core/ritam-obnova.js";
 import { POZADINA_OPIS_MAX, obrisiPozadinu, sacuvajPozadinu, sazetakPozadine, ucitajPozadinu } from "../core/pozadina.js";
 import { DOPUNA_MAX, ODNOSI, RECEPTI, RECEPT_POZADINA, ZADANI_ODNOS, generisiSliku, maxDnevno, provjeriDopunu, provjeriZahtjevSlike, slikaKonfigurisana, type Odnos } from "../core/slika.js";
@@ -427,13 +427,16 @@ server.registerTool(
   {
     title: "Lista oglasa",
     description:
-      "Lista oglasa po stanju, svojih ili tudjih. Po stranici vraca kompaktne stavke, a all vraca cijeli katalog kao CSV sa zaglavljem (ista polja, 60% manje tokena). all i full se ne mogu kombinovati.",
+      "Lista oglasa po stanju, svojih ili tudjih. Po stranici vraca kompaktne stavke, a all vraca cijeli katalog kao CSV sa zaglavljem (ista polja, 60% manje tokena). all i full se ne mogu kombinovati. Filteri category_id, price_min i price_max suzavaju rezultat u kodu i sluze da se iz kataloga od stotina artikala izvuce spisak ID-eva za grupne alate (olx_bulk_sklanjanje, olx_bulk_price, olx_izuzeca) bez rucnog prebiranja; sa all: true filter vazi nad cijelim katalogom, bez njega samo nad trazenom stranicom.",
     inputSchema: {
       state: z.enum(["active", "finished", "inactive", "expired", "hidden"]).default("active"),
       user: z.string().optional().describe("username ili id; default je ulogovani korisnik"),
       page: z.number().int().min(1).default(1),
       all: z.boolean().default(false).describe("prelistaj sve stranice datog stanja"),
       full: z.boolean().default(false).describe("sirovi API oblik umjesto kompaktnog"),
+      category_id: z.number().int().optional().describe("zadrzi samo oglase te kategorije"),
+      price_min: z.number().optional().describe("zadrzi samo oglase sa cijenom >= ove vrijednosti"),
+      price_max: z.number().optional().describe("zadrzi samo oglase sa cijenom <= ove vrijednosti"),
     },
     annotations: readOnly,
   },
@@ -450,6 +453,25 @@ server.registerTool(
         ),
       );
     }
+    // Filter radi u kodu, nad odgovorom koji je API vec vratio: /listings nosi category_id i
+    // price po stavci (provjereno na zivom nalogu 13.08.2026.), pa filtriranje ne trazi ni
+    // full: true ni dodatni poziv po oglasu. Filtrira se PRIJE kompaktiranja, jer kompaktan
+    // oblik namjerno ne nosi category_id - na katalogu od par stotina redova ta kolona je cist
+    // trosak tokena za svakog ko ne filtrira.
+    const filterZadan = args.category_id !== undefined || args.price_min !== undefined || args.price_max !== undefined;
+    const filtriraj = (stavke: ListingSummary[]): ListingSummary[] =>
+      stavke.filter((o) => {
+        if (args.category_id !== undefined && o.category_id !== args.category_id) return false;
+        if (args.price_min !== undefined || args.price_max !== undefined) {
+          // Oglas bez cijene ("na upit") ne moze zadovoljiti cjenovni raspon, pa ispada.
+          const cijena = typeof o.price === "number" ? o.price : null;
+          if (cijena === null) return false;
+          if (args.price_min !== undefined && cijena < args.price_min) return false;
+          if (args.price_max !== undefined && cijena > args.price_max) return false;
+        }
+        return true;
+      });
+
     return run(async (c) => {
       const user = args.user ?? (await c.resolveUsername());
       if (args.all) {
@@ -457,7 +479,9 @@ server.registerTool(
         // vise od pola payloada, a CSV nosi ista polja uz 60% manje tokena (izmjereno, vidi
         // kompaktCsv). Na jednoj stranici razlika je mala pa tamo ostaje JSON.
         const sve = await c.listAllByState(args.state, user);
-        return { csv: kompaktCsv(sve), ukupno: sve.length };
+        if (!filterZadan) return { csv: kompaktCsv(sve), ukupno: sve.length };
+        const suzeno = filtriraj(sve);
+        return { csv: kompaktCsv(suzeno), ukupno: suzeno.length, od_ukupno: sve.length };
       }
       const stranica =
         args.state === "active"
@@ -469,7 +493,16 @@ server.registerTool(
               : args.state === "expired"
                 ? await c.listExpired(user, args.page)
                 : await c.listHidden(user, args.page);
-      return args.full ? stranica : { data: kompaktList(stranica.data), meta: stranica.meta };
+      if (!filterZadan) {
+        return args.full ? stranica : { data: kompaktList(stranica.data), meta: stranica.meta };
+      }
+      // Bez all: true filter vidi samo jednu stranicu. Bez ove napomene "3 rezultata" izgleda
+      // kao "3 u cijelom katalogu", a moze ih biti 300 na ostalim stranicama.
+      const suzeno = filtriraj(stranica.data);
+      const napomena = `Filter je primijenjen samo na stranicu ${stranica.meta.current_page} od ${stranica.meta.last_page}. Za cijeli katalog pozovi ponovo sa all: true.`;
+      return args.full
+        ? { data: suzeno, meta: stranica.meta, od_ukupno_na_stranici: stranica.data.length, napomena }
+        : { data: kompaktList(suzeno), meta: stranica.meta, od_ukupno_na_stranici: stranica.data.length, napomena };
     });
   },
 );
@@ -968,7 +1001,7 @@ server.registerTool(
   {
     title: "Statistika profila",
     description:
-      "Pregled vlastitog naloga u jednom pozivu: paket i njegov istek (shop.ends_at), krediti, iskoristenost kvote obnova (bez roka reseta, za rok je olx_refresh_limits), oglasi po stanjima, cijene, udio sponzorisanih, neobnovljeni oglasi. Polje nova_pitanja je neprovjeren brojac sa API-ja: ne iznositi ga korisniku kao cinjenicu.",
+      "Pregled vlastitog naloga u jednom pozivu: paket i njegov istek (shop.ends_at), krediti, iskoristenost kvote obnova (bez roka reseta, za rok je olx_refresh_limits), oglasi po stanjima, cijene, udio sponzorisanih, neobnovljeni oglasi, te objava_limit: popunjenost limita broja oglasa po grupama kategorija (preostalo, procenat, status slobodno/blizu_limita/dostignut). Kad je neka grupa blizu limita ili dostignuta, dodaje se i objava_kandidati_predlog, spisak najduze neobnavljanih oglasa kao prijedlog sta prvo skloniti; kriterij je starost obnove, NE broj pregleda, i to je prijedlog za vlasnika a ne automatska radnja. Polje nova_pitanja je neprovjeren brojac sa API-ja: ne iznositi ga korisniku kao cinjenicu.",
     inputSchema: {
       views: z
         .enum(["none", "sample", "snapshot"])
@@ -1032,10 +1065,15 @@ server.registerTool(
   {
     title: "Alarmi naloga",
     description:
-      "Brza provjera naloga (3 API poziva): paket pri isteku, saldo kredita ispod praga, slabo iskoristena kvota obnova pred resetom, istekli oglasi za reaktivaciju. Reset kvote ide po ciklusu pretplate, ne po kalendarskom mjesecu. Vraca ok: true kad je sve cisto. Pragovi su podesivi.",
+      "Brza provjera naloga (4 API poziva): paket pri isteku, saldo kredita ispod praga, slabo iskoristena kvota obnova pred resetom, istekli oglasi za reaktivaciju, popunjenost limita objave po grupama kategorija. Reset kvote ide po ciklusu pretplate, ne po kalendarskom mjesecu. Alarmi 'paket' i 'objava_limit' nose polje nivo (info, upozorenje, hitno) da se zna sta gori a sta samo tinja; ostali alarmi su binarni i nemaju nivo. Vraca ok: true kad je sve cisto. Pragovi su podesivi.",
     inputSchema: {
       krediti_min: z.number().int().min(0).optional().describe("prag salda kredita, default 500"),
-      paket_dana: z.number().int().min(1).optional().describe("alarm kad paket istice za manje od N dana, default 14"),
+      paket_dana: z
+        .number()
+        .int()
+        .min(1)
+        .optional()
+        .describe("mijenja SAMO srednji prag isteka paketa (nivo upozorenje), default 14; nivoi info i hitno ostaju 30 i 3"),
     },
     annotations: readOnly,
   },
@@ -1620,7 +1658,7 @@ server.registerTool(
   {
     title: "Oglasi koje ne dizati automatski",
     description:
-      "Spisak oglasa koje vlasnik ne zeli da se automatski obnavljaju i/ili izdvajaju. Dnevna obnova ih preskace. Opseg: 'obnova', 'izdvajanje' ili 'sve'. Radnja 'lista' ne trazi ids.",
+      "Spisak oglasa koje vlasnik ne zeli da se automatski obnavljaju i/ili izdvajaju. Dnevna obnova ih preskace. Opseg: 'obnova', 'izdvajanje', 'objava' ili 'sve'. Opseg 'objava' je drugacije prirode: on NISTA ne preskace, nego oznacava artikle najnizeg prioriteta za mjesto u limitu objave, tj. prve kandidate za sklanjanje kad grupa kategorija udari u limit; stvarno sklanjanje ide kroz olx_bulk_sklanjanje. Radnja 'lista' ne trazi ids.",
     inputSchema: {
       radnja: z.enum(["lista", "dodaj", "skloni"]),
       ids: z.array(z.number().int()).optional().describe("id-evi oglasa; obavezno za dodaj i skloni"),

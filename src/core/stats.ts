@@ -97,6 +97,8 @@ export interface ProfilStatistikaInput {
   sadaTs: number;
   // Oglas se racuna kao "neobnovljen" kad od zadnje obnove (date) prodje vise od praga dana.
   pragNeobnovljenoDana?: number;
+  // Iz olx_listing_limits; oblik nije dokumentovan pa se cita tolerantno.
+  listingLimits?: unknown;
 }
 
 export interface ProfilStatistika {
@@ -112,7 +114,13 @@ export interface ProfilStatistika {
   oglasi: { aktivni: number; istekli: number; skriveni: number; neaktivni: number; zavrseni: number };
   cijene: { min: number | null; median: number | null; max: number | null; prosjek: number | null; na_upit: number };
   sponzorisano: { broj: number; premium: number; procenat: number };
+  objava_limit: LimitObjaveGrupa[];
   neobnovljeni: { id: number; title: string; dana_od_obnove: number }[];
+  // Predlog za covjeka (nije auto-akcija), koji artikle zavrsiti/sakriti kad je neka grupa blizu
+  // limita objave. Kriterij je "najduze neobnavljano", NIJE broj pregleda: dostupno je bez ijednog
+  // dodatnog API poziva, dok pregledi postoje samo u views=sample/snapshot rezimu. Emituje se samo
+  // kad bar jedna grupa u `objava_limit` ima status blizu_limita ili dostignut.
+  objava_kandidati_predlog?: { id: number; title: string; dana_od_obnove: number }[];
   pregledi: {
     obuhvaceno: number;
     top: { id: number; title?: string; views: number; pregleda_dnevno: number | null }[];
@@ -134,6 +142,10 @@ export function profilStatistika(input: ProfilStatistikaInput): ProfilStatistika
     .sort((a, b) => b.dana - a.dana)
     .slice(0, 10)
     .map((o) => ({ id: o.id, title: o.title, dana_od_obnove: o.dana }));
+
+  const objava = limitObjave(input.listingLimits);
+  // Predlog se objavljuje samo kad je stvarno potreban, ne kao stalna prazna praznina.
+  const objavaKriticno = objava.some((g) => g.status === "blizu_limita" || g.status === "dostignut");
 
   let pregledi: ProfilStatistika["pregledi"] = null;
   if (input.pregledi && input.pregledi.length > 0) {
@@ -180,7 +192,9 @@ export function profilStatistika(input: ProfilStatistikaInput): ProfilStatistika
     },
     cijene: cijeneStatistika(aktivni),
     sponzorisano: sponzorisanoStatistika(aktivni),
+    objava_limit: objava,
     neobnovljeni,
+    ...(objavaKriticno ? { objava_kandidati_predlog: neobnovljeni } : {}),
     pregledi,
   };
 }
@@ -1216,6 +1230,70 @@ export function oglasIzvjestaj(listing: Listing, sadaTs: number): OglasIzvjestaj
   };
 }
 
+// ===== limit objave po grupama kategorija =====
+
+export type StatusLimitaObjave = "slobodno" | "blizu_limita" | "dostignut";
+
+export interface LimitObjaveGrupa {
+  grupa: string;
+  limit: number;
+  unlimited: boolean;
+  aktivno: number;
+  preostalo: number | null;
+  iskoristeno_procenat: number | null;
+  status: StatusLimitaObjave;
+}
+
+/**
+ * Limit objave po grupama kategorija, iz `olx_listing_limits`.
+ *
+ * Oblik odgovora nije dokumentovan; potvrdjen na zivom API-ju kao
+ * `{"data":{"cars":{"limit":0,"unlimited":true,"listings":0}, ...}}`. Ulaz prihvata i omotan
+ * (`data`) i goli oblik, jer `listingLimits()` u index.ts vraca odgovor neodmotan.
+ */
+export function limitObjave(listingLimits: unknown, pragBlizuProcenat = 90): LimitObjaveGrupa[] {
+  if (typeof listingLimits !== "object" || listingLimits === null) return [];
+  const korijen = listingLimits as Record<string, unknown>;
+  const grupe = (
+    typeof korijen.data === "object" && korijen.data !== null ? (korijen.data as Record<string, unknown>) : korijen
+  ) as Record<string, unknown>;
+
+  const rezultat: LimitObjaveGrupa[] = [];
+  for (const [naziv, vrijednost] of Object.entries(grupe)) {
+    if (typeof vrijednost !== "object" || vrijednost === null) continue;
+    const g = vrijednost as Record<string, unknown>;
+    const limit = broj(g.limit) ?? 0;
+    const aktivno = broj(g.listings) ?? 0;
+    const unlimited = Boolean(g.unlimited);
+
+    if (unlimited) {
+      rezultat.push({ grupa: naziv, limit, unlimited, aktivno, preostalo: null, iskoristeno_procenat: null, status: "slobodno" });
+      continue;
+    }
+    // Nepoznat limit se tretira kao "ne znam", ne kao dostignut: lazna uzbuna na nedokumentovanoj
+    // grupi je gore imati nego preranu tisinu (nula i "ne znam" nisu isto).
+    if (limit <= 0) {
+      rezultat.push({ grupa: naziv, limit, unlimited, aktivno, preostalo: null, iskoristeno_procenat: null, status: "slobodno" });
+      continue;
+    }
+
+    const iskoristenoProcenat = zaokruzi((aktivno / limit) * 100);
+    const status: StatusLimitaObjave =
+      aktivno >= limit ? "dostignut" : iskoristenoProcenat >= pragBlizuProcenat ? "blizu_limita" : "slobodno";
+    rezultat.push({
+      grupa: naziv,
+      limit,
+      unlimited,
+      aktivno,
+      preostalo: Math.max(0, limit - aktivno),
+      iskoristeno_procenat: iskoristenoProcenat,
+      status,
+    });
+  }
+
+  return rezultat.sort((a, b) => a.grupa.localeCompare(b.grupa));
+}
+
 // ===== alarmi naloga =====
 
 export interface AlarmiPragovi {
@@ -1226,12 +1304,19 @@ export interface AlarmiPragovi {
   krajMjesecaDana?: number;
   /** Dan ciklusa iz `OLX_DAN_CIKLUSA_KVOTE`; vazi samo kad nalog nema `shop.ends_at`. */
   danCiklusaRezerva?: number;
+  /** Tri praga isteka paketa u danima. `paketDana` (stari parametar) override-uje SAMO srednji. */
+  paketNivoi?: { info: number; upozorenje: number; hitno: number };
 }
 
+export type NivoAlarma = "info" | "upozorenje" | "hitno";
+
+// `nivo` nose samo alarmi vezani za planiranje unaprijed (`paket`, `objava_limit`); `krediti`,
+// `kvota_obnova` i `istekli` su binarni prag koji vec dobro radi, pa im nivo ne treba i ne dodaje se.
 export interface Alarm {
   tip: string;
   poruka: string;
   vrijednost: number;
+  nivo?: NivoAlarma;
 }
 
 export interface AlarmiNaloga {
@@ -1247,11 +1332,18 @@ export function alarmiNaloga(
   pragovi: AlarmiPragovi = {},
   // Izmjereni dan reseta iz kvota dnevnika; jaci od ciklusa pretplate, isto kao u planu obnova.
   izmjereniDanReseta?: number,
+  listingLimits?: unknown,
 ): AlarmiNaloga {
   const kreditiMin = pragovi.kreditiMin ?? 500;
-  const paketDana = pragovi.paketDana ?? 14;
   const kvotaMinProcenat = pragovi.kvotaMinProcenat ?? 50;
   const krajMjesecaDana = pragovi.krajMjesecaDana ?? 7;
+  const paketNivoiDefault = { info: 30, upozorenje: 14, hitno: 3 };
+  const paketNivoi = pragovi.paketNivoi ?? paketNivoiDefault;
+  // Stari `paketDana` mijenja SAMO srednji prag (upozorenje), da postojeci pozivaoci ne moraju
+  // znati o tri nivoa da bi zadrzali svoje ponasanje.
+  const pragUpozorenje = pragovi.paketDana ?? paketNivoi.upozorenje;
+  const pragHitno = paketNivoi.hitno;
+  const pragInfo = paketNivoi.info;
 
   const alarmi: Alarm[] = [];
 
@@ -1261,8 +1353,37 @@ export function alarmiNaloga(
   const shop = (me.shop ?? null) as { ends_at?: number } | null;
   if (shop?.ends_at) {
     const danaDoIsteka = Math.floor((shop.ends_at - sadaTs) / SEKUNDI_U_DANU);
-    if (danaDoIsteka <= paketDana) {
-      alarmi.push({ tip: "paket", poruka: `Paket shopa istice za ${danaDoIsteka} dana.`, vrijednost: danaDoIsteka });
+    // Najstroziji pogodjen prag pobjedjuje. Poruka za istekao paket (negativan broj dana) je
+    // drugacija: ranije je pisalo "istice za -3 dana", sto je covjeku besmisleno i skriva da je
+    // paket VEC istekao.
+    let nivo: NivoAlarma | null = null;
+    if (danaDoIsteka <= pragHitno) nivo = "hitno";
+    else if (danaDoIsteka <= pragUpozorenje) nivo = "upozorenje";
+    else if (danaDoIsteka <= pragInfo) nivo = "info";
+    if (nivo) {
+      const poruka =
+        danaDoIsteka >= 0
+          ? `Paket shopa istice za ${danaDoIsteka} ${danaRijec(danaDoIsteka)}.`
+          : `Paket shopa je istekao prije ${Math.abs(danaDoIsteka)} ${danaRijec(Math.abs(danaDoIsteka))}.`;
+      alarmi.push({ tip: "paket", poruka, vrijednost: danaDoIsteka, nivo });
+    }
+  }
+
+  for (const grupa of limitObjave(listingLimits)) {
+    if (grupa.status === "blizu_limita") {
+      alarmi.push({
+        tip: "objava_limit",
+        poruka: `Grupa '${grupa.grupa}' je na ${grupa.iskoristeno_procenat}% limita objave (${grupa.aktivno}/${grupa.limit}), jos ${grupa.preostalo} mjesta.`,
+        vrijednost: grupa.iskoristeno_procenat ?? 0,
+        nivo: "upozorenje",
+      });
+    } else if (grupa.status === "dostignut") {
+      alarmi.push({
+        tip: "objava_limit",
+        poruka: `Grupa '${grupa.grupa}' je dostigla limit objave (${grupa.aktivno}/${grupa.limit}) - nema mjesta za nove artikle dok se neki ne zavrsi ili sakrije.`,
+        vrijednost: grupa.iskoristeno_procenat ?? 0,
+        nivo: "hitno",
+      });
     }
   }
 
