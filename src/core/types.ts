@@ -141,6 +141,17 @@ export interface Paginated<T> {
   meta: PaginationMeta;
 }
 
+export interface SviOglasi {
+  oglasi: ListingSummary[];
+  // false znaci da lista NIJE cijeli katalog. Pozivalac je duzan da to obradi: ili odbije
+  // radnju, ili je izricito oznaci u odgovoru. Tiho koristenje nepotpune liste je bug.
+  potpuno: boolean;
+  ukupno: number | null;
+  procitanoStranica: number;
+  stranicaUkupno: number | null;
+  razlog?: "budzet" | "osigurac" | "katalog_se_mijenjao";
+}
+
 export interface Category {
   id: number;
   name: string;

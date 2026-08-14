@@ -39,6 +39,19 @@ export interface OlxConfig {
    * nad izmjerenim danom iz kvota dnevnika, isto kao ciklus (olx://pravila-brojeva).
    */
   danCiklusaKvote?: number;
+  /**
+   * OSIGURAC, ne podesavanje brzine: jedini zadatak mu je da pokvaren `last_page` sa API-ja ne
+   * vrti prelistavanje beskonacno. 5000 stranica je 100 000 oglasa, iznad svakog realnog
+   * kataloga, pa se u normalnom radu nikad ne pali.
+   */
+  maxStranicaListe: number;
+  // Budzet vremena za prelistavanje u alatima koje covjek zove u razgovoru i ceka odgovor.
+  // Budzet vremena a ne broj stranica: broj stranica je los posrednik za trajanje, jer ne zna
+  // za retry, ne zna da je throttle podesen i ne zna da je API te veceri spor.
+  budzetListeMs: number;
+  // Budzet vremena za grupne radnje koje se rade uz izricitu potvrdu, gdje je potpunost liste
+  // preduslov ispravnosti.
+  budzetListeGrupniMs: number;
 }
 
 function num(value: string | undefined, fallback: number): number {
@@ -103,6 +116,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): OlxConfig {
     defaultCountryId: opcioniBroj(env.OLX_DEFAULT_COUNTRY_ID),
     defaultCityId: opcioniBroj(env.OLX_DEFAULT_CITY_ID),
     danCiklusaKvote: danUMjesecu(env.OLX_DAN_CIKLUSA_KVOTE),
+    maxStranicaListe: num(env.OLX_MAX_STRANICA_LISTE, 5000),
+    budzetListeMs: num(env.OLX_BUDZET_LISTE_MS, 20000),
+    budzetListeGrupniMs: num(env.OLX_BUDZET_LISTE_GRUPNI_MS, 120000),
   };
 }
 

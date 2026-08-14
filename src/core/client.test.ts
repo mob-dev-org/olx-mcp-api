@@ -71,6 +71,9 @@ function testConfig(overrides: Partial<OlxConfig> = {}): OlxConfig {
     auditReads: false,
     mcpProfil: "admin",
     maxSpendPerDay: 0,
+    maxStranicaListe: 5000,
+    budzetListeMs: 20000,
+    budzetListeGrupniMs: 120000,
     ...overrides,
   };
 }
@@ -582,7 +585,7 @@ test("listAllByState prelistava sve stranice datog stanja i postuje maxPages", a
   try {
     const client = new OlxClient(testConfig());
     const sve = await client.listAllByState("expired", "primjer_shop");
-    assert.equal(sve.length, 3, "spojene su sve tri stranice");
+    assert.equal(sve.oglasi.length, 3, "spojene su sve tri stranice");
     assert.equal(calls.length, 3);
     assert.ok(calls[0]?.url.includes("/users/primjer_shop/listings/expired"), "gadja se expired putanja");
     assert.ok(calls[2]?.url.includes("page=3"));
@@ -596,9 +599,11 @@ test("listAllByState prelistava sve stranice datog stanja i postuje maxPages", a
   ]);
   try {
     const client = new OlxClient(testConfig());
-    const ograniceno = await client.listAllByState("finished", "primjer_shop", 2);
-    assert.equal(ograniceno.length, 2, "maxPages sijece prelistavanje");
+    const ograniceno = await client.listAllByState("finished", "primjer_shop", { maxStranica: 2 });
+    assert.equal(ograniceno.oglasi.length, 2, "maxStranica sijece prelistavanje");
     assert.equal(calls2.length, 2);
+    assert.equal(ograniceno.potpuno, false, "osigurac je odsjekao listu, nije potpuna");
+    assert.equal(ograniceno.razlog, "osigurac");
   } finally {
     restore2();
   }

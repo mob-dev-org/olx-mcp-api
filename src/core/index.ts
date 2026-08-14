@@ -41,10 +41,12 @@ import type {
   OlxPublicProfile,
   OlxUser,
   Paginated,
+  PaginationMeta,
   RefreshLimits,
   RegionEntity,
   SponsorOptions,
   SponsorPrice,
+  SviOglasi,
   UpdateListingInput,
   UploadedImage,
 } from "./types.js";
@@ -736,13 +738,26 @@ export class OlxClient {
     return this.request<Paginated<ListingSummary>>(`/users/${id}/listings/hidden`, { query: { page } });
   }
 
-  // Prelistava sve stranice aktivnih oglasa i vraca spojeni niz.
-  listAllActive(username: string, maxPages = 50): Promise<ListingSummary[]> {
-    return this.listAllByState("active", username, maxPages);
+  // Prelistava sve stranice aktivnih oglasa i vraca spojeni rezultat.
+  listAllActive(
+    username: string,
+    opcije?: { maxStranica?: number; budzetMs?: number },
+  ): Promise<SviOglasi> {
+    return this.listAllByState("active", username, opcije);
   }
 
-  // Genericki paginator za bilo koje stanje: spaja sve stranice u jedan niz.
-  async listAllByState(state: ListingStateFilter, user: number | string, maxPages = 50): Promise<ListingSummary[]> {
+  // Genericki paginator za bilo koje stanje: spaja sve stranice i javlja da li je lista potpuna.
+  //
+  // `maxStranica` je OSIGURAC (default iz konfiguracije): brani od beskonacne petlje kad API
+  // vrati pokvaren `last_page`. `budzetMs` je opcion: kad ga nema, budzeta nema i prelistava se
+  // do osiguraca (put za CLI i cron, gdje niko ne ceka odgovor).
+  async listAllByState(
+    state: ListingStateFilter,
+    user: number | string,
+    opcije: { maxStranica?: number; budzetMs?: number } = {},
+  ): Promise<SviOglasi> {
+    const maxStranica = opcije.maxStranica ?? this.config.maxStranicaListe;
+    const budzetMs = opcije.budzetMs;
     const fetchPage = (page: number): Promise<Paginated<ListingSummary>> => {
       switch (state) {
         case "active":
@@ -757,14 +772,57 @@ export class OlxClient {
           return this.listHidden(user, page);
       }
     };
+
+    const start = Date.now();
     const first = await fetchPage(1);
-    const all: ListingSummary[] = [...first.data];
-    const lastPage = Math.min(first.meta.last_page ?? 1, maxPages);
-    for (let page = 2; page <= lastPage; page++) {
-      const next = await fetchPage(page);
-      all.push(...next.data);
+    const ukupno = first.meta.total ?? null;
+    const stranicaUkupno = first.meta.last_page ?? null;
+
+    // Mapa po id umjesto niza: prelistavanje velikog kataloga traje minutama, a obnova jednog
+    // oglasa ga u medjuvremenu premjesti na prvu stranicu, pa bi se isti oglas procitao dvaput
+    // dok bi drugi ispao.
+    const mapa = new Map<number, ListingSummary>();
+    for (const l of first.data) mapa.set(l.id, l);
+
+    const trazeno = first.meta.last_page ?? 1;
+    const zadnja = Math.min(trazeno, maxStranica);
+    let potpuno = true;
+    let razlog: SviOglasi["razlog"];
+    if (trazeno > maxStranica) {
+      potpuno = false;
+      razlog = "osigurac";
     }
-    return all;
+
+    let procitanoStranica = 1;
+    let zadnjaProcitanaMeta: PaginationMeta = first.meta;
+    for (let page = 2; page <= zadnja; page++) {
+      if (budzetMs !== undefined && Date.now() - start >= budzetMs) {
+        potpuno = false;
+        razlog = razlog ?? "budzet";
+        break;
+      }
+      const next = await fetchPage(page);
+      for (const l of next.data) mapa.set(l.id, l);
+      procitanoStranica++;
+      zadnjaProcitanaMeta = next.meta;
+    }
+
+    if (procitanoStranica === zadnja) {
+      const zadnjiUkupno = zadnjaProcitanaMeta.total ?? null;
+      if (zadnjiUkupno !== ukupno) {
+        potpuno = false;
+        razlog = razlog ?? "katalog_se_mijenjao";
+      }
+    }
+
+    return {
+      oglasi: [...mapa.values()],
+      potpuno,
+      ukupno,
+      procitanoStranica,
+      stranicaUkupno,
+      razlog,
+    };
   }
 
   // ---- Categories ----
