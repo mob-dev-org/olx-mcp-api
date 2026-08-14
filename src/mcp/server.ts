@@ -15,6 +15,7 @@ import { POLJA, bezNapomene, bezPolja, saNapomenom, saPoljem, ucitajPamcenje, up
 import { withAuditContext } from "../core/audit.js";
 import { VERZIJA } from "../core/verzija.js";
 import { parseSponsorOptions } from "../core/sponsor-options.js";
+import { podijeliUKomade } from "../core/obuhvat.js";
 import {
   efekatIzdvajanja,
   izracunajNoveCijene,
@@ -448,7 +449,7 @@ server.registerTool(
   {
     title: "Lista oglasa",
     description:
-      "Lista oglasa po stanju, svojih ili tudjih. Po stranici vraca kompaktne stavke, a all vraca cijeli katalog kao CSV sa zaglavljem (ista polja, 60% manje tokena). all i full se ne mogu kombinovati. Filteri category_id, price_min i price_max suzavaju rezultat u kodu i sluze da se iz kataloga od stotina artikala izvuce spisak ID-eva za grupne alate (olx_bulk_sklanjanje, olx_bulk_price, olx_izuzeca) bez rucnog prebiranja; sa all: true filter vazi nad cijelim katalogom, bez njega samo nad trazenom stranicom. Veliki katalog (all bez filtera) radije provjeri kroz olx_profile_stats ili suzi filterom, jer alat odbija da vrati previse redova odjednom.",
+      "Lista oglasa po stanju, svojih ili tudjih. Po stranici vraca kompaktne stavke, a all vraca cijeli katalog kao CSV sa zaglavljem (ista polja, 60% manje tokena). all i full se ne mogu kombinovati. Filteri category_id, price_min i price_max suzavaju rezultat u kodu i sluze da se iz kataloga od stotina artikala izvuce spisak ID-eva za grupne alate (olx_bulk_sklanjanje, olx_bulk_price, olx_izuzeca) bez rucnog prebiranja; sa all: true filter vazi nad cijelim katalogom, bez njega samo nad trazenom stranicom. Veliki katalog (all bez filtera) se isporucuje u komadima; sljedeci komad se trazi parametrom komad.",
     inputSchema: {
       state: z.enum(["active", "finished", "inactive", "expired", "hidden"]).default("active"),
       user: z.string().optional().describe("username ili id; default je ulogovani korisnik"),
@@ -458,6 +459,7 @@ server.registerTool(
       category_id: z.number().int().optional().describe("zadrzi samo oglase te kategorije"),
       price_min: z.number().optional().describe("zadrzi samo oglase sa cijenom >= ove vrijednosti"),
       price_max: z.number().optional().describe("zadrzi samo oglase sa cijenom <= ove vrijednosti"),
+      komad: z.number().int().min(1).default(1).describe("redni broj komada kod velikog kataloga; vrijedi samo uz all: true"),
     },
     annotations: readOnly,
   },
@@ -501,27 +503,35 @@ server.registerTool(
         // kompaktCsv). Na jednoj stranici razlika je mala pa tamo ostaje JSON.
         const sve = await c.listAllByState(args.state, user, { budzetMs: config.budzetListeMs });
         const suzeno = filterZadan ? filtriraj(sve.oglasi) : sve.oglasi;
-        // Provjera praga ide nad brojem koji STVARNO ide u odgovor: ako je filter zadan, to je
+        // Dijeljenje ide nad brojem koji STVARNO ide u odgovor: ako je filter zadan, to je
         // suzeno, a ne cijela nepotpuna/potpuna lista procitana sa API-ja.
-        if (suzeno.length > config.maxOglasaUOdgovoru) {
+        const podjela = podijeliUKomade(suzeno, config.maxOglasaUOdgovoru, args.komad);
+        if (podjela.van_opsega) {
           return {
             odbijeno: true,
-            razlog: "prevelik_odgovor",
-            broj: suzeno.length,
-            prag: config.maxOglasaUOdgovoru,
-            // Obuhvat ide i u odbijanje: katalog moze biti istovremeno prevelik za odgovor I
-            // nepotpuno procitan, pa je `broj` tada donja granica a ne tacan broj.
-            ...(sve.potpuno ? {} : { obuhvat: obuhvatIz(sve) }),
-            uputa:
-              `Odgovor bi nosio ${suzeno.length} oglasa, sto premasuje prag od ${config.maxOglasaUOdgovoru}. ` +
-              "Za brojke o katalogu koristi olx_profile_stats, za manji zahvat suzi sa category_id ili price_min/price_max, " +
-              "ili pozovi ovaj alat ponovo sa uzim filterom.",
+            razlog: "komad_van_opsega",
+            komad: args.komad,
+            komada_ukupno: podjela.komada_ukupno,
+            uputa: `Trazen je komad ${args.komad}, a katalog ima ${podjela.komada_ukupno} komada. Trazi broj izmedju 1 i ${podjela.komada_ukupno}.`,
           };
         }
-        const rezultat: Record<string, unknown> = filterZadan
-          ? { csv: kompaktCsv(suzeno), ukupno: suzeno.length, od_ukupno: sve.oglasi.length }
-          : { csv: kompaktCsv(suzeno), ukupno: suzeno.length };
+        const rezultat: Record<string, unknown> = {
+          csv: kompaktCsv(podjela.stavke),
+          ukupno: podjela.stavke.length,
+        };
+        if (filterZadan) rezultat.od_ukupno = sve.oglasi.length;
         if (!sve.potpuno) rezultat.obuhvat = obuhvatIz(sve);
+        // Polja o komadima idu u odgovor SAMO kad komada stvarno ima vise od jednog. Mali katalog
+        // je i dalje jedan odgovor kao i prije, bez ijednog novog polja: svako polje se placa
+        // tokenima u svakom pozivu, a onome ko je dobio cijeli spisak ta polja ne znace nista.
+        if (podjela.komada_ukupno > 1) {
+          rezultat.ukupno_svih = suzeno.length;
+          rezultat.komad = podjela.komad;
+          rezultat.komada_ukupno = podjela.komada_ukupno;
+          if (podjela.ima_jos) {
+            rezultat.uputa = `Katalog ima jos komada. Sljedeci se dobija ponovnim pozivom sa komad: ${podjela.komad + 1}.`;
+          }
+        }
         return rezultat;
       }
       const stranica =

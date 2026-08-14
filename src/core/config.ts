@@ -61,8 +61,9 @@ export interface OlxConfig {
   // svaki konkurent redom, pa dizanje razgovornog budzeta ne smije usporiti citav obilazak.
   budzetListeKonkurentMs: number;
   /**
-   * Prag broja oglasa iznad kojeg `olx_list_listings` u grani `all` odbija da vrati CSV umjesto
-   * da ga tiho sijece (deepseek-nalazi.md, tabela oko linije 110). Izmjereno: 120 oglasa u
+   * Najveci broj oglasa koji `olx_list_listings` u grani `all` smije staviti u JEDAN odgovor.
+   * Iznad toga se katalog isporucuje u komadima (parametar `komad`), umjesto da se tiho sijece
+   * ili da se odgovor odbije (deepseek-nalazi.md, tabela oko linije 110). Izmjereno: 120 oglasa u
    * kompaktnom obliku je 6.135 tokena, a CSV je oko 60% jeftiniji, dakle otprilike 20 tokena po
    * oglasu. 500 oglasa je time oko 10.000 tokena, cetvrtina do trecina cijelog prefiksa jedne
    * sesije (danas oko 34.000 do 40.000 tokena) za JEDAN odgovor jednog alata.
