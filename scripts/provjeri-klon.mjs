@@ -310,8 +310,32 @@ else paznja("KLIJENT-javno.md", "bot ne zna ton, footer ni granice klijenta", `$
     } catch {
       // schtasks nedostupan
     }
-    if (izlaz.toLowerCase().includes("olx")) ok("Zakazani poslovi (Task Scheduler)");
-    else fali("Zakazani poslovi", "nista nije registrovano: nema snapshota, jutarnje poruke ni cuvara", "powershell -ExecutionPolicy Bypass -File deploy/windows/instaliraj-zadatke.ps1");
+    // Isto brojanje kao macOS grana nize: puki podstring "olx" bi propustio klon kojem fali
+    // pola zadataka, jer JEDAN registrovan zadatak vec sadrzi taj tekst. Brojimo redove ciji
+    // TaskName sadrzi tacan prefiks "ba.codefactory.olx.<ime>." (deploy/windows/instaliraj-zadatke.ps1
+    // gradi imena tako), isto kao sto macOS grana broji retke iz `launchctl list`.
+    const prefiksZadatka = `ba.codefactory.olx.${IME}.`.toLowerCase();
+    const nasi = izlaz.split("\n").filter((r) => r.toLowerCase().includes(prefiksZadatka));
+    // Backup je uslovni posao (isti uslov kao u instaliraj-cron.sh i instaliraj-zadatke.ps1):
+    // instalira se samo kad je repo stanja podesen, pa i ocekivani broj zavisi od toga. Admin-bot
+    // je takodje uslovan, ali .claude-runtime-admin nije nigdje drugo obavezan (za razliku od
+    // .claude-runtime, provjerenog gore u sekciji 6), pa ostaje bonus a ne obavezan, isto kao u
+    // macOS grani.
+    const ocekivano = process.env.OLX_STANJE_REPO ? 5 : 4;
+    const imena = ocekivano === 5 ? "snapshot, dnevno, sedmicno, sesija, backup" : "snapshot, dnevno, sedmicno, sesija";
+    if (nasi.length >= ocekivano) ok("Zakazani poslovi (Task Scheduler)", `${nasi.length} poslova`);
+    else if (nasi.length > 0)
+      paznja(
+        "Zakazani poslovi",
+        `samo ${nasi.length} od ocekivanih ${ocekivano}+ (${imena})`,
+        "powershell -ExecutionPolicy Bypass -File deploy/windows/instaliraj-zadatke.ps1",
+      );
+    else
+      fali(
+        "Zakazani poslovi",
+        "nista nije registrovano: nema snapshota, jutarnje poruke ni cuvara",
+        "powershell -ExecutionPolicy Bypass -File deploy/windows/instaliraj-zadatke.ps1",
+      );
   } else {
     let izlaz = "";
     try {
