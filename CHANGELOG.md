@@ -8,6 +8,18 @@ Kako se cita broj verzije: `node dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
+## 0.14.0 — 2026-08-14
+
+Minor: admin moze danas povecati dnevni limit generisanja slika bez diranja .env.
+
+- **Jednodnevni override dnevnog limita slika.** Novi alat `olx_limit_slika` (SAMO_ADMIN) upise
+  povisen limit koji vazi ISKLJUCIVO za danasnji dan; sutra se automatski vraca na
+  `OLX_SLIKA_MAX_DNEVNO`/fallback 10, bez rucnog ciscenja. Postoji jer admin bot sesija namjerno
+  nema Write/Edit/Bash ni Read na `.env*` fajlove (zastita tokena), pa do sada nije bilo naina da
+  se plafon podigne "za danas" bez rucne izmjene fajla na masini.
+- Poruka greske kad se plafon dostigne sad kaze tacno kako se limit mijenja: `olx_limit_slika`
+  za danasnji bump, `OLX_SLIKA_MAX_DNEVNO` u `.env` za trajnu promjenu.
+
 ## 0.13.0 — 2026-08-13
 
 Minor: kvota za nove objave se racuna automatski, alarm za istek paketa eskalira, i novi opseg
