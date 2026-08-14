@@ -626,5 +626,6 @@ praznina pravi pogresno stanje:
 | `olx_find_my_listing` | ODBIJA umjesto da kaze "nema pogodaka" — negativan zakljucak iz nepotpunog skupa je ista greska kao lazan "nisu aktivni" spisak |
 | `stats snapshot` (CLI) | NE PISE snimak, jer bi sutrasnji `olx_mrtvi_oglasi` prijavio zive oglase kao mrtve |
 | `posao dnevni` (tempo obnova) | koristi `meta.total` kao imenilac (tacan i kad lista nije potpuna); `zapisiKvotu` preskace samo kad ni `meta.total` nema |
-| `olx_list_listings` sa `all` | ODBIJA CSV iznad `OLX_MAX_OGLASA_U_ODGOVORU`, umjesto da ga tiho sijece |
-| `olx_sponsor_plan`, `olx_sablon_opisa` | RADE nad nepotpunom listom (biraju kandidate/uzorak, ne mijenjaju stanje), obuhvat se prijavljuje u odgovoru |
+| `olx_list_listings` sa `all` | Iznad `OLX_MAX_OGLASA_U_ODGOVORU` isporucuje katalog U KOMADIMA (parametar `komad`), umjesto da ga tiho sijece ili odbije odgovor |
+| `olx_sablon_opisa` | RADI nad nepotpunom listom (bira uzorak, ne mijenja stanje), obuhvat se prijavljuje u odgovoru |
+| `olx_sponsor_plan` | Trazi NAJSTARIJE aktivne oglase, a to je bas dio kataloga koji budzet vremena inace odsijeca prvi; zato prvo cita od kraja uz provjeru poretka (`listNajstarijiAktivni`), a kad poredak nije pouzdan ili kandidata ostane premalo, pada na puno citanje. Ako ni to nije potpuno, ODBIJA (isto kao `olx_bulk_price`/`olx_bulk_sklanjanje`): odabir iz pogresnog dijela kataloga bi predlozio kandidate koji uopste nisu najstariji, sto je gore od odbijanja. |

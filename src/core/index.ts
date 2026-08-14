@@ -52,6 +52,36 @@ import type {
   UploadedImage,
 } from "./types.js";
 
+// Pomocne funkcije za `listNajstarijiAktivni`: oglas bez `date` ne rusi provjeru poretka (samo se
+// zanemaruje), ali se ni ne koristi kao dokaz da poredak stoji.
+function datumiNerastuci(data: ListingSummary[]): boolean {
+  let prethodni: number | undefined;
+  for (const l of data) {
+    if (typeof l.date !== "number") continue;
+    if (prethodni !== undefined && l.date > prethodni) return false;
+    prethodni = l.date;
+  }
+  return true;
+}
+
+function minDatum(data: ListingSummary[]): number | undefined {
+  let min: number | undefined;
+  for (const l of data) {
+    if (typeof l.date !== "number") continue;
+    if (min === undefined || l.date < min) min = l.date;
+  }
+  return min;
+}
+
+function maxDatum(data: ListingSummary[]): number | undefined {
+  let max: number | undefined;
+  for (const l of data) {
+    if (typeof l.date !== "number") continue;
+    if (max === undefined || l.date > max) max = l.date;
+  }
+  return max;
+}
+
 // Greske su tipizovane da CLI i MCP mogu razlikovati uzrok.
 export class OlxApiError extends Error {
   constructor(
@@ -824,6 +854,86 @@ export class OlxClient {
       stranicaUkupno,
       razlog,
     };
+  }
+
+  // Za "najstariji aktivni oglasi" (izdvajanje) sortiranje po najstarijem i rez zadnjih stranica
+  // su ISTA stvar: lista dolazi tako da su najskorije obnovljeni oglasi prvi, pa upravo zadnje
+  // stranice kataloga nose najstarije oglase, dakle bas ono sto se trazi. Citati cijeli katalog
+  // radi npr. 40 kandidata je i skupo (stotine poziva na velikom shopu) i lomljivo (budzet
+  // vremena sasvim drugacije odsijeca krivi kraj); ovako za istih 40 kandidata treba par
+  // stranica umjesto svih. Poredak koji vraca API NIJE dokumentovan (vidi
+  // OLX_PIK_AI_Knowledgebase.md), pa se prije citanja od kraja provjerava da je stvarno
+  // nerastuci po `date`, i provjerava se dalje na svakoj procitanoj stranici; cim provjera padne,
+  // pozivalac dobija `poredakPouzdan: false` i mora pasti na puno citanje kataloga.
+  async listNajstarijiAktivni(
+    user: number | string,
+    opcije: { najmanje: number; budzetMs?: number },
+  ): Promise<{
+    oglasi: ListingSummary[];
+    poredakPouzdan: boolean;
+    procitanoStranica: number;
+    ukupno: number | null;
+  }> {
+    const username = String(user);
+    const start = Date.now();
+    const neuspjeh = (procitanoStranica: number, ukupno: number | null) => ({
+      oglasi: [] as ListingSummary[],
+      poredakPouzdan: false,
+      procitanoStranica,
+      ukupno,
+    });
+
+    const first = await this.listActive(username, 1);
+    const ukupno = first.meta.total ?? null;
+    const zadnjaStranica = first.meta.last_page ?? 1;
+
+    if (!datumiNerastuci(first.data)) return neuspjeh(1, ukupno);
+
+    const mapa = new Map<number, ListingSummary>();
+    for (const l of first.data) mapa.set(l.id, l);
+    let procitanoStranica = 1;
+
+    const gotovo = () => ({
+      oglasi: [...mapa.values()].sort((a, b) => (a.date ?? 0) - (b.date ?? 0)),
+      poredakPouzdan: true,
+      procitanoStranica,
+      ukupno,
+    });
+
+    if (zadnjaStranica <= 1 || mapa.size >= opcije.najmanje) return gotovo();
+
+    // Citajuci unazad (od zadnje stranice ka prvoj), svaka sljedeca procitana stranica je NOVIJA
+    // od one prije nje, pa njen najmanji `date` ne smije biti manji od najveceg `date` prethodno
+    // procitane (starije) stranice. Prva procitana stranica sa kraja nema takvu "prethodnu
+    // stariju" iz ove petlje, pa se ona posebno poredi sa stranicom 1: njen najveci `date` ne
+    // smije biti veci od najmanjeg `date` stranice 1.
+    const minDatumPrve = minDatum(first.data);
+    let maxDatumStarije: number | undefined;
+
+    for (let page = zadnjaStranica; page > 1 && mapa.size < opcije.najmanje; page--) {
+      if (opcije.budzetMs !== undefined && Date.now() - start >= opcije.budzetMs) break;
+      const next = await this.listActive(username, page);
+      if (!datumiNerastuci(next.data)) return neuspjeh(procitanoStranica + 1, ukupno);
+
+      if (maxDatumStarije === undefined) {
+        const maxOve = maxDatum(next.data);
+        if (minDatumPrve !== undefined && maxOve !== undefined && maxOve > minDatumPrve) {
+          return neuspjeh(procitanoStranica + 1, ukupno);
+        }
+      } else {
+        const minOve = minDatum(next.data);
+        if (minOve !== undefined && minOve < maxDatumStarije) {
+          return neuspjeh(procitanoStranica + 1, ukupno);
+        }
+      }
+
+      for (const l of next.data) mapa.set(l.id, l);
+      procitanoStranica++;
+      const maxOve = maxDatum(next.data);
+      if (maxOve !== undefined) maxDatumStarije = maxOve;
+    }
+
+    return gotovo();
   }
 
   // ---- Categories ----

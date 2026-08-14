@@ -782,6 +782,109 @@ test("listAllByState: osigurac ima prednost nad katalog_se_mijenjao", async () =
   }
 });
 
+// ---- listNajstarijiAktivni ----
+// `olx_sponsor_plan` trazi najstarije aktivne oglase. Umjesto citanja cijelog kataloga, ova
+// metoda cita prvu stranicu pa (kad poredak stoji) stranice od kraja, dok ne skupi dovoljno
+// kandidata. Testovi provjeravaju bas to: manje poziva nego puno citanje, i da se poredak
+// zaista provjerava prije nego se mu povjeruje.
+
+// Katalog od 5 stranica po 2 oglasa, sa datumima koji uredno opadaju od prve ka zadnjoj stranici
+// (najskorije obnovljeni prvi): stranica 1 nosi najvece datume, stranica 5 najmanje.
+function stranicaSaDatumima(page: number, lastPage: number, datumi: number[]) {
+  return {
+    status: 200,
+    body: {
+      data: datumi.map((date, i) => ({ id: (page - 1) * datumi.length + i + 1, title: `Oglas ${date}`, date })),
+      meta: { total: lastPage * datumi.length, last_page: lastPage, current_page: page, per_page: datumi.length },
+    },
+  };
+}
+
+test("listNajstarijiAktivni cita samo prvu i zadnje stranice, ne cijeli katalog", async () => {
+  // Stub odgovara po REDOSLIJEDU poziva, ne po trazenoj stranici, pa se ovdje daju bas ona
+  // dva odgovora koja ce metoda stvarno zatraziti: stranicu 1, pa (preskacuci 2, 3, 4) odmah
+  // stranicu 5.
+  const { calls, restore } = stubFetch([
+    stranicaSaDatumima(1, 5, [100, 99]),
+    stranicaSaDatumima(5, 5, [92, 91]),
+  ]);
+  try {
+    const client = new OlxClient(testConfig());
+    const rezultat = await client.listNajstarijiAktivni("primjer_shop", { najmanje: 3 });
+    assert.equal(rezultat.poredakPouzdan, true);
+    // Stranica 1 (2 oglasa) pa stranica 5 (2 oglasa) je vec >= 3 trazena, pa se staje: ukupno 2
+    // procitane stranice od mogucih 5.
+    assert.equal(rezultat.procitanoStranica, 2);
+    assert.equal(calls.length, 2);
+    assert.ok(calls[1]?.url.includes("page=5"), "druga procitana stranica je zadnja, ne druga");
+    const datumi = rezultat.oglasi.map((o) => o.date);
+    assert.deepEqual(datumi, [...datumi].sort((a, b) => (a ?? 0) - (b ?? 0)), "rezultat je sortiran uzlazno");
+    assert.ok(
+      datumi.every((d) => d === 91 || d === 92 || d === 99 || d === 100),
+      "vraceni oglasi su sa prve i zadnje procitane stranice",
+    );
+  } finally {
+    restore();
+  }
+});
+
+// Regresija: granica izmedju dvije procitane stranice sa kraja mora porediti stranicu koja se
+// upravo cita (novija) sa prethodno procitanom (starijom), ne obrnuto. Test sa citanjem SAMO
+// jedne stranice s kraja tu gresku ne bi vidio (nema druge granice za provjeru), zato ovdje
+// najmanje trazi da se procita bar tri stranice sa kraja na urednom katalogu.
+test("listNajstarijiAktivni: uredan katalog ostaje poredakPouzdan i kad se cita vise stranica s kraja", async () => {
+  const { calls, restore } = stubFetch([
+    stranicaSaDatumima(1, 5, [100, 99]),
+    stranicaSaDatumima(5, 5, [92, 91]),
+    stranicaSaDatumima(4, 5, [94, 93]),
+    stranicaSaDatumima(3, 5, [96, 95]),
+  ]);
+  try {
+    const client = new OlxClient(testConfig());
+    const rezultat = await client.listNajstarijiAktivni("primjer_shop", { najmanje: 7 });
+    assert.equal(rezultat.poredakPouzdan, true, "uredan katalog se ne smije proglasiti nepouzdanim");
+    assert.equal(rezultat.procitanoStranica, 4, "procitane su stranice 1, 5, 4 i 3");
+    assert.equal(calls.length, 4);
+    assert.ok(calls[2]?.url.includes("page=4"));
+    assert.ok(calls[3]?.url.includes("page=3"));
+    assert.equal(rezultat.oglasi.length, 8);
+  } finally {
+    restore();
+  }
+});
+
+test("listNajstarijiAktivni vraca poredakPouzdan: false kad date nije nerastuci", async () => {
+  const { calls, restore } = stubFetch([stranicaSaDatumima(1, 3, [50, 60])]);
+  try {
+    const client = new OlxClient(testConfig());
+    const rezultat = await client.listNajstarijiAktivni("primjer_shop", { najmanje: 3 });
+    assert.equal(rezultat.poredakPouzdan, false);
+    assert.equal(rezultat.oglasi.length, 0);
+    assert.equal(calls.length, 1, "provjera pada na prvoj stranici, dalje se ne cita");
+  } finally {
+    restore();
+  }
+});
+
+test("listNajstarijiAktivni kad budzet istekne ne baca nego vraca sta je stigao", async () => {
+  const { restore } = stubFetch([
+    stranicaSaDatumima(1, 5, [100, 99]),
+    stranicaSaDatumima(2, 5, [98, 97]),
+    stranicaSaDatumima(3, 5, [96, 95]),
+    stranicaSaDatumima(4, 5, [94, 93]),
+    stranicaSaDatumima(5, 5, [92, 91]),
+  ]);
+  try {
+    const client = new OlxClient(testConfig({ minRequestIntervalMs: 20 }));
+    const rezultat = await client.listNajstarijiAktivni("primjer_shop", { najmanje: 10, budzetMs: 1 });
+    assert.equal(rezultat.poredakPouzdan, true, "poredak nije prekrsen, samo je vrijeme isteklo");
+    assert.ok(rezultat.oglasi.length > 0, "prva stranica nije bacena");
+    assert.ok(rezultat.procitanoStranica < 5, "budzet je stao prije kraja");
+  } finally {
+    restore();
+  }
+});
+
 // ---- Audit log i obnova tokena ----
 // Sink se injektuje kao funkcija, pa nijedan test ne pise u fajl.
 

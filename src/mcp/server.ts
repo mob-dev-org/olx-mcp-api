@@ -669,7 +669,8 @@ server.registerTool(
       const user = await c.resolveUsername();
 
       let kandidati: PlanKandidat[];
-      let obuhvat: ReturnType<typeof obuhvatIz> | undefined;
+      let izborNacina: "od_kraja" | "pun_katalog" | undefined;
+      let kandidataOgranicenoNa: number | undefined;
       if (args.oglasi && args.oglasi.length > 0) {
         kandidati = [];
         for (const id of args.oglasi) {
@@ -679,19 +680,56 @@ server.registerTool(
       } else {
         // Automatski odabir preskace oglase koje je vlasnik izuzeo od izdvajanja. Kad ID-eve
         // navede sam (grana iznad), to je izricita zelja i izuzece se ne primjenjuje.
-        // Nepotpuna lista ovdje ne pravi pogresno stanje (izdvajanje ionako trazi zasebnu
-        // potvrdu i cijenu po oglasu), samo bi mogla izabrati druge kandidate, pa se ne odbija.
-        const aktivni = await c.listAllActive(user, { budzetMs: config.budzetListeMs });
-        if (!aktivni.potpuno) obuhvat = obuhvatIz(aktivni);
-        const { prolaze } = odvojiIzuzete(
-          aktivni.oglasi.filter((l) => !l.sponsored),
-          ucitajIzuzeca(),
-          "izdvajanje",
-        );
-        kandidati = prolaze
-          .sort((a, b) => (a.date ?? 0) - (b.date ?? 0))
-          .slice(0, args.broj_oglasa)
-          .map((l) => ({ id: l.id, naslov: l.title }));
+        //
+        // Trazi se NAJSTARIJE aktivne oglase. Lista sa API-ja dolazi tako da su najskorije
+        // obnovljeni oglasi prvi, pa upravo zadnje stranice kataloga nose najstarije oglase:
+        // ako bi se ovdje citalo sa pocetka i stalo na budzetu, odsjekao bi se bas onaj dio
+        // kataloga u kojem su najstariji oglasi, i predlozili bi se kandidati koji uopste nisu
+        // najstariji. To nije nepotpun rezultat nego sistemski pogresan, zato se prvo pokusava
+        // citanje od kraja (koje to odsijecanje izbjegava), uz provjeru da poredak stvarno
+        // stoji (nije dokumentovan, vidi olx://knowledgebase); kad provjera ili broj kandidata
+        // ne prodju, radnja pada na puno citanje kataloga i, ako ni ono nije potpuno, odbija se.
+        let izbor: "od_kraja" | "pun_katalog";
+        const rezervaZaFilter = args.broj_oglasa * 3 + 20;
+        const odKraja = await c.listNajstarijiAktivni(user, {
+          najmanje: rezervaZaFilter,
+          budzetMs: config.budzetListeMs,
+        });
+        const filtriraniOdKraja = odKraja.poredakPouzdan
+          ? odvojiIzuzete(
+              odKraja.oglasi.filter((l) => !l.sponsored),
+              ucitajIzuzeca(),
+              "izdvajanje",
+            ).prolaze
+          : [];
+
+        let kandidatiOglasa: ListingSummary[];
+        if (odKraja.poredakPouzdan && filtriraniOdKraja.length >= args.broj_oglasa) {
+          izbor = "od_kraja";
+          kandidatiOglasa = filtriraniOdKraja;
+        } else {
+          izbor = "pun_katalog";
+          const svi = await procitajKatalogSaPonavljanjem(c, user);
+          if (!svi.potpuno) return odbijNepotpunKatalog(svi, "Prijedlog izdvajanja");
+          const { prolaze: prolazePunKatalog } = odvojiIzuzete(
+            svi.oglasi.filter((l) => !l.sponsored),
+            ucitajIzuzeca(),
+            "izdvajanje",
+          );
+          kandidatiOglasa = prolazePunKatalog;
+        }
+
+        // Cijena je poziv po kandidatu (~0,57 s); uz grupni budzet od 120 s i krov
+        // prekoracaja od ~107 s, svih 100 (max `broj_oglasa`) cijena bi doslo preblizu MCP
+        // zidu od 300000 ms, zato se u ovoj (sporijoj) grani krug cijena ogranicava na 40.
+        const sortirani = kandidatiOglasa.sort((a, b) => (a.date ?? 0) - (b.date ?? 0));
+        const gornjaGranica = izbor === "pun_katalog" ? Math.min(args.broj_oglasa, 40) : args.broj_oglasa;
+        kandidati = sortirani.slice(0, gornjaGranica).map((l) => ({ id: l.id, naslov: l.title }));
+
+        izborNacina = izbor;
+        if (izbor === "pun_katalog" && gornjaGranica < args.broj_oglasa) {
+          kandidataOgranicenoNa = gornjaGranica;
+        }
       }
 
       // GET cijene ne trosi kredite. Kandidat bez citljive cijene ne ulazi u plan.
@@ -732,7 +770,8 @@ server.registerTool(
           cijena: t.cijena,
         })),
         ...(bez_cijene.length > 0 ? { bez_cijene } : {}),
-        ...(obuhvat ? { obuhvat } : {}),
+        ...(izborNacina ? { izbor: izborNacina } : {}),
+        ...(kandidataOgranicenoNa !== undefined ? { kandidata_ograniceno_na: kandidataOgranicenoNa } : {}),
         sacuvan: Boolean(args.sacuvaj),
         napomena: "Nista nije naplaceno. Pojedinacni termin se izvrsava kroz olx_sponsor_listing uz potvrdu.",
       };
