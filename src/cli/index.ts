@@ -16,7 +16,7 @@ import type { PlanKandidat, SponsorPlan } from "../core/plan.js";
 import { matchCatalog, summarizeMatches } from "../core/match.js";
 import type { PikItem, KatalogItem, OverrideEntry } from "../core/match.js";
 import { loadKatalog } from "../core/katalog.js";
-import { alarmiNaloga, danCiklusaIzIsteka, dnevniPlanObnova, efekatIzdvajanja, mrtviOglasi, pragObnove, promjenaKonkurenta, promjenaPregleda } from "../core/stats.js";
+import { alarmiNaloga, danCiklusaIzIsteka, dnevniPlanObnova, efekatIzdvajanja, mrtviOglasi, obuhvatIz, pragObnove, promjenaKonkurenta, promjenaPregleda } from "../core/stats.js";
 import { intervalUzPrag, poIntervalu, ucitajRitam, upisiRitam } from "../core/ritam-obnova.js";
 import { izmjereniDanReseta, ucitajKvotuDnevnik, zapisiKvotu } from "../core/kvota-dnevnik.js";
 import { ucitajKonkurenta, upisiKonkurenta } from "../core/konkurenti.js";
@@ -276,7 +276,18 @@ listings
       const user = await resolveUser(c, opts.user);
       const page = Number(opts.page) || 1;
       if (opts.state === "active") {
-        out(opts.all ? await c.listAllActive(user) : await c.listActive(user, page));
+        if (opts.all) {
+          const svi = await c.listAllActive(user);
+          if (!svi.potpuno) {
+            console.error(
+              `Lista nije potpuna (razlog: ${svi.razlog ?? "nepoznat"}), procitano ${svi.procitanoStranica}` +
+                `${svi.stranicaUkupno !== null ? ` od ${svi.stranicaUkupno}` : ""} stranica.`,
+            );
+          }
+          out({ oglasi: svi.oglasi, obuhvat: obuhvatIz(svi) });
+        } else {
+          out(await c.listActive(user, page));
+        }
       } else if (opts.state === "finished") out(await c.listFinished(user, page));
       else if (opts.state === "inactive") out(await c.listInactive(user, page));
       else if (opts.state === "expired") out(await c.listExpired(user, page));
@@ -498,11 +509,18 @@ refresh
       const cap = Math.min(limit, remaining);
 
       const all = await c.listAllActive(user);
+      if (!all.potpuno) {
+        console.error(
+          `Prolaz nije pokrio cijeli katalog: procitano ${all.oglasi.length} od ` +
+            `${all.ukupno ?? "nepoznato"} oglasa (razlog: ${all.razlog ?? "nepoznat"}). ` +
+            "Obnova se izvrsava nad onim sto je procitano.",
+        );
+      }
       // Izuzeci se sklanjaju PRIJE capa, da obnovu koju je vlasnik zabranio ne potrosi mjesto
       // nekome kome obnova treba. Broj preskocenih se uvijek javlja: tiho preskakanje izgleda
       // kao da obnova ne radi.
       const { prolaze, preskoceni } = odvojiIzuzete(
-        all.filter((l) => l.refresh_available === true),
+        all.oglasi.filter((l) => l.refresh_available === true),
         ucitajIzuzeca(),
         "obnova",
       );
@@ -895,7 +913,15 @@ plan
         // Bez izricitog spiska: najstariji aktivni oglasi koji nisu izdvojeni. Ovo je heuristika
         // (najdublje su pali), ne mjerenje: API ne daje ni pregled ni pojmove pretrage.
         const aktivni = await c.listAllActive(user);
-        kandidati = aktivni
+        if (!aktivni.potpuno) {
+          console.error(
+            `UPOZORENJE: izbor kandidata za izdvajanje je napravljen iz nepotpunog kataloga ` +
+              `(procitano ${aktivni.oglasi.length} od ${aktivni.ukupno ?? "nepoznato"} oglasa, ` +
+              `razlog: ${aktivni.razlog ?? "nepoznat"}). Najstariji oglasi van ovog obuhvata mozda nisu razmotreni.`,
+          );
+          out({ obuhvat: obuhvatIz(aktivni) });
+        }
+        kandidati = aktivni.oglasi
           .filter((l) => !l.sponsored)
           .sort((a, b) => (a.date ?? 0) - (b.date ?? 0))
           .slice(0, limit)
@@ -1148,7 +1174,7 @@ stats
     try {
       const c = await withAuth();
       const { izvjestaj } = await c.statsKonkurent(username, 0);
-      const oglasi = (await c.listAllByState("active", username)).map((o) => ({
+      const oglasi = (await c.listAllByState("active", username)).oglasi.map((o) => ({
         id: o.id,
         title: o.title,
         price: typeof o.price === "number" ? o.price : undefined,
@@ -1246,9 +1272,16 @@ stats
       const otpusti = zauzmiKljuc(`${SNAPSHOT_DIR}/snapshot`);
       try {
         const aktivni = await c.listAllByState("active", username);
+        if (!aktivni.potpuno) {
+          throw new Error(
+            `Lista aktivnih oglasa nije potpuna (procitano ${aktivni.oglasi.length} od ` +
+              `${aktivni.ukupno ?? "nepoznato"} oglasa, razlog: ${aktivni.razlog ?? "nepoznat"}). ` +
+              "Snapshot se ne pise: nepotpun snimak bi sutra prijavio zive oglase kao mrtve.",
+          );
+        }
         const oglasi = [];
         let obradjeno = 0;
-        for (const o of aktivni) {
+        for (const o of aktivni.oglasi) {
           const full = await c.getListing(o.id);
           // Polja za higijenu se hvataju ovdje jer je puni oglas ionako vec dohvacen. Bez toga bi
           // onboarding izvjestaj morao ponoviti isti prolaz kroz sve oglase, a to je minute.
@@ -1277,7 +1310,7 @@ stats
             category_id: typeof full.category_id === "number" ? full.category_id : undefined,
           });
           obradjeno += 1;
-          if (obradjeno % 20 === 0) console.error(`Snapshot: ${obradjeno}/${aktivni.length} oglasa...`);
+          if (obradjeno % 20 === 0) console.error(`Snapshot: ${obradjeno}/${aktivni.oglasi.length} oglasa...`);
         }
         const snapshot = {
           // Verzija 2 nosi i polja za higijenu. Citac ne gleda verziju nego prisustvo polja, pa
@@ -1285,7 +1318,7 @@ stats
           verzija: 2,
           ts: Math.floor(Date.now() / 1000),
           account: username,
-          broj_poziva: aktivni.length + Math.max(1, Math.ceil(aktivni.length / 20)) + 1,
+          broj_poziva: aktivni.oglasi.length + Math.max(1, Math.ceil(aktivni.oglasi.length / 20)) + 1,
           trajanje_ms: Date.now() - start,
           oglasi,
         };
@@ -1350,8 +1383,14 @@ program
         : {};
 
       const active = await c.listAllActive(user);
+      if (!active.potpuno) {
+        console.error(
+          `Upozorenje: uparivanje nije pokrilo cijeli katalog (procitano ${active.oglasi.length} od ` +
+            `${active.ukupno ?? "nepoznato"} oglasa, razlog: ${active.razlog ?? "nepoznat"}).`,
+        );
+      }
       const pik: PikItem[] = [];
-      for (const listing of active) {
+      for (const listing of active.oglasi) {
         // SKU nije u listi, samo na pojedinacnom oglasu, pa je dohvat opcion.
         let sku: string | null = null;
         if (opts.withSku) {
@@ -1573,9 +1612,12 @@ posao
       const me = await c.me();
       const limits = await c.refreshLimits();
       const aktivni = await c.listAllActive(user);
+      // Kad lista nije potpuna, meta.total sa API-ja je i dalje tacan broj aktivnih oglasa, pa
+      // se on koristi kao imenilac umjesto duzine nepotpune liste u ruci (T5, dva racuna nize).
+      const aktivnihUkupno = aktivni.ukupno ?? aktivni.oglasi.length;
       // Izuzeci se sklanjaju i u dnevnom poslu, isto kao u `refresh all`, i preskoceni se javljaju.
       const { prolaze: kandidati, preskoceni: izuzetiDanas } = odvojiIzuzete(
-        aktivni.filter((l) => l.refresh_available === true),
+        aktivni.oglasi.filter((l) => l.refresh_available === true),
         ucitajIzuzeca(),
         "obnova",
       );
@@ -1593,7 +1635,7 @@ posao
           dan: new Date(sadaTs * 1000).toISOString().slice(0, 10),
           free_count: limits.free_count ?? 0,
           free_limit: limits.free_limit ?? 0,
-          aktivnih: aktivni.length,
+          aktivnih: aktivnihUkupno,
         },
       ]);
       // Dan ciklusa se cita iz shopa; OLX_DAN_CIKLUSA_KVOTE je rezerva za nalog bez shopa.
@@ -1602,7 +1644,7 @@ posao
         refreshLimits: limits,
         kandidata: kandidati.length,
         sadaTs,
-        aktivnihOglasa: aktivni.length,
+        aktivnihOglasa: aktivnihUkupno,
         danCiklusa,
         izmjereniDanReseta: izmjeren,
         imaShop: shop !== null,
@@ -1610,13 +1652,30 @@ posao
       });
 
       // Stanje kvote se biljezi svaki dan, jer API ne vraca datum reseta i bez ove serije se ne
-      // moze vidjeti KAD se kvota obnovi (olx://pravila-brojeva, otvoreno pitanje).
-      zapisiKvotu({
-        freeLimit: limits.free_limit ?? 0,
-        freeCount: limits.free_count ?? 0,
-        aktivnih: aktivni.length,
-        danCiklusa,
-      });
+      // moze vidjeti KAD se kvota obnovi (olx://pravila-brojeva, otvoreno pitanje). Ali samo kad
+      // znamo pravi broj: nad nepotpunom listom BEZ meta.total bi upisan broj bio pogodjen, a
+      // pogresan broj u kvota dnevniku se taloži danima (T5). Rupa u seriji je bezopasna.
+      if (aktivni.potpuno || aktivni.ukupno !== null) {
+        zapisiKvotu({
+          freeLimit: limits.free_limit ?? 0,
+          freeCount: limits.free_count ?? 0,
+          aktivnih: aktivnihUkupno,
+          danCiklusa,
+        });
+      } else {
+        console.error(
+          "Kvota dnevnik NIJE upisan danas: lista aktivnih oglasa je nepotpuna i API nije dao " +
+            `meta.total (procitano ${aktivni.oglasi.length} oglasa, razlog: ${aktivni.razlog ?? "nepoznat"}).`,
+        );
+      }
+
+      if (!aktivni.potpuno) {
+        await javiAdminu(
+          `Dnevni posao: lista aktivnih oglasa nije potpuna, procitano ${aktivni.oglasi.length} od ` +
+            `${aktivni.ukupno ?? "nepoznato"} oglasa (razlog: ${aktivni.razlog ?? "nepoznat"}). ` +
+            "Obnove su izvrsene nad procitanim dijelom kataloga.",
+        );
+      }
 
       let obnovljeno: number | null = null;
       let neuspjelih = 0;
