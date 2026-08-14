@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { podijeliUKomade } from "./obuhvat.js";
+import { odaberiStrategiju, podijeliUKomade, uputaZaNepotpun } from "./obuhvat.js";
 
 test("prazan spisak daje jedan prazan komad", () => {
   const r = podijeliUKomade<number>([], 500, 1);
@@ -57,4 +57,54 @@ test("prag 0 ili negativan se tretira kao 1, ne dijeli sa nulom i ne baca", () =
   const negativan = podijeliUKomade(spisak, -5, 2);
   assert.equal(negativan.komada_ukupno, 3);
   assert.deepEqual(negativan.stavke, [2]);
+});
+
+test("odaberiStrategiju: bez ids i prazan niz idu na katalog", () => {
+  assert.deepEqual(odaberiStrategiju(undefined), { nacin: "katalog", broj: 0 });
+  assert.deepEqual(odaberiStrategiju([]), { nacin: "katalog", broj: 0 });
+});
+
+test("odaberiStrategiju: 1 id i tacno prag ide po_id, iznad praga ide katalog", () => {
+  assert.deepEqual(odaberiStrategiju([1]), { nacin: "po_id", broj: 1 });
+  const na60 = Array.from({ length: 60 }, (_, i) => i);
+  assert.deepEqual(odaberiStrategiju(na60), { nacin: "po_id", broj: 60 });
+  const na61 = Array.from({ length: 61 }, (_, i) => i);
+  assert.deepEqual(odaberiStrategiju(na61), { nacin: "katalog", broj: 61 });
+});
+
+test("uputaZaNepotpun: budzet i osigurac spominju ids i CLI, ne spominju category_id", () => {
+  for (const razlog of ["budzet", "osigurac"]) {
+    const tekst = uputaZaNepotpun(razlog, "Promjena cijene", 5, 10);
+    assert.match(tekst, /ids/);
+    assert.match(tekst, /CLI/);
+    assert.doesNotMatch(tekst, /category_id/);
+  }
+});
+
+test("uputaZaNepotpun: katalog_se_mijenjao spominje ponovni pokusaj, ne spominje category_id", () => {
+  const tekst = uputaZaNepotpun("katalog_se_mijenjao", "Sklanjanje oglasa", 8, 8);
+  assert.match(tekst, /ponovni pokusaj|pokusano ponovo/);
+  assert.doesNotMatch(tekst, /category_id/);
+});
+
+test("uputaZaNepotpun: nepoznat ili nedostajuci razlog daje opsti tekst bez izmisljanja uzroka i bez category_id", () => {
+  const nepoznat = uputaZaNepotpun("neki-novi-razlog", "Sklanjanje oglasa", 1, 2);
+  assert.doesNotMatch(nepoznat, /category_id/);
+  const nedostaje = uputaZaNepotpun(undefined, "Sklanjanje oglasa", 1, 2);
+  assert.match(nedostaje, /nepoznat/);
+  assert.doesNotMatch(nedostaje, /category_id/);
+});
+
+// "Suzi na category_id" se nigdje ne smije pojaviti: katalog se cita PRIJE filtriranja po
+// category_id, pa taj savjet ne bi promijenio broj procitanih stranica i pozivalac bi dobio
+// istu gresku ponovo. Ova provjera je izricita da neko slucajno ne vrati savjet nazad.
+test("uputaZaNepotpun: nijedna varijanta ne savjetuje suzavanje kroz category_id", () => {
+  const svi = [
+    uputaZaNepotpun("budzet", "X", 1, 2),
+    uputaZaNepotpun("osigurac", "X", 1, 2),
+    uputaZaNepotpun("katalog_se_mijenjao", "X", 1, 2),
+    uputaZaNepotpun(undefined, "X", 1, 2),
+    uputaZaNepotpun("nepoznat", "X", 1, 2),
+  ];
+  for (const tekst of svi) assert.doesNotMatch(tekst, /category_id/);
 });

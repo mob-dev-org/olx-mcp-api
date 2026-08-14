@@ -12,6 +12,61 @@ export interface Komad<T> {
   van_opsega: boolean;
 }
 
+// Prag za grupne alate: kad je spisak `ids` izricito zadan, ne treba citati cijeli katalog da
+// bi se pokupili naslovi/cijene, dovoljno je pozvati getListing po jednom ID-u. Ali taj put ima
+// gornju granicu, jer niz `ids` u semi nema gornju granicu.
+//
+// Jedan getListing izmjeren je na oko 0,57 s. 60 ID-eva je oko 34 s, sto ostaje ispod zida MCP
+// poziva od 300000 ms (300 s). Naivno "uvijek po ID-u" bi na 500 ID-eva bilo oko 285 s, tj. nova
+// varijanta istog zida, pa iznad praga grupni alat i dalje cita cijeli katalog (jedan prolaz kroz
+// stranice, ne N pojedinacnih poziva).
+export const PRAG_IDS_BEZ_KATALOGA = 60;
+
+// Bira nacin citanja stanja oglasa za grupne alate: "po_id" pozove getListing za svaki zadani id
+// (bez citanja kataloga), "katalog" prelistava cijeli katalog kao do sada. Nema ids ili prazan
+// niz nema od cega birati po ID-u, pa ide na katalog; iznad praga cijena N poziva postaje veca od
+// cijene jednog prolaza kroz katalog, pa i tu ide na katalog.
+export function odaberiStrategiju(
+  ids: number[] | undefined,
+  prag: number = PRAG_IDS_BEZ_KATALOGA,
+): { nacin: "po_id" | "katalog"; broj: number } {
+  const broj = ids?.length ?? 0;
+  if (broj === 0) return { nacin: "katalog", broj };
+  return { nacin: broj <= prag ? "po_id" : "katalog", broj };
+}
+
+// Gradi tekst uz odbijanje nepotpunog kataloga. Odvojeno od odaberiStrategiju jer je ovo cist
+// tekst bez logike o citanju, testira se samo sadrzaj poruke.
+//
+// "Suzi na category_id" NIJE ovdje dozvoljen savjet: katalog se cita PRIJE filtriranja po
+// category_id, pa filter ne smanjuje broj procitanih stranica i savjet ne bi popravio nista,
+// samo bi naveo pozivaoca da ponovi istu neuspjelu radnju.
+export function uputaZaNepotpun(
+  razlog: string | undefined,
+  sta: string,
+  procitano: number,
+  ukupno: number | null,
+): string {
+  const obimTekst = `${procitano} od ${ukupno ?? "nepoznato"} oglasa`;
+  if (razlog === "budzet" || razlog === "osigurac") {
+    return (
+      `Katalog nije procitan u cijelosti (${obimTekst}, razlog: ${razlog}). ` +
+      `${sta} nad nepotpunom listom bi preskocilo oglase koje niko nije vidio, pa je radnja zaustavljena. ` +
+      `Dva puta koja stvarno rade: navedi tacan spisak ids (tada se katalog uopste ne cita), ili pokreni radnju iz CLI-ja gdje nema vremenskog budzeta.`
+    );
+  }
+  if (razlog === "katalog_se_mijenjao") {
+    return (
+      `Katalog se mijenjao tokom citanja (${obimTekst}) jer je neko u medjuvremenu objavio ili obnovio oglas. ` +
+      `${sta} je vec pokusano ponovo i drugi pokusaj nije pomogao. Pokusaj ponovo za koju minutu.`
+    );
+  }
+  return (
+    `Katalog nije procitan u cijelosti (${obimTekst}, razlog: ${razlog ?? "nepoznat"}). ` +
+    `${sta} nad nepotpunom listom bi preskocilo oglase koje niko nije vidio, pa je radnja zaustavljena. Pokusaj ponovo.`
+  );
+}
+
 export function podijeliUKomade<T>(spisak: T[], prag: number, komad: number): Komad<T> {
   const sigurniPrag = prag < 1 ? 1 : prag;
   const komadaUkupno = Math.max(1, Math.ceil(spisak.length / sigurniPrag));

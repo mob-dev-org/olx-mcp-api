@@ -15,7 +15,7 @@ import { POLJA, bezNapomene, bezPolja, saNapomenom, saPoljem, ucitajPamcenje, up
 import { withAuditContext } from "../core/audit.js";
 import { VERZIJA } from "../core/verzija.js";
 import { parseSponsorOptions } from "../core/sponsor-options.js";
-import { podijeliUKomade } from "../core/obuhvat.js";
+import { odaberiStrategiju, podijeliUKomade, uputaZaNepotpun } from "../core/obuhvat.js";
 import {
   efekatIzdvajanja,
   izracunajNoveCijene,
@@ -103,11 +103,21 @@ function odbijNepotpunKatalog(svi: SviOglasi, sta: string) {
     odbijeno: true,
     razlog: "nepotpun_katalog",
     obuhvat,
-    uputa:
-      `Katalog nije procitan u cijelosti (${obuhvat.procitano} od ${obuhvat.ukupno ?? "nepoznato"} oglasa, razlog: ${svi.razlog ?? "nepoznat"}). ` +
-      `${sta} nad nepotpunom listom bi preskocilo oglase koje nisi vidio, pa je radnja zaustavljena. ` +
-      `Suzi zahvat na manji skup (category_id ili kraci spisak ids), ili pokreni radnju iz CLI-ja gdje nema vremenskog budzeta.`,
+    uputa: uputaZaNepotpun(svi.razlog, sta, obuhvat.procitano, obuhvat.ukupno),
   };
+}
+
+// Jedan automatski ponovni pokusaj SAMO kad je razlog "katalog_se_mijenjao": taj razlog se
+// postavlja tek kad su SVE stranice vec procitane (meta.total se pomjerio izmedju prve i
+// zadnje), dakle budzet nije bio potrosen. Najgori slucaj je dvostruko vrijeme citanja, i dalje
+// unutar grupnog budzeta i MCP zida. Za "budzet" i "osigurac" ponovni pokusaj ne bi pomogao (isti
+// razlog bi se opet desio), zato se ne pokusava.
+async function procitajKatalogSaPonavljanjem(c: OlxClient, user: string): Promise<SviOglasi> {
+  let svi = await c.listAllActive(user, { budzetMs: config.budzetListeGrupniMs });
+  if (!svi.potpuno && svi.razlog === "katalog_se_mijenjao") {
+    svi = await c.listAllActive(user, { budzetMs: config.budzetListeGrupniMs });
+  }
+  return svi;
 }
 
 // Zajednicki wrapper: osigurava auth i pretvara greske u citljiv rezultat.
@@ -1395,7 +1405,7 @@ server.registerTool(
   {
     title: "Grupna promjena cijene",
     description:
-      "Mijenja cijenu na vise oglasa odjednom. pravilo: postotak (-10 znaci snizi 10 posto), fiksno (-5 znaci oduzmi 5), postavi (svima ista cijena). confirm=false (default) vraca samo pregled stara naspram nova, bez ijedne izmjene. Ne trosi kredite, ali se rucno ne vraca, pa pregled OBAVEZNO pokazi korisniku prije potvrde. Staje ako katalog nije procitan u cijelosti.",
+      "Mijenja cijenu na vise oglasa odjednom. pravilo: postotak (-10 znaci snizi 10 posto), fiksno (-5 znaci oduzmi 5), postavi (svima ista cijena). confirm=false (default) vraca samo pregled stara naspram nova, bez ijedne izmjene. Ne trosi kredite, ali se rucno ne vraca, pa pregled OBAVEZNO pokazi korisniku prije potvrde. Sa zadatim ids cita samo te oglase; bez njih cita katalog i staje ako ga ne procita u cijelosti.",
     inputSchema: {
       pravilo: z.enum(["postotak", "fiksno", "postavi"]),
       iznos: z.number(),
@@ -1409,29 +1419,53 @@ server.registerTool(
   (args) =>
     run(async (c) => {
       const user = await c.resolveUsername();
-      const svi = await c.listAllActive(user, { budzetMs: config.budzetListeGrupniMs });
-      if (!svi.potpuno) {
-        return odbijNepotpunKatalog(svi, "Promjena cijene");
-      }
-      const izabraniIds = args.ids?.length ? new Set(args.ids) : null;
-      const izabrani = izabraniIds
-        ? svi.oglasi.filter((l) => izabraniIds.has(l.id))
-        : args.category_id !== undefined
-          ? svi.oglasi.filter((l) => l.category_id === args.category_id)
-          : svi.oglasi;
+      const strategija = odaberiStrategiju(args.ids);
 
-      const pregled = izracunajNoveCijene(
-        izabrani
-          .slice(0, args.limit)
-          .map((l) => ({ id: l.id, title: l.title, price: typeof l.price === "number" ? l.price : undefined })),
-        { vrsta: args.pravilo, iznos: args.iznos },
-      );
+      let stavke: { id: number; title: string; price?: number }[];
+      let nepoznati: number[] = [];
+      if (strategija.nacin === "po_id") {
+        // ids je izricito zadan i unutar praga: citamo samo trazene oglase, katalog se uopste
+        // ne prelistava. Nema provjere potpunosti kataloga jer katalog nije ni procitan.
+        stavke = [];
+        for (const id of args.ids!) {
+          try {
+            const l = await c.getListing(id);
+            stavke.push({ id: l.id, title: l.title, price: typeof l.price === "number" ? l.price : undefined });
+          } catch {
+            nepoznati.push(id);
+          }
+        }
+      } else {
+        const svi = await procitajKatalogSaPonavljanjem(c, user);
+        if (!svi.potpuno) {
+          return odbijNepotpunKatalog(svi, "Promjena cijene");
+        }
+        const izabraniIds = args.ids?.length ? new Set(args.ids) : null;
+        const izabrani = izabraniIds
+          ? svi.oglasi.filter((l) => izabraniIds.has(l.id))
+          : args.category_id !== undefined
+            ? svi.oglasi.filter((l) => l.category_id === args.category_id)
+            : svi.oglasi;
+        stavke = izabrani.map((l) => ({ id: l.id, title: l.title, price: typeof l.price === "number" ? l.price : undefined }));
+      }
+
+      const pregled = izracunajNoveCijene(stavke.slice(0, args.limit), { vrsta: args.pravilo, iznos: args.iznos });
+
+      // `nepoznati` ide u odgovor samo kad ga stvarno ima: prazan niz u svakom odgovoru je trosak
+      // tokena bez ijedne informacije.
+      const nepoznatiPolje = nepoznati.length > 0 ? { nepoznati } : {};
 
       if (!args.confirm) {
-        return { dry_run: true, obuhvaceno: izabrani.length, ...pregled };
+        return { dry_run: true, obuhvaceno: stavke.length, ...nepoznatiPolje, ...pregled };
       }
       if (pregled.stavke.length === 0) {
-        return { izmijenjeno: 0, ukupno: 0, napomena: "Nijedan oglas ne zadovoljava pravilo.", preskoceno: pregled.preskoceno };
+        return {
+          izmijenjeno: 0,
+          ukupno: 0,
+          napomena: "Nijedan oglas ne zadovoljava pravilo.",
+          preskoceno: pregled.preskoceno,
+          ...nepoznatiPolje,
+        };
       }
 
       // Kljuc kao kod plana izdvajanja: dvije paralelne grupne izmjene bi se pregazile.
@@ -1451,6 +1485,7 @@ server.registerTool(
           ukupno: rezultati.length,
           preskoceno: pregled.preskoceno.length,
           neuspjeli: rezultati.filter((r) => !r.ok),
+          ...nepoznatiPolje,
         };
       } finally {
         otpusti();
@@ -1463,7 +1498,7 @@ server.registerTool(
   {
     title: "Grupno sakrivanje ili zavrsavanje",
     description:
-      "Sklanja vise oglasa odjednom: radnja 'hide' kad se artikal vraca na stanje, 'finish' kad je prodan (ostaje u historiji profila). confirm=false (default) vraca samo listu. Zavrsavanje se kroz ovaj server NE moze ponistiti, pa listu obavezno pokazi korisniku prije potvrde. Staje ako katalog nije procitan u cijelosti.",
+      "Sklanja vise oglasa odjednom: radnja 'hide' kad se artikal vraca na stanje, 'finish' kad je prodan (ostaje u historiji profila). confirm=false (default) vraca samo listu. Zavrsavanje se kroz ovaj server NE moze ponistiti, pa listu obavezno pokazi korisniku prije potvrde. Kratak spisak ids cita samo te oglase, dug spisak ide preko kataloga i staje ako ga ne procita u cijelosti.",
     inputSchema: {
       ids: z.array(z.number().int()).min(1),
       radnja: z.enum(["hide", "finish"]),
@@ -1474,23 +1509,55 @@ server.registerTool(
   (args) =>
     run(async (c) => {
       const user = await c.resolveUsername();
-      const svi = await c.listAllActive(user, { budzetMs: config.budzetListeGrupniMs });
-      if (!svi.potpuno) {
-        return odbijNepotpunKatalog(svi, "Sklanjanje oglasa");
+      const strategija = odaberiStrategiju(args.ids);
+
+      let izabrani: { id: number; title: string }[];
+      let nepoznati: number[];
+      // Tacno u grani "po_id" stoji na false: id postoji (getListing je uspio), ali se ne moze
+      // tvrditi da je oglas aktivan, jer puni odgovor nema pouzdano polje koje razlikuje aktivan
+      // od isteklog, neaktivnog i zavrsenog (`status` je proizvoljan string bez potvrdjene seme,
+      // `visible` i `available` mjere nesto drugo). Radnja se ipak izvrsava, jer trazeni oglas
+      // postoji; samo se ne tvrdi da je aktivan. Zastavica umjesto spiska svih ID-eva: spisak bi
+      // ponovio ono sto stoji u `oglasi`, a placa se tokenima u svakom odgovoru.
+      let stanjeProvjereno: boolean;
+
+      if (strategija.nacin === "po_id") {
+        // ids je izricito zadan i unutar praga: citamo samo trazene oglase, katalog se uopste
+        // ne prelistava, pa nema ni provjere potpunosti kataloga jer katalog nije ni procitan.
+        izabrani = [];
+        nepoznati = [];
+        for (const id of args.ids) {
+          try {
+            const l = await c.getListing(id);
+            izabrani.push({ id: l.id, title: l.title });
+          } catch {
+            // 404 ili druga greska ne obara cijelu radnju, ide u isti spisak kao katalogska
+            // grana (nisu_aktivni).
+            nepoznati.push(id);
+          }
+        }
+        stanjeProvjereno = false;
+      } else {
+        const svi = await procitajKatalogSaPonavljanjem(c, user);
+        if (!svi.potpuno) {
+          return odbijNepotpunKatalog(svi, "Sklanjanje oglasa");
+        }
+        // Set umjesto includes/some: petlja po nizu je O(n*m), a na katalogu od nekoliko hiljada
+        // oglasa i spisku od nekoliko hiljada ID-eva to je milioni nepotrebnih poredjenja.
+        const trazeni = new Set(args.ids);
+        const aktivniIds = new Set(svi.oglasi.map((l) => l.id));
+        izabrani = svi.oglasi.filter((l) => trazeni.has(l.id)).map((l) => ({ id: l.id, title: l.title }));
+        nepoznati = args.ids.filter((id) => !aktivniIds.has(id));
+        stanjeProvjereno = true;
       }
-      // Set umjesto includes/some: petlja po nizu je O(n*m), a na katalogu od nekoliko hiljada
-      // oglasa i spisku od nekoliko hiljada ID-eva to je milioni nepotrebnih poredjenja.
-      const trazeni = new Set(args.ids);
-      const aktivniIds = new Set(svi.oglasi.map((l) => l.id));
-      const izabrani = svi.oglasi.filter((l) => trazeni.has(l.id));
-      const nepoznati = args.ids.filter((id) => !aktivniIds.has(id));
 
       if (!args.confirm) {
         return {
           dry_run: true,
           radnja: args.radnja,
-          oglasi: izabrani.map((l) => ({ id: l.id, title: l.title })),
+          oglasi: izabrani,
           nisu_aktivni: nepoznati,
+          ...(stanjeProvjereno ? {} : { stanje_provjereno: false }),
         };
       }
       const rezultati: { id: number; ok: boolean; greska?: string }[] = [];
@@ -1508,6 +1575,7 @@ server.registerTool(
         ukupno: rezultati.length,
         neuspjeli: rezultati.filter((r) => !r.ok),
         nisu_aktivni: nepoznati,
+        ...(stanjeProvjereno ? {} : { stanje_provjereno: false }),
       };
     }),
 );
