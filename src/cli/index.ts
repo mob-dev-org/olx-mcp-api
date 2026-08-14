@@ -1669,14 +1669,6 @@ posao
         );
       }
 
-      if (!aktivni.potpuno) {
-        await javiAdminu(
-          `Dnevni posao: lista aktivnih oglasa nije potpuna, procitano ${aktivni.oglasi.length} od ` +
-            `${aktivni.ukupno ?? "nepoznato"} oglasa (razlog: ${aktivni.razlog ?? "nepoznat"}). ` +
-            "Obnove su izvrsene nad procitanim dijelom kataloga.",
-        );
-      }
-
       let obnovljeno: number | null = null;
       let neuspjelih = 0;
       if (!opts.suho) {
@@ -1700,6 +1692,17 @@ posao
             neuspjelih += 1;
           }
         }
+      }
+
+      // Javka adminu ide TEK ovdje, poslije obnova, i postuje suho/bez-slanja isto kao klijentska
+      // poruka nize. Poslana prije petlje bi u suhom prolazu tvrdila da su obnove izvrsene, a
+      // nijedna ne bi bila, pa bi admin dobio tacan broj procitanih oglasa uz netacan ishod.
+      if (!aktivni.potpuno && !opts.suho && !opts.bezSlanja) {
+        await javiAdminu(
+          `Dnevni posao: lista aktivnih oglasa nije potpuna, procitano ${aktivni.oglasi.length} od ` +
+            `${aktivni.ukupno ?? "nepoznato"} oglasa (razlog: ${aktivni.razlog ?? "nepoznat"}). ` +
+            `Obnovljeno ${obnovljeno ?? 0} oglasa nad procitanim dijelom kataloga.`,
+        );
       }
 
       const istekli = await c.listExpired(user, 1);
