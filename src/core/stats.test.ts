@@ -80,6 +80,7 @@ test("profilStatistika sazima nalog, kvotu, cijene i sponzorisane", () => {
     aktivni,
     ukupno: { istekli: 21, skriveni: 2, neaktivni: 1, zavrseni: 302 },
     sadaTs: SADA,
+    obuhvat: { potpuno: true, ukupno: 4, procitano: 4 },
   });
   assert.equal(s.nalog.paket, "Gold");
   assert.equal(s.nalog.paket_istice_za_dana, 90);
@@ -108,6 +109,7 @@ test("profilStatistika pronalazi neobnovljene preko praga i sortira po starosti"
     ukupno: { istekli: 0, skriveni: 0, neaktivni: 0, zavrseni: 0 },
     sadaTs: SADA,
     pragNeobnovljenoDana: 7,
+    obuhvat: { potpuno: true, ukupno: 3, procitano: 3 },
   });
   assert.equal(s.neobnovljeni.length, 2, "svjez oglas ne ulazi");
   assert.equal(s.neobnovljeni[0]?.id, 1, "najstariji je prvi");
@@ -128,6 +130,7 @@ test("profilStatistika racuna preglede dnevno i vraca top i dno", () => {
     ukupno: { istekli: 0, skriveni: 0, neaktivni: 0, zavrseni: 0 },
     pregledi,
     sadaTs: SADA,
+    obuhvat: { potpuno: true, ukupno: 1, procitano: 1 },
   });
   assert.ok(s.pregledi);
   assert.equal(s.pregledi.obuhvaceno, 7);
@@ -153,7 +156,7 @@ test("konkurentIzvjestaj racuna kadencu obnove, akcije i aktivnost", () => {
     oglas({ id: 3, date: SADA - 20 * DAN }),
     oglas({ id: 4, date: SADA - 20 * DAN }),
   ];
-  const k = konkurentIzvjestaj(profil, aktivni, 156, SADA);
+  const k = konkurentIzvjestaj(profil, aktivni, 156, SADA, { potpuno: true, ukupno: 4, procitano: 4 });
   assert.equal(k.profil.paket, "Platinum");
   assert.equal(k.profil.godina_na_platformi, 5);
   assert.equal(k.profil.zadnja_aktivnost_prije_dana, 3);
@@ -454,6 +457,7 @@ test("alarmiNaloga i onboardingIzvjestaj rok racunaju istom funkcijom kao dnevni
     ukupno: { istekli: 0, skriveni: 0, neaktivni: 0, zavrseni: 0 },
     sadaTs: SADA,
     izmjereniDanReseta: 1,
+    obuhvat: { potpuno: true, ukupno: 1, procitano: 1 },
   });
   assert.equal(i.besplatne_obnove.dana_do_reseta, 29, "u sporu vazi ciklus 29, ne mjerenje 1");
   assert.equal(i.besplatne_obnove.rok_poznat, true);
@@ -465,6 +469,7 @@ test("alarmiNaloga i onboardingIzvjestaj rok racunaju istom funkcijom kao dnevni
     aktivni: [oglas()],
     ukupno: { istekli: 0, skriveni: 0, neaktivni: 0, zavrseni: 0 },
     sadaTs: SADA,
+    obuhvat: { potpuno: true, ukupno: 1, procitano: 1 },
   });
   assert.equal(bezRokaOnb.besplatne_obnove.dana_do_reseta, null, "nepoznat rok je null, ne broj");
   assert.equal(bezRokaOnb.besplatne_obnove.rok_poznat, false);
@@ -588,6 +593,7 @@ test("onboardingIzvjestaj racuna preostale besplatne obnove i preporuku po danu"
     aktivni: [oglas()],
     ukupno: { istekli: 0, skriveni: 0, neaktivni: 0, zavrseni: 0 },
     sadaTs: SADA,
+    obuhvat: { potpuno: true, ukupno: 1, procitano: 1 },
   });
   assert.equal(i.besplatne_obnove.preostalo, 500);
   // me() nosi shop.ends_at na SADA + 90 dana, dakle 29.10.2026: dan ciklusa je 29, pa je od
@@ -605,6 +611,7 @@ test("onboardingIzvjestaj racuna preostale besplatne obnove i preporuku po danu"
     aktivni: [oglas()],
     ukupno: { istekli: 0, skriveni: 0, neaktivni: 0, zavrseni: 0 },
     sadaTs: SADA - 10 * DAN,
+    obuhvat: { potpuno: true, ukupno: 1, procitano: 1 },
   });
   assert.equal(sredina.besplatne_obnove.dana_do_reseta, 8, "od 21.07. do reseta 29.07. je 8 dana");
   assert.equal(sredina.besplatne_obnove.preporuceno_dnevno, 1, "jedan oglas ne moze vise od jedne obnove dnevno");
@@ -617,6 +624,7 @@ test("onboardingIzvjestaj radi i bez detalja o oglasima, ali tada nema ucinka", 
     aktivni: [oglas({ id: 1, title: "Kratko" }), oglas({ id: 2, title: "Dovoljno dug naslov za pretragu OLX" })],
     ukupno: { istekli: 0, skriveni: 0, neaktivni: 0, zavrseni: 0 },
     sadaTs: SADA,
+    obuhvat: { potpuno: true, ukupno: 2, procitano: 2 },
   });
   assert.equal(i.ucinak, null, "bez detalja nema sekcije ucinka");
   const kratki = i.higijena.find((h) => h.kljuc === "naslov_kratak");
@@ -636,6 +644,7 @@ test("onboardingIzvjestaj hvata higijenu iz detalja i sortira nalaze po broju", 
       detalj({ id: 3 }),
     ],
     sadaTs: SADA,
+    obuhvat: { potpuno: true, ukupno: 3, procitano: 3 },
   });
   const po = Object.fromEntries(i.higijena.map((h) => [h.kljuc, h.broj]));
   assert.equal(po.bez_slike, 1);
@@ -660,6 +669,7 @@ test("onboardingIzvjestaj razlikuje oglas bez pregleda od gledanog bez upita", (
     ],
     detaljiTs: SADA - 2 * DAN,
     sadaTs: SADA,
+    obuhvat: { potpuno: true, ukupno: 3, procitano: 3 },
   });
   assert.ok(i.ucinak);
   assert.equal(i.ucinak.bez_pregleda_30_dana.broj, 1, "mladji od 30 dana se ne racuna");
@@ -676,6 +686,7 @@ test("onboardingIzvjestaj slaze prve poteze tako da besplatno ide prvo", () => {
     ukupno: { istekli: 0, skriveni: 0, neaktivni: 0, zavrseni: 0 },
     detalji: [detalj({ id: 1, views: 0, created_at: SADA - 60 * DAN })],
     sadaTs: SADA,
+    obuhvat: { potpuno: true, ukupno: 1, procitano: 1 },
   });
   assert.equal(i.prvi_potezi[0]?.kosta, "besplatno");
   assert.deepEqual(
@@ -694,6 +705,7 @@ test("onboardingIzvjestaj cita limit oglasa iz nedokumentovanog oblika odgovora"
     ukupno: { istekli: 0, skriveni: 0, neaktivni: 0, zavrseni: 0 },
     listingLimits: { listing_limit: 500 },
     sadaTs: SADA,
+    obuhvat: { potpuno: true, ukupno: 2, procitano: 2 },
   });
   assert.equal(i.nalog.limit_oglasa, 500);
   assert.equal(i.nalog.popunjenost_procenat, 0.4);
@@ -714,6 +726,7 @@ test("onboardingIzvjestaj ne izmislja higijenu kad snapshot verzije 1 nema ta po
     ukupno: { istekli: 0, skriveni: 0, neaktivni: 0, zavrseni: 0 },
     detalji: stari,
     sadaTs: SADA,
+    obuhvat: { potpuno: true, ukupno: 2, procitano: 2 },
   });
   assert.equal(i.higijena_provjerena, false, "stari snapshot ne nosi polja za higijenu");
   const kljucevi = i.higijena.map((h) => h.kljuc);
@@ -735,6 +748,7 @@ test("onboardingIzvjestaj provjerava higijenu samo na oglasima koji imaju podata
       { id: 2, title: "Nepotpun", views: 10, created_at: SADA - 10 * DAN },
     ],
     sadaTs: SADA,
+    obuhvat: { potpuno: true, ukupno: 2, procitano: 2 },
   });
   assert.equal(i.higijena_provjerena, true, "bar jedan oglas ima podatak");
   assert.equal(i.higijena.find((h) => h.kljuc === "bez_slike")?.broj, 1, "samo oglas sa poznatim brojem slika");
@@ -1064,6 +1078,7 @@ test("profilStatistika: objava_limit je prazan bez listingLimits, a kandidati_pr
     aktivni,
     ukupno: { istekli: 0, skriveni: 0, neaktivni: 0, zavrseni: 0 },
     sadaTs: SADA,
+    obuhvat: { potpuno: true, ukupno: aktivni.length, procitano: aktivni.length },
   });
   assert.deepEqual(s.objava_limit, []);
   assert.equal(s.objava_kandidati_predlog, undefined);
@@ -1082,6 +1097,7 @@ test("profilStatistika: objava_kandidati_predlog se emituje i jednak je neobnovl
     ukupno: { istekli: 0, skriveni: 0, neaktivni: 0, zavrseni: 0 },
     sadaTs: SADA,
     listingLimits,
+    obuhvat: { potpuno: true, ukupno: aktivni.length, procitano: aktivni.length },
   });
   assert.equal(s.objava_limit[0]?.status, "dostignut");
   assert.deepEqual(s.objava_kandidati_predlog, s.neobnovljeni);

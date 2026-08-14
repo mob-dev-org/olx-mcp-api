@@ -10,6 +10,7 @@ import { izmjereniDanReseta, ucitajKvotuDnevnik } from "./kvota-dnevnik.js";
 import {
   alarmiNaloga,
   konkurentIzvjestaj,
+  obuhvatIz,
   oglasIzvjestaj,
   onboardingIzvjestaj,
   profilStatistika,
@@ -1030,7 +1031,12 @@ export class OlxClient {
   // oglasa (najsvjeziji, najstariji po obnovi i sponzorisani); "none" ne trosi dodatne pozive.
   // Kroz `pregledi` se mogu ubaciti podaci iz snapshota sa diska (0 dodatnih poziva).
   async statsProfil(
-    options: { viewsMode?: "none" | "sample"; pregledi?: OglasPregledi[]; sampleVelicina?: number } = {},
+    options: {
+      viewsMode?: "none" | "sample";
+      pregledi?: OglasPregledi[];
+      sampleVelicina?: number;
+      budzetMs?: number;
+    } = {},
   ): Promise<{ statistika: ProfilStatistika; broj_poziva: number; trajanje_ms: number }> {
     const start = Date.now();
     let pozivi = 0;
@@ -1048,8 +1054,9 @@ export class OlxClient {
     } catch {
       listingLimits = undefined;
     }
-    const aktivni = await this.listAllByState("active", username);
-    pozivi += Math.max(1, Math.ceil(aktivni.length / 20));
+    const sviAktivni = await this.listAllByState("active", username, { budzetMs: options.budzetMs });
+    const aktivni = sviAktivni.oglasi;
+    pozivi += Math.max(1, sviAktivni.procitanoStranica);
     const [istekli, skriveni, neaktivni, zavrseni] = await Promise.all([
       this.listExpired(username, 1),
       this.listHidden(username, 1),
@@ -1089,6 +1096,7 @@ export class OlxClient {
       pregledi,
       listingLimits,
       sadaTs: Math.floor(Date.now() / 1000),
+      obuhvat: obuhvatIz(sviAktivni),
     });
     return { statistika, broj_poziva: pozivi, trajanje_ms: Date.now() - start };
   }
@@ -1102,6 +1110,7 @@ export class OlxClient {
   // `stats snapshot` koji ionako radi nocu.
   async statsOnboarding(
     detalji?: { oglasi: OnboardingDetalj[]; ts: number },
+    opcije: { budzetMs?: number } = {},
   ): Promise<{ izvjestaj: OnboardingIzvjestaj; broj_poziva: number; trajanje_ms: number }> {
     const start = Date.now();
     let pozivi = 0;
@@ -1119,8 +1128,9 @@ export class OlxClient {
     } catch {
       listingLimits = undefined;
     }
-    const aktivni = await this.listAllByState("active", username);
-    pozivi += Math.max(1, Math.ceil(aktivni.length / 20));
+    const sviAktivni = await this.listAllByState("active", username, { budzetMs: opcije.budzetMs });
+    const aktivni = sviAktivni.oglasi;
+    pozivi += Math.max(1, sviAktivni.procitanoStranica);
     const [istekli, skriveni, neaktivni, zavrseni] = await Promise.all([
       this.listExpired(username, 1),
       this.listHidden(username, 1),
@@ -1147,6 +1157,7 @@ export class OlxClient {
       // ostaje po starom. Rezerva iz .env vazi samo za nalog bez shopa.
       izmjereniDanReseta: izmjereniDanReseta(ucitajKvotuDnevnik()),
       danCiklusaRezerva: this.config.danCiklusaKvote,
+      obuhvat: obuhvatIz(sviAktivni),
     });
     return { izvjestaj, broj_poziva: pozivi, trajanje_ms: Date.now() - start };
   }
@@ -1161,8 +1172,12 @@ export class OlxClient {
     let pozivi = 0;
     const profil = await this.userProfile(username);
     pozivi += 1;
-    const aktivni = await this.listAllByState("active", username);
-    pozivi += Math.max(1, Math.ceil(aktivni.length / 20));
+    // Ovo je TUDJI shop i cita se serijski kroz cijeli Excel spisak kandidata: prelistavanje od
+    // nekoliko minuta po kandidatu nije upotrebljivo. Bolje je posteno reci da je uzorak nepotpun
+    // nego drzati red kandidata da ceka, zato jezgro ovdje samo bira budzet umjesto pozivaoca.
+    const sviAktivni = await this.listAllByState("active", username, { budzetMs: this.config.budzetListeMs });
+    const aktivni = sviAktivni.oglasi;
+    pozivi += Math.max(1, sviAktivni.procitanoStranica);
     let zavrseni: number | null = null;
     try {
       zavrseni = (await this.listFinished(username, 1)).meta.total;
@@ -1171,7 +1186,7 @@ export class OlxClient {
       // Zavrseni tudji oglasi mogu biti nedostupni; izvjestaj i bez njih vrijedi.
     }
     const sadaTs = Math.floor(Date.now() / 1000);
-    const izvjestaj = konkurentIzvjestaj(profil, aktivni, zavrseni, sadaTs);
+    const izvjestaj = konkurentIzvjestaj(profil, aktivni, zavrseni, sadaTs, obuhvatIz(sviAktivni));
 
     const topOglasi: OglasIzvjestaj[] = [];
     if (topViews > 0) {

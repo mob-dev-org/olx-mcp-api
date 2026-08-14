@@ -152,6 +152,16 @@ export interface SviOglasi {
   razlog?: "budzet" | "osigurac" | "katalog_se_mijenjao";
 }
 
+// Koliki dio kataloga stoji iza jednog izvjestaja. `potpuno` i `razlog` namjerno nose ISTA
+// imena kao u SviOglasi: podatak o nepotpunosti se ne smije preimenovati dok putuje kroz
+// slojeve, jer se tako najlakse izgubi.
+export interface Obuhvat {
+  potpuno: boolean;
+  ukupno: number | null;
+  procitano: number;
+  razlog?: "budzet" | "osigurac" | "katalog_se_mijenjao";
+}
+
 export interface Category {
   id: number;
   name: string;

@@ -13,9 +13,11 @@ import type {
   CategoryAttribute,
   Listing,
   ListingSummary,
+  Obuhvat,
   OlxPublicProfile,
   OlxUser,
   RefreshLimits,
+  SviOglasi,
 } from "./types.js";
 
 const SEKUNDI_U_DANU = 86_400;
@@ -78,6 +80,11 @@ function sponzorisanoStatistika(items: ListingSummary[]): { broj: number; premiu
   };
 }
 
+// Jedino mjesto koje gradi Obuhvat: nijedno drugo mjesto ga ne smije sastavljati rucno.
+export function obuhvatIz(svi: SviOglasi): Obuhvat {
+  return { potpuno: svi.potpuno, ukupno: svi.ukupno, procitano: svi.oglasi.length, razlog: svi.razlog };
+}
+
 // ===== statistika vlastitog profila =====
 
 export interface OglasPregledi {
@@ -99,6 +106,8 @@ export interface ProfilStatistikaInput {
   pragNeobnovljenoDana?: number;
   // Iz olx_listing_limits; oblik nije dokumentovan pa se cita tolerantno.
   listingLimits?: unknown;
+  // Koliki dio kataloga stoji iza ovog izvjestaja; gradi se sa `obuhvatIz`.
+  obuhvat: Obuhvat;
 }
 
 export interface ProfilStatistika {
@@ -126,6 +135,8 @@ export interface ProfilStatistika {
     top: { id: number; title?: string; views: number; pregleda_dnevno: number | null }[];
     dno: { id: number; title?: string; views: number; pregleda_dnevno: number | null }[];
   } | null;
+  // Izvjestaj vrijedi samo za ovaj dio kataloga; nepotpun uzorak se mora vidjeti u izlazu.
+  obuhvat: Obuhvat;
 }
 
 export function profilStatistika(input: ProfilStatistikaInput): ProfilStatistika {
@@ -196,6 +207,7 @@ export function profilStatistika(input: ProfilStatistikaInput): ProfilStatistika
     neobnovljeni,
     ...(objavaKriticno ? { objava_kandidati_predlog: neobnovljeni } : {}),
     pregledi,
+    obuhvat: input.obuhvat,
   };
 }
 
@@ -237,6 +249,8 @@ export interface OnboardingInput {
   izmjereniDanReseta?: number;
   /** Dan ciklusa iz `OLX_DAN_CIKLUSA_KVOTE`; vazi samo kad nalog nema `shop.ends_at`. */
   danCiklusaRezerva?: number;
+  // Koliki dio kataloga stoji iza ovog izvjestaja; gradi se sa `obuhvatIz`.
+  obuhvat: Obuhvat;
 }
 
 export interface OnboardingNalaz {
@@ -286,6 +300,8 @@ export interface OnboardingIzvjestaj {
   } | null;
   izdvajanje: { broj: number; premium: number; procenat: number };
   prvi_potezi: { redoslijed: number; potez: string; kosta: "besplatno" | "krediti" | "samo vrijeme" }[];
+  // Izvjestaj vrijedi samo za ovaj dio kataloga; nepotpun uzorak se mora vidjeti u izlazu.
+  obuhvat: Obuhvat;
 }
 
 function primjeri(lista: { id: number; title?: string }[]): { id: number; title: string }[] {
@@ -612,6 +628,7 @@ export function onboardingIzvjestaj(input: OnboardingInput): OnboardingIzvjestaj
     ucinak,
     izdvajanje: sponzorisano,
     prvi_potezi: potezi,
+    obuhvat: input.obuhvat,
   };
 }
 
@@ -1117,6 +1134,8 @@ export interface KonkurentIzvjestaj {
   sponzorisano: { broj: number; premium: number; procenat: number };
   akcije: { broj: number; procenat: number };
   obnove: { median_dana_od_obnove: number | null; obnovljeno_u_48h: number; procenat_48h: number };
+  // Izvjestaj vrijedi samo za ovaj dio kataloga; nepotpun uzorak se mora vidjeti u izlazu.
+  obuhvat: Obuhvat;
 }
 
 export function konkurentIzvjestaj(
@@ -1124,6 +1143,7 @@ export function konkurentIzvjestaj(
   aktivni: ListingSummary[],
   zavrsenoUkupno: number | null,
   sadaTs: number,
+  obuhvat: Obuhvat,
 ): KonkurentIzvjestaj {
   const daniOdObnove = aktivni
     .map((o) => danaOd(o.date, sadaTs))
@@ -1150,6 +1170,7 @@ export function konkurentIzvjestaj(
       obnovljeno_u_48h: u48h,
       procenat_48h: aktivni.length === 0 ? 0 : zaokruzi((u48h / aktivni.length) * 100),
     },
+    obuhvat,
   };
 }
 
