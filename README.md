@@ -203,7 +203,7 @@ claude
 Windows PowerShell ekvivalenti: `copy .env.example .env`, `$env:OLX_TOKEN="tvoj_token"` za
 tekucu sesiju (trajno: `setx OLX_TOKEN "tvoj_token"` pa NOV terminal).
 
-Pri prvom otvaranju Claude Code pita da odobriš projektni MCP server `olx-pik`. Potvrdi, pa provjeri sa `/mcp`. Server preuzima `OLX_TOKEN` iz tvog okruzenja preko `${OLX_TOKEN:-}` u `.mcp.json` (prazan default ako varijabla nije postavljena).
+Pri prvom otvaranju Claude Code pita da odobriš projektni MCP server `olx-pik`. Potvrdi, pa provjeri sa `/mcp`. Server preuzima `OLX_BASE_URL` iz `.mcp.json`, a `OLX_TOKEN` iz `.env` fajla klona ili iz okruženja procesa.
 
 Alternativa bez `.mcp.json` (registracija samo za tebe, token ostaje lokalno):
 

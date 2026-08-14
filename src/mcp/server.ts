@@ -1180,7 +1180,7 @@ server.registerTool(
   {
     title: "Alarmi naloga",
     description:
-      "Brza provjera naloga (4 API poziva): paket pri isteku, saldo kredita ispod praga, slabo iskoristena kvota obnova pred resetom, istekli oglasi za reaktivaciju, popunjenost limita objave po grupama kategorija. Reset kvote ide po ciklusu pretplate, ne po kalendarskom mjesecu. Alarmi 'paket' i 'objava_limit' nose polje nivo (info, upozorenje, hitno) da se zna sta gori a sta samo tinja; ostali alarmi su binarni i nemaju nivo. Vraca ok: true kad je sve cisto. Pragovi su podesivi.",
+      "Brza provjera naloga (4 API poziva): paket pri isteku, saldo kredita ispod praga, slabo iskoristena kvota obnova pred resetom, istekli oglasi za reaktivaciju, popunjenost limita objave po grupama kategorija. Reset kvote ide po ciklusu pretplate, ne po kalendarskom mjesecu. Alarmi 'paket' i 'objava_limit' nose polje nivo (info, upozorenje, hitno) da se zna sta gori a sta samo tinja; ostali alarmi su binarni i nemaju nivo. Vraca ok: true kad je sve cisto. Samo dva praga se mogu postaviti.",
     inputSchema: {
       krediti_min: z.number().int().min(0).optional().describe("prag salda kredita, default 500"),
       paket_dana: z
