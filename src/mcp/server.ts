@@ -1043,7 +1043,12 @@ server.registerTool(
   (args) =>
     run(async (c) => {
       const zadnji = args.bez_snapshota ? null : (ucitajSnapshote().at(-1) ?? null);
-      const rezultat = await c.statsOnboarding(zadnji ? { oglasi: zadnji.oglasi, ts: zadnji.ts } : undefined);
+      // MCP zid je 300000 ms; razgovor ceka odgovor, pa se prelistavanje ogranicava grupnim
+      // budzetom. CLI (src/cli/index.ts) isti poziv radi bez budzeta, jer tamo niko ne ceka.
+      const rezultat = await c.statsOnboarding(
+        zadnji ? { oglasi: zadnji.oglasi, ts: zadnji.ts } : undefined,
+        { budzetMs: config.budzetListeGrupniMs },
+      );
       if (args.format === "markdown") return onboardingMarkdown(rezultat.izvjestaj);
       if (args.format === "telegram") return onboardingTelegram(rezultat.izvjestaj);
       return zadnji
@@ -1073,7 +1078,12 @@ server.registerTool(
         const snapshoti = ucitajSnapshote();
         const zadnji = snapshoti[snapshoti.length - 1];
         if (!zadnji) {
-          return c.statsProfil().then((r) => ({ ...r, napomena: "Nema snapshota u .olx-pik/snapshots; pokreni CLI 'stats snapshot'. Vracena statistika bez pregleda." }));
+          // Isti razlog kao kod onboarding izvjestaja: MCP zid je 300000 ms, pa razgovorni poziv
+          // dobija grupni budzet umjesto neogranicenog prelistavanja. CLI ovaj poziv radi bez
+          // budzeta.
+          return c
+            .statsProfil({ budzetMs: config.budzetListeGrupniMs })
+            .then((r) => ({ ...r, napomena: "Nema snapshota u .olx-pik/snapshots; pokreni CLI 'stats snapshot'. Vracena statistika bez pregleda." }));
         }
         const pregledi: OglasPregledi[] = zadnji.oglasi.map((o) => ({
           id: o.id,
@@ -1082,10 +1092,10 @@ server.registerTool(
           questions: o.questions,
           created_at: o.created_at,
         }));
-        const r = await c.statsProfil({ pregledi });
+        const r = await c.statsProfil({ pregledi, budzetMs: config.budzetListeGrupniMs });
         return { ...r, snapshot_ts: zadnji.ts };
       }
-      return c.statsProfil({ viewsMode: args.views, sampleVelicina: args.sample_size });
+      return c.statsProfil({ viewsMode: args.views, sampleVelicina: args.sample_size, budzetMs: config.budzetListeGrupniMs });
     }),
 );
 
@@ -1607,17 +1617,31 @@ server.registerTool(
   (args) =>
     run(async (c) => {
       const user = await c.resolveUsername();
-      const aktivni = await c.listAllActive(user, { budzetMs: config.budzetListeMs });
+      // `broj_oglasa` je najvise 60, pa nema smisla prelistati cijeli katalog da bi se poslije
+      // zadrzalo samo prvih 60: `maxStranica` staje cim ima dovoljno stranica za trazeni uzorak
+      // (+1 stranica rezerve zbog moguce paginacije preklapanja). Time citanje 3000 oglasa (150
+      // stranica) pada na svega par stranica.
+      const aktivni = await c.listAllActive(user, {
+        budzetMs: config.budzetListeMs,
+        maxStranica: Math.ceil(args.broj_oglasa / 20) + 1,
+      });
       const uzorak = aktivni.oglasi.slice(0, args.broj_oglasa);
       const opisi: string[] = [];
       for (const o of uzorak) {
         const puni = await c.getListing(o.id);
         opisi.push(String((puni.additional as { description?: unknown } | null)?.description ?? ""));
       }
+      // Namjerno mali uzorak (maxStranica ogranicen gore) inace uzrokuje potpuno:false sa
+      // razlog:"osigurac", jer je trazeno stranica > maxStranica. To NIJE greska niti nepotpuno
+      // citanje kataloga: uzorak je tacno onoliki koliko je trazen. Zato se ovdje ne prijavljuje
+      // `obuhvat` (koji bi sugerisao problem), nego samo jasna napomena da je uzet uzorak.
+      // `oglasa_ukupno` ostaje tacan (meta.total sa prve stranice) bez obzira na velicinu uzorka.
+      // Broj umjesto zastavice: `uzorkovano_oglasa` govori i da je uzorak i koliki je, pa se iz
+      // odgovora vidi na cemu ponavljanje pociva, a polje ne kosta vise od gole zastavice.
       return {
         ...nadjiSablon(opisi, { minPojava: args.min_pojava }),
         oglasa_ukupno: aktivni.ukupno ?? aktivni.oglasi.length,
-        ...(aktivni.potpuno ? {} : { obuhvat: obuhvatIz(aktivni) }),
+        uzorkovano_oglasa: uzorak.length,
       };
     }),
 );
