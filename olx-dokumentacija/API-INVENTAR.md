@@ -148,11 +148,11 @@ Gdje korisnik generise token: u repozitoriju nema URL-a ni ekrana na kojem se to
 
 ### Throttle, retry i timeout
 
-- Throttle: minimalni razmak izmedju dva zahtjeva, default 350 ms, iz `OLX_MIN_REQUEST_INTERVAL_MS` (`core/config.ts:44`, primjena u `core/index.ts:99` do `:97`, poziva se prije svakog pokusaja u `core/index.ts:147`).
-- Retry: default 4 pokusaja, iz `OLX_MAX_RETRIES` (`core/config.ts:45`). Ponavlja se na 429 uvijek, a na 5xx i na mrezne greske samo kad je poziv idempotentan (`core/index.ts:168` i `:185`).
+- Throttle: minimalni razmak izmedju dva zahtjeva, default 350 ms, iz `OLX_MIN_REQUEST_INTERVAL_MS` (`core/config.ts:126`, primjena u `core/index.ts:199` do `:203`, poziva se prije svakog pokusaja u `core/index.ts:271`).
+- Retry: default 4 pokusaja, iz `OLX_MAX_RETRIES` (`core/config.ts:127`). Ponavlja se na 429 uvijek, a na 5xx i na mrezne greske samo kad je poziv idempotentan (`core/index.ts:300` i `:352`).
 - Iskljucen retry: `POST /listings/:id/sponsore`, `POST /listings/:id/discount` i `POST /listings` idu sa `retryOnServerError: false` (`core/index.ts:267`, `:536`, `:548`), jer je server mogao izvrsiti radnju pa pasti na odgovoru: ponavljanje bi znacilo dvostruku naplatu ili duplikat oglasa.
 - Backoff: eksponencijalni `2^pokusaj * 250 ms`, ogranicen na 8000 ms, plus do 200 ms slucajnog jittera (`core/index.ts:170` i `:178`).
-- Timeout: default 20000 ms po zahtjevu, iz `OLX_TIMEOUT_MS`, realizovan preko `AbortController` (`core/config.ts:46`, `core/index.ts:149` i `:144`).
+- Timeout: default 20000 ms po zahtjevu, iz `OLX_TIMEOUT_MS`, realizovan preko `AbortController` (`core/config.ts:128`, `core/index.ts:277` i `:278`).
 - Stvarni rate limiti API-ja su nepoznati. Dokumentacija to izricito navodi kao neprovjereno (`olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md:224`).
 
 ### Limiti koje vraca ili namece API

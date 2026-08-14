@@ -595,12 +595,17 @@ stranica:
   stranica koji bi inace petlju vrtio beskonacno. Ne mjeri brzinu niti pokusava predvidjeti
   velicinu kataloga, samo postavlja plafon namjerno iznad svakog realnog kataloga, da se u
   normalnom radu nikad ne aktivira.
-- **Budzet vremena** (`OLX_BUDZET_LISTE_MS`, `OLX_BUDZET_LISTE_GRUPNI_MS`) staje kad prelistavanje
-  potrosi previse VREMENA, bez obzira koliko je stranica procitano. Razlog zasto ovo ne moze biti
-  isti broj kao osigurac: broj stranica ne zna nista o retry pokusajima, o throttleu izmedju
-  zahtjeva, ni o tome da je API tog dana spor. Vrijeme je jedina mjera koja sve to hvata.
+- **Budzet vremena** (`OLX_BUDZET_LISTE_MS`, `OLX_BUDZET_LISTE_GRUPNI_MS`,
+  `OLX_BUDZET_LISTE_KONKURENT_MS`) staje kad prelistavanje potrosi previse VREMENA, bez obzira
+  koliko je stranica procitano. Razlog zasto ovo ne moze biti isti broj kao osigurac: broj
+  stranica ne zna nista o retry pokusajima, o throttleu izmedju zahtjeva, ni o tome da je API tog
+  dana spor. Vrijeme je jedina mjera koja sve to hvata. `OLX_BUDZET_LISTE_KONKURENT_MS` ima
+  namjerno kraci budzet od razgovornog: obilazak tudjeg shopa (`statsKonkurent`) cita kandidate
+  serijski, jednog po jednog, kroz cijeli Excel spisak, pa dugo prelistavanje po jednom kandidatu
+  zaustavlja sve iza njega u redu. Bolje je posteno reci da je uzorak nepotpun nego drzati ostale
+  kandidate da cekaju.
 
-Konkretne vrijednosti (`5000` / `20000` / `120000` / `500`) i njihovo objasnjenje zive u
+Konkretne vrijednosti (`5000` / `75000` / `120000` / `20000` / `500`) i njihovo objasnjenje zive u
 `.env.example`, sekcija "CITANJE KATALOGA: OSIGURAC I BUDZETI" — jedan izvor istine, ovdje se ne
 ponavljaju.
 
