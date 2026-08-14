@@ -289,5 +289,10 @@ Izvori znanja (jedan izvor istine, ne duplirati brojeve po skillovima):
 - `olx-dokumentacija/OLX_PIK_AI_Knowledgebase.md` — pravila platforme, paketi, kvote, pretraga.
 - `olx-dokumentacija/API-INVENTAR.md` — svi MCP alati, parametri, rupe u API-ju.
 - `olx-dokumentacija/PIK-pomoc-korpus/` — 52 zvanicna clanka podrske (pomoc.olx.ba).
+- `olx-dokumentacija/sta-sistem-radi.md` — sta sistem radi, obicnim jezikom i bez imena alata. Pise se rukom i cita minut prije razgovora sa klijentom.
+- `olx-dokumentacija/mogucnosti.md` — potpun tehnicki popis: alati, resursi, CLI komande, zakazani poslovi, postavke, skillovi i podagenti. GENERISAN iz koda, ne uredjuje se rukom.
+- `olx-dokumentacija/mogucnosti.html` — isti sadrzaj kao stranica, sa pretragom i prekidacem profila. GENERISAN iz koda, ne uredjuje se rukom.
+
+Oba generisana fajla pravi `node scripts/popis-mogucnosti.mjs`, a `npm test` pada kad zaostanu za kodom.
 
 `PLAN.md` je arhiviran handoff iz faze prije builda; stvarno stanje opisuju README i API-INVENTAR.

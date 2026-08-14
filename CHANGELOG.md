@@ -10,6 +10,34 @@ sekcija 7.
 
 ## Nije izdano
 
+**Popis mogucnosti se od sada generise iz koda, ne pise rukom.** Povod je mjerenje: kod je citao
+86 varijabli okruzenja a `.env.example` ih je opisivao 66, uz pet tvrdnji u dokumentaciji koje su
+bile netacne. Rucni popis je vec bio zaostao, i to tiho, pa je popravka rucnog popisa lijecila
+simptom. `node scripts/popis-mogucnosti.mjs` cita stvarno stanje repoa (registracije alata i
+resursa, stablo CLI komandi, `loadConfig`, sablone zakazanih poslova, skillove i podagente) i
+upisuje `olx-dokumentacija/mogucnosti.md` i `mogucnosti.html`. Ta dva fajla se ne uredjuju rukom.
+
+Uz njih stoji `olx-dokumentacija/sta-sistem-radi.md`, jedini rucno pisan dio: kratke recenice
+obicnim jezikom, bez ijednog imena alata, za razgovor sa klijentom. Svaka tema nosi skriven spisak
+sposobnosti koje pokriva.
+
+**Srz posla nije popis nego test.** `scripts/lib/popis.test.mjs` sastavi popis iz koda i uporedi
+ga sa onim na disku, pa pada kad se razidju. Isti test trazi da svaka sposobnost iz koda pripada
+tacno jednoj temi rucne liste, pa nov alat kosta jedno ime u spisku, a stvarno nova sposobnost
+jednu recenicu. Test cita samo fajlove repoa i `dist/`, jer `npm test` visi i na azuriranju
+klijentskog klona.
+
+Uz to se provjerava parnost zakazanih poslova: svaki `KLIJENT` posao mora imati zadatak istog
+imena u Windows instalaciji. To je prvi put da se pravilo iz `.claude/rules/pogon.md` uopste
+provjerava. `ADMIN` poslovi su izuzeti jer blizance nemaju i admin masina na Windowsu nije
+podrzana; popis to izricito pise umjesto da se otkriva.
+
+**MCP server i CLI se vise ne pokrecu samim uvozom modula**, nego samo kad su ulazna tacka
+procesa (poredjenje `import.meta.url` sa `process.argv[1]`). Bez toga bi generator morao pokretati
+server i pricati sa njim preko stdio da bi dosao do spiska alata, sto je krhko. Usput je
+popravljeno i to da `scripts/kontekst-izvjestaj.mjs` na prekoracen rok baca gresku umjesto da vrati
+praznu listu: tiha nula tamo znaci da rast konteksta prodje neopazeno.
+
 Uklonjen tihi rez na 1000 oglasa u prelistavanju kataloga (`listAllByState`/`listAllActive`):
 umjesto goleg niza koji tiho staje na 50 stranica, sada vracaju `SviOglasi { oglasi, potpuno,
 ukupno, procitanoStranica, stranicaUkupno, razlog }`. Dva nezavisna ogranicenja umjesto jednog
