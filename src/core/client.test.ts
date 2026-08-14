@@ -74,6 +74,7 @@ function testConfig(overrides: Partial<OlxConfig> = {}): OlxConfig {
     maxStranicaListe: 5000,
     budzetListeMs: 20000,
     budzetListeGrupniMs: 120000,
+    maxOglasaUOdgovoru: 500,
     ...overrides,
   };
 }

@@ -448,7 +448,7 @@ server.registerTool(
   {
     title: "Lista oglasa",
     description:
-      "Lista oglasa po stanju, svojih ili tudjih. Po stranici vraca kompaktne stavke, a all vraca cijeli katalog kao CSV sa zaglavljem (ista polja, 60% manje tokena). all i full se ne mogu kombinovati. Filteri category_id, price_min i price_max suzavaju rezultat u kodu i sluze da se iz kataloga od stotina artikala izvuce spisak ID-eva za grupne alate (olx_bulk_sklanjanje, olx_bulk_price, olx_izuzeca) bez rucnog prebiranja; sa all: true filter vazi nad cijelim katalogom, bez njega samo nad trazenom stranicom.",
+      "Lista oglasa po stanju, svojih ili tudjih. Po stranici vraca kompaktne stavke, a all vraca cijeli katalog kao CSV sa zaglavljem (ista polja, 60% manje tokena). all i full se ne mogu kombinovati. Filteri category_id, price_min i price_max suzavaju rezultat u kodu i sluze da se iz kataloga od stotina artikala izvuce spisak ID-eva za grupne alate (olx_bulk_sklanjanje, olx_bulk_price, olx_izuzeca) bez rucnog prebiranja; sa all: true filter vazi nad cijelim katalogom, bez njega samo nad trazenom stranicom. Veliki katalog (all bez filtera) radije provjeri kroz olx_profile_stats ili suzi filterom, jer alat odbija da vrati previse redova odjednom.",
     inputSchema: {
       state: z.enum(["active", "finished", "inactive", "expired", "hidden"]).default("active"),
       user: z.string().optional().describe("username ili id; default je ulogovani korisnik"),
@@ -499,10 +499,27 @@ server.registerTool(
         // Cijeli katalog ide kao CSV, ne kao niz objekata: imena polja ponovljena po oglasu su
         // vise od pola payloada, a CSV nosi ista polja uz 60% manje tokena (izmjereno, vidi
         // kompaktCsv). Na jednoj stranici razlika je mala pa tamo ostaje JSON.
-        const sve = await c.listAllByState(args.state, user);
-        if (!filterZadan) return { csv: kompaktCsv(sve), ukupno: sve.length };
-        const suzeno = filtriraj(sve);
-        return { csv: kompaktCsv(suzeno), ukupno: suzeno.length, od_ukupno: sve.length };
+        const sve = await c.listAllByState(args.state, user, { budzetMs: config.budzetListeMs });
+        const suzeno = filterZadan ? filtriraj(sve.oglasi) : sve.oglasi;
+        // Provjera praga ide nad brojem koji STVARNO ide u odgovor: ako je filter zadan, to je
+        // suzeno, a ne cijela nepotpuna/potpuna lista procitana sa API-ja.
+        if (suzeno.length > config.maxOglasaUOdgovoru) {
+          return {
+            odbijeno: true,
+            razlog: "prevelik_odgovor",
+            broj: suzeno.length,
+            prag: config.maxOglasaUOdgovoru,
+            uputa:
+              `Odgovor bi nosio ${suzeno.length} oglasa, sto premasuje prag od ${config.maxOglasaUOdgovoru}. ` +
+              "Za brojke o katalogu koristi olx_profile_stats, za manji zahvat suzi sa category_id ili price_min/price_max, " +
+              "ili pozovi ovaj alat ponovo sa uzim filterom.",
+          };
+        }
+        const rezultat: Record<string, unknown> = filterZadan
+          ? { csv: kompaktCsv(suzeno), ukupno: suzeno.length, od_ukupno: sve.oglasi.length }
+          : { csv: kompaktCsv(suzeno), ukupno: suzeno.length };
+        if (!sve.potpuno) rezultat.obuhvat = obuhvatIz(sve);
+        return rezultat;
       }
       const stranica =
         args.state === "active"
@@ -629,6 +646,7 @@ server.registerTool(
       const user = await c.resolveUsername();
 
       let kandidati: PlanKandidat[];
+      let obuhvat: ReturnType<typeof obuhvatIz> | undefined;
       if (args.oglasi && args.oglasi.length > 0) {
         kandidati = [];
         for (const id of args.oglasi) {
@@ -638,9 +656,12 @@ server.registerTool(
       } else {
         // Automatski odabir preskace oglase koje je vlasnik izuzeo od izdvajanja. Kad ID-eve
         // navede sam (grana iznad), to je izricita zelja i izuzece se ne primjenjuje.
-        const aktivni = await c.listAllActive(user);
+        // Nepotpuna lista ovdje ne pravi pogresno stanje (izdvajanje ionako trazi zasebnu
+        // potvrdu i cijenu po oglasu), samo bi mogla izabrati druge kandidate, pa se ne odbija.
+        const aktivni = await c.listAllActive(user, { budzetMs: config.budzetListeMs });
+        if (!aktivni.potpuno) obuhvat = obuhvatIz(aktivni);
         const { prolaze } = odvojiIzuzete(
-          aktivni.filter((l) => !l.sponsored),
+          aktivni.oglasi.filter((l) => !l.sponsored),
           ucitajIzuzeca(),
           "izdvajanje",
         );
@@ -688,6 +709,7 @@ server.registerTool(
           cijena: t.cijena,
         })),
         ...(bez_cijene.length > 0 ? { bez_cijene } : {}),
+        ...(obuhvat ? { obuhvat } : {}),
         sacuvan: Boolean(args.sacuvaj),
         napomena: "Nista nije naplaceno. Pojedinacni termin se izvrsava kroz olx_sponsor_listing uz potvrdu.",
       };
@@ -1153,12 +1175,26 @@ server.registerTool(
   (args) =>
     run(async (c) => {
       const user = await c.resolveUsername();
-      const oglasi = await c.listAllByState(args.state, user);
+      const svi = await c.listAllByState(args.state, user, { budzetMs: config.budzetListeMs });
       const pogodci = nadjiPoUpitu(
         args.upit,
-        oglasi.map((o) => ({ id: o.id, title: o.title, price: typeof o.price === "number" ? o.price : undefined })),
+        svi.oglasi.map((o) => ({ id: o.id, title: o.title, price: typeof o.price === "number" ? o.price : undefined })),
         args.limit,
       );
+      // "Nema pogodaka" nad nepotpunim katalogom je negativan zakljucak iz nepotpunog skupa,
+      // isti razred greske kao lazan spisak "nisu aktivni" u olx_bulk_sklanjanje. Ne tvrdi se da
+      // oglas ne postoji, nego se odbija sa jasnim razlogom.
+      if (pogodci.length === 0 && !svi.potpuno) {
+        const obuhvat = obuhvatIz(svi);
+        return {
+          odbijeno: true,
+          razlog: "nepotpun_katalog",
+          obuhvat,
+          uputa:
+            `Oglas nije nadjen u dijelu kataloga koji je procitan (${obuhvat.procitano} od ${obuhvat.ukupno ?? "nepoznato"} oglasa, razlog: ${svi.razlog ?? "nepoznat"}). ` +
+            "Katalog nije procitan u cijelosti, pa se ne moze tvrditi da oglas ne postoji. Suzi upit ili pokusaj ponovo.",
+        };
+      }
       // Napomena ide u REZULTAT namjerno: opis alata slabiji model zna preskociti, a ovo
       // procita uz svaki odgovor. Prag 0.35 samo mijenja formulaciju, nista ne filtrira
       // (zasto alat nema apsolutni prag: match.test.ts, test o pragovima).
@@ -1166,7 +1202,13 @@ server.registerTool(
       const napomena =
         (najbolji < 0.35 ? `Najbolji skor je svega ${najbolji}: ovo su kandidati, ne nalaz. ` : "") +
         "Pretraga poredi rijeci naslova, pa artikli drugacijeg imena (npr. samo model) nisu obuhvaceni; za potpun popis grupe koristi olx_list_listings all:true pa sam odaberi.";
-      return { upit: args.upit, pretrazeno: oglasi.length, pogodci, napomena };
+      return {
+        upit: args.upit,
+        pretrazeno: svi.oglasi.length,
+        pogodci,
+        napomena,
+        ...(svi.potpuno ? {} : { obuhvat: obuhvatIz(svi) }),
+      };
     }),
 );
 
@@ -1552,14 +1594,18 @@ server.registerTool(
   (args) =>
     run(async (c) => {
       const user = await c.resolveUsername();
-      const aktivni = await c.listAllActive(user);
-      const uzorak = aktivni.slice(0, args.broj_oglasa);
+      const aktivni = await c.listAllActive(user, { budzetMs: config.budzetListeMs });
+      const uzorak = aktivni.oglasi.slice(0, args.broj_oglasa);
       const opisi: string[] = [];
       for (const o of uzorak) {
         const puni = await c.getListing(o.id);
         opisi.push(String((puni.additional as { description?: unknown } | null)?.description ?? ""));
       }
-      return { ...nadjiSablon(opisi, { minPojava: args.min_pojava }), oglasa_ukupno: aktivni.length };
+      return {
+        ...nadjiSablon(opisi, { minPojava: args.min_pojava }),
+        oglasa_ukupno: aktivni.ukupno ?? aktivni.oglasi.length,
+        ...(aktivni.potpuno ? {} : { obuhvat: obuhvatIz(aktivni) }),
+      };
     }),
 );
 

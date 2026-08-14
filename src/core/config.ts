@@ -52,6 +52,14 @@ export interface OlxConfig {
   // Budzet vremena za grupne radnje koje se rade uz izricitu potvrdu, gdje je potpunost liste
   // preduslov ispravnosti.
   budzetListeGrupniMs: number;
+  /**
+   * Prag broja oglasa iznad kojeg `olx_list_listings` u grani `all` odbija da vrati CSV umjesto
+   * da ga tiho sijece (deepseek-nalazi.md, tabela oko linije 110). Izmjereno: 120 oglasa u
+   * kompaktnom obliku je 6.135 tokena, a CSV je oko 60% jeftiniji, dakle otprilike 20 tokena po
+   * oglasu. 500 oglasa je time oko 10.000 tokena, cetvrtina do trecina cijelog prefiksa jedne
+   * sesije (danas oko 34.000 do 40.000 tokena) za JEDAN odgovor jednog alata.
+   */
+  maxOglasaUOdgovoru: number;
 }
 
 function num(value: string | undefined, fallback: number): number {
@@ -119,6 +127,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): OlxConfig {
     maxStranicaListe: num(env.OLX_MAX_STRANICA_LISTE, 5000),
     budzetListeMs: num(env.OLX_BUDZET_LISTE_MS, 20000),
     budzetListeGrupniMs: num(env.OLX_BUDZET_LISTE_GRUPNI_MS, 120000),
+    maxOglasaUOdgovoru: num(env.OLX_MAX_OGLASA_U_ODGOVORU, 500),
   };
 }
 
