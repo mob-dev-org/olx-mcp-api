@@ -9,7 +9,8 @@ Ovo je detaljni vodic koji dopunjava SKILL.md. Procitaj ga kad radis kompletnu a
   neobnovljeni oglasi. `views: "snapshot"` dodaje preglede iz danasnjeg
   snapshota bez dodatnih poziva; `views: "sample"` ih mjeri na uzorku.
 - `olx_list_listings` state=active, all=true -> spisak naslova za SEO prolaz (kompaktan default
-  je dovoljan: id, naslov, cijena, sponsored, date, refresh_available).
+  je dovoljan: id, naslov, cijena, sponsored, date, refresh_available). Velik katalog stize u
+  komadima, pa kad odgovor javi da ima jos, uzmi sljedeci po uputi iz odgovora.
 - Za svaki oglas koji detaljnije gledas `olx_listing_report <id>` -> izracunato: pregledi
   ukupno i DNEVNO, pitanja, dana od obnove, broj slika, popunjeni atributi, duzina naslova.
   `olx_get_listing` (kompaktan) tek kad treba sam sadrzaj naslova/podnaslova/opisa.

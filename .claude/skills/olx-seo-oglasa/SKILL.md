@@ -33,6 +33,8 @@ Pravila nisu prepisana u ovom fajlu. Zive u:
 
 1. `olx_whoami` — potvrdi nalog i prijavi ga korisniku.
 2. `olx_list_listings` sa `state: active`, `all: true` — cijeli aktivni katalog (id, naslov, cijena).
+   Velik katalog stize u komadima: kad odgovor javi da ima jos, uzmi sljedeci po uputi iz odgovora
+   prije nego krenes ocjenjivati, da prolaz ne ostane na prvom komadu.
 3. Za oglase koje ocjenjujes detaljno pozovi `olx_get_listing <id>`: treba ti `short_description`
    (podnaslov) i `additional.description` (opis), jer ih lista ne vraca. Kod velikih kataloga
    prvo ocijeni naslove iz liste, pa detalje vuci samo za oglase koji idu u izvjestaj.
