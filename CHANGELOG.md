@@ -61,6 +61,40 @@ swap masine, i dogadjaje starta, pada i budjenja iz straze (sa trajanjem hladnog
   `dijagnostika` daju vlasniku flote uvid u trosak resursa i sta poboljsati.
 - Nikad ne ide u backup stanja (crni spisak).
 
+## 0.14.0 — 2026-08-14
+
+Minor: admin moze danas povecati dnevni limit generisanja slika bez diranja .env.
+
+- **Jednodnevni override dnevnog limita slika.** Novi alat `olx_limit_slika` (SAMO_ADMIN) upise
+  povisen limit koji vazi ISKLJUCIVO za danasnji dan; sutra se automatski vraca na
+  `OLX_SLIKA_MAX_DNEVNO`/fallback 10, bez rucnog ciscenja. Postoji jer admin bot sesija namjerno
+  nema Write/Edit/Bash ni Read na `.env*` fajlove (zastita tokena), pa do sada nije bilo naina da
+  se plafon podigne "za danas" bez rucne izmjene fajla na masini.
+- Poruka greske kad se plafon dostigne sad kaze tacno kako se limit mijenja: `olx_limit_slika`
+  za danasnji bump, `OLX_SLIKA_MAX_DNEVNO` u `.env` za trajnu promjenu.
+
+## 0.13.0 — 2026-08-13
+
+Minor: kvota za nove objave se racuna automatski, alarm za istek paketa eskalira, i novi opseg
+`objava` daje klijentu nacin da odluci prioritet kad katalog udari u limit kategorije. Uz to,
+jutarnji posao (`posao dnevni`, `stats snapshot`) prvi put ima integracione testove. Prate ga
+`docs/stories/1.1.*` i `docs/stories/1.2.*`.
+
+- **Integracioni testovi za jutarnji posao**: `posao dnevni` i `stats snapshot` orkestracija u
+  `src/cli/index.ts` (1912 linija, do sada bez ijednog testa) dobila je pokrivenost preko
+  subprocess testova (`scripts/lib/posao-dnevni.test.mjs`, `stats-snapshot.test.mjs`) i round-trip
+  test za `src/core/snapshoti.ts`. Racunski sloj (`stats.ts`, `izvjestaj.ts`) je vec bio testiran
+  i ostaje netaknut.
+- **Kvota objave, eskalacija alarma, prioritet objave za velike kataloge**: `olx_profile_stats`
+  sada racuna `objava_limit` (koliko NOVIH artikala jos staje po grupi kategorija, analogno
+  kvoti obnova) i `objava_kandidati_predlog` kad je grupa blizu/na limitu. Alarm za istek paketa
+  eskalira na tri nivoa (info/upozorenje/hitno, 30/14/3 dana) umjesto jednog praga, uz novi alarm
+  `objava_limit`. `olx_izuzeca` dobija treci opseg `objava` (uz `obnova`/`izdvajanje`) da klijent
+  oznaci prioritet kad katalog udari u limit — namjerno izolovan od dnevne obnove, nikad ne
+  blokira obnovu tiho. `olx_list_listings` dobija filtere `category_id`/`price_min`/`price_max`
+  za selekciju vise oglasa bez rucnog pregleda stotina artikala. Cijena: MCP seme +413 tokena
+  (+4.2%), mjereno `npm run kontekst`.
+
 ## 0.12.2 — 2026-08-04
 
 Patch: put slike ide iskljucivo na Gemini, najjeftiniji modeli su default svugdje.

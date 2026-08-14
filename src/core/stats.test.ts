@@ -15,6 +15,7 @@ import {
   kompaktListing,
   dnevniPlanObnova,
   izracunajNoveCijene,
+  limitObjave,
   median,
   mrtviOglasi,
   oglasIzvjestaj,
@@ -992,4 +993,140 @@ test("dnevniPlanObnova ne obnavlja nista dok klijent ne kaze svoj ritam", () => 
   const odlucio = dnevniPlanObnova({ ...ulaz, ritam: { strategija: "ravnomjerno", kada: "2026-08-01T00:00:00.000Z" } });
   assert.equal(odlucio.obnove_stanje, "auto");
   assert.ok(odlucio.za_obnovu > 0, "sa odlukom obnove rade kao i prije");
+});
+
+test("limitObjave cita omotan i goli oblik jednako i racuna status po pragu", () => {
+  const goli = {
+    cars: { limit: 0, unlimited: true, listings: 0 },
+    "real-estate": { limit: 0, unlimited: true, listings: 0 },
+    "car-parts": { limit: 2000, unlimited: false, listings: 0 },
+    other: { limit: 2000, unlimited: false, listings: 140 },
+  };
+  const omotan = { data: goli };
+
+  const izGolog = limitObjave(goli);
+  const izOmotanog = limitObjave(omotan);
+  assert.deepEqual(izGolog, izOmotanog, "omotan i goli oblik daju isto");
+
+  // Abecedno sortiranje: car-parts, cars, other, real-estate.
+  assert.deepEqual(izGolog.map((g) => g.grupa), ["car-parts", "cars", "other", "real-estate"]);
+
+  const cars = izGolog.find((g) => g.grupa === "cars");
+  assert.equal(cars?.unlimited, true);
+  assert.equal(cars?.preostalo, null);
+  assert.equal(cars?.iskoristeno_procenat, null);
+  assert.equal(cars?.status, "slobodno");
+
+  const other = izGolog.find((g) => g.grupa === "other");
+  assert.equal(other?.iskoristeno_procenat, 7, "140/2000 = 7%");
+  assert.equal(other?.status, "slobodno");
+
+  const carParts = izGolog.find((g) => g.grupa === "car-parts");
+  assert.equal(carParts?.status, "slobodno", "0/2000 je daleko od praga");
+  assert.equal(carParts?.preostalo, 2000);
+});
+
+test("limitObjave: limit 0 i unlimited false je nepoznat limit, ne dostignut", () => {
+  const nepoznat = limitObjave({ x: { limit: 0, unlimited: false, listings: 5 } });
+  assert.equal(nepoznat[0]?.status, "slobodno");
+  assert.equal(nepoznat[0]?.preostalo, null);
+  assert.equal(nepoznat[0]?.iskoristeno_procenat, null);
+});
+
+test("limitObjave prepoznaje blizu_limita na granici i preko, i dostignut", () => {
+  const tacnoGranica = limitObjave({ x: { limit: 100, unlimited: false, listings: 90 } });
+  assert.equal(tacnoGranica[0]?.status, "blizu_limita", "tacno 90% je vec blizu_limita");
+
+  const iznadGranice = limitObjave({ x: { limit: 100, unlimited: false, listings: 95 } });
+  assert.equal(iznadGranice[0]?.status, "blizu_limita");
+
+  const dostignuto = limitObjave({ x: { limit: 100, unlimited: false, listings: 100 } });
+  assert.equal(dostignuto[0]?.status, "dostignut");
+  assert.equal(dostignuto[0]?.preostalo, 0);
+
+  const preko = limitObjave({ x: { limit: 100, unlimited: false, listings: 110 } });
+  assert.equal(preko[0]?.status, "dostignut");
+  assert.equal(preko[0]?.preostalo, 0, "preostalo se ne spusta ispod nule");
+});
+
+test("limitObjave vraca prazan niz na neupotrebljiv ulaz", () => {
+  assert.deepEqual(limitObjave(undefined), []);
+  assert.deepEqual(limitObjave(null), []);
+  assert.deepEqual(limitObjave(42), []);
+  assert.deepEqual(limitObjave({}), []);
+});
+
+test("profilStatistika: objava_limit je prazan bez listingLimits, a kandidati_predlog izostaje kad je sve slobodno", () => {
+  const aktivni = [oglas({ id: 1 })];
+  const s = profilStatistika({
+    me: me(),
+    refreshLimits: limits(),
+    aktivni,
+    ukupno: { istekli: 0, skriveni: 0, neaktivni: 0, zavrseni: 0 },
+    sadaTs: SADA,
+  });
+  assert.deepEqual(s.objava_limit, []);
+  assert.equal(s.objava_kandidati_predlog, undefined);
+});
+
+test("profilStatistika: objava_kandidati_predlog se emituje i jednak je neobnovljeni kad je grupa dostignuta", () => {
+  const aktivni = [
+    oglas({ id: 1, date: SADA - 30 * DAN, title: "najstariji" }),
+    oglas({ id: 2, date: SADA - DAN, title: "svjez" }),
+  ];
+  const listingLimits = { other: { limit: 10, unlimited: false, listings: 10 } };
+  const s = profilStatistika({
+    me: me(),
+    refreshLimits: limits(),
+    aktivni,
+    ukupno: { istekli: 0, skriveni: 0, neaktivni: 0, zavrseni: 0 },
+    sadaTs: SADA,
+    listingLimits,
+  });
+  assert.equal(s.objava_limit[0]?.status, "dostignut");
+  assert.deepEqual(s.objava_kandidati_predlog, s.neobnovljeni);
+});
+
+test("alarmiNaloga: paket ima tri nivoa i stari paketDana mijenja samo srednji", () => {
+  const nivo = (dana: number) =>
+    alarmiNaloga(me({ shop: { package: "Gold", ends_at: SADA + dana * DAN } }), limits(), 0, SADA).alarmi.find(
+      (a) => a.tip === "paket",
+    );
+
+  assert.equal(nivo(40), undefined, "40 dana je ispod svih pragova, nema alarma");
+  assert.equal(nivo(20)?.nivo, "info");
+  assert.equal(nivo(10)?.nivo, "upozorenje");
+  assert.equal(nivo(2)?.nivo, "hitno");
+
+  const istekao = alarmiNaloga(me({ shop: { package: "Gold", ends_at: SADA - 3 * DAN } }), limits(), 0, SADA).alarmi.find(
+    (a) => a.tip === "paket",
+  );
+  assert.equal(istekao?.nivo, "hitno");
+  assert.match(istekao?.poruka ?? "", /je istekao prije 3/);
+
+  // Stari paketDana: 30 proslijedjen -> 20 dana daje "upozorenje" (dokaz da override mijenja
+  // SAMO srednji prag; hitno i info ostaju default 3 i 30).
+  const saStarimParametrom = alarmiNaloga(
+    me({ shop: { package: "Gold", ends_at: SADA + 20 * DAN } }),
+    limits(),
+    0,
+    SADA,
+    { paketDana: 30 },
+  ).alarmi.find((a) => a.tip === "paket");
+  assert.equal(saStarimParametrom?.nivo, "upozorenje");
+});
+
+test("alarmiNaloga: objava_limit alarm nosi nivo po statusu grupe, i izostaje bez listingLimits", () => {
+  const blizu = alarmiNaloga(me(), limits(), 0, SADA, {}, undefined, {
+    other: { limit: 100, unlimited: false, listings: 95 },
+  }).alarmi.find((a) => a.tip === "objava_limit");
+  assert.equal(blizu?.nivo, "upozorenje");
+
+  const dostignut = alarmiNaloga(me(), limits(), 0, SADA, {}, undefined, {
+    other: { limit: 100, unlimited: false, listings: 100 },
+  }).alarmi.find((a) => a.tip === "objava_limit");
+  assert.equal(dostignut?.nivo, "hitno");
+
+  const bezLimita = alarmiNaloga(me(), limits(), 0, SADA).alarmi.find((a) => a.tip === "objava_limit");
+  assert.equal(bezLimita, undefined);
 });

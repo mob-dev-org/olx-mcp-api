@@ -11,11 +11,16 @@
 //
 // Opseg je namjerno odvojen: "ne obnavljaj" i "ne izdvajaj" nisu ista odluka. Artikal se moze
 // obnavljati besplatno a ne trositi kredite na njega.
+//
+// Treci opseg, "objava", je odvojena treca odluka: klijent sa velikim katalogom udari u limit
+// broja oglasa po grupi kategorija koji nalog dobija sa API-ja, pa unaprijed oznaci koji artikli
+// su najnizi prioritet za mjesto u tom limitu. To je samo signal za covjekovu odluku, ne akcija:
+// ne dira obnovu ni izdvajanje, vidi komentar uz polje `objava` nize.
 
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
-export const OPSEZI = ["obnova", "izdvajanje", "sve"] as const;
+export const OPSEZI = ["obnova", "izdvajanje", "objava", "sve"] as const;
 export type Opseg = (typeof OPSEZI)[number];
 
 export interface Izuzece {
@@ -23,6 +28,16 @@ export interface Izuzece {
   obnova: boolean;
   /** ne ulazi u plan izdvajanja */
   izdvajanje: boolean;
+  /**
+   * Najnizi prioritet za mjesto u limitu objave: prvi kandidat da se skloni kad grupa
+   * kategorija udari u limit. Oznaka je signal za covjekovu odluku, ne akcija - ne dira
+   * ni obnovu ni izdvajanje, a stvarno sklanjanje ide kroz olx_bulk_sklanjanje.
+   *
+   * Polje je NAMJERNO opciono, ne obavezno: postojeci `.olx-pik/izuzeca.json` na klonovima
+   * nema to polje, a fajl se cita kroz cast bez validacije, pa bi obavezno polje bilo laz o
+   * zatecenim podacima.
+   */
+  objava?: boolean;
   razlog: string | null;
   kada: string;
 }
@@ -61,6 +76,7 @@ export function saDodatim(izuzeca: Izuzeca, id: number, opseg: Opseg, razlog: st
     [kljuc]: {
       obnova: opseg === "sve" || opseg === "obnova" || Boolean(staro?.obnova),
       izdvajanje: opseg === "sve" || opseg === "izdvajanje" || Boolean(staro?.izdvajanje),
+      objava: opseg === "sve" || opseg === "objava" || Boolean(staro?.objava),
       razlog: razlog ?? staro?.razlog ?? null,
       kada,
     },
@@ -84,8 +100,9 @@ export function bezSklonjenog(izuzeca: Izuzeca, id: number, opseg: Opseg): Izuze
     ...staro,
     obnova: opseg === "obnova" ? false : staro.obnova,
     izdvajanje: opseg === "izdvajanje" ? false : staro.izdvajanje,
+    objava: opseg === "objava" ? false : Boolean(staro.objava),
   };
-  if (!preostalo.obnova && !preostalo.izdvajanje) {
+  if (!preostalo.obnova && !preostalo.izdvajanje && !preostalo.objava) {
     delete novo[kljuc];
     return novo;
   }
@@ -93,13 +110,17 @@ export function bezSklonjenog(izuzeca: Izuzeca, id: number, opseg: Opseg): Izuze
   return novo;
 }
 
-export function jeIzuzet(izuzeca: Izuzeca, id: number, opseg: "obnova" | "izdvajanje"): boolean {
+export function jeIzuzet(izuzeca: Izuzeca, id: number, opseg: "obnova" | "izdvajanje" | "objava"): boolean {
   return Boolean(izuzeca[String(id)]?.[opseg]);
 }
 
 /**
  * Odvoji kandidate na one koji idu dalje i one koje je vlasnik izuzeo.
  * Vraca oba, jer se preskoceni MORAJU prijaviti: tiho preskakanje izgleda kao da obnova ne radi.
+ *
+ * Opseg je namjerno ogranicen na "obnova" | "izdvajanje", bez "objava": oznaka `objava` nikad
+ * ne smije tiho blokirati dnevnu obnovu ili plan izdvajanja, ona nije razlog da se oglas
+ * preskoci u automatskom poslu, nego samo signal za covjekovu odluku o limitu objave.
  */
 export function odvojiIzuzete<T extends { id: number }>(
   kandidati: T[],
@@ -127,12 +148,22 @@ export function preneseno(izuzeca: Izuzeca, stariId: number, noviId: number, kad
   delete novo[String(stariId)];
   if (staro.obnova) novo = saDodatim(novo, noviId, "obnova", staro.razlog, kada);
   if (staro.izdvajanje) novo = saDodatim(novo, noviId, "izdvajanje", staro.razlog, kada);
+  if (staro.objava) novo = saDodatim(novo, noviId, "objava", staro.razlog, kada);
   return novo;
 }
 
-/** Spisak za prikaz: id, oba opsega i razlog, sortirano po id-u da izlaz bude stabilan. */
-export function spisak(izuzeca: Izuzeca): { id: number; obnova: boolean; izdvajanje: boolean; razlog: string | null; kada: string }[] {
+/** Spisak za prikaz: id, sva tri opsega i razlog, sortirano po id-u da izlaz bude stabilan. */
+export function spisak(
+  izuzeca: Izuzeca,
+): { id: number; obnova: boolean; izdvajanje: boolean; objava: boolean; razlog: string | null; kada: string }[] {
   return Object.entries(izuzeca)
-    .map(([kljuc, v]) => ({ id: Number(kljuc), obnova: v.obnova, izdvajanje: v.izdvajanje, razlog: v.razlog ?? null, kada: v.kada }))
+    .map(([kljuc, v]) => ({
+      id: Number(kljuc),
+      obnova: v.obnova,
+      izdvajanje: v.izdvajanje,
+      objava: Boolean(v.objava),
+      razlog: v.razlog ?? null,
+      kada: v.kada,
+    }))
     .sort((a, b) => a.id - b.id);
 }
