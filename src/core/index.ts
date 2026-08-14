@@ -1175,7 +1175,9 @@ export class OlxClient {
     // Ovo je TUDJI shop i cita se serijski kroz cijeli Excel spisak kandidata: prelistavanje od
     // nekoliko minuta po kandidatu nije upotrebljivo. Bolje je posteno reci da je uzorak nepotpun
     // nego drzati red kandidata da ceka, zato jezgro ovdje samo bira budzet umjesto pozivaoca.
-    const sviAktivni = await this.listAllByState("active", username, { budzetMs: this.config.budzetListeMs });
+    // Vlastiti kljuc (`budzetListeKonkurentMs`, a ne `budzetListeMs`) zato da dizanje razgovornog
+    // budzeta ne uspori obilazak kandidata.
+    const sviAktivni = await this.listAllByState("active", username, { budzetMs: this.config.budzetListeKonkurentMs });
     const aktivni = sviAktivni.oglasi;
     pozivi += Math.max(1, sviAktivni.procitanoStranica);
     let zavrseni: number | null = null;

@@ -48,10 +48,18 @@ export interface OlxConfig {
   // Budzet vremena za prelistavanje u alatima koje covjek zove u razgovoru i ceka odgovor.
   // Budzet vremena a ne broj stranica: broj stranica je los posrednik za trajanje, jer ne zna
   // za retry, ne zna da je throttle podesen i ne zna da je API te veceri spor.
+  // Racunica: 1 stranica je 20 oglasa i oko 0,57 s (350 ms throttle plus oko 220 ms mreze), pa
+  // 75 s budzeta znaci oko 131 stranicu odnosno oko 2620 oglasa. Krov prekoracaja je jedna
+  // stranica u letu (20 s timeout puta 5 pokusaja plus backoff), oko 107 s, sto ostaje ispod
+  // MCP zida od 300 s (polje `timeout` u .mcp.json).
   budzetListeMs: number;
   // Budzet vremena za grupne radnje koje se rade uz izricitu potvrdu, gdje je potpunost liste
   // preduslov ispravnosti.
   budzetListeGrupniMs: number;
+  // Budzet vremena za obilazak TUDJEG shopa (konkurenta) u serijskom prolazu kroz cijeli Excel
+  // spisak kandidata. Vlastiti kljuc namjerno, odvojen od `budzetListeMs`: red kandidata ceka
+  // svaki konkurent redom, pa dizanje razgovornog budzeta ne smije usporiti citav obilazak.
+  budzetListeKonkurentMs: number;
   /**
    * Prag broja oglasa iznad kojeg `olx_list_listings` u grani `all` odbija da vrati CSV umjesto
    * da ga tiho sijece (deepseek-nalazi.md, tabela oko linije 110). Izmjereno: 120 oglasa u
@@ -125,8 +133,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): OlxConfig {
     defaultCityId: opcioniBroj(env.OLX_DEFAULT_CITY_ID),
     danCiklusaKvote: danUMjesecu(env.OLX_DAN_CIKLUSA_KVOTE),
     maxStranicaListe: num(env.OLX_MAX_STRANICA_LISTE, 5000),
-    budzetListeMs: num(env.OLX_BUDZET_LISTE_MS, 20000),
+    budzetListeMs: num(env.OLX_BUDZET_LISTE_MS, 75000),
     budzetListeGrupniMs: num(env.OLX_BUDZET_LISTE_GRUPNI_MS, 120000),
+    budzetListeKonkurentMs: num(env.OLX_BUDZET_LISTE_KONKURENT_MS, 20000),
     maxOglasaUOdgovoru: num(env.OLX_MAX_OGLASA_U_ODGOVORU, 500),
   };
 }

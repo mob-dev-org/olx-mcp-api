@@ -74,6 +74,7 @@ function testConfig(overrides: Partial<OlxConfig> = {}): OlxConfig {
     maxStranicaListe: 5000,
     budzetListeMs: 20000,
     budzetListeGrupniMs: 120000,
+    budzetListeKonkurentMs: 20000,
     maxOglasaUOdgovoru: 500,
     ...overrides,
   };
@@ -543,6 +544,20 @@ test("loadConfig vraca default brojeve kad su env vrijednosti neispravne", () =>
   assert.equal(config.minRequestIntervalMs, 350, "neispravna vrijednost ne smije ugasiti throttle");
   assert.equal(config.maxRetries, 4);
   assert.equal(config.timeoutMs, 0, "eksplicitna nula je validna vrijednost, ne greska");
+});
+
+// Brana protiv buduceg dizanja budzeta bez racuna: 75 s je smisljen broj (oko 131 stranica,
+// oko 2620 oglasa pri 0,57 s po stranici), a krov prekoracaja od 107 s uz grupni budzet od 120 s
+// mora ostati ispod MCP zida od 300 s. Konkurentski budzet ostaje na starih 20000, jer se
+// konkurenti obilaze serijski i dizanje razgovornog budzeta ne smije usporiti taj obilazak.
+test("loadConfig cuva razgovorni budzet liste na 75 s i konkurentski na 20 s, ispod MCP zida", () => {
+  const config = loadConfig({} as NodeJS.ProcessEnv);
+  assert.equal(config.budzetListeMs, 75000, "razgovorni budzet liste je podignut na 75 s");
+  assert.equal(config.budzetListeKonkurentMs, 20000, "konkurent ima vlastiti, kratak budzet");
+  assert.ok(
+    config.budzetListeGrupniMs + 107000 < 300000,
+    "krov prekoracaja (~107 s) plus grupni budzet mora ostati ispod MCP zida od 300 s",
+  );
 });
 
 test("loadConfig prima dan ciklusa kvote samo kao valjan dan u mjesecu", () => {
