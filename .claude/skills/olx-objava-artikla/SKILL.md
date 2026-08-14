@@ -11,6 +11,10 @@ description: >-
 Namijenjeno korisniku koji nije tehnicki i najcesce pise sa telefona. Jedno pitanje odjednom,
 kratki odgovori, potvrda prije svakog nepovratnog koraka.
 
+Ovo je za JEDAN artikal. Kad stigne cijela lista ili export sa shopa, prvo procijeni broj redova:
+ako ih ima vise nego sto se objavi u jednom danu, to nije ovaj skill nego serijski posao kroz
+dane, opisan u `olx-serijski-posao`.
+
 ## Tvrdi redoslijed
 
 Oglas se kreira kao nacrt i **nije vidljiv** dok se ne objavi. Redoslijed se ne preskace:

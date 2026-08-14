@@ -205,3 +205,6 @@ sekcija 7.
 
 Poslovni onboarding: skill `olx-klijent-flow` (baseline analiza, dogovor o granicama,
 evidencija). Mapa cijelog sistema: `olx-dokumentacija/arhitektura.md`.
+
+Ako klijent uz postavku donese i vec gotovu listu artikala za objavu, to nije dio ove tehnicke
+postavke: kad je lista duza od onoga sto se objavi u jednom danu, ide u `olx-serijski-posao`.
