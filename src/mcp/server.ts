@@ -8,6 +8,7 @@ import { dirname, resolve } from "node:path";
 import { OlxClient, OlxSpendError, OlxPravilaError, OlxApiError, naknadaKategorije } from "../core/index.js";
 import { objasniPogotke, provjeriRobu } from "../core/zabranjena-roba.js";
 import { loadConfig } from "../core/config.js";
+import { pokrenutDirektno } from "../core/ulaz.js";
 import { linkOglasa } from "../core/link.js";
 import { procitajPrijedlog, spisakPrijedloga } from "../core/prijedlozi.js";
 import { nadjiSablon } from "../core/opisi.js";
@@ -2277,7 +2278,12 @@ async function main(): Promise<void> {
   console.error(`olx-pik-mcp-server radi preko stdio. ${acc}`);
 }
 
-main().catch((e) => {
-  console.error("Greska servera:", e);
-  process.exit(1);
-});
+// Server se dize SAMO kad je ovaj modul ulaz procesa. Kad ga neko uvozi (generator popisa
+// mogucnosti), registracije alata i resursa se izvrse a stdio transport se ne otvara, pa uvoz
+// ne otima standardni ulaz i ne ostavlja proces koji visi.
+if (pokrenutDirektno(import.meta.url)) {
+  main().catch((e) => {
+    console.error("Greska servera:", e);
+    process.exit(1);
+  });
+}

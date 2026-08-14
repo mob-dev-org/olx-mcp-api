@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { OlxClient, OlxApiError, OlxAuthError, OlxSpendError } from "../core/index.js";
 import { odvojiIzuzete, ucitajIzuzeca } from "../core/izuzeca.js";
 import { loadConfig } from "../core/config.js";
+import { pokrenutDirektno } from "../core/ulaz.js";
 import { potrosenoNaDan, setAuditContext } from "../core/audit.js";
 import { VERZIJA } from "../core/verzija.js";
 import { parseSponsorOptions, SPONSOR_DAYS, REFRESH_EVERY } from "../core/sponsor-options.js";
@@ -205,7 +206,9 @@ async function resolveUser(c: OlxClient, given?: string): Promise<string> {
   return c.resolveUsername();
 }
 
-const program = new Command();
+// Izvezeno zbog generatora popisa mogucnosti: on uvozi ovaj modul i seta stablo komandi
+// (`program.commands`) umjesto da cita izvorni kod. Ni jedan drugi potrosac ga ne uvozi.
+export const program = new Command();
 program
   .name("olx")
   .description("Interni CLI za OLX.ba / PIK.ba shopove")
@@ -1971,4 +1974,9 @@ function razrijesiNegativneIdove(argv: string[]): string[] {
   return [...argv.slice(0, i), ...argv.slice(i + 1), "--", argv[i]!];
 }
 
-program.parseAsync(razrijesiNegativneIdove(process.argv)).catch(fail);
+// Komanda se izvrsava SAMO kad je ovaj modul ulaz procesa. Kad ga generator popisa uveze da
+// procita stablo komandi, parsiranje bi inace uzelo `process.argv` GENERATORA i izvrsilo nesto
+// sasvim deseto.
+if (pokrenutDirektno(import.meta.url)) {
+  program.parseAsync(razrijesiNegativneIdove(process.argv)).catch(fail);
+}
