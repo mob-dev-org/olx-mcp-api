@@ -159,7 +159,7 @@ const server = new McpServer({ name: "olx-pik-mcp-server", version: VERZIJA });
 // registruju, pa njihove seme ne ulaze u kontekst. To su redom pretraga i dumpovi kategorija,
 // brendova, modela i lokacija: najveci payloadi u serveru, a klijentu ne trebaju jer lokacija
 // dolazi iz .env, a kategoriju bira `olx_suggest_category` pri objavi.
-const SAMO_ADMIN = new Set([
+export const SAMO_ADMIN = new Set([
   "olx_sablon_opisa",
   "olx_categories",
   "olx_category_children",
@@ -184,8 +184,99 @@ const SAMO_ADMIN = new Set([
 
 const zaKlijenta = config.mcpProfil === "klijent";
 
+// ===== Popis registracija, za generator popisa mogucnosti =====
+//
+// Isti omotac kroz koji ionako prolazi svaka registracija usput vodi i evidenciju o njoj. Zato
+// `scripts/popis-mogucnosti.mjs` samo uveze ovaj modul i procita popis, umjesto da pokrece server
+// i prica sa njim preko stdio (krhko i sporo) ili da parsira ovaj fajl (tiho pukne). Popis se
+// puni pri svakom pokretanju servera, ali ga niko u radu ne cita, pa nista ne kosta.
+//
+// Zapisuje se PRIJE filtera profila, dakle uvijek puna lista. Ko je u kojem profilu se izvodi iz
+// `SAMO_ADMIN`, pa jedan uvoz daje oba profila.
+
+export interface ZapisAlata {
+  ime: string;
+  naslov?: string;
+  opis?: string;
+  /** Kljucevi ulazne seme, redom kako su zadati. */
+  polja: string[];
+  /** Ima li polje `confirm`, dakle da li je alat iza brane potvrde. */
+  traziPotvrdu: boolean;
+  /** `readOnlyHint` i `destructiveHint` iz anotacija, za razvrstavanje na citanje, upis i trosak. */
+  samoCitanje?: boolean;
+  razoran?: boolean;
+  /** Ime uslova ako se alat registruje samo pod uslovom; inace prazno. */
+  uslov?: string;
+}
+
+export interface ZapisResursa {
+  ime: string;
+  uri: string;
+  naslov?: string;
+  opis?: string;
+}
+
+export const POPIS_ALATA: ZapisAlata[] = [];
+export const POPIS_RESURSA: ZapisResursa[] = [];
+
+/**
+ * Sta znaci koji uslov, obicnim jezikom. Kljuc se postavlja kroz `uslovRegistracije` oko uslovne
+ * grane registracija, a ovdje stoji objasnjenje koje generator ispisuje covjeku.
+ */
+export const USLOVI: Record<string, string> = {
+  vid: "samo kad je podesen Gemini kljuc za vid (OLX_VID_API_KEY ili OLX_SLIKA_API_KEY)",
+  slika: "samo kad je podesen kljuc za generisanje slika (OLX_SLIKA_API_KEY)",
+};
+
+/**
+ * Uslov pod kojim se registruju alati koji slijede. Postavlja se oko uslovne grane i odmah vraca
+ * na prazno. Bez ovoga bi alat koji postoji samo uz vanjski kljuc na masini bez tog kljuca tiho
+ * nestao iz popisa mogucnosti, umjesto da u njemu stoji sa napomenom pod kojim uslovom radi.
+ */
+let uslovRegistracije: string | undefined;
+
+/**
+ * Otvara uslovnu granu registracija. Ime uslova MORA biti opisano u `USLOVI`.
+ *
+ * Zasto baca umjesto da preskoci: oba uslova su danas prosta provjera env kljuca, pa generator
+ * popisa uveze server sa postavljenim kljucevima i tako vidi i te alate. Kad bi neko dodao granu
+ * pod uslovom koji generator ne zna uciniti tacnim, alati u njoj bi tiho nestali iz popisa, sto je
+ * tacno bolest zbog koje popis uopste postoji. Ovako se to sazna odmah, i to kroz `npm test`, jer
+ * provjera svjezine popisa uvozi ovaj modul.
+ */
+function pocniUslov(ime: string): void {
+  if (!(ime in USLOVI)) {
+    throw new Error(
+      `Uslovna registracija "${ime}" nije opisana u USLOVI (src/mcp/server.ts). ` +
+        "Dodaj opis i pobrini se da ga scripts/popis-mogucnosti.mjs moze uciniti tacnim.",
+    );
+  }
+  uslovRegistracije = ime;
+}
+
+function zavrsiUslov(): void {
+  uslovRegistracije = undefined;
+}
+
 const registrujAlat = server.registerTool.bind(server);
 server.registerTool = ((name: string, toolConfig: unknown, handler: (args: never) => unknown) => {
+  const cfg = toolConfig as {
+    title?: string;
+    description?: string;
+    inputSchema?: Record<string, unknown>;
+    annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean };
+  };
+  const polja = Object.keys(cfg.inputSchema ?? {});
+  POPIS_ALATA.push({
+    ime: name,
+    naslov: cfg.title,
+    opis: cfg.description,
+    polja,
+    traziPotvrdu: polja.includes("confirm"),
+    samoCitanje: cfg.annotations?.readOnlyHint,
+    razoran: cfg.annotations?.destructiveHint,
+    ...(uslovRegistracije ? { uslov: uslovRegistracije } : {}),
+  });
   if (zaKlijenta && SAMO_ADMIN.has(name)) return undefined as never;
   return registrujAlat(
     name,
@@ -193,6 +284,19 @@ server.registerTool = ((name: string, toolConfig: unknown, handler: (args: never
     ((args: never) => withAuditContext({ operation: name, source: "mcp" }, () => handler(args))) as never,
   );
 }) as typeof server.registerTool;
+
+const registrujResurs = server.registerResource.bind(server);
+server.registerResource = ((name: string, uri: unknown, metadata: unknown, ...ostalo: unknown[]) => {
+  const meta = metadata as { title?: string; description?: string } | undefined;
+  POPIS_RESURSA.push({
+    ime: name,
+    // Obicni resursi imaju URI kao string; sablon (ResourceTemplate) nosi obrazac u sebi.
+    uri: typeof uri === "string" ? uri : String((uri as { uriTemplate?: unknown })?.uriTemplate ?? ""),
+    naslov: meta?.title,
+    opis: meta?.description,
+  });
+  return (registrujResurs as (...a: unknown[]) => unknown)(name, uri, metadata, ...ostalo);
+}) as typeof server.registerResource;
 
 // ---- KB kao resource ----
 server.registerResource(
@@ -782,6 +886,9 @@ server.registerTool(
 // Vision proxy za sesije ciji glavni model nema vid (DeepSeek ignorise slike). Iskljucivo
 // Gemini; registruje se SAMO kad postoji Gemini kljuc (OLX_SLIKA_API_KEY ili OLX_VID_API_KEY):
 // klonovi na pretplati vide slike direktno i ovu semu ne placaju u kontekstu.
+// Oznaka uslova stoji oko grane i vraca se odmah iza nje: alat koji postoji samo uz vanjski
+// kljuc mora u popisu mogucnosti stajati sa napomenom, a ne nestati na masini bez kljuca.
+pocniUslov("vid");
 if (vidKonfigurisan()) {
   server.registerTool(
     "olx_opisi_sliku",
@@ -804,6 +911,7 @@ if (vidKonfigurisan()) {
     },
   );
 }
+zavrsiUslov();
 
 // Generisanje slike oglasa. Registruje se SAMO kad je OLX_SLIKA_API_KEY postavljen, isto kao
 // vision proxy. Kosta vanjski AI racun (ne OLX kredite), pa nosi confirm branu i dnevni plafon.
@@ -819,6 +927,7 @@ const receptSema: z.ZodType<string> = zaKlijenta
       .min(3)
       .describe(`ime recepta (${Object.keys(RECEPTI).join(", ")}) ili slobodna uputa na engleskom`);
 
+pocniUslov("slika");
 if (slikaKonfigurisana()) {
   server.registerTool(
     "olx_generiraj_sliku",
@@ -963,6 +1072,7 @@ if (slikaKonfigurisana()) {
     },
   );
 }
+zavrsiUslov();
 
 // Saznanja iz prakse: kad se API ponasa suprotno dokumentaciji ili ocekivanju, sesija to
 // zabiljezi jednom recenicom. Fajl kupi scripts/saznanja-pokupi.sh sa admin masine i nosi u
