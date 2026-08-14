@@ -65,7 +65,13 @@ function opisSkilla(putanja) {
 
 /**
  * Pokrene stdio MCP server i procita mu popis alata i resursa.
- * Vraca prazne liste ako server ne odgovori u zadatom roku, umjesto da baci.
+ *
+ * Zavrsava CIM stignu oba odgovora, a `cekaj` je krov a ne takt: fiksno cekanje je znacilo da se
+ * na sporoj masini vrati prazna lista, sto je ovaj izvjestaj prikazivao kao pad konteksta na nulu.
+ * Rast konteksta hrani odluku o izdanju, pa tiha nula tu nije bezopasna. Zato prekoracenje roka
+ * vraca `greska`, a pozivalac za NAS server na to pada.
+ *
+ * Za tudje (globalne) servere prazan odgovor ostaje podnosljiv, oni se samo preskoce.
  */
 function dohvatiAlate({ command = "node", args = ["dist/mcp/server.js"], env, cekaj = 2500 } = {}) {
   return new Promise((resolve) => {
@@ -82,6 +88,16 @@ function dohvatiAlate({ command = "node", args = ["dist/mcp/server.js"], env, ce
     child.on("error", () => resolve({ alati: [], resursi: [], greska: "pokretanje nije uspjelo" }));
     const alati = [];
     const resursi = [];
+    let stigloAlata = false;
+    let stigloResursa = false;
+    let zavrseno = false;
+    const zavrsi = (ishod) => {
+      if (zavrseno) return;
+      zavrseno = true;
+      clearTimeout(krov);
+      child.kill();
+      resolve(ishod);
+    };
     let buf = "";
     child.stdout.on("data", (d) => {
       buf += d.toString();
@@ -92,12 +108,19 @@ function dohvatiAlate({ command = "node", args = ["dist/mcp/server.js"], env, ce
         if (!linija) continue;
         try {
           const m = JSON.parse(linija);
-          if (m.id === 2) alati.push(...(m.result?.tools ?? []));
-          if (m.id === 3) resursi.push(...(m.result?.resources ?? []));
+          if (m.id === 2) {
+            alati.push(...(m.result?.tools ?? []));
+            stigloAlata = true;
+          }
+          if (m.id === 3) {
+            resursi.push(...(m.result?.resources ?? []));
+            stigloResursa = true;
+          }
         } catch {
           // ignorisi
         }
       }
+      if (stigloAlata && stigloResursa) zavrsi({ alati, resursi });
     });
     const posalji = (o) => child.stdin.write(JSON.stringify(o) + "\n");
     posalji({
@@ -109,11 +132,26 @@ function dohvatiAlate({ command = "node", args = ["dist/mcp/server.js"], env, ce
     posalji({ jsonrpc: "2.0", method: "notifications/initialized" });
     posalji({ jsonrpc: "2.0", id: 2, method: "tools/list" });
     posalji({ jsonrpc: "2.0", id: 3, method: "resources/list" });
-    setTimeout(() => {
+    const krov = setTimeout(() => {
+      zavrseno = true;
       child.kill();
-      resolve({ alati, resursi });
+      resolve({ alati, resursi, greska: `nije odgovorio u ${cekaj} ms` });
     }, cekaj);
   });
+}
+
+/** Isto, ali za NAS server: prekoracen rok ili prazan popis su pad, ne nula u izvjestaju. */
+async function dohvatiNase(env) {
+  const ishod = await dohvatiAlate({ env });
+  if (ishod.greska || ishod.alati.length === 0) {
+    console.error(
+      `Ne mogu procitati MCP alate iz dist/mcp/server.js (profil ${env.OLX_MCP_PROFILE}): ` +
+        `${ishod.greska ?? "vratio je praznu listu"}.`,
+    );
+    console.error("Je li build prosao (npm run build)? Izvjestaj bez ovoga lazno pokazuje pad konteksta.");
+    process.exit(1);
+  }
+  return ishod;
 }
 
 /** Zbir znakova sema alata, isti oblik racunanja kao za olx-pik. */
@@ -132,8 +170,8 @@ function citajJson(putanja) {
   }
 }
 
-const { alati, resursi } = await dohvatiAlate({ env: { OLX_MCP_PROFILE: "admin" } });
-const { alati: alatiKlijent } = await dohvatiAlate({ env: { OLX_MCP_PROFILE: "klijent" } });
+const { alati, resursi } = await dohvatiNase({ OLX_MCP_PROFILE: "admin" });
+const { alati: alatiKlijent } = await dohvatiNase({ OLX_MCP_PROFILE: "klijent" });
 
 const semeSvih = alati.map((t) => ({
   name: t.name,
