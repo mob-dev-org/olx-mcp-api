@@ -18,6 +18,7 @@ import { parseSponsorOptions } from "../core/sponsor-options.js";
 import {
   efekatIzdvajanja,
   izracunajNoveCijene,
+  obuhvatIz,
   pragObnove,
   kompaktCsv,
   kompaktList,
@@ -34,7 +35,7 @@ import { buildPlan, planSazetak, type PlanKandidat } from "../core/plan.js";
 import { opisiSliku, vidKonfigurisan } from "../core/vid.js";
 import { OPSEZI, bezSklonjenog, odvojiIzuzete, preneseno, saDodatim, spisak, ucitajIzuzeca, upisiIzuzeca } from "../core/izuzeca.js";
 import { kompaktSpisak, mapaZapisa, noviZapis, planVracanja, preuzmiSlike, saOznakomObjave, ucitajSveZapise, ucitajZapis, upisiZapis, velicinaArhive } from "../core/arhiva.js";
-import type { Listing, ListingSummary } from "../core/types.js";
+import type { Listing, ListingSummary, SviOglasi } from "../core/types.js";
 import { INTERVAL_MAX, STRATEGIJE, intervalUzPrag, normalizujRitam, ritamZapisan, ucitajRitam, upisiRitam } from "../core/ritam-obnova.js";
 import { procitajOverride, upisiOverride } from "../core/slika-limit.js";
 import { POZADINA_OPIS_MAX, obrisiPozadinu, sacuvajPozadinu, sazetakPozadine, ucitajPozadinu } from "../core/pozadina.js";
@@ -90,6 +91,22 @@ function ok(data: unknown): ToolResult {
 
 function errResult(message: string): ToolResult {
   return { content: [{ type: "text", text: message }], isError: true };
+}
+
+// Radnja koja mijenja stanje (cijena, sklanjanje) nad nepotpunom listom bi tiho preskocila
+// oglase koje nije vidjela, sto je gore od odbijanja. Zato oba grupna alata koja mijenjaju
+// stanje staju ovdje umjesto da nastave nad djelomicnim spiskom.
+function odbijNepotpunKatalog(svi: SviOglasi, sta: string) {
+  const obuhvat = obuhvatIz(svi);
+  return {
+    odbijeno: true,
+    razlog: "nepotpun_katalog",
+    obuhvat,
+    uputa:
+      `Katalog nije procitan u cijelosti (${obuhvat.procitano} od ${obuhvat.ukupno ?? "nepoznato"} oglasa, razlog: ${svi.razlog ?? "nepoznat"}). ` +
+      `${sta} nad nepotpunom listom bi preskocilo oglase koje nisi vidio, pa je radnja zaustavljena. ` +
+      `Suzi zahvat na manji skup (category_id ili kraci spisak ids), ili pokreni radnju iz CLI-ja gdje nema vremenskog budzeta.`,
+  };
 }
 
 // Zajednicki wrapper: osigurava auth i pretvara greske u citljiv rezultat.
@@ -1313,7 +1330,7 @@ server.registerTool(
   {
     title: "Grupna promjena cijene",
     description:
-      "Mijenja cijenu na vise oglasa odjednom. pravilo: postotak (-10 znaci snizi 10 posto), fiksno (-5 znaci oduzmi 5), postavi (svima ista cijena). confirm=false (default) vraca samo pregled stara naspram nova, bez ijedne izmjene. Ne trosi kredite, ali se rucno ne vraca, pa pregled OBAVEZNO pokazi korisniku prije potvrde.",
+      "Mijenja cijenu na vise oglasa odjednom. pravilo: postotak (-10 znaci snizi 10 posto), fiksno (-5 znaci oduzmi 5), postavi (svima ista cijena). confirm=false (default) vraca samo pregled stara naspram nova, bez ijedne izmjene. Ne trosi kredite, ali se rucno ne vraca, pa pregled OBAVEZNO pokazi korisniku prije potvrde. Staje ako katalog nije procitan u cijelosti.",
     inputSchema: {
       pravilo: z.enum(["postotak", "fiksno", "postavi"]),
       iznos: z.number(),
@@ -1327,12 +1344,16 @@ server.registerTool(
   (args) =>
     run(async (c) => {
       const user = await c.resolveUsername();
-      const svi = await c.listAllActive(user);
-      const izabrani = args.ids?.length
-        ? svi.filter((l) => args.ids?.includes(l.id))
+      const svi = await c.listAllActive(user, { budzetMs: config.budzetListeGrupniMs });
+      if (!svi.potpuno) {
+        return odbijNepotpunKatalog(svi, "Promjena cijene");
+      }
+      const izabraniIds = args.ids?.length ? new Set(args.ids) : null;
+      const izabrani = izabraniIds
+        ? svi.oglasi.filter((l) => izabraniIds.has(l.id))
         : args.category_id !== undefined
-          ? svi.filter((l) => l.category_id === args.category_id)
-          : svi;
+          ? svi.oglasi.filter((l) => l.category_id === args.category_id)
+          : svi.oglasi;
 
       const pregled = izracunajNoveCijene(
         izabrani
@@ -1377,7 +1398,7 @@ server.registerTool(
   {
     title: "Grupno sakrivanje ili zavrsavanje",
     description:
-      "Sklanja vise oglasa odjednom: radnja 'hide' kad se artikal vraca na stanje, 'finish' kad je prodan (ostaje u historiji profila). confirm=false (default) vraca samo listu. Zavrsavanje se kroz ovaj server NE moze ponistiti, pa listu obavezno pokazi korisniku prije potvrde.",
+      "Sklanja vise oglasa odjednom: radnja 'hide' kad se artikal vraca na stanje, 'finish' kad je prodan (ostaje u historiji profila). confirm=false (default) vraca samo listu. Zavrsavanje se kroz ovaj server NE moze ponistiti, pa listu obavezno pokazi korisniku prije potvrde. Staje ako katalog nije procitan u cijelosti.",
     inputSchema: {
       ids: z.array(z.number().int()).min(1),
       radnja: z.enum(["hide", "finish"]),
@@ -1388,9 +1409,16 @@ server.registerTool(
   (args) =>
     run(async (c) => {
       const user = await c.resolveUsername();
-      const svi = await c.listAllActive(user);
-      const izabrani = svi.filter((l) => args.ids.includes(l.id));
-      const nepoznati = args.ids.filter((id) => !svi.some((l) => l.id === id));
+      const svi = await c.listAllActive(user, { budzetMs: config.budzetListeGrupniMs });
+      if (!svi.potpuno) {
+        return odbijNepotpunKatalog(svi, "Sklanjanje oglasa");
+      }
+      // Set umjesto includes/some: petlja po nizu je O(n*m), a na katalogu od nekoliko hiljada
+      // oglasa i spisku od nekoliko hiljada ID-eva to je milioni nepotrebnih poredjenja.
+      const trazeni = new Set(args.ids);
+      const aktivniIds = new Set(svi.oglasi.map((l) => l.id));
+      const izabrani = svi.oglasi.filter((l) => trazeni.has(l.id));
+      const nepoznati = args.ids.filter((id) => !aktivniIds.has(id));
 
       if (!args.confirm) {
         return {
@@ -1463,10 +1491,14 @@ server.registerTool(
       const limits = await c.refreshLimits();
       const remaining = Math.max(0, limits.free_limit - limits.free_count);
       const cap = Math.min(args.limit, remaining);
-      const all = await c.listAllActive(user);
+      const all = await c.listAllActive(user, { budzetMs: config.budzetListeGrupniMs });
+      // Za razliku od bulk_price/bulk_sklanjanje, obnova nad nepotpunom listom NE odbija: obnova
+      // je besplatna, ne pravi pogresno stanje i ne moze se pogresno primijeniti, pa je bolje
+      // obnoviti dio kataloga nego nista. Obuhvat ide u odgovor da se to vidi.
+      const obuhvat = obuhvatIz(all);
       // Izuzeci PRIJE capa, da zabranjena obnova ne potrosi mjesto onome kome obnova treba.
       const { prolaze, preskoceni } = odvojiIzuzete(
-        all.filter((l) => l.refresh_available === true),
+        all.oglasi.filter((l) => l.refresh_available === true),
         ucitajIzuzeca(),
         "obnova",
       );
@@ -1477,19 +1509,26 @@ server.registerTool(
           dry_run: true,
           remaining_free: remaining,
           candidates: candidates.map((l) => ({ id: l.id, title: l.title })),
+          obuhvat,
           ...izuzeto,
         };
       }
-      const results: { id: number; ok: boolean }[] = [];
+      const results: { id: number; ok: boolean; greska?: string }[] = [];
       for (const l of candidates) {
         try {
           await c.refreshListing(l.id);
           results.push({ id: l.id, ok: true });
-        } catch {
-          results.push({ id: l.id, ok: false });
+        } catch (e) {
+          results.push({ id: l.id, ok: false, greska: String(e instanceof Error ? e.message : e) });
         }
       }
-      return { refreshed: results.filter((r) => r.ok).length, total: results.length, results, ...izuzeto };
+      return {
+        refreshed: results.filter((r) => r.ok).length,
+        total: results.length,
+        neuspjeli: results.filter((r) => !r.ok),
+        obuhvat,
+        ...izuzeto,
+      };
     }),
 );
 
