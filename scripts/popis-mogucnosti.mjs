@@ -20,6 +20,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { skupiSve } from "./lib/popis-podaci.mjs";
 import { uMarkdown } from "./lib/popis-markdown.mjs";
+import { uHtml } from "./lib/popis-html.mjs";
 import { provjeriPokrivenost } from "./lib/popis-pokrivenost.mjs";
 
 const KORIJEN = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -28,7 +29,10 @@ const SAMO_PROVJERA = process.argv.includes("--provjeri");
 
 /** Fajlovi koje generator pravi. Kljuc je relativna putanja, da poruke budu iste na svim masinama. */
 function izlazi(podaci) {
-  return [{ putanja: join("olx-dokumentacija", "mogucnosti.md"), sadrzaj: uMarkdown(podaci) }];
+  return [
+    { putanja: join("olx-dokumentacija", "mogucnosti.md"), sadrzaj: uMarkdown(podaci) },
+    { putanja: join("olx-dokumentacija", "mogucnosti.html"), sadrzaj: uHtml(podaci) },
+  ];
 }
 
 const podaci = await skupiSve(KORIJEN);
