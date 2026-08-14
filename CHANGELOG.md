@@ -10,6 +10,28 @@ sekcija 7.
 
 ## Nije izdano
 
+Uklonjen tihi rez na 1000 oglasa u prelistavanju kataloga (`listAllByState`/`listAllActive`):
+umjesto goleg niza koji tiho staje na 50 stranica, sada vracaju `SviOglasi { oglasi, potpuno,
+ukupno, procitanoStranica, stranicaUkupno, razlog }`. Dva nezavisna ogranicenja umjesto jednog
+broja stranica: `maxStranicaListe` je osigurac protiv pokvarenog `last_page` (default 5000
+stranica), `budzetListeMs`/`budzetListeGrupniMs` su budzeti vremena po pozivaocu (20 s / 120 s).
+Kad lista nije potpuna, `olx_bulk_price` i `olx_bulk_sklanjanje` ODBIJAJU rad umjesto da tiho
+preskoce oglase; `olx_refresh_bulk` i dnevni posao rade dalje jer je obnova besplatna;
+`olx_find_my_listing` odbija umjesto da javi lazno "nema pogodaka"; `stats snapshot` ne pise
+snimak nepotpunog kataloga. `olx_list_listings` sa `all` sada odbija CSV iznad
+`OLX_MAX_OGLASA_U_ODGOVORU` (500 oglasa) umjesto da ga tiho sijece. Detalji:
+`olx-dokumentacija/arhitektura.md` sekcija 10.
+
+**Izricito: `.mcp.json` dobija `"timeout": 300000` za server `olx-pik`.** Ova promjena stize u
+SVAKI klon pri sljedecem azuriranju, jer je `.mcp.json` u gitu i azuriranje ga povlaci sa ostatkom
+koda.
+
+**Poznato ogranicenje, nije rijeseno u ovom poslu:** `olx_bulk_sklanjanje` i `olx_bulk_price` sa
+zadatim `ids` i dalje citaju CIJELI katalog samo da provjere koji su ID-evi aktivni i da pokupe
+naslove. Ispravnije bi bilo da rade `getListing` po zadatom ID-u, jer je tada trosak ogranicen
+brojem ID-eva a ne velicinom kataloga, i odbijanje zbog nepotpunog kataloga bi otpalo. Nije
+uradjeno u ovom poslu da se obim ne siri; zabiljezeno da se ne izgubi.
+
 Iza prekidaca `OLX_SESIJA_STRAZAR` (default iskljuceno, opt in po klonu): cuvar sesije moze
 GASITI sesiju na prag mirovanja i na nocni termin umjesto da je restartuje, i sam preuzeti
 Telegram strazu dok sesija spava.

@@ -579,3 +579,52 @@ resursa iz 9.1 (`OLX_RESURSI_PRAG_SLOBODNO_MB`, `OLX_RESURSI_PRAG_SWAP_OMJER`,
 `OLX_RESURSI_PRAG_ALARM_SATI`) su odvojen mehanizam, po klonu, dokumentovani u `.env.example`.
 
 Detalji odluka: `olx-dokumentacija/radne-biljeske/nadzor-flote-cpu.md`.
+
+## 10. Citanje kataloga: osigurac naspram budzeta vremena
+
+`listAllByState` i `listAllActive` (`src/core/index.ts`) prelistavaju sve stranice jednog stanja
+oglasa. Prije ovog posla su tiho stajali na 50 stranica (1000 oglasa) i vracali goli niz kao da je
+katalog potpun; poziv sa vise oglasa je bio tiho odsjecen, bez ijedne poruke o tome. Rezultat je
+sada `SviOglasi { oglasi, potpuno, ukupno, procitanoStranica, stranicaUkupno, razlog }`, gdje
+`potpuno: false` nosi i `razlog` (`budzet` / `osigurac` / `katalog_se_mijenjao`).
+
+Dva NEZAVISNA mehanizma ograničavaju prelistavanje, namjerno odvojena umjesto jednog broja
+stranica:
+
+- **Osigurac** (`OLX_MAX_STRANICA_LISTE`) brani od pokvarenog `last_page` sa API-ja: broj
+  stranica koji bi inace petlju vrtio beskonacno. Ne mjeri brzinu niti pokusava predvidjeti
+  velicinu kataloga, samo postavlja plafon namjerno iznad svakog realnog kataloga, da se u
+  normalnom radu nikad ne aktivira.
+- **Budzet vremena** (`OLX_BUDZET_LISTE_MS`, `OLX_BUDZET_LISTE_GRUPNI_MS`) staje kad prelistavanje
+  potrosi previse VREMENA, bez obzira koliko je stranica procitano. Razlog zasto ovo ne moze biti
+  isti broj kao osigurac: broj stranica ne zna nista o retry pokusajima, o throttleu izmedju
+  zahtjeva, ni o tome da je API tog dana spor. Vrijeme je jedina mjera koja sve to hvata.
+
+Konkretne vrijednosti (`5000` / `20000` / `120000` / `500`) i njihovo objasnjenje zive u
+`.env.example`, sekcija "CITANJE KATALOGA: OSIGURAC I BUDZETI" — jedan izvor istine, ovdje se ne
+ponavljaju.
+
+Gornja granica budzeta za grupne alate nije nagadjanje, nego izmjereni tehnicki zid: citanjem
+stringova iz binara Claude Code verzije 2.1.232 (14.08.2026.) utvrdjeno je da je podrazumijevani
+timeout jednog MCP tool poziva 60000 ms, i to je ujedno DONJI prag jer se manje zadane vrijednosti
+dizu na 60000. Polje `timeout` po serveru u `.mcp.json` ga nadjacava (ovdje postavljeno na 300000
+ms za server `olx-pik`). Progress notifikacije taj rok NE produzavaju: to je tvrd wall-clock limit
+po pozivu. Budzeti u `.env.example` su zato postavljeni tako da alat UVIJEK sam vrati odgovor prije
+tog zida, umjesto da poziv presece MCP klijent.
+
+Pravilo koje se provlaci kroz cijeli ovaj posao: **odbijanje sa uputom nije laz, tihi rez jeste.**
+Kad alat ne moze pouzdano zavrsiti posao nad cijelim katalogom, kaze to eksplicitno i objasni sta
+nedostaje, umjesto da vrati djelimican rezultat kao da je potpun.
+
+Ponasanje pozivalaca kad je lista nepotpuna nije jedinstveno, nego zavisi od toga da li tiha
+praznina pravi pogresno stanje:
+
+| Pozivalac | Kad je lista nepotpuna |
+| --- | --- |
+| `olx_bulk_price`, `olx_bulk_sklanjanje` | ODBIJAJU rad (i u `dry_run`): izmjena cijene ili sklanjanje bi tiho preskocili dio oglasa |
+| `olx_refresh_bulk`, CLI `refresh all`, `posao dnevni` | RADE, jer je obnova besplatna i ne pravi pogresno stanje; obuhvat ide u odgovor i adminu |
+| `olx_find_my_listing` | ODBIJA umjesto da kaze "nema pogodaka" — negativan zakljucak iz nepotpunog skupa je ista greska kao lazan "nisu aktivni" spisak |
+| `stats snapshot` (CLI) | NE PISE snimak, jer bi sutrasnji `olx_mrtvi_oglasi` prijavio zive oglase kao mrtve |
+| `posao dnevni` (tempo obnova) | koristi `meta.total` kao imenilac (tacan i kad lista nije potpuna); `zapisiKvotu` preskace samo kad ni `meta.total` nema |
+| `olx_list_listings` sa `all` | ODBIJA CSV iznad `OLX_MAX_OGLASA_U_ODGOVORU`, umjesto da ga tiho sijece |
+| `olx_sponsor_plan`, `olx_sablon_opisa` | RADE nad nepotpunom listom (biraju kandidate/uzorak, ne mijenjaju stanje), obuhvat se prijavljuje u odgovoru |
