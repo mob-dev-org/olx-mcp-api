@@ -8,9 +8,11 @@
 // zna nista o disku ni o mrezi, isti princip kao resursi.mjs: sve sto treba dolazi kao argument.
 //
 // Redoslijed nalaza je NAMJERNO fiksan (vidi analizirajFlotu): po klonu redom 1-6, pa nalazi na
-// nivou flote (7, 9, 10, 11). Izlaz postivi pravilo sazimanja iz olx-dokumentacija/granice.md
-// ("Izlaz"): sazetak je odsjecen na 10 nalaza, tekst za fajl ne odsijeca (fajl smije biti pun), a
-// kad nema nalaza ne pravi se ni tabela ni nabrajanje, samo jedna recenica.
+// nivou flote (7, 9, 10, 11), pa 12 (zakazani poslovi po klonu) i na kraju 13 (fleetski sazetak
+// poslova, koji se UNSHIFTUJE na sam pocetak niza, vidi analizirajFlotu). Izlaz postivi pravilo
+// sazimanja iz olx-dokumentacija/granice.md ("Izlaz"): sazetak je odsjecen na 10 nalaza, tekst za
+// fajl ne odsijeca (fajl smije biti pun), a kad nema nalaza ne pravi se ni tabela ni nabrajanje,
+// samo jedna recenica.
 //
 // Opcioni ulazi `budjenja`, `masinaCpuUzorci` i `ugnijezdeneKopije` dolaze gotovi od orkestracije
 // (izvuceni iz resursi-*.jsonl / cuvarevih uzoraka / skena diska); prazan niz je legitimno stanje
@@ -49,8 +51,9 @@ const KATEGORIJE_ZA_NOVU_KATEGORIJU = [
   "ostalo_klona",
 ];
 
-const REDOSLIJED_KATEGORIJA = ["disk", "transkripti", "masina", "sesija"];
+const REDOSLIJED_KATEGORIJA = ["poslovi", "disk", "transkripti", "masina", "sesija"];
 const NASLOV_KATEGORIJE = {
+  poslovi: "Zakazani poslovi",
   disk: "Disk",
   transkripti: "Transkripti",
   masina: "Masina",
@@ -99,6 +102,135 @@ function periodDana(periodOd, periodDo) {
   const ms = Date.parse(periodDo) - Date.parse(periodOd);
   if (!Number.isFinite(ms) || ms <= 0) return 0;
   return Math.round(ms / 86_400_000);
+}
+
+// ---- zakazani poslovi (potpunost po klonu) ----
+//
+// scripts/provjeri-klon.mjs danas SAMO broji koliko poslova je registrovano naspram ocekivanog
+// broja (>= prag) i na obje platforme vraca najvise "PAZNJA" kad je klon ispod praga - nikad ne
+// kaze KOJI konkretno poslovi fale. Klon sa 2 od 4 obavezna posla prolazi identicno kao klon sa
+// svih 4, dok god je iznad praga. Ovaj modul ide dalje: parsira SUFIKS svakog registrovanog posla
+// (npr. "snapshot" iz TaskName/Label "ba.codefactory.olx.<klon>.snapshot") i vraca tacno koji
+// sufiksi fale, po imenu. Namjerno NIJE reuse funkcije iz provjeri-klon.mjs: ona nikad ne izvlaci
+// pojedinacne sufikse posla, samo broji retke, pa ne postoji sta ovdje pozvati.
+//
+// Orkestracija (execFileSync schtasks/launchctl, JEDNOM po pokretanju cijelog nadzora, ne po
+// klonu - isti proces cita istu listu za sve klonove na toj masini) zivi u
+// scripts/nadzor-flote.mjs. Ovaj modul dobija VEC procitane sirove redove teksta (ili `null` kad
+// komanda taj dan nije uspjela) i sve racuna cisto, bez I/O, testabilno.
+
+/** Cetiri posla koja MORAJU postojati na svakom klonu (isti skup kao instaliraj-cron.sh /
+ * instaliraj-zadatke.ps1 bez uslovnih grana). ".claude-runtime" je vec FALI provjera u
+ * provjeri-klon.mjs (sekcija 6), pa je "sesija" posao obavezan, ne uslovan. */
+export const OBAVEZNI_POSLOVI = ["snapshot", "dnevno", "sedmicno", "sesija"];
+
+/**
+ * Ocekivani poslovi za jedan klon: 4 obavezna + uslovni "admin-bot" (samo kad postoji
+ * `.claude-runtime-admin`) + uslovni "backup" (samo kad je `OLX_STANJE_REPO` popunjen u `.env`
+ * tog klona). Isti uslovi kao scripts/instaliraj-cron.sh i deploy/windows/instaliraj-zadatke.ps1:
+ * prepisivanje uslovnog posla kao obaveznog bi ispravan klon lazno prijavilo kao nepotpun.
+ */
+export function ocekivaniPoslovi({ imaAdminRuntime = false, imaStanjeRepo = false } = {}) {
+  const poslovi = [...OBAVEZNI_POSLOVI];
+  if (imaAdminRuntime) poslovi.push("admin-bot");
+  if (imaStanjeRepo) poslovi.push("backup");
+  return poslovi;
+}
+
+/**
+ * Izvlaci sufiks posla (dio iza "ba.codefactory.olx.<klon>.") iz JEDNOG reda sirovog izlaza
+ * `schtasks /fo csv` ili `launchctl list`. Poredjenje prefiksa je case-insensitive (isti ugovor
+ * kao Windows grana u provjeri-klon.mjs), a sufiks se cita kao pocetni niz `[a-zA-Z0-9_-]`
+ * poslije prefiksa - taj skup znakova pokriva sva postojeca imena poslova (snapshot, dnevno,
+ * sedmicno, sesija, admin-bot, backup) i prirodno se zaustavlja na navodniku (schtasks CSV) ili
+ * razmaku/tabu (launchctl Label), pa JEDAN parser radi na oba formata bez platformske grane.
+ * Vraca lowercase sufiks, ili `null` ako red ne sadrzi prefiks ovog klona.
+ */
+export function izvuciSufiksPosla(red, imeKlona) {
+  if (typeof red !== "string" || typeof imeKlona !== "string" || imeKlona === "") return null;
+  const prefiks = `ba.codefactory.olx.${imeKlona}.`.toLowerCase();
+  const i = red.toLowerCase().indexOf(prefiks);
+  if (i === -1) return null;
+  const poslije = red.slice(i + prefiks.length);
+  const m = poslije.match(/^[a-zA-Z0-9_-]+/);
+  return m ? m[0].toLowerCase() : null;
+}
+
+/** Skup registrovanih sufiksa posla za jedan klon, iz svih sirovih redova (schtasks/launchctl). */
+export function registrovaniSufiksiPosla(redovi, imeKlona) {
+  const skup = new Set();
+  if (!Array.isArray(redovi)) return skup;
+  for (const red of redovi) {
+    const sufiks = izvuciSufiksPosla(red, imeKlona);
+    if (sufiks) skup.add(sufiks);
+  }
+  return skup;
+}
+
+/**
+ * Status zakazanih poslova jednog klona za dnevni uzorak (upisuje se u disk red kao `poslovi`
+ * polje, vidi scripts/nadzor-flote.mjs). `redovi === null`/`undefined` znaci da schtasks/launchctl
+ * upit TAJ DAN nije uspio (komanda nedostupna ili je pukla) - status je NEPOZNAT
+ * (`poznato: false`), NIJE greska: obilazak flote ide dalje, samo se taj dan ne moze reci nista o
+ * poslovima tog klona.
+ */
+export function izracunajStatusPoslova({ redovi, imeKlona, imaAdminRuntime = false, imaStanjeRepo = false } = {}) {
+  if (redovi === null || redovi === undefined) return { poznato: false };
+  const ocekivano = ocekivaniPoslovi({ imaAdminRuntime, imaStanjeRepo });
+  const registrovano = registrovaniSufiksiPosla(redovi, imeKlona);
+  const nedostaje = ocekivano.filter((p) => !registrovano.has(p));
+  return {
+    poznato: true,
+    ocekivanoBroj: ocekivano.length,
+    registrovanoBroj: ocekivano.length - nedostaje.length,
+    nedostaje,
+  };
+}
+
+/**
+ * 12. Zakazani poslovi po klonu nepotpuni. Koristi ZADNJI (najnoviji) dnevni red diska iz perioda
+ * - ovo je status NA DAN skeniranja, ne trend kao pravila 1-6, pa NIJE gatovano sa "bar dvije
+ * tacke" uslovom (jedan dan je dovoljan da se kaze da li poslovi fale). `poslovi` polje dodaje
+ * nadzor-flote.mjs u disk red; stariji redovi (prije ove izmjene) ga nemaju uopste, sto se tiho
+ * preskace, isto kao i `poslovi.poznato === false` (upit tog dana nije uspio).
+ */
+function analizirajPoslove(klon, diskRedovi) {
+  if (!Array.isArray(diskRedovi) || diskRedovi.length === 0) return null;
+  const poslovi = diskRedovi[diskRedovi.length - 1]?.poslovi;
+  if (!poslovi || poslovi.poznato !== true) return null;
+  if (!Array.isArray(poslovi.nedostaje) || poslovi.nedostaje.length === 0) return null;
+  return nalaz(
+    "poslovi",
+    klon,
+    `${klon}: zakazani poslovi nepotpuni (${poslovi.registrovanoBroj}/${poslovi.ocekivanoBroj}), fali: ${poslovi.nedostaje.join(", ")}.`,
+    "upozorenje",
+  );
+}
+
+/**
+ * 13. Fleetski sazetak: koliko klonova SA POZNATIM statusom ima nepotpune poslove. Ovo je broj
+ * zbog kojeg cijeli ovaj nalaz postoji (mjerenje prije pooštravanja provjeri-klon.mjs kapije sa
+ * PAZNJA na FALI, vidi zadatak), zato ga analizirajFlotu stavlja na SAM POCETAK sazetka
+ * (unshift), ne na kraj gdje bi ga velika flota mogla odsjeci (pravilo "10 nalaza" u sazetku).
+ */
+function analizirajPotpunostPoslovaFlote(podaciPoKlonu) {
+  let poznatih = 0;
+  let nepotpunih = 0;
+  for (const podaci of Object.values(podaciPoKlonu ?? {})) {
+    const diskRedovi = podaci?.diskRedovi ?? [];
+    if (diskRedovi.length === 0) continue;
+    const poslovi = diskRedovi[diskRedovi.length - 1]?.poslovi;
+    if (!poslovi || poslovi.poznato !== true) continue;
+    poznatih += 1;
+    if (Array.isArray(poslovi.nedostaje) && poslovi.nedostaje.length > 0) nepotpunih += 1;
+  }
+  if (poznatih === 0 || nepotpunih === 0) return null;
+  return nalaz(
+    "poslovi",
+    null,
+    `Zakazani poslovi: ${nepotpunih} od ${poznatih} klonova sa poznatim statusom ima nepotpune poslove.`,
+    "upozorenje",
+  );
 }
 
 // ---- nalazi po klonu (1-6) ----
@@ -449,7 +581,10 @@ function napraviSazetak(nalazi) {
  * prica nista o trendu), ali `memorijaAgregat` NIJE uslovljen time (koristi se samo unutar tog
  * klona kad se klon inace obradjuje). Pravilo 9 (CPU po klonu) NIJE uslovljeno duzinom
  * `diskRedovi`: gleda SVE klonove iz `podaciPoKlonu` nezavisno, jer se oslanja samo na
- * `memorijaAgregat.cpuKlona`.
+ * `memorijaAgregat.cpuKlona`. Pravilo 12 (zakazani poslovi po klonu) je iz istog razloga NIJE
+ * uslovljeno duzinom `diskRedovi` (samo >= 1 red): status poslova je stanje NA DAN skeniranja, ne
+ * trend, pa i klon sa jednim danom podataka moze dobiti nalaz. Pravilo 13 (fleetski sazetak
+ * poslova) se racuna na kraju i UNSHIFTUJE na pocetak `nalazi`, ispred svih ostalih pravila.
  */
 export function analizirajFlotu({
   periodOd,
@@ -498,6 +633,14 @@ export function analizirajFlotu({
   for (const n of analizirajBudjenjaKlaster(budjenja, masinaCpuUzorci)) nalazi.push(n);
 
   for (const n of analizirajUgnijezdeneKopije(ugnijezdeneKopije)) nalazi.push(n);
+
+  for (const [klon, podaci] of Object.entries(podaciPoKlonu ?? {})) {
+    const nPoslovi = analizirajPoslove(klon, podaci?.diskRedovi);
+    if (nPoslovi) nalazi.push(nPoslovi);
+  }
+
+  const nPotpunostPoslova = analizirajPotpunostPoslovaFlote(podaciPoKlonu);
+  if (nPotpunostPoslova) nalazi.unshift(nPotpunostPoslova);
 
   if (nalazi.length === 0) {
     const dana = periodDana(periodOd, periodDo);

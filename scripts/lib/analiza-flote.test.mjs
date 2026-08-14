@@ -4,7 +4,16 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { analizirajFlotu, PRAGOVI_DEFAULT, formatVelicina } from "./analiza-flote.mjs";
+import {
+  analizirajFlotu,
+  PRAGOVI_DEFAULT,
+  formatVelicina,
+  OBAVEZNI_POSLOVI,
+  ocekivaniPoslovi,
+  izvuciSufiksPosla,
+  registrovaniSufiksiPosla,
+  izracunajStatusPoslova,
+} from "./analiza-flote.mjs";
 
 const MB = 1024 ** 2;
 const GB = 1024 ** 3;
@@ -664,4 +673,200 @@ test("kombinovan slucaj: vise nalaza odjednom, tekst grupise po kategoriji", () 
   assert.match(r.tekst, /## Disk/);
   assert.match(r.tekst, /## Transkripti/);
   assert.match(r.tekst, /## Sesija/);
+});
+
+// ---- zakazani poslovi: cisti gradivni blokovi (ocekivaniPoslovi, izvuciSufiksPosla, ...) ----
+
+test("ocekivaniPoslovi: bez uslovnih poslova vraca tacno 4 obavezna", () => {
+  assert.deepEqual(ocekivaniPoslovi(), OBAVEZNI_POSLOVI);
+  assert.deepEqual(ocekivaniPoslovi({ imaAdminRuntime: false, imaStanjeRepo: false }), OBAVEZNI_POSLOVI);
+});
+
+test("ocekivaniPoslovi: admin-bot se dodaje samo kad imaAdminRuntime", () => {
+  const r = ocekivaniPoslovi({ imaAdminRuntime: true });
+  assert.ok(r.includes("admin-bot"));
+  assert.equal(r.length, OBAVEZNI_POSLOVI.length + 1);
+});
+
+test("ocekivaniPoslovi: backup se dodaje samo kad imaStanjeRepo", () => {
+  const r = ocekivaniPoslovi({ imaStanjeRepo: true });
+  assert.ok(r.includes("backup"));
+  assert.equal(r.length, OBAVEZNI_POSLOVI.length + 1);
+});
+
+test("ocekivaniPoslovi: oba uslovna zajedno daju 6 poslova", () => {
+  const r = ocekivaniPoslovi({ imaAdminRuntime: true, imaStanjeRepo: true });
+  assert.equal(r.length, 6);
+});
+
+test("izvuciSufiksPosla: launchctl red (macOS) daje lowercase sufiks", () => {
+  const red = "12345\t0\tba.codefactory.olx.klijent-x.snapshot";
+  assert.equal(izvuciSufiksPosla(red, "klijent-x"), "snapshot");
+});
+
+test("izvuciSufiksPosla: schtasks CSV red (Windows), navodnici i vodeca kosa crta", () => {
+  const red = '"\\ba.codefactory.olx.klijent-x.admin-bot","2026-08-15T07:20:00","Ready"';
+  assert.equal(izvuciSufiksPosla(red, "klijent-x"), "admin-bot");
+});
+
+test("izvuciSufiksPosla: poredjenje prefiksa je case-insensitive", () => {
+  const red = "0\t0\tBA.CODEFACTORY.OLX.Klijent-X.Dnevno";
+  assert.equal(izvuciSufiksPosla(red, "klijent-x"), "dnevno");
+});
+
+test("izvuciSufiksPosla: red bez prefiksa vraca null", () => {
+  assert.equal(izvuciSufiksPosla("nekaDrugaLinija", "klijent-x"), null);
+});
+
+test("izvuciSufiksPosla: red drugog klona (razlicit prefiks) vraca null", () => {
+  const red = "0\t0\tba.codefactory.olx.klijent-y.snapshot";
+  assert.equal(izvuciSufiksPosla(red, "klijent-x"), null);
+});
+
+test("registrovaniSufiksiPosla: skuplja distinct sufikse samo za trazeni klon", () => {
+  const redovi = [
+    "0\t0\tba.codefactory.olx.klijent-x.snapshot",
+    "0\t0\tba.codefactory.olx.klijent-x.dnevno",
+    "0\t0\tba.codefactory.olx.klijent-y.snapshot", // drugi klon, ignorisati
+    "sum linija bez prefiksa",
+  ];
+  const skup = registrovaniSufiksiPosla(redovi, "klijent-x");
+  assert.deepEqual([...skup].sort(), ["dnevno", "snapshot"]);
+});
+
+test("registrovaniSufiksiPosla: nije niz -> prazan skup, bez bacanja", () => {
+  assert.equal(registrovaniSufiksiPosla(null, "klijent-x").size, 0);
+});
+
+// ---- zakazani poslovi: izracunajStatusPoslova ----
+
+test("izracunajStatusPoslova: redovi null -> poznato false", () => {
+  assert.deepEqual(izracunajStatusPoslova({ redovi: null, imeKlona: "klijent-x" }), { poznato: false });
+  assert.deepEqual(izracunajStatusPoslova({ imeKlona: "klijent-x" }), { poznato: false });
+});
+
+test("izracunajStatusPoslova: svi obavezni poslovi registrovani -> nedostaje prazno", () => {
+  const redovi = OBAVEZNI_POSLOVI.map((s) => `0\t0\tba.codefactory.olx.klijent-x.${s}`);
+  const status = izracunajStatusPoslova({ redovi, imeKlona: "klijent-x" });
+  assert.equal(status.poznato, true);
+  assert.equal(status.ocekivanoBroj, 4);
+  assert.equal(status.registrovanoBroj, 4);
+  assert.deepEqual(status.nedostaje, []);
+});
+
+test("izracunajStatusPoslova: fali jedan obavezan posao, imenuje ga tacno", () => {
+  const redovi = ["snapshot", "dnevno", "sesija"].map((s) => `0\t0\tba.codefactory.olx.klijent-x.${s}`);
+  const status = izracunajStatusPoslova({ redovi, imeKlona: "klijent-x" });
+  assert.equal(status.poznato, true);
+  assert.equal(status.registrovanoBroj, 3);
+  assert.equal(status.ocekivanoBroj, 4);
+  assert.deepEqual(status.nedostaje, ["sedmicno"]);
+});
+
+test("izracunajStatusPoslova: nijedan posao registrovan -> fale sva 4 obavezna", () => {
+  const status = izracunajStatusPoslova({ redovi: [], imeKlona: "klijent-x" });
+  assert.equal(status.poznato, true);
+  assert.equal(status.registrovanoBroj, 0);
+  assert.deepEqual(status.nedostaje, OBAVEZNI_POSLOVI);
+});
+
+test("izracunajStatusPoslova: admin-bot uslovan, registrovan i ocekivan -> ne fali", () => {
+  const redovi = [...OBAVEZNI_POSLOVI, "admin-bot"].map((s) => `0\t0\tba.codefactory.olx.klijent-x.${s}`);
+  const status = izracunajStatusPoslova({ redovi, imeKlona: "klijent-x", imaAdminRuntime: true });
+  assert.equal(status.ocekivanoBroj, 5);
+  assert.deepEqual(status.nedostaje, []);
+});
+
+test("izracunajStatusPoslova: backup ocekivan (imaStanjeRepo) ali nije registrovan -> fali", () => {
+  const redovi = OBAVEZNI_POSLOVI.map((s) => `0\t0\tba.codefactory.olx.klijent-x.${s}`);
+  const status = izracunajStatusPoslova({ redovi, imeKlona: "klijent-x", imaStanjeRepo: true });
+  assert.deepEqual(status.nedostaje, ["backup"]);
+});
+
+// ---- zakazani poslovi: integracija kroz analizirajFlotu (pravila 12 i 13) ----
+
+test("zakazani poslovi: nedostajuci posao generise nalaz sa tacnim imenom, i sa SAMO jednim diskRed-om (nije trend)", () => {
+  const jedanRed = { ...diskRed({ ts: "2026-08-12T09:00:00.000Z", ukupnoBajta: 100 * MB }), poslovi: izracunajStatusPoslova({
+    redovi: ["snapshot", "dnevno", "sesija"].map((s) => `0\t0\tba.codefactory.olx.klijent-nepotpun.${s}`),
+    imeKlona: "klijent-nepotpun",
+  }) };
+  const r = analizirajFlotu({
+    periodOd: PERIOD_OD,
+    periodDo: PERIOD_DO,
+    podaciPoKlonu: { "klijent-nepotpun": { diskRedovi: [jedanRed], memorijaAgregat: null } },
+  });
+  const nPoKlonu = r.nalazi.filter((n) => n.kategorija === "poslovi" && n.klon === "klijent-nepotpun");
+  assert.equal(nPoKlonu.length, 1);
+  assert.match(nPoKlonu[0].tekst, /klijent-nepotpun/);
+  assert.match(nPoKlonu[0].tekst, /sedmicno/);
+  assert.equal(nPoKlonu[0].ozbiljnost, "upozorenje");
+});
+
+test("zakazani poslovi: klon sa svim poslovima ne generise pojedinacni nalaz niti fleetski sazetak", () => {
+  const kompletan = { ...diskRed({ ts: "2026-08-12T09:00:00.000Z", ukupnoBajta: 100 * MB }), poslovi: izracunajStatusPoslova({
+    redovi: OBAVEZNI_POSLOVI.map((s) => `0\t0\tba.codefactory.olx.klijent-ok.${s}`),
+    imeKlona: "klijent-ok",
+  }) };
+  const r = analizirajFlotu({
+    periodOd: PERIOD_OD,
+    periodDo: PERIOD_DO,
+    podaciPoKlonu: { "klijent-ok": { diskRedovi: [kompletan], memorijaAgregat: null } },
+  });
+  assert.equal(r.nalazi.filter((n) => n.kategorija === "poslovi").length, 0);
+});
+
+test("zakazani poslovi: poznato false (upit nije uspio) se tiho preskace, bez nalaza", () => {
+  const red = { ...diskRed({ ts: "2026-08-12T09:00:00.000Z", ukupnoBajta: 100 * MB }), poslovi: { poznato: false } };
+  const r = analizirajFlotu({
+    periodOd: PERIOD_OD,
+    periodDo: PERIOD_DO,
+    podaciPoKlonu: { klon1: { diskRedovi: [red], memorijaAgregat: null } },
+  });
+  assert.equal(r.nalazi.filter((n) => n.kategorija === "poslovi").length, 0);
+});
+
+test("zakazani poslovi: stariji red bez `poslovi` polja se tiho preskace, ne baca", () => {
+  const red = diskRed({ ts: "2026-08-12T09:00:00.000Z", ukupnoBajta: 100 * MB }); // nema poslovi polje
+  const r = analizirajFlotu({
+    periodOd: PERIOD_OD,
+    periodDo: PERIOD_DO,
+    podaciPoKlonu: { klon1: { diskRedovi: [red], memorijaAgregat: null } },
+  });
+  assert.equal(r.nalazi.filter((n) => n.kategorija === "poslovi").length, 0);
+});
+
+test("zakazani poslovi: fleetski sazetak broji tacno, i UNSHIFTUJE se na pocetak niza nalazi", () => {
+  const kompletan = { ...diskRed({ ts: "2026-08-12T09:00:00.000Z", ukupnoBajta: 100 * MB }), poslovi: izracunajStatusPoslova({
+    redovi: OBAVEZNI_POSLOVI.map((s) => `0\t0\tba.codefactory.olx.klijent-ok.${s}`),
+    imeKlona: "klijent-ok",
+  }) };
+  const nepotpun = { ...diskRed({ ts: "2026-08-12T09:00:00.000Z", ukupnoBajta: 100 * MB }), poslovi: izracunajStatusPoslova({
+    redovi: [],
+    imeKlona: "klijent-nepotpun",
+  }) };
+  const r = analizirajFlotu({
+    periodOd: PERIOD_OD,
+    periodDo: PERIOD_DO,
+    podaciPoKlonu: {
+      "klijent-ok": { diskRedovi: [kompletan], memorijaAgregat: null },
+      "klijent-nepotpun": { diskRedovi: [nepotpun], memorijaAgregat: null },
+    },
+  });
+  assert.equal(r.nalazi[0].kategorija, "poslovi");
+  assert.equal(r.nalazi[0].klon, null);
+  assert.match(r.nalazi[0].tekst, /1 od 2 klonova/);
+  assert.match(r.tekst, /## Zakazani poslovi/);
+});
+
+test("zakazani poslovi: svi klonovi kompletni -> nema fleetskog sazetka (0 od N nije nalaz)", () => {
+  const kompletan = { ...diskRed({ ts: "2026-08-12T09:00:00.000Z", ukupnoBajta: 100 * MB }), poslovi: izracunajStatusPoslova({
+    redovi: OBAVEZNI_POSLOVI.map((s) => `0\t0\tba.codefactory.olx.klijent-ok.${s}`),
+    imeKlona: "klijent-ok",
+  }) };
+  const r = analizirajFlotu({
+    periodOd: PERIOD_OD,
+    periodDo: PERIOD_DO,
+    podaciPoKlonu: { "klijent-ok": { diskRedovi: [kompletan], memorijaAgregat: null } },
+  });
+  assert.equal(r.nalazi.filter((n) => n.kategorija === "poslovi" && n.klon === null).length, 0);
 });

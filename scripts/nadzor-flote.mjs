@@ -18,19 +18,22 @@
 // Dvije nezavisne faze na svaki poziv:
 //   Korak A (svaki put): disk sken po klonu, ugnijezdene kopije sirom flote, dnevni uzorak stanja
 //     masine (CPU/PSI/memorija/load) u <nadzorDir>/masina-YYYY-MM.jsonl, ciscenje starih fajlova.
-//     NE salje Telegram poruku.
+//     Ovdje se takodje JEDNOM za cijelu flotu pita schtasks/launchctl i po klonu upisuje status
+//     potpunosti zakazanih poslova (koji sufiks fali, ako ijedan fali) u disk red. NE salje
+//     Telegram poruku.
 //   Korak B (samo kad je proslo >= 3 dana od zadnje analize): agregira dnevne redove u nalaze
 //     preko analizirajFlotu(), upisuje ih u <nadzorDir>/analiza-YYYY-MM-DD.md i salje sazetak
 //     adminu na Telegram.
 
-import { mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, isAbsolute, join } from "node:path";
 import { procitajEnv } from "./lib/envfajl.mjs";
 import { nadjiKlonove, pronadjiUgnijezdeneKopije } from "./lib/klonovi.mjs";
 import { obidjiDirektorijum, sazmiSkeniranje, velicinaFolderaBrzo } from "./lib/disk.mjs";
 import { izmjeriCpuMasine, citajPsi } from "./lib/cpu.mjs";
-import { analizirajFlotu } from "./lib/analiza-flote.mjs";
+import { analizirajFlotu, izracunajStatusPoslova } from "./lib/analiza-flote.mjs";
 import {
   agregiraj,
   citajRedove,
@@ -65,6 +68,30 @@ const MAPA_OLX_PIK_PREFIKSA = {
   konkurenti: "olx_pik_konkurenti",
   resursi: "olx_pik_resursi",
 };
+
+// ---- zakazani poslovi: sirovi upit (schtasks/launchctl), JEDNOM po pokretanju cijelog nadzora ----
+//
+// Svi klonovi zive na istoj admin masini (vidi olx-dokumentacija/arhitektura.md), pa je izlistavanje
+// zakazanih poslova JEDAN upit operativnom sistemu za CIJELU flotu, ne po klonu (isti princip kao
+// provjeri-klon.mjs, samo sto se ovdje radi jednom za sve klonove umjesto po jednom klonu). Parsiranje
+// sufiksa posla po klonu (koje ime fali) je cista funkcija u scripts/lib/analiza-flote.mjs
+// (izracunajStatusPoslova), ovdje samo I/O: pokreni komandu, vrati sirove redove ili `null`.
+//
+// Nikad ne baca: komanda koja ne postoji (Linux, ili masina bez schtasks/launchctl u PATH-u) ili koja
+// padne se hvata i vraca `null` ("status poslova danas nepoznat za cijelu flotu"), obilazak flote se
+// ne prekida.
+function citajRedoveZadataka() {
+  try {
+    if (process.platform === "win32") {
+      const izlaz = execFileSync("schtasks", ["/query", "/fo", "csv"], { encoding: "utf8", stdio: "pipe" });
+      return izlaz.split("\n");
+    }
+    const izlaz = execFileSync("launchctl", ["list"], { encoding: "utf8", stdio: "pipe" });
+    return izlaz.split("\n");
+  } catch {
+    return null;
+  }
+}
 
 // ---- formatiranje ----
 
@@ -223,7 +250,7 @@ function nadjiPrethodniRed(korijenKlona, env, imeKlona, sadaMs) {
 
 // ---- obilazak jednog klona (disk sken + upis + ciscenje) ----
 
-async function obidjiJedanKlon(korijenKlona, env, imeKlona, pocetakMs) {
+async function obidjiJedanKlon(korijenKlona, env, imeKlona, pocetakMs, poslovi) {
   const prethodniRed = nadjiPrethodniRed(korijenKlona, env, imeKlona, pocetakMs);
   const odVremena = prethodniRed ? new Date(Date.parse(prethodniRed.ts)) : null;
 
@@ -239,13 +266,17 @@ async function obidjiJedanKlon(korijenKlona, env, imeKlona, pocetakMs) {
   const red = {
     ts: new Date().toISOString(),
     klon: imeKlona,
-    shema: 1,
+    // shema 2: dodano polje `poslovi` (status potpunosti zakazanih poslova, vidi
+    // izracunajStatusPoslova u lib/analiza-flote.mjs). Stariji redovi (shema 1) ga nemaju, sto
+    // analizirajFlotu tretira isto kao poslovi.poznato === false (tiho preskace nalaz).
+    shema: 2,
     kategorije: rezultatSken.kategorije,
     ukupno_bajta: rezultatSken.ukupnoBajta,
     novih_fajlova_broj: rezultatSken.novihFajlovaBroj,
     novih_fajlova_bajta: rezultatSken.novihFajlovaBajta,
     top_novi: rezultatSken.topNovi,
     trajanje_skena_ms: trajanjeMs,
+    poslovi,
     greska: null,
   };
 
@@ -260,24 +291,25 @@ async function obidjiJedanKlon(korijenKlona, env, imeKlona, pocetakMs) {
   return { imeKlona, red, uspjeh: true };
 }
 
-function redGreske(imeKlona, trajanjeMs, poruka) {
+function redGreske(imeKlona, trajanjeMs, poruka, poslovi) {
   return {
     ts: new Date().toISOString(),
     klon: imeKlona,
-    shema: 1,
+    shema: 2,
     kategorije: null,
     ukupno_bajta: null,
     novih_fajlova_broj: null,
     novih_fajlova_bajta: null,
     top_novi: null,
     trajanje_skena_ms: trajanjeMs,
+    poslovi,
     greska: poruka,
   };
 }
 
 /** Obavija obidjiJedanKlon u vremenski budzet + try/catch: pad ili tajmaut ovog klona nikad ne
  * obara obilazak flote, samo se upisuje kao greska i posao nastavlja na sljedeci klon. */
-async function obidjiKlonSaBudzetom(korijenKlona) {
+async function obidjiKlonSaBudzetom(korijenKlona, redoviZadataka) {
   const imeKlona = basename(korijenKlona);
   let env = {};
   try {
@@ -285,6 +317,19 @@ async function obidjiKlonSaBudzetom(korijenKlona) {
   } catch {
     env = {};
   }
+
+  // Status zakazanih poslova se racuna PRIJE budzetiranog disk skena: cist i brz (jedan
+  // existsSync + cista funkcija nad vec procitanim redovima), pa se upisuje u red bez obzira da
+  // li disk sken tog klona uspije, padne ili istekne (redGreske ga takodje nosi).
+  let imaAdminRuntime = false;
+  try {
+    imaAdminRuntime = existsSync(join(korijenKlona, ".claude-runtime-admin"));
+  } catch {
+    imaAdminRuntime = false;
+  }
+  const imaStanjeRepo = typeof env?.OLX_STANJE_REPO === "string" && env.OLX_STANJE_REPO.trim() !== "";
+  const poslovi = izracunajStatusPoslova({ redovi: redoviZadataka, imeKlona, imaAdminRuntime, imaStanjeRepo });
+
   const pocetakMs = Date.now();
 
   let tajmautTajmer;
@@ -294,7 +339,7 @@ async function obidjiKlonSaBudzetom(korijenKlona) {
 
   let ishod;
   try {
-    const posaoPromise = obidjiJedanKlon(korijenKlona, env, imeKlona, pocetakMs).catch((e) => ({
+    const posaoPromise = obidjiJedanKlon(korijenKlona, env, imeKlona, pocetakMs, poslovi).catch((e) => ({
       vrsta: "greska",
       poruka: e?.message ?? String(e),
     }));
@@ -306,7 +351,7 @@ async function obidjiKlonSaBudzetom(korijenKlona) {
   if (ishod?.vrsta === "tajmaut" || ishod?.vrsta === "greska") {
     const trajanjeMs = Date.now() - pocetakMs;
     const poruka = ishod.vrsta === "tajmaut" ? `tajmaut nakon ${Math.round(BUDZET_PO_KLONU_MS / 1000)}s` : ishod.poruka;
-    const red = redGreske(imeKlona, trajanjeMs, poruka);
+    const red = redGreske(imeKlona, trajanjeMs, poruka, poslovi);
     try {
       upisiRed(putanjaZaKlon(putanjaDiska, korijenKlona, env, new Date()), red);
     } catch {
@@ -447,9 +492,16 @@ async function main() {
 
   // ---- Korak A: dnevna kolekcija (svaki put) ----
 
+  const redoviZadataka = citajRedoveZadataka();
+  if (redoviZadataka === null) {
+    console.log("Zakazani poslovi: schtasks/launchctl upit nije uspio, status poslova danas nepoznat za cijelu flotu.");
+  } else {
+    console.log(`Zakazani poslovi: upit uspio (${redoviZadataka.length} redova).`);
+  }
+
   const rezultatiDiska = [];
   for (const korijenKlona of klonovi) {
-    const rezultat = await obidjiKlonSaBudzetom(korijenKlona);
+    const rezultat = await obidjiKlonSaBudzetom(korijenKlona, redoviZadataka);
     rezultatiDiska.push(rezultat);
     console.log(linijaSazetkaKlona(rezultat));
   }
