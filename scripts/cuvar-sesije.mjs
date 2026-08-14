@@ -51,7 +51,10 @@
 //
 // Podesavanja kroz .env (sve opciono):
 //   OLX_SESIJA_RESTART_SAT   sat nocnog restarta, default 3
-//   OLX_SESIJA_IDLE_SATI     sati mirovanja prije restarta, default 1 (klijent) / 0.5 (admin-bot)
+//   OLX_SESIJA_IDLE_SATI     sati mirovanja prije restarta, default zavisi od strazar rezima:
+//                            sa strazarom klijent 1 / admin-bot 0.5, bez strazara klijent 2 /
+//                            admin-bot 1 (bez strazara istek praga samo restartuje sesiju i ne
+//                            oslobadja memoriju, pa kraci prag tu ne stedi nista)
 //   OLX_SESIJA_INBOX_DANA    starost inbox fajlova koji se brisu, default 7
 //   OLX_SESIJA_STRAZAR       strazar rezim: prazno (default) iskljuceno, 1/true/da oba tipa,
 //                            admin samo admin bot, klijent samo klijentska sesija
@@ -78,6 +81,7 @@ import {
   stazeSesije,
 } from "./lib/sesija.mjs";
 import {
+  idlePragSati,
   POLL_TIMEOUT_S,
   posaljiTyping,
   procitajBotToken,
@@ -123,11 +127,11 @@ const PID_FAJL = join(KORIJEN, ".olx-pik", JE_ADMIN ? "cuvar-admin-bota.pid" : "
 const MCP_PROFIL = STAZE.mcpProfil;
 
 const RESTART_SAT = broj(process.env.OLX_SESIJA_RESTART_SAT, 3);
-const IDLE_SATI = broj(process.env.OLX_SESIJA_IDLE_SATI, JE_ADMIN ? 0.5 : 1);
-const INBOX_DANA = broj(process.env.OLX_SESIJA_INBOX_DANA, 7);
 // Prekidac je po tipu sesije, ne samo po klonu, jer se rezim uvodi postepeno: prvo admin bot
 // (koristi se najrjedje a nosi punu drugu sesiju), pa klijentska sesija istog klona, pa flota.
 const STRAZAR = strazarUkljucen(process.env, JE_ADMIN);
+const IDLE_SATI = broj(process.env.OLX_SESIJA_IDLE_SATI, idlePragSati(JE_ADMIN, STRAZAR.ukljucen));
+const INBOX_DANA = broj(process.env.OLX_SESIJA_INBOX_DANA, 7);
 
 // ---- telemetrija resursa (best effort, vidi scripts/lib/resursi.mjs) ----
 // Dva intervala jer aktivna sesija treba gusce uzorkovanje od mirne straze: RSS cuvara u strazi

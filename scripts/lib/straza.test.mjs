@@ -14,6 +14,7 @@ import {
   TIHO_ALARM_MS,
   backoffMs,
   chatIzUpdatea,
+  idlePragSati,
   posaljiTyping,
   procitajBotToken,
   strazarUkljucen,
@@ -258,6 +259,18 @@ test("strazarUkljucen: smece daje iskljuceno i upozorenje sa pogresnom vrijednos
   assert.match(r.upozorenje, /mozda/);
   assert.match(r.upozorenje, /admin/);
   assert.match(r.upozorenje, /klijent/);
+});
+
+// ---- idlePragSati ----
+
+test("idlePragSati: sa strazarom admin 0.5, klijent 1", () => {
+  assert.equal(idlePragSati(true, true), 0.5);
+  assert.equal(idlePragSati(false, true), 1);
+});
+
+test("idlePragSati: bez strazara admin 1, klijent 2", () => {
+  assert.equal(idlePragSati(true, false), 1);
+  assert.equal(idlePragSati(false, false), 2);
 });
 
 // ---- procitajBotToken ----

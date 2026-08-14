@@ -24,7 +24,7 @@ flowchart LR
         disk[("Disk klona<br/>.olx-pik: audit, snapshoti, prijedlozi<br/>.claude-runtime i .claude-runtime-admin")]
     end
 
-    cuvar["Cuvar sesija<br/>cuvar-sesije.mjs klijent i admin-bot"] -.->|"drzi zive, nocni restart 03h,<br/>idle restart: klijent 1h, admin 30min<br/>OLX_SESIJA_STRAZAR: idle/nocni GASE,<br/>cuvar strazari i budi na poruku"| sesija
+    cuvar["Cuvar sesija<br/>cuvar-sesije.mjs klijent i admin-bot"] -.->|"drzi zive, nocni restart 03h,<br/>idle restart: klijent 2h/admin 1h bez straze,<br/>klijent 1h/admin 30min sa strazom<br/>OLX_SESIJA_STRAZAR: idle/nocni GASE,<br/>cuvar strazari i budi na poruku"| sesija
     cuvar -.-> asesija
 
     tg <--> sesija

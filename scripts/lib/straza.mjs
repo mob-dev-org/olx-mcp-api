@@ -49,6 +49,20 @@ export function strazarUkljucen(env, jeAdmin) {
 }
 
 /**
+ * Default idle praga (u satima) prije restarta sesije, po tipu sesije i po tome da li je
+ * strazar rezim ukljucen. Sa strazarom istek praga sesiju GASI i memorija se stvarno oslobodi,
+ * pa se isplati kraci prag (admin 0.5, klijent 1). Bez strazara istek praga sesiju samo
+ * RESTARTUJE (kontekst se brise, proces ostaje dignut, memorija se ne oslobadja), pa kraci prag
+ * tu ne stedi nista i samo kosta kontinuitet razgovora, zato vraca stariju, duzu vrijednost
+ * (admin 1, klijent 2). Pozivalac ovo koristi kao fallback; izricito zadan
+ * `OLX_SESIJA_IDLE_SATI` uvijek ima prednost.
+ */
+export function idlePragSati(jeAdmin, strazarUkljucen) {
+  if (strazarUkljucen) return jeAdmin ? 0.5 : 1;
+  return jeAdmin ? 1 : 2;
+}
+
+/**
  * Jedini dozvoljeni izvor bot tokena za strazu. Telegram plugin unutar sesije cita SVOJ token
  * bas odavde: `$TELEGRAM_STATE_DIR/.env`, dakle `<runtime>/channels/telegram/.env` (pisu ga
  * scripts/pripremi-runtime.mjs i scripts/pripremi-admin-runtime.mjs). Fallback na
