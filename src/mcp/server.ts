@@ -1153,7 +1153,7 @@ server.registerTool(
   {
     title: "Izvjestaj o konkurentu",
     description:
-      "Analiza tudjeg naloga iz javnih podataka u jednom pozivu: paket, aktivnost, ocjene, broj aktivnih i zavrsenih oglasa, cijene (min/median/max), udio sponzorisanih i akcija, kadenca obnove. top_views > 0 dodatno vraca izvjestaj (ukljucujuci preglede) za N najskorije obnovljenih oglasa. Konkurenta zadaj po username-u (nema pretrage po kategoriji).",
+      "Analiza tudjeg naloga iz javnih podataka u jednom pozivu: paket, aktivnost, ocjene, broj aktivnih i zavrsenih oglasa, cijene (min/median/max), udio sponzorisanih i akcija, kadenca obnove. top_views > 0 dodatno vraca izvjestaj (ukljucujuci preglede) za N najskorije obnovljenih oglasa. Konkurenta zadaj po username-u (nema pretrage po kategoriji). Postoci vrijede za dio kataloga u polju obuhvat, ne za cijeli shop kad on kaze da uzorak nije potpun.",
     inputSchema: {
       username: z.string().min(1),
       top_views: z.number().int().min(0).max(10).default(0),
@@ -1264,7 +1264,9 @@ server.registerTool(
           obuhvat,
           uputa:
             `Oglas nije nadjen u dijelu kataloga koji je procitan (${obuhvat.procitano} od ${obuhvat.ukupno ?? "nepoznato"} oglasa, razlog: ${svi.razlog ?? "nepoznat"}). ` +
-            "Katalog nije procitan u cijelosti, pa se ne moze tvrditi da oglas ne postoji. Suzi upit ili pokusaj ponovo.",
+            "Katalog nije procitan u cijelosti, pa se ne moze tvrditi da oglas ne postoji. " +
+            "Reci korisniku da moze dati broj oglasa direktno (tada ide olx_get_listing, bez ikakvog prelistavanja), " +
+            "ili neka upit suzi na jednu rijec iz naslova, pa pokusaj ponovo.",
         };
       }
       // Napomena ide u REZULTAT namjerno: opis alata slabiji model zna preskociti, a ovo

@@ -14,23 +14,50 @@ Uklonjen tihi rez na 1000 oglasa u prelistavanju kataloga (`listAllByState`/`lis
 umjesto goleg niza koji tiho staje na 50 stranica, sada vracaju `SviOglasi { oglasi, potpuno,
 ukupno, procitanoStranica, stranicaUkupno, razlog }`. Dva nezavisna ogranicenja umjesto jednog
 broja stranica: `maxStranicaListe` je osigurac protiv pokvarenog `last_page` (default 5000
-stranica), `budzetListeMs`/`budzetListeGrupniMs` su budzeti vremena po pozivaocu (20 s / 120 s).
+stranica), `budzetListeMs`/`budzetListeGrupniMs` su budzeti vremena po pozivaocu (75 s / 120 s).
 Kad lista nije potpuna, `olx_bulk_price` i `olx_bulk_sklanjanje` ODBIJAJU rad umjesto da tiho
 preskoce oglase; `olx_refresh_bulk` i dnevni posao rade dalje jer je obnova besplatna;
 `olx_find_my_listing` odbija umjesto da javi lazno "nema pogodaka"; `stats snapshot` ne pise
-snimak nepotpunog kataloga. `olx_list_listings` sa `all` sada odbija CSV iznad
-`OLX_MAX_OGLASA_U_ODGOVORU` (500 oglasa) umjesto da ga tiho sijece. Detalji:
-`olx-dokumentacija/arhitektura.md` sekcija 10.
+snimak nepotpunog kataloga. `olx_list_listings` sa `all` iznad `OLX_MAX_OGLASA_U_ODGOVORU`
+(500 oglasa) isporucuje katalog u komadima kroz nov parametar `komad`, umjesto da ga tiho
+sijece. Detalji: `olx-dokumentacija/arhitektura.md` sekcija 10.
+
+**Sta je popravljeno prije izdanja, poslije revizije gornjeg posla.** Sve navedeno postoji zato
+sto bi inace radnja koja je radila na 0.14.0 poslije azuriranja radila losije:
+
+- Razgovorni budzet liste podignut sa 20 s na 75 s (`OLX_BUDZET_LISTE_MS`). Na 20 s je efektivni
+  plafon bio oko 700 oglasa, dakle NIZI od tihog reza od 1000 oglasa koji je vazio ranije, pa je
+  klijent sa 800 oglasa gubio ono sto je prije dobijao. Cijena te odluke: u najgorem slucaju bot
+  cuti do 75 s prije odgovora na alat koji cita cijeli katalog. To je losije po dozivljaju, ali
+  bolje nego nepotpun ili odbijen odgovor, i desava se samo na velikim katalozima.
+- `olx_competitor_report` dobija vlastiti kljuc `OLX_BUDZET_LISTE_KONKURENT_MS` (20 s), da
+  serijski obilazak kandidata ne naslijedi duzi razgovorni budzet.
+- `olx_sponsor_plan` trazi NAJSTARIJE oglase, a budzet odsijeca zadnje stranice, dakle bas njih:
+  prijedlog iz nepotpune liste nije bio nepotpun nego sistemski pogresan. Sada cita katalog od
+  kraja uz provjeru poretka, a kad to ne prodje, cita cijeli katalog i radije odbije nego da
+  predlozi pogresne kandidate.
+- `olx_bulk_price` i `olx_bulk_sklanjanje` sa zadatim `ids` (do 60) vise ne citaju katalog nego
+  idu `getListing` po ID-u. Razlog `katalog_se_mijenjao` dobija jedan automatski ponovni pokusaj
+  umjesto odbijanja. Poruka odbijanja vise ne savjetuje suzavanje kroz `category_id`, jer taj
+  savjet nije mogao pomoci, nego navodjenje `ids` ili CLI.
+- `olx_profile_stats` i `olx_onboarding_report` iz MCP-a dobijaju budzet, jer su ranije citali do
+  osiguraca i mogli probiti MCP zid od 300 s, poslije cega korisnik ne dobije nista.
+- `olx_sablon_opisa` vise ne cita cijeli katalog da bi zadrzao najvise 60 oglasa.
+- `olx_find_my_listing` u odbijanju sada kaze i da korisnik moze dati broj oglasa direktno.
+- Idle prag cuvara sesije vracen na stari (klijent 2 h, admin 1 h) kad `OLX_SESIJA_STRAZAR` NIJE
+  ukljucen: bez straze istek praga sesiju samo restartuje, pa kratak prag ne stedi memoriju nego
+  samo lomi kontinuitet razgovora. Uz strazu prag ostaje kratak (klijent 1 h, admin 30 min).
+- `.env.example` je usklasen sa kodom: prazna vrijednost znaci nula, ne default, pa je nov klon iz
+  tog fajla dobijao telemetriju iskljucenu. Sada su `OLX_RESURSI_INTERVAL_MIN` i
+  `OLX_RESURSI_INTERVAL_STRAZA_MIN` upisani izricito.
 
 **Izricito: `.mcp.json` dobija `"timeout": 300000` za server `olx-pik`.** Ova promjena stize u
 SVAKI klon pri sljedecem azuriranju, jer je `.mcp.json` u gitu i azuriranje ga povlaci sa ostatkom
 koda.
 
-**Poznato ogranicenje, nije rijeseno u ovom poslu:** `olx_bulk_sklanjanje` i `olx_bulk_price` sa
-zadatim `ids` i dalje citaju CIJELI katalog samo da provjere koji su ID-evi aktivni i da pokupe
-naslove. Ispravnije bi bilo da rade `getListing` po zadatom ID-u, jer je tada trosak ogranicen
-brojem ID-eva a ne velicinom kataloga, i odbijanje zbog nepotpunog kataloga bi otpalo. Nije
-uradjeno u ovom poslu da se obim ne siri; zabiljezeno da se ne izgubi.
+**Napomena uz grupne alate sa `ids`:** kad se ide `getListing` po ID-u, stanje oglasa se ne moze
+pouzdano procitati iz punog odgovora, pa se u toj grani ne tvrdi da je oglas aktivan; odgovor
+tada nosi `stanje_provjereno: false`. Radnja se svejedno izvrsava, jer trazeni oglas postoji.
 
 Iza prekidaca `OLX_SESIJA_STRAZAR` (default iskljuceno, opt in po klonu): cuvar sesije moze
 GASITI sesiju na prag mirovanja i na nocni termin umjesto da je restartuje, i sam preuzeti
