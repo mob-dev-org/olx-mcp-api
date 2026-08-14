@@ -51,6 +51,9 @@ Ucitava se samo kad se diraju skripte ili deploy. Mapa cijelog pogona:
   radi samo povratne stvari i nikad ne pusha, a nepovratni dio (prekidac `stabilno`, azuriranje
   flote) trazi eksplicitnu zastavicu `--pomjeri-stabilno`. Nova skripta koja dira flotu drzi isto
   pravilo: nepovratno iza zastavice, nikad kao default.
+- Ime prekidaca `stabilno` je konfigurabilno preko `OLX_TAG` (default "stabilno"), samo na admin
+  masini: cita ga `scripts/pusti-u-flotu.mjs`, `scripts/azuriraj-ovaj-klon.mjs`,
+  `scripts/provjeri-izdanje.mjs`, `scripts/azuriraj-sve.sh` i `deploy/windows/azuriraj.ps1`.
 - Klon ne povlaci kod sam. `SessionStart` hook (`provjeri-izdanje.mjs --samo-zaostajanje`) samo
   JAVI da klon zaostaje i da komandu. Dva razloga: zamjena koda ispod zive sesije ostavlja MCP
   server na starom buildu, a automatsko povlacenje u 03:00 zaobilazi kapiju i moze ostaviti
