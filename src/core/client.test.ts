@@ -610,6 +610,163 @@ test("listAllByState prelistava sve stranice datog stanja i postuje maxPages", a
   }
 });
 
+// Glavni regresioni test: prvi klijent ima 2000 artikala u katalogu, a stari kod je
+// listAllByState tiho sjekao na maxPages=50 * per_page 20 = 1000, pa je pozivalac dobijao
+// goli niz i mislio da je to cijeli katalog. Broj 2500 namjerno prelazi taj stari plafon
+// (i stvarni katalog prvog klijenta) da regresija ne moze proci neopazeno.
+test("listAllByState cita cijeli katalog od 2500 oglasa, ne staje na starom plafonu od 1000", async () => {
+  const PER_PAGE = 20;
+  const UKUPNO_STRANICA = 125;
+  const UKUPNO_OGLASA = 2500;
+  const stranice = Array.from({ length: UKUPNO_STRANICA }, (_, i) => {
+    const page = i + 1;
+    return {
+      status: 200,
+      body: {
+        data: Array.from({ length: PER_PAGE }, (_, j) => {
+          const id = (page - 1) * PER_PAGE + j + 1;
+          return { id, title: `Oglas ${id}` };
+        }),
+        meta: { total: UKUPNO_OGLASA, last_page: UKUPNO_STRANICA, current_page: page, per_page: PER_PAGE },
+      },
+    };
+  });
+  const { calls, restore } = stubFetch(stranice);
+  try {
+    const client = new OlxClient(testConfig());
+    const rezultat = await client.listAllByState("active", "primjer_shop");
+    assert.equal(rezultat.oglasi.length, 2500, "stari kod bi ovdje vratio 1000 (maxPages 50 * per_page 20)");
+    assert.equal(rezultat.potpuno, true);
+    assert.equal(rezultat.ukupno, 2500);
+    assert.equal(rezultat.procitanoStranica, 125);
+    assert.equal(rezultat.razlog, undefined);
+    assert.equal(calls.length, 125);
+  } finally {
+    restore();
+  }
+});
+
+// Uslov (b): iscrpljen budzet vremena NIJE tisina i NIJE prazan rezultat. Prelistavanje se
+// prekida, ali sve vec procitane stranice ostaju u odgovoru, a `ukupno` i dalje dolazi sa
+// API-ja (meta.total prve stranice), ne iz duzine nepotpune liste.
+test("listAllByState kad budzet istekne staje ali zadrzava vec procitane stranice", async () => {
+  const stranica = (page: number) => ({
+    data: [{ id: page, title: `Oglas ${page}` }],
+    meta: { total: 500, last_page: 5, current_page: page, per_page: 100 },
+  });
+  const { calls, restore } = stubFetch([
+    { status: 200, body: stranica(1) },
+    { status: 200, body: stranica(2) },
+    { status: 200, body: stranica(3) },
+    { status: 200, body: stranica(4) },
+    { status: 200, body: stranica(5) },
+  ]);
+  try {
+    const client = new OlxClient(testConfig({ minRequestIntervalMs: 20 }));
+    const rezultat = await client.listAllByState("active", "primjer_shop", { budzetMs: 1 });
+    assert.ok(rezultat.oglasi.length > 0, "prva stranica nije bacena");
+    assert.equal(rezultat.potpuno, false);
+    assert.equal(rezultat.razlog, "budzet");
+    assert.equal(rezultat.ukupno, 500, "ukupno dolazi sa API-ja, ne iz duzine nepotpune liste");
+    assert.ok(calls.length < 5, "prelistavanje je stalo prije zadnje stranice");
+  } finally {
+    restore();
+  }
+});
+
+// Prelistavanje velikog kataloga traje minutama, a obnova jednog oglasa ga u medjuvremenu
+// premjesti na prvu stranicu, pa bi se bez dedupa isti oglas pojavio dvaput.
+test("listAllByState dedup-uje isti oglas kad se pojavi na dvije stranice", async () => {
+  const { restore } = stubFetch([
+    {
+      status: 200,
+      body: {
+        data: [{ id: 1, title: "Oglas 1" }, { id: 2, title: "Oglas 2" }, { id: 3, title: "Oglas 3" }],
+        meta: { total: 5, last_page: 2, current_page: 1, per_page: 3 },
+      },
+    },
+    {
+      status: 200,
+      body: {
+        data: [{ id: 3, title: "Oglas 3" }, { id: 4, title: "Oglas 4" }, { id: 5, title: "Oglas 5" }],
+        meta: { total: 5, last_page: 2, current_page: 2, per_page: 3 },
+      },
+    },
+  ]);
+  try {
+    const client = new OlxClient(testConfig());
+    const rezultat = await client.listAllByState("active", "primjer_shop");
+    const idovi = rezultat.oglasi.map((o) => o.id);
+    assert.equal(rezultat.oglasi.length, 5, "duplikat (id 3) se broji samo jednom");
+    assert.equal(new Set(idovi).size, idovi.length, "svi id-jevi su jedinstveni");
+  } finally {
+    restore();
+  }
+});
+
+test("listAllByState prijavljuje da se katalog mijenjao tokom citanja", async () => {
+  const { restore } = stubFetch([
+    {
+      status: 200,
+      body: {
+        data: [{ id: 1, title: "Oglas 1" }],
+        meta: { total: 100, last_page: 2, current_page: 1, per_page: 1 },
+      },
+    },
+    {
+      status: 200,
+      body: {
+        data: [{ id: 2, title: "Oglas 2" }],
+        meta: { total: 98, last_page: 2, current_page: 2, per_page: 1 },
+      },
+    },
+  ]);
+  try {
+    const client = new OlxClient(testConfig());
+    const rezultat = await client.listAllByState("active", "primjer_shop");
+    assert.equal(rezultat.potpuno, false);
+    assert.equal(rezultat.razlog, "katalog_se_mijenjao");
+  } finally {
+    restore();
+  }
+});
+
+// Prednost razloga: kad osigurac vec sijece listu, promjena kataloga izmedju prve i zadnje
+// procitane stranice se ne smije prepisati preko "katalog_se_mijenjao".
+test("listAllByState: osigurac ima prednost nad katalog_se_mijenjao", async () => {
+  const { restore } = stubFetch([
+    {
+      status: 200,
+      body: {
+        data: [{ id: 1, title: "Oglas 1" }],
+        meta: { total: 100, last_page: 10, current_page: 1, per_page: 1 },
+      },
+    },
+    {
+      status: 200,
+      body: {
+        data: [{ id: 2, title: "Oglas 2" }],
+        meta: { total: 100, last_page: 10, current_page: 2, per_page: 1 },
+      },
+    },
+    {
+      status: 200,
+      body: {
+        data: [{ id: 3, title: "Oglas 3" }],
+        meta: { total: 90, last_page: 10, current_page: 3, per_page: 1 },
+      },
+    },
+  ]);
+  try {
+    const client = new OlxClient(testConfig());
+    const rezultat = await client.listAllByState("active", "primjer_shop", { maxStranica: 3 });
+    assert.equal(rezultat.potpuno, false);
+    assert.equal(rezultat.razlog, "osigurac", "osigurac se ne smije prepisati sa katalog_se_mijenjao");
+  } finally {
+    restore();
+  }
+});
+
 // ---- Audit log i obnova tokena ----
 // Sink se injektuje kao funkcija, pa nijedan test ne pise u fajl.
 

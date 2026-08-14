@@ -18,6 +18,7 @@ import {
   limitObjave,
   median,
   mrtviOglasi,
+  obuhvatIz,
   oglasIzvjestaj,
   onboardingIzvjestaj,
   ostvarivihObnova,
@@ -35,6 +36,7 @@ import type {
   OlxPublicProfile,
   OlxUser,
   RefreshLimits,
+  SviOglasi,
 } from "./types.js";
 
 // 2026-07-31 00:00 UTC, fiksno "sada" za sve testove.
@@ -1145,4 +1147,24 @@ test("alarmiNaloga: objava_limit alarm nosi nivo po statusu grupe, i izostaje be
 
   const bezLimita = alarmiNaloga(me(), limits(), 0, SADA).alarmi.find((a) => a.tip === "objava_limit");
   assert.equal(bezLimita, undefined);
+});
+
+// ===== obuhvatIz =====
+
+test("obuhvatIz prenosi potpuno, ukupno i razlog nepromijenjeno, a procitano racuna iz duzine liste", () => {
+  const nepotpuno: SviOglasi = {
+    oglasi: [oglas({ id: 1 }), oglas({ id: 2 })],
+    potpuno: false,
+    ukupno: 2500,
+    procitanoStranica: 3,
+    stranicaUkupno: 125,
+    razlog: "budzet",
+  };
+  const obuhvat = obuhvatIz(nepotpuno);
+  assert.equal(obuhvat.potpuno, false);
+  assert.equal(obuhvat.ukupno, 2500);
+  assert.equal(obuhvat.razlog, "budzet");
+  // procitano prati duzinu liste, NE ukupno: bas tu se razlikuju kad je lista nepotpuna.
+  assert.equal(obuhvat.procitano, 2);
+  assert.notEqual(obuhvat.procitano, obuhvat.ukupno);
 });
