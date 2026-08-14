@@ -35,6 +35,7 @@ import { brojPozivaDanas, zapisiAiPoziv } from "./ai-dnevnik.js";
 import { loadConfig } from "./config.js";
 import { pozoviGemini, type GeminiDioZahtjeva } from "./gemini.js";
 import { opisZaRecept, ucitajPozadinu } from "./pozadina.js";
+import { efektivniLimit, envLimit, procitajOverride } from "./slika-limit.js";
 import { zapisiZahtjevSlike } from "./slike-trag.js";
 import { normalizujTekst, tokeni } from "./tekst.js";
 import { medijskiTip } from "./vid.js";
@@ -138,9 +139,13 @@ export function slikaKonfigurisana(env: NodeJS.ProcessEnv = process.env): boolea
   return Boolean(env.OLX_SLIKA_API_KEY);
 }
 
+/**
+ * Tanak wrapper oko `envLimit` iz slika-limit.ts: fallback broj (10) zivi tamo, na jednom
+ * mjestu, jer ga koristi i `efektivniLimit` za jednodnevni override. Ostaje ovdje radi
+ * nazadne kompatibilnosti sa postojecim pozivaocima.
+ */
 export function maxDnevno(env: NodeJS.ProcessEnv = process.env): number {
-  const sirovo = Number(env.OLX_SLIKA_MAX_DNEVNO);
-  return Number.isFinite(sirovo) && sirovo > 0 ? Math.floor(sirovo) : 10;
+  return envLimit(env);
 }
 
 // Granice koje se PONAVLJAJU poslije dopune. Redoslijed je namjeran: sto je zadnje u promptu,
@@ -455,12 +460,13 @@ export async function generisiSliku(opcije: OpcijeGenerisanja): Promise<Generisa
     throw new Error(`Radnja je zaustavljena: ${nalaz.razlog}. Javi administratoru.`);
   }
 
-  const plafon = maxDnevno();
+  const danasIso = new Date().toISOString().slice(0, 10);
+  const { limit: plafon } = efektivniLimit(process.env, danasIso, procitajOverride());
   const danas = brojPozivaDanas(IZVOR);
   if (danas >= plafon) {
     throw new Error(
-      `Dnevni plafon generisanja slika je dostignut (${danas}/${plafon}). Sutra se brojac resetuje, ` +
-        `ili se plafon mijenja kroz OLX_SLIKA_MAX_DNEVNO.`,
+      `Dnevni plafon generisanja slika je dostignut (${danas}/${plafon}). Admin moze danas povecati ` +
+        `limit alatom olx_limit_slika, ili trajno promijeniti OLX_SLIKA_MAX_DNEVNO u .env na masini.`,
     );
   }
 

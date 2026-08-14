@@ -36,6 +36,7 @@ import { OPSEZI, bezSklonjenog, odvojiIzuzete, preneseno, saDodatim, spisak, uci
 import { kompaktSpisak, mapaZapisa, noviZapis, planVracanja, preuzmiSlike, saOznakomObjave, ucitajSveZapise, ucitajZapis, upisiZapis, velicinaArhive } from "../core/arhiva.js";
 import type { Listing, ListingSummary } from "../core/types.js";
 import { INTERVAL_MAX, STRATEGIJE, intervalUzPrag, normalizujRitam, ritamZapisan, ucitajRitam, upisiRitam } from "../core/ritam-obnova.js";
+import { procitajOverride, upisiOverride } from "../core/slika-limit.js";
 import { POZADINA_OPIS_MAX, obrisiPozadinu, sacuvajPozadinu, sazetakPozadine, ucitajPozadinu } from "../core/pozadina.js";
 import { DOPUNA_MAX, ODNOSI, RECEPTI, RECEPT_POZADINA, ZADANI_ODNOS, generisiSliku, maxDnevno, provjeriDopunu, provjeriZahtjevSlike, slikaKonfigurisana, type Odnos } from "../core/slika.js";
 import { oznaciPotrosene, pocistiPotrosene } from "../core/slike-ciscenje.js";
@@ -147,6 +148,9 @@ const SAMO_ADMIN = new Set([
   // posao koji se radi iz admin sesije.
   "olx_competitor_report",
   "olx_sponsor_effect",
+  // Brana troska (zastita racuna kod vanjskog AI-ja): samo administrator smije danas podici
+  // dnevni plafon generisanja slika.
+  "olx_limit_slika",
 ]);
 
 const zaKlijenta = config.mcpProfil === "klijent";
@@ -1644,6 +1648,47 @@ server.registerTool(
           : {}),
         vazi_od: "sljedece dnevne obnove",
       });
+    } catch (e) {
+      return errResult(String(e instanceof Error ? e.message : e));
+    }
+  },
+);
+
+// Jednodnevni override dnevnog plafona generisanja slika. Postoji jer admin bot sesija namjerno
+// nema Bash/Write/Edit/Read na .env* (Telegram nalog ne smije biti kljuc od cijele masine), pa se
+// plafon iz .env ne moze mijenjati kroz razgovor. Ovaj alat je brana troska, zato SAMO_ADMIN.
+server.registerTool(
+  "olx_limit_slika",
+  {
+    title: "Jednodnevni limit generisanja slika",
+    description:
+      "Dnevni plafon generisanja slika (inace iz OLX_SLIKA_MAX_DNEVNO ili fallback 10). 'postavi' upisuje novi limit koji vazi SAMO ZA DANAS; sutra automatski pada nazad na .env/fallback vrijednost, bez rucnog vracanja. Radnja 'procitaj' vraca trenutni override ili javlja da nema (ili da je od ranijeg dana pa je istekao). Ne trosi kredite, samo mijenja plafon jednog jeftinog AI poziva.",
+    inputSchema: {
+      radnja: z.enum(["procitaj", "postavi"]),
+      limit: z.number().int().positive().optional().describe("obavezno za postavi"),
+      razlog: z.string().optional(),
+    },
+  },
+  async (args) => {
+    try {
+      const danasIso = new Date().toISOString().slice(0, 10);
+      const override = procitajOverride();
+      if (args.radnja === "procitaj") {
+        if (override && override.datum === danasIso) {
+          return ok({ ...override, aktivan: true });
+        }
+        return ok({
+          aktivan: false,
+          napomena: override
+            ? `Nema override-a za danas (${danasIso}); posljednji je bio za ${override.datum} i vec je istekao.`
+            : `Nema override-a za danas (${danasIso}); plafon je iz .env/fallback.`,
+        });
+      }
+      if (typeof args.limit !== "number") return errResult("Radnja 'postavi' trazi limit.");
+
+      const novo = { datum: danasIso, limit: args.limit, kada: new Date().toISOString(), razlog: args.razlog ?? null };
+      upisiOverride(novo);
+      return ok({ ...novo, napomena: "Vazi samo za danas. Sutra plafon automatski pada nazad na .env/fallback vrijednost." });
     } catch (e) {
       return errResult(String(e instanceof Error ? e.message : e));
     }
