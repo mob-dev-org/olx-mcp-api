@@ -509,6 +509,9 @@ server.registerTool(
             razlog: "prevelik_odgovor",
             broj: suzeno.length,
             prag: config.maxOglasaUOdgovoru,
+            // Obuhvat ide i u odbijanje: katalog moze biti istovremeno prevelik za odgovor I
+            // nepotpuno procitan, pa je `broj` tada donja granica a ne tacan broj.
+            ...(sve.potpuno ? {} : { obuhvat: obuhvatIz(sve) }),
             uputa:
               `Odgovor bi nosio ${suzeno.length} oglasa, sto premasuje prag od ${config.maxOglasaUOdgovoru}. ` +
               "Za brojke o katalogu koristi olx_profile_stats, za manji zahvat suzi sa category_id ili price_min/price_max, " +
