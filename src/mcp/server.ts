@@ -31,7 +31,7 @@ import {
   type OglasPregledi,
 } from "../core/stats.js";
 import { onboardingMarkdown, onboardingTelegram } from "../core/izvjestaj.js";
-import { ucitajSnapshote } from "../core/snapshoti.js";
+import { ucitajSnapshote, zadnjiSnapshot } from "../core/snapshoti.js";
 import { nadjiPoUpitu } from "../core/match.js";
 import { PLAN_FILE, upisiPlan, zauzmiKljuc } from "../core/plan-fajl.js";
 import { buildPlan, planSazetak, type PlanKandidat } from "../core/plan.js";
@@ -1212,7 +1212,9 @@ server.registerTool(
   },
   (args) =>
     run(async (c) => {
-      const zadnji = args.bez_snapshota ? null : (ucitajSnapshote().at(-1) ?? null);
+      // Treba samo zadnji snapshot, ne cijela serija: zadnjiSnapshot() cita fajlove od
+      // najnovijeg unazad i staje na prvom ispravnom, umjesto da parsira do 120 fajlova.
+      const zadnji = args.bez_snapshota ? null : zadnjiSnapshot();
       // MCP zid je 300000 ms; razgovor ceka odgovor, pa se prelistavanje ogranicava grupnim
       // budzetom. CLI (src/cli/index.ts) isti poziv radi bez budzeta, jer tamo niko ne ceka.
       const rezultat = await c.statsOnboarding(
@@ -1245,8 +1247,8 @@ server.registerTool(
   (args) =>
     run(async (c) => {
       if (args.views === "snapshot") {
-        const snapshoti = ucitajSnapshote();
-        const zadnji = snapshoti[snapshoti.length - 1];
+        // Isto: treba samo zadnji snapshot, ne cijela serija ucitana radi jednog elementa.
+        const zadnji = zadnjiSnapshot();
         if (!zadnji) {
           // Isti razlog kao kod onboarding izvjestaja: MCP zid je 300000 ms, pa razgovorni poziv
           // dobija grupni budzet umjesto neogranicenog prelistavanja. CLI ovaj poziv radi bez
@@ -1345,6 +1347,10 @@ server.registerTool(
           greska: "Oglas nema aktivno izdvajanje, a period nije zadan. Zadaj od_ts i do_ts (unix sekunde) proslog izdvajanja.",
         };
       }
+      // Prozor NIJE suzen: efekatIzdvajanja racuna segmente "prije" i "poslije" perioda bez
+      // gornje granice unazad/unaprijed, a period (od_ts/do_ts) moze biti proizvoljno star
+      // (rucno zadan ili iz proslog sponsor_active). Kratak prozor bi tiho odsjekao "prije"
+      // segment i pretvorio validan izracun u upozorenje "nema dovoljno snapshota".
       const snapshoti = ucitajSnapshote();
       return { period, snapshota: snapshoti.length, ...efekatIzdvajanja(snapshoti, Number(args.id), period) };
     }),
@@ -1780,7 +1786,9 @@ server.registerTool(
   },
   (args) =>
     run(async () => {
-      const rezultat = mrtviOglasi(ucitajSnapshote(), Math.floor(Date.now() / 1000), args.dana);
+      // Prozor = trazeni broj dana: to je tacno ono sto mrtviOglasi/promjenaPregleda
+      // koriste kao danaUnazad, nista se ne odsijeca ispod racuna.
+      const rezultat = mrtviOglasi(ucitajSnapshote(undefined, args.dana), Math.floor(Date.now() / 1000), args.dana);
       if (!rezultat) {
         return {
           greska: "Nema dva snapshota za poredjenje. Pokreni CLI 'stats snapshot' bar dva puta u razmaku od nekoliko dana.",
