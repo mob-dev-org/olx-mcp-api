@@ -252,3 +252,36 @@ test("stats snapshot i dalje odbija upis nepotpune liste aktivnih oglasa (brana 
 function danas() {
   return new Date().toISOString().slice(0, 10);
 }
+
+test("prorjedjivanje ide tek poslije potpunog prolaza, ne poslije prekida na budzetu", async () => {
+  // Prag i gustina namjerno agresivni, da bi stari fajl sigurno bio kandidat za brisanje.
+  // Prekinut prolaz ne smije dirati istoriju: inace bi neuspjeli prolaz svakodnevno grickao
+  // seriju bez ijednog novog snapshota.
+  const mock = await pokreniMockOlx({ aktivni: OGLASI });
+  const dir = testniDir("snapshot-proredjivanje");
+  const env = { OLX_SNAPSHOT_PROREDJIVANJE_PRAG_DANA: "1", OLX_SNAPSHOT_PROREDJIVANJE_GUSTINA_DANA: "7" };
+  try {
+    const snapDir = join(dir, ".olx-pik", "snapshots");
+    mkdirSync(snapDir, { recursive: true });
+    // Dva stara fajla u istom sedmicnom bloku: prorjedjivanje smije zadrzati samo stariji.
+    const stari = ["views-2020-01-02.json", "views-2020-01-03.json"];
+    for (const f of stari) {
+      writeFileSync(join(snapDir, f), JSON.stringify({ verzija: 2, ts: 1577923200, oglasi: [] }), "utf8");
+    }
+
+    await pokreniCli(["stats", "snapshot"], { cwd: dir, mockUrl: mock.url, env: { ...env, OLX_BUDZET_SNAPSHOT_MS: "0" } });
+    for (const f of stari) {
+      assert.equal(existsSync(join(snapDir, f)), true, `prekinut prolaz ne smije obrisati ${f}`);
+    }
+
+    const r = await pokreniCli(["stats", "snapshot"], { cwd: dir, mockUrl: mock.url, env });
+    assert.equal(r.kod, 0);
+    assert.equal(existsSync(join(snapDir, "views-" + danas() + ".json")), true, "potpun prolaz je upisao snapshot");
+    assert.equal(zadnjiJson(r.stdout)?.proredjeno, 1, "tacno jedan stari fajl je proredjen");
+    assert.equal(existsSync(join(snapDir, "views-2020-01-02.json")), true, "najstariji u bloku se zadrzava");
+    assert.equal(existsSync(join(snapDir, "views-2020-01-03.json")), false, "ostatak bloka se brise");
+  } finally {
+    await mock.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

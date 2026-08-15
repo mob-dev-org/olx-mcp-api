@@ -36,6 +36,7 @@ import {
 } from "../core/telegram-grupe.js";
 import {
   obrisiSnapshotUToku,
+  proredjiStareSnapshote,
   SNAPSHOT_DIR,
   ucitajSnapshote,
   ucitajSnapshotUToku,
@@ -1413,7 +1414,20 @@ stats
         };
         const putanja = upisiSnapshot(snapshot);
         obrisiSnapshotUToku();
-        out({ fajl: putanja, oglasa: snapshot.oglasi.length, trajanje_ms: snapshot.trajanje_ms });
+        // Prorjedjivanje TEK poslije potpunog prolaza i uspjelog upisa: prekid na budzetu ne smije
+        // brisati istoriju, jer bi neuspjeli prolaz svakodnevno grickao seriju bez ijednog novog
+        // snapshota. Funkcija nikad ne baca, pa ne moze oboriti posao koji je svoj dio vec zavrsio.
+        const konfig = loadConfig();
+        const proredjeno = proredjiStareSnapshote(SNAPSHOT_DIR, {
+          pragDana: konfig.snapshotProredjivanjePragDana,
+          gustinaDana: konfig.snapshotProredjivanjeGustinaDana,
+        });
+        out({
+          fajl: putanja,
+          oglasa: snapshot.oglasi.length,
+          trajanje_ms: snapshot.trajanje_ms,
+          proredjeno: proredjeno.obrisano,
+        });
       } finally {
         otpusti();
       }
@@ -1443,6 +1457,9 @@ stats
         }
       }
       if (!period) throw new Error("Oglas nema aktivno izdvajanje; zadaj --od i --do (unix sekunde).");
+      // Prozor NIJE suzen: --od/--do mogu biti proizvoljno u proslosti, a efekatIzdvajanja
+      // racuna "prije" segment bez gornje granice unazad. Kratak prozor bi tiho odsjekao
+      // baseline i pretvorio validan izracun u pogresno "nema dovoljno snapshota".
       const snapshoti = ucitajSnapshote();
       out({ period, snapshota: snapshoti.length, ...efekatIzdvajanja(snapshoti, Number(id), period) });
     } catch (e) {
@@ -1816,7 +1833,10 @@ posao
       // Plan izdvajanja nije obavezan: klijent bez plana dobija poruku bez te linije.
       const planIzdvajanja = citajPlanAkoPostoji();
 
-      const snapshoti = ucitajSnapshote();
+      // Prozor = najsiri od dvoje sto se racuna iz iste serije: mrtviOglasi ispod haube
+      // koristi danaUnazad=60 (default, nije prosljedjen ovdje), promjenaPregleda nize
+      // trazi samo 2 dana. Veci od ta dva prozora je 60.
+      const snapshoti = ucitajSnapshote(undefined, 60);
       // Mrtvi oglasi imaju smisla tek nad dovoljno dugom serijom: nad snapshotima od par dana
       // bi pola kataloga izgledalo mrtvo samo zato sto jos nije stiglo dobiti pregled.
       const mrtviSirovo = mrtviOglasi(snapshoti, sadaTs);
@@ -1889,7 +1909,9 @@ posao
       const plan = citajPlanAkoPostoji();
       const tekst = sedmicniTekst({
         username: user,
-        promjena: promjenaPregleda(ucitajSnapshote(), sadaTs, Number(opts.dana) || 7),
+        // Prozor je isti broj dana koji ide u promjenaPregleda kao danaUnazad, nema
+        // razloga citati vise od toga.
+        promjena: promjenaPregleda(ucitajSnapshote(undefined, Number(opts.dana) || 7), sadaTs, Number(opts.dana) || 7),
         onboarding: izvjestaj,
         plan: plan ? planSazetak(plan) : null,
         dospjelo: plan ? dospjeliTermini(plan, danasnjiDatum()).length : 0,
