@@ -35,6 +35,7 @@ import {
   upisiPristup,
 } from "../core/telegram-grupe.js";
 import {
+  imaSnapshotaStarijihOd,
   obrisiSnapshotUToku,
   proredjiStareSnapshote,
   SNAPSHOT_DIR,
@@ -1841,6 +1842,18 @@ posao
       // bi pola kataloga izgledalo mrtvo samo zato sto jos nije stiglo dobiti pregled.
       const mrtviSirovo = mrtviOglasi(snapshoti, sadaTs);
       const mrtvi = mrtviSirovo && mrtviSirovo.period_dana >= 14 ? mrtviSirovo : null;
+      // Premalo tacaka u prozoru, a starijih ima: serija je PREKINUTA, dakle posao snapshot ne
+      // radi vec skoro dva mjeseca. Tada `mrtviOglasi` vrati null i izvjestaj o mrtvim oglasima
+      // tiho izostane. Tisina ne smije biti jedini ishod: pokvaren pogon se javlja ADMINU, ne
+      // klijentu, jer klijenta ne opterecujemo time sto je nasa masina stala. Nov klon (nema
+      // starijih snapshota) je normalno stanje i ne javlja se.
+      if (snapshoti.length < 2 && imaSnapshotaStarijihOd(60)) {
+        await javiAdminu(
+          `Dnevni posao: serija snapshota je prekinuta. U zadnjih 60 dana ima ${snapshoti.length} snimaka, ` +
+            "a stariji postoje, pa posao snapshot ocito ne radi. Izvjestaj o mrtvim oglasima izostaje dok se ne popravi. " +
+            "Provjeri zakazan posao snapshot; rucno: node dist/cli/index.js stats snapshot",
+        );
+      }
       // Bez odluke klijenta se nista ne obnavlja: prvi put ide puno pitanje sa listom (do 10,
       // granice.md), narednih dana samo podsjetnik u poruci koja se ionako salje.
       const obnovePitanje =

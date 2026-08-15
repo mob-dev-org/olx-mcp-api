@@ -80,6 +80,22 @@ export function ucitajSnapshote(dir: string = SNAPSHOT_DIR, dana?: number): View
 // Samo zadnji snapshot, bez parsiranja cijele serije: imena su leksikografski sortirana isto
 // kao hronoloski, pa se ide od najnovijeg imena unazad i cita/parsira SAMO onoliko fajlova
 // koliko treba da se nadje prvi ispravan. Stariji ispravni fajlovi se ne diraju.
+/**
+ * Ima li na disku snapshota STARIJIH od zadanog prozora. Cita samo imena fajlova, ne otvara
+ * nijedan.
+ *
+ * Sluzi razlikovanju dva stanja koja izgledaju isto pozivaocu koji dobije premalo tacaka:
+ * "klon je nov, serija tek pocinje" (nema starijih) i "posao je stao, serija je prekinuta"
+ * (ima starijih). Prvo je normalno, drugo je kvar pogona koji niko drugi ne primjecuje
+ * automatski: `provjeri-klon.mjs` jeste kapija na 48h, ali je rucna, a nadzor flote gleda
+ * samo zauzece diska po mapama.
+ */
+export function imaSnapshotaStarijihOd(dana: number, dir: string = SNAPSHOT_DIR): boolean {
+  if (!existsSync(dir)) return false;
+  const granica = datumGranice(dana);
+  return imenaSnapshota(dir).some((f) => datumIzImena(f) < granica);
+}
+
 export function zadnjiSnapshot(dir: string = SNAPSHOT_DIR): ViewsSnapshot | null {
   if (!existsSync(dir)) return null;
   const fajlovi = imenaSnapshota(dir).reverse();

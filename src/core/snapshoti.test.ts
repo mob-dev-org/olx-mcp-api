@@ -8,6 +8,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  imaSnapshotaStarijihOd,
   obrisiSnapshotUToku,
   proredjiStareSnapshote,
   putanjaSnapshotaUToku,
@@ -370,6 +371,50 @@ test("proredjiStareSnapshote: fajl koji se ne da obrisati ne prekida ciscenje os
     assert.equal(existsSync(join(dir, "views-1970-01-08.json")), true);
     assert.equal(existsSync(join(dir, "views-1970-01-09.json")), true, "direktorij koji se ne da obrisati ostaje");
     assert.equal(existsSync(join(dir, "views-1970-01-12.json")), false, "01-12 je obrisan");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+function danPrije(dana: number): string {
+  return new Date(Date.now() - dana * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+function napraviSnapshotFajl(dir: string, datum: string): void {
+  writeFileSync(join(dir, `views-${datum}.json`), JSON.stringify({ verzija: 2, ts: 1, oglasi: [] }), "utf8");
+}
+
+test("imaSnapshotaStarijihOd: nov klon bez starijih snapshota ne pali alarm", () => {
+  const dir = mkdtempSync(join(tmpdir(), "olx-stariji-nov-"));
+  try {
+    napraviSnapshotFajl(dir, danPrije(1));
+    napraviSnapshotFajl(dir, danPrije(5));
+    assert.equal(imaSnapshotaStarijihOd(60, dir), false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("imaSnapshotaStarijihOd: prekinuta serija se prepoznaje po starijem fajlu", () => {
+  const dir = mkdtempSync(join(tmpdir(), "olx-stariji-prekid-"));
+  try {
+    napraviSnapshotFajl(dir, danPrije(200));
+    napraviSnapshotFajl(dir, danPrije(1));
+    assert.equal(imaSnapshotaStarijihOd(60, dir), true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("imaSnapshotaStarijihOd: nepostojeci folder ne baca i ne pali alarm", () => {
+  assert.equal(imaSnapshotaStarijihOd(60, join(tmpdir(), "olx-nema-ovog-foldera-nikako")), false);
+});
+
+test("imaSnapshotaStarijihOd: radni fajl se ne broji kao snapshot", () => {
+  const dir = mkdtempSync(join(tmpdir(), "olx-stariji-radni-"));
+  try {
+    writeFileSync(join(dir, ".snapshot-u-toku.json"), JSON.stringify({ pocetak: 1 }), "utf8");
+    assert.equal(imaSnapshotaStarijihOd(60, dir), false, "radni fajl nema datum u imenu i ne smije se brojati");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
