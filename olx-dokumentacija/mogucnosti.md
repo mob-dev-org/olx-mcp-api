@@ -4,7 +4,7 @@ Ovaj fajl je GENERISAN iz koda, pravi ga `node scripts/popis-mogucnosti.mjs`. Ne
 
 ## Sazetak
 
-- MCP alata: 59, od toga klijentu dostupno: 44
+- MCP alata: 59, od toga klijentu dostupno: 43
 - MCP resursa: 8
 - CLI komandi: 62
 - Zakazanih poslova: 11
@@ -70,7 +70,7 @@ Ovaj fajl je GENERISAN iz koda, pravi ga `node scripts/popis-mogucnosti.mjs`. Ne
 | olx_unhide_listing | Vraca skriveni oglas u pretragu. | oba | upis |  |
 | olx_update_listing | Mijenja polja oglasa. | oba | upis | da |
 | olx_upload_images | Dodaje slike na oglas (multipart, polje images[]; API ne prihvata image_url). | oba | upis |  |
-| olx_user_profile | Javni profil tudjeg ili svog shopa po USERNAME-u: paket (Gold/Platinum), poslovni podaci, ocjene, medalje, vrijeme odgovora i datum registracije. | oba | citanje |  |
+| olx_user_profile | Javni profil tudjeg ili svog shopa po USERNAME-u: paket (Gold/Platinum), poslovni podaci, ocjene, medalje, vrijeme odgovora i datum registracije. | samo admin | citanje |  |
 | olx_vrati_artikal | Vraca ranije skinut artikal (id = originalni broj, vidi olx_arhiva lista). | oba | upis | da |
 | olx_whoami | Vraca trenutni nalog. Koristi za test pristupa API-ju. | oba | citanje |  |
 | olx_zabiljezi_saznanje | Upisi jednu recenicu o neocekivanom ponasanju API-ja ili platforme (nesto radi drugacije od dokumentacije, nova greska, novo ogranicenje). | oba | upis |  |
@@ -473,7 +473,7 @@ Nema takvih.
 
 | Ime | Cemu sluzi | Okidaci | Samo admin |
 | --- | --- | --- | --- |
-| olx-analiza-profila | Analiza vlastitog OLX/PIK shopa i savjet sta popraviti: oglasi, cijene, svjezina, sta obnoviti ili izdvojiti. | analiziraj moje oglase, zasto nemam pozive, pregled profila i jos 2 |  |
+| olx-analiza-profila | Analiza vlastitog OLX/PIK shopa i savjet sta popraviti: oglasi, cijene, svjezina, sta obnoviti ili izdvojiti. | analiziraj moje oglase, zasto nemam pozive, pregled profila i jos 1 |  |
 | olx-cron-obnove | Dnevna obnova oglasa uz ravnomjerno trosenje kvote obnova. | obnovi oglase, dnevna obnova, koliko obnova danas i jos 2 |  |
 | olx-izdanje | Zatvaranje posla i puštanje koda klijentima: testovi, CHANGELOG, verzija, tag, prekidač stabilno, ažuriranje flote, evidencija. | završi posao, zatvori ovo, napravi izdanje i jos 6 | da |
 | olx-klijent-flow | Zivotni ciklus klijenta CodeFactory usluge: analiza kandidata iz javnih podataka, onboarding sa tokenom, prvi potezi po isplativosti. | analiziraj kandidata, potencijalni klijent, onboarding klijenta i jos 2 |  |
@@ -481,7 +481,7 @@ Nema takvih.
 | olx-novi-klijent | Kompletna tehnicka postavka novog klijentskog klona, od kloniranja do zivog bota: .env, KLIJENT.md, Telegram runtime za oba bota, cron poslovi, preflight. | novi klijent, postavi klijenta, postavi sistem za i jos 4 |  |
 | olx-objava-artikla | Vodjena objava novog oglasa, od slike do objavljenog oglasa: kategorija, obavezni atributi, naslov i opis, cijena, potvrda. | objavi ovo, dodaj artikal, novi oglas i jos 1 |  |
 | olx-seo-oglasa | Naslov, podnaslov i format opisa za pretragu. | optimizuj naslove, kljucne rijeci, zasto me nema u pretrazi i jos 2 |  |
-| olx-serijski-posao | Posao koji ide kroz mnogo oglasa odjednom: SEO prolaz, ciscenje kataloga, obilazak konkurenata, duga lista za objavu kroz vise dana. | prodji kroz sve oglase, sredi cijeli katalog, ocisti katalog i jos 3 | da |
+| olx-serijski-posao | Posao koji ide kroz mnogo oglasa odjednom: SEO prolaz, ciscenje kataloga, duga lista za objavu kroz vise dana. | prodji kroz sve oglase, sredi cijeli katalog, ocisti katalog i jos 2 | da |
 | olx-shopovi-snimci | Obrada Excel snimaka PIK/OLX shopova: razdvajanje po kantonima, poredjenje dva snimka i dopisivanje telefona kandidata. | razdvoji shopove, excel po kantonima, uporedi sa proslim mjesecom i jos 3 |  |
 | pik-olx-kreditni-savjetnik | Raspored kredita i izdvajanje oglasa na PIK/OLX: koje artikle, koji period, autoobnova, koliko kosta. | izdvajanje, koliko kredita, koliko da izdvojim i jos 2 |  |
 
@@ -490,7 +490,7 @@ Nema takvih.
 | Ime | Cemu sluzi | Koje alate smije zvati |
 | --- | --- | --- |
 | olx-dijagnostika | Dijagnostika zivog pogona ovog klona; simptomi tipa bot ne odgovara, nije stigao jutarnji izvjestaj, trosak skocio, snapshoti stali. | Bash, Read, Grep, Glob |
-| olx-konkurent | Snima i sazima stanje JEDNOG konkurenta po username-u. Koristi kad se obilazi vise konkurenata odjednom. | mcp__olx-pik__olx_competitor_report, mcp__olx-pik__olx_user_profile |
+| olx-konkurent | Samo admin. | mcp__olx-pik__olx_competitor_report, mcp__olx-pik__olx_user_profile |
 | olx-korpus | Read-only pretraga dokumentacionog korpusa (PIK pomoc, knowledgebase, API inventar, CSV snapshoti kategorija i lokacija). | Read, Grep, Glob |
 | olx-prodaja | Prodajna argumentacija za admina iz dokumentacije repoa; prigovor prospekta, tema pitcha ili poredjenje sa rucnim vodjenjem shopa. | Read, Grep, Glob |
 | olx-seo-pisac | Pise prijedlog naslova, podnaslova i opisa za JEDAN oglas. Koristi u serijskom SEO prolazu, jedan poziv po oglasu. | Read |

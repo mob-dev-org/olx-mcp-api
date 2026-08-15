@@ -10,6 +10,19 @@ sekcija 7.
 
 ## Nije izdano
 
+**Konkurencija vise nije dostupna klijentu; adminu ostaje sve.** Klijentski bot na svako pitanje o
+tudjim shopovima, poredjenju sa drugim prodavcima i njihovim cijenama odgovara da to nije dio
+njegovog paketa i upucuje na programere, bez obecanja da ce biti dostupno i bez rijeci o cijeni.
+Brana stoji na dva mjesta, jer prompt sam nije brana: `olx_user_profile` izlazi iz klijentskog
+profila (uz `olx_competitor_report`, koji je vec bio vani), a `olx_list_listings` i
+`olx_refresh_bulk` u klijentskom profilu odbijaju poziv cim je zadan `user`, uz uputu da ga
+izostavi. Bez toga druge dvije brane ne bi vrijedile nista: preko `user` se mogao povuci cijeli
+tudji katalog sa cijenama. Klijent za svoj nalog nista ne gubi, jer paket, istek, kredite i kvotu
+vec daje `olx_profile_stats`. Opisi skillova i podagenata ulaze u kontekst SVAKE sesije, pa je iz
+njih izbacena ponuda analize konkurenta; tijela skillova, reference, podagent `olx-konkurent` i AI
+runda ostaju netaknuti i rade iz admin sesije kao i dosad. Klijentski profil time ima jedan alat
+manje.
+
 **Goli `claude` u klonu daje pun alat, a musterijin bot ostaje suzen bez obzira na `.env`.** Dosad
 je profil zavisio iskljucivo od `OLX_MCP_PROFILE`, pa je vlasnik u terminalu klijentskog klona
 dobijao suzenu listu. Podrazumijevana vrijednost se okrece na `admin`, ali TEK uz tvrdu branu koja
