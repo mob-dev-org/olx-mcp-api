@@ -146,6 +146,22 @@ Gdje korisnik generise token: u repozitoriju nema URL-a ni ekrana na kojem se to
 
 ## 3. Ogranicenja
 
+### Vlasnistvo se ne provjerava na endpointu za pojedinacan oglas
+
+`GET /listings/:id` vraca oglas bilo kojeg naloga, bez provjere ko pita. Ko zna ID, cita oglas, a
+tudji ID stize najobicnijim putem: linkom koji covjek nalijepi u poruku (`olx.ba/artikal/<id>/...`).
+
+Odgovor zato nosi vlasnika u polju `user` (`id`, `type`, `username`, `avatar`, `medals`), izmjereno
+zivim pozivom 15.08.2026. Kompaktan oblik (`kompaktListing`) to polje namjerno izbacuje, pa svaka
+provjera vlasnistva mora stajati nad SIROVIM odgovorom, prije kompaktiranja.
+
+Posljedica za klijentski profil: `olx_get_listing` i `olx_listing_report` bi bez provjere bili
+zaobilaznica za sve sto je zatvoreno u `SAMO_ADMIN` i u brani na `user`. Od 15.08.2026. oba u
+klijentskom profilu odbijaju oglas koji nije sa tog naloga (`provjeriVlasnistvoOglasa` u
+`src/mcp/server.ts`, odluka u `src/core/vlasnistvo.ts`). Cijena provjere je jedan poziv PO PROCESU
+(`resolveUsername` kesira, server drzi jedan klijent objekat), ne po pozivu. Admin profil je
+netaknut i cita tudje oglase kao i dosad.
+
 ### Throttle, retry i timeout
 
 - Throttle: minimalni razmak izmedju dva zahtjeva, default 350 ms, iz `OLX_MIN_REQUEST_INTERVAL_MS` (`core/config.ts:126`, primjena u `core/index.ts:199` do `:203`, poziva se prije svakog pokusaja u `core/index.ts:271`).

@@ -10,6 +10,8 @@ import { objasniPogotke, provjeriRobu } from "../core/zabranjena-roba.js";
 import { loadConfig } from "../core/config.js";
 import { pokrenutDirektno } from "../core/ulaz.js";
 import { linkOglasa } from "../core/link.js";
+import { javiAdminu } from "../core/telegram.js";
+import { vlasnistvoOglasa } from "../core/vlasnistvo.js";
 import { procitajPrijedlog, spisakPrijedloga } from "../core/prijedlozi.js";
 import { nadjiSablon } from "../core/opisi.js";
 import { POLJA, bezNapomene, bezPolja, saNapomenom, saPoljem, ucitajPamcenje, upisiPamcenje } from "../core/pamcenje.js";
@@ -27,6 +29,7 @@ import {
   kompaktList,
   kompaktListing,
   mrtviOglasi,
+  oglasIzvjestaj,
   provjeriNacrt,
   type OglasPregledi,
 } from "../core/stats.js";
@@ -204,6 +207,54 @@ function odbijTudjiNalog(user: string | undefined): ToolResult | undefined {
   return errResult(
     "Rad sa tudjim nalogom nije dostupan. Izostavi user i poziv ce vratiti tvoj vlastiti katalog.",
   );
+}
+
+/** Prigusenje admin poruke o necitljivom vlasniku: jednom po pokretanju procesa, ne po pozivu. */
+let vlasnikNecitljivJavljen = false;
+
+/**
+ * Brana na tudji OGLAS u klijentskom profilu.
+ *
+ * Zatvaranje alata koji primaju `user` ne pokriva alate koje se zove po ID-u oglasa: endpoint
+ * `/listings/:id` ne provjerava vlasnistvo, a tudji ID stize najobicnijim putem, linkom koji covjek
+ * nalijepi u poruku. To je posljedica same izmjene: covjek kojem smo rekli da mu pracenje drugih
+ * nije u paketu prvo posegne za linkom.
+ *
+ * Cijena provjere je jedan poziv PO PROCESU, ne po pozivu (izmjereno 15.08.2026.): vlasnik stize u
+ * istom odgovoru koji je alat ionako trazio (`user.username`), a vlastiti nalog daje
+ * `resolveUsername`, koji kesira, dok server drzi jedan klijent objekat za cijeli proces.
+ *
+ * Provjera stoji nad SIROVIM odgovorom, prije kompaktiranja: kompaktan oblik `user` namjerno
+ * izbacuje, pa bi provjera poslije njega gledala polje kojeg vise nema.
+ *
+ * Kad vlasnik nije citljiv, poziv se ODBIJA. Isto pravilo kao za nepoznatu cijenu u granice.md:
+ * nula i "ne znam" nisu isto. Poruka razlikuje ta dva slucaja, da se u dijagnostici odmah vidi je
+ * li rijec o tudjem oglasu ili o promjeni na API-ju.
+ */
+async function provjeriVlasnistvoOglasa(c: OlxClient, oglas: Listing): Promise<void> {
+  if (!zaKlijenta) return;
+  // Odluka je cista funkcija u jezgru (`vlasnistvo.ts`) i tamo je testirana; ovdje ostaje samo
+  // ono sto trazi svijet oko nje: citanje vlastitog naloga, poruka adminu i odbijanje.
+  const cije = vlasnistvoOglasa(oglas, await c.resolveUsername());
+  if (cije === "moj") return;
+  if (cije === "nepoznat") {
+    // Ova grana NIJE greska klijenta nego promjena na API-ju, dakle nesto sto moramo saznati mi, i
+    // to prije nego kroz klijentovu zalbu. Zato ide poruka administratoru, a ne samo odbijanje.
+    // Jednom po procesu: brana se okida na svaki oglas, pa bi poruka po pozivu bila bujica.
+    if (!vlasnikNecitljivJavljen) {
+      vlasnikNecitljivJavljen = true;
+      console.error(`[vlasnistvo] oglas ${String(oglas.id)}: odgovor nema user.username, brana odbija poziv`);
+      // Ne ceka se: klijentov odgovor ne smije visiti na Telegramu. `javiAdminu` nikad ne baca.
+      void javiAdminu(
+        `Brana vlasnistva: odgovor za oglas ${String(oglas.id)} nema polje user.username, pa se oglasi ovog klijenta ne mogu prikazati. ` +
+          "Ovo nije tudji oglas nego vjerovatna promjena na API-ju. Poruka ide jednom po pokretanju sesije.",
+      );
+    }
+    throw new Error(
+      "Oglas se trenutno ne moze prikazati zbog smetnje na platformi. Administrator je obavijesten.",
+    );
+  }
+  throw new Error("Taj oglas nije sa ovog naloga, pa se ne prikazuje. Radi se samo sa oglasima ovog shopa.");
 }
 
 // ===== Popis registracija, za generator popisa mogucnosti =====
@@ -711,14 +762,19 @@ server.registerTool(
   {
     title: "Detalji oglasa",
     description:
-      "Dohvata pojedinacni oglas po ID-u (radi i za tudje; nosi views i questions). Default je kompaktan oblik bez user i punog category bloka, slike kao broj + prva, atributi samo popunjeni; full=true vraca sirovi API oblik. Za izracunatu analizu koristi olx_listing_report.",
+      "Dohvata pojedinacni oglas po ID-u (tudji oglas samo u admin profilu; nosi views i questions). Default je kompaktan oblik bez user i punog category bloka, slike kao broj + prva, atributi samo popunjeni; full=true vraca sirovi API oblik. Za izracunatu analizu koristi olx_listing_report.",
     inputSchema: {
       id: z.union([z.number(), z.string()]),
       full: z.boolean().default(false).describe("sirovi API oblik umjesto kompaktnog"),
     },
     annotations: readOnly,
   },
-  (args) => run(async (c) => (args.full ? c.getListing(args.id) : kompaktListing(await c.getListing(args.id)))),
+  (args) =>
+    run(async (c) => {
+      const oglas = await c.getListing(args.id);
+      await provjeriVlasnistvoOglasa(c, oglas);
+      return args.full ? oglas : kompaktListing(oglas);
+    }),
 );
 
 server.registerTool(
@@ -1314,11 +1370,18 @@ server.registerTool(
   {
     title: "Izvjestaj o oglasu",
     description:
-      "Izracunata analiza jednog oglasa (naseg ili tudjeg): pregledi ukupno i dnevno, pitanja, starost, dana od zadnje obnove, broj slika i popunjenih atributa, duzina naslova i podnaslov, cijena i akcija, sponzorstvo (na nasem oglasu i placeni detalji). Jedan API poziv.",
+      "Izracunata analiza jednog oglasa (tudji samo u admin profilu): pregledi ukupno i dnevno, pitanja, starost, dana od zadnje obnove, broj slika i popunjenih atributa, duzina naslova i podnaslov, cijena i akcija, sponzorstvo (na nasem oglasu i placeni detalji). Jedan API poziv.",
     inputSchema: { id: z.union([z.number(), z.string()]) },
     annotations: readOnly,
   },
-  (args) => run((c) => c.statsOglas(args.id)),
+  // Ne zove `statsOglas`, jer bi mu ono vratilo vec izracunat izvjestaj bez vlasnika. Ista dva
+  // koraka, isti JEDAN API poziv, ali sa oglasom u ruci pa se vlasnistvo moze provjeriti.
+  (args) =>
+    run(async (c) => {
+      const oglas = await c.getListing(args.id);
+      await provjeriVlasnistvoOglasa(c, oglas);
+      return oglasIzvjestaj(oglas, Math.floor(Date.now() / 1000));
+    }),
 );
 
 server.registerTool(

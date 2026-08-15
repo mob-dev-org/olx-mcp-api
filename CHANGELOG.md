@@ -23,6 +23,14 @@ njih izbacena ponuda analize konkurenta; tijela skillova, reference, podagent `o
 runda ostaju netaknuti i rade iz admin sesije kao i dosad. Klijentski profil time ima jedan alat
 manje.
 
+Uz to je zatvorena i treca zaobilaznica, koja je bila najtisa: `GET /listings/:id` ne provjerava
+vlasnistvo, pa su `olx_get_listing` i `olx_listing_report` citali bilo ciji oglas kad im se da ID, a
+tudji ID stize najobicnijim putem, linkom koji covjek nalijepi u poruku. Oba u klijentskom profilu
+od sada odbijaju oglas koji nije sa tog naloga. Provjera ne kosta nijedan dodatni poziv za sam oglas
+(vlasnik stize u istom odgovoru), a vlastiti nalog se cita jednom po pokretanju sesije. Kad vlasnik
+u odgovoru nije citljiv, poziv se takodje odbija, ali se to razdvaja od tudjeg oglasa i javlja
+ADMINU jednom po sesiji, jer to znaci promjenu na API-ju a ne pogresan oglas.
+
 **Goli `claude` u klonu daje pun alat, a musterijin bot ostaje suzen bez obzira na `.env`.** Dosad
 je profil zavisio iskljucivo od `OLX_MCP_PROFILE`, pa je vlasnik u terminalu klijentskog klona
 dobijao suzenu listu. Podrazumijevana vrijednost se okrece na `admin`, ali TEK uz tvrdu branu koja

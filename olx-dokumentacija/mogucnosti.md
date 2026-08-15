@@ -40,13 +40,13 @@ Ovaj fajl je GENERISAN iz koda, pravi ga `node scripts/popis-mogucnosti.mjs`. Ne
 | olx_finish_discount | Zavrsava aktivnu akcijsku cijenu na oglasu. | oba | upis |  |
 | olx_finish_listing | Oznacava oglas kao zavrsen/prodano (cuva historiju i statistiku). | oba | trosak ili nepovratno |  |
 | olx_generiraj_sliku (uslovno) | Iz poslane fotografije ili slike sa objavljenog oglasa napravi novu sliku artikla: cist prostor i ravno svjetlo. | oba | upis | da |
-| olx_get_listing | Dohvata pojedinacni oglas po ID-u (radi i za tudje; nosi views i questions). | oba | citanje |  |
+| olx_get_listing | Dohvata pojedinacni oglas po ID-u (tudji oglas samo u admin profilu; nosi views i questions). | oba | citanje |  |
 | olx_hide_listing | Sakriva oglas (preporuceno umjesto brisanja kad artikla nema na stanju). | oba | upis |  |
 | olx_izuzeca | Spisak oglasa koje vlasnik ne zeli da se automatski obnavljaju i/ili izdvajaju. | oba | upis |  |
 | olx_limit_slika | Dnevni plafon generisanja slika (inace iz OLX_SLIKA_MAX_DNEVNO ili fallback 10). | samo admin | upis |  |
 | olx_list_listings | Lista oglasa po stanju, svojih ili tudjih. | oba | citanje |  |
 | olx_listing_limits | Limiti broja oglasa po grupama kategorija (cars, real-estate, other). | oba | citanje |  |
-| olx_listing_report | Izracunata analiza jednog oglasa (naseg ili tudjeg): pregledi ukupno i dnevno, pitanja, starost, dana od zadnje obnove, broj slika i popunjenih atributa, duzina naslova i podnaslov, cijena i akcija, sponzorstvo (na nasem oglasu i placeni detalji). | oba | citanje |  |
+| olx_listing_report | Izracunata analiza jednog oglasa (tudji samo u admin profilu): pregledi ukupno i dnevno, pitanja, starost, dana od zadnje obnove, broj slika i popunjenih atributa, duzina naslova i podnaslov, cijena i akcija, sponzorstvo (na nasem oglasu i placeni detalji). | oba | citanje |  |
 | olx_mrtvi_oglasi | Oglasi koji nisu dobili nijedan NOV pregled u zadanom periodu, racunato iz razlike dnevnih snapshota. | oba | citanje |  |
 | olx_onboarding_report | Prva analiza shopa u jednom pozivu: neiskoristene besplatne obnove i dnevni tempo do reseta kvote, oglasi sa nedostacima, svjezina, pregledi i upiti, rangirana lista prvih poteza. | oba | citanje |  |
 | olx_opisi_sliku (uslovno) | Posalje sliku sa diska jeftinom vision modelu i vrati tekstualni opis proizvoda. | oba | citanje |  |
