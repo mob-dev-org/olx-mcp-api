@@ -178,12 +178,33 @@ export const SAMO_ADMIN = new Set([
   // posao koji se radi iz admin sesije.
   "olx_competitor_report",
   "olx_sponsor_effect",
+  // Javni profil tudjeg shopa je drugi ulaz u istu stvar koju `olx_competitor_report` vec zatvara,
+  // pa ide sa njim. Klijent za SVOJ nalog nista ne gubi: `olx_profile_stats` u jednom pozivu daje
+  // paket i njegov istek, kredite, kvotu obnova i oglase po stanjima.
+  "olx_user_profile",
   // Brana troska (zastita racuna kod vanjskog AI-ja): samo administrator smije danas podici
   // dnevni plafon generisanja slika.
   "olx_limit_slika",
 ]);
 
 const zaKlijenta = config.mcpProfil === "klijent";
+
+/**
+ * Brana na tudji nalog u klijentskom profilu.
+ *
+ * Izbacivanje alata za konkurenciju iz klijentskog profila ne vrijedi nista dok drugi alat prima
+ * `user` i vraca tudji katalog sa cijenama. Zato se u klijentskom profilu poziv odbija cim je
+ * `user` UOPSTE zadan: ne poredi se sa vlastitim nalogom, jer bi to trazilo dodatni poziv i granu,
+ * a klijentu `user` ionako nikad ne treba (bez njega se cita njegov vlastiti katalog).
+ *
+ * Poruka mora reci sta da se uradi umjesto toga, inace model pokusa isto ponovo.
+ */
+function odbijTudjiNalog(user: string | undefined): ToolResult | undefined {
+  if (!zaKlijenta || user === undefined) return undefined;
+  return errResult(
+    "Rad sa tudjim nalogom nije dostupan. Izostavi user i poziv ce vratiti tvoj vlastiti katalog.",
+  );
+}
 
 // ===== Popis registracija, za generator popisa mogucnosti =====
 //
@@ -577,7 +598,7 @@ server.registerTool(
       "Lista oglasa po stanju, svojih ili tudjih. Po stranici vraca kompaktne stavke, a all vraca cijeli katalog kao CSV sa zaglavljem (ista polja, 60% manje tokena). all i full se ne mogu kombinovati. Filteri category_id, price_min i price_max suzavaju rezultat u kodu i sluze da se iz kataloga od stotina artikala izvuce spisak ID-eva za grupne alate (olx_bulk_sklanjanje, olx_bulk_price, olx_izuzeca) bez rucnog prebiranja; sa all: true filter vazi nad cijelim katalogom, bez njega samo nad trazenom stranicom. Veliki katalog (all bez filtera) se isporucuje u komadima; sljedeci komad se trazi parametrom komad.",
     inputSchema: {
       state: z.enum(["active", "finished", "inactive", "expired", "hidden"]).default("active"),
-      user: z.string().optional().describe("username ili id; default je ulogovani korisnik"),
+      user: z.string().optional().describe("username ili id; default je ulogovani korisnik; u klijentskom profilu tudji nalog nije dostupan"),
       page: z.number().int().min(1).default(1),
       all: z.boolean().default(false).describe("prelistaj sve stranice datog stanja"),
       full: z.boolean().default(false).describe("sirovi API oblik umjesto kompaktnog"),
@@ -589,6 +610,8 @@ server.registerTool(
     annotations: readOnly,
   },
   (args) => {
+    const tudji = odbijTudjiNalog(args.user);
+    if (tudji) return Promise.resolve(tudji);
     // all + full je jedini poziv u serveru bez gornje granice: prelista sve stranice i vrati ih
     // sirove. Na shopu od par stotina oglasa to je payload koji sam pojede kontekst, a nikad nije
     // ono sto je trebalo. Ko stvarno treba sirov oblik, uzme ga po stranici ili po oglasu.
@@ -1812,8 +1835,10 @@ server.registerTool(
     },
     annotations: writeOp,
   },
-  (args) =>
-    run(async (c) => {
+  (args) => {
+    const tudji = odbijTudjiNalog(args.user);
+    if (tudji) return Promise.resolve(tudji);
+    return run(async (c) => {
       const user = args.user ?? (await c.resolveUsername());
       const limits = await c.refreshLimits();
       const remaining = Math.max(0, limits.free_limit - limits.free_count);
@@ -1875,7 +1900,8 @@ server.registerTool(
         obuhvat,
         ...izuzeto,
       };
-    }),
+    });
+  },
 );
 
 // Sablon opisa iz onoga sto klijent VEC pise. Pri onboardingu klijent trazi "standardni footer,
