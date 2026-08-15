@@ -185,6 +185,12 @@ test("dopune poruke: trosak, dospjeli termini, mrtvi, izuzeti i miruju", () => {
   assert.match(t, /Bez novog pregleda u istom periodu: 2 oglasa\./);
 });
 
+test("potroseno_kredita null (audit log nije bio citljiv) javlja da podatak nije procitan, ne tihu nulu", () => {
+  const t = dnevniTekst(podaci({ obnovljeno: 3, potroseno_kredita: null }));
+  assert.match(t, /Potroseno danas: podatak se nije mogao procitati\./);
+  assert.ok(!/0 kredita/.test(t));
+});
+
 test("dopune se ne pominju kad ih nema", () => {
   const t = dnevniTekst(podaci({ obnovljeno: 3, dospjelo: 0, potroseno_kredita: 0, mrtvi: null, izuzeti: 0 }));
   assert.ok(!/Potroseno danas/.test(t));

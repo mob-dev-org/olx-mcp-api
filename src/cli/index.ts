@@ -8,7 +8,7 @@ import { OlxClient, OlxApiError, OlxAuthError, OlxSpendError } from "../core/ind
 import { odvojiIzuzete, ucitajIzuzeca } from "../core/izuzeca.js";
 import { loadConfig } from "../core/config.js";
 import { pokrenutDirektno } from "../core/ulaz.js";
-import { potrosenoNaDan, setAuditContext } from "../core/audit.js";
+import { potrosenoNaDanUFajlovima, putanjeAuditaZaCitanje, setAuditContext } from "../core/audit.js";
 import { VERZIJA } from "../core/verzija.js";
 import { parseSponsorOptions, SPONSOR_DAYS, REFRESH_EVERY } from "../core/sponsor-options.js";
 import { buildPlan, dospjeliTermini, oznaciTermin, planSazetak, zaglavljeniTermini } from "../core/plan.js";
@@ -1710,13 +1710,21 @@ posao
 
       const istekli = await c.listExpired(user, 1);
 
-      // Krediti potroseni danas, iz audit loga. Log koji jos ne postoji znaci nula potrosnje;
-      // svaka druga greska citanja se guta, jer dopuna poruke ne smije oboriti dnevni posao.
-      let potroseno = 0;
+      // Krediti potroseni danas, iz audit loga (mjesecni fajl + zatecena osnovna putanja). Log
+      // koji jos ne postoji znaci nula potrosnje. Svaka druga greska citanja se NE guta u tihu
+      // nulu: to bi klijentu prikazalo "potroseno 0" dok je stvarna potrosnja nepoznata, sto je
+      // upravo obrnuto od onoga sto plafon treba da postigne. Posao i dalje ne smije pasti zbog
+      // ovoga, pa se greska javlja administratoru, ne baca dalje.
+      let potroseno: number | null = 0;
       try {
-        potroseno = potrosenoNaDan(readFileSync(loadConfig().auditFile, "utf8"), danasnjiDatum());
-      } catch {
-        potroseno = 0;
+        potroseno = potrosenoNaDanUFajlovima(putanjeAuditaZaCitanje(loadConfig().auditFile), danasnjiDatum());
+      } catch (e) {
+        potroseno = null;
+        if (!opts.bezSlanja) {
+          await javiAdminu(
+            `Dnevni posao: potrosnja kredita danas se nije mogla procitati iz audit loga (${String(e instanceof Error ? e.message : e)}).`,
+          );
+        }
       }
       // Plan izdvajanja nije obavezan: klijent bez plana dobija poruku bez te linije.
       const planIzdvajanja = citajPlanAkoPostoji();

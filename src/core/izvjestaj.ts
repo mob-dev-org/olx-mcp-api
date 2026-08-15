@@ -217,7 +217,9 @@ export interface DnevniPodaci {
   // Termini plana izdvajanja koji su dospjeli a nisu izvrseni. Traze potez, pa okidaju slanje.
   dospjelo?: number;
   // Krediti potroseni danas, iz audit loga. Trosak se javlja klijentu isti dan, pa okida slanje.
-  potroseno_kredita?: number;
+  // `null` znaci da audit log danas nije bio citljiv (posao je javio administratoru zasebno);
+  // razlikuje se od 0, koje znaci da je danas stvarno potroseno nista.
+  potroseno_kredita?: number | null;
   // Oglasi bez ijednog novog pregleda kroz duzi period (`mrtviOglasi`), samo broj i raspon.
   // Sadrzaj za poruku koja se ionako salje, NE okidac: broj se mijenja sporo i svakodnevno
   // okidanje bi klijenta naucilo da poruke ignorise.
@@ -332,7 +334,9 @@ export function dnevniTekst(d: DnevniPodaci): string {
     }
   }
 
-  if ((d.potroseno_kredita ?? 0) > 0) {
+  if (d.potroseno_kredita === null) {
+    r.push("", "Potroseno danas: podatak se nije mogao procitati.");
+  } else if ((d.potroseno_kredita ?? 0) > 0) {
     r.push("", `Potroseno danas: ${d.potroseno_kredita} kredita.`);
   }
 
