@@ -1,8 +1,14 @@
-import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { loadConfig, procitajIzEnvFajla, type OlxConfig } from "./config.js";
-import { auditSinkFromPath, currentAuditContext, potrosenoNaDan, type AuditSink } from "./audit.js";
+import {
+  auditSinkFromPath,
+  currentAuditContext,
+  potrosenoNaDanUFajlovima,
+  putanjaMjesecnogAudita,
+  putanjeAuditaZaCitanje,
+  type AuditSink,
+} from "./audit.js";
 import { objasniPogotke, provjeriRobu, type PogodakRobe } from "./zabranjena-roba.js";
 import { VERZIJA } from "./verzija.js";
 import { izvuciTelefon } from "./telefon-ekstrakcija.js";
@@ -179,7 +185,10 @@ export class OlxClient {
     options: OlxClientOptions = {},
   ) {
     this.token = config.token;
-    this.audit = options.audit ?? auditSinkFromPath(config.auditFile);
+    // Novi zapisi idu u mjesecni fajl (rotacija); prazna putanja i dalje znaci "log iskljucen".
+    const auditPutanjaZaPisanje =
+      config.auditFile && config.auditFile.trim() ? putanjaMjesecnogAudita(config.auditFile) : config.auditFile;
+    this.audit = options.audit ?? auditSinkFromPath(auditPutanjaZaPisanje);
     this.envFajl = options.envFajl;
   }
 
@@ -1114,7 +1123,9 @@ export class OlxClient {
     const danas = new Date().toISOString().slice(0, 10);
     let vecPotroseno: number;
     try {
-      vecPotroseno = potrosenoNaDan(readFileSync(this.config.auditFile, "utf8"), danas);
+      // Mjesecni fajl (tekuci) I zatecena osnovna putanja (migracioni slucaj: stari klonovi imaju
+      // zapise jos u .olx-pik/audit.jsonl). Citanje ide u komadima, ne readFileSync cijelog fajla.
+      vecPotroseno = potrosenoNaDanUFajlovima(putanjeAuditaZaCitanje(this.config.auditFile), danas);
     } catch (e) {
       if ((e as NodeJS.ErrnoException)?.code !== "ENOENT") {
         const razlog = `dnevni plafon je ukljucen a audit log nije citljiv (${String(e)})`;

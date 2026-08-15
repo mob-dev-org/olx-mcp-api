@@ -9,8 +9,8 @@
 //   licne podatke. Zapis nosi samo metodu, putanju, ishod i trajanje.
 // - Greska pisanja loga NE smije oboriti radnju. Log je dokaz, ne uslov rada.
 
-import { appendFileSync, mkdirSync } from "node:fs";
-import { dirname } from "node:path";
+import { appendFileSync, mkdirSync, openSync, readSync, closeSync } from "node:fs";
+import { dirname, basename, extname, join } from "node:path";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 export type AuditSource = "cli" | "mcp" | "nepoznato";
@@ -96,7 +96,30 @@ export function auditSinkFromPath(path: string | undefined): AuditSink {
 }
 
 /**
- * Zbir potrosenih kredita u zadanom danu, procitan iz JSONL loga.
+ * Doprinos JEDNE linije JSONL loga zbiru potrosnje zadanog dana. Vraca 0 kad linija ne ulazi u
+ * racun (prazna, neispravan JSON, neuspjesna radnja, nepoznat ili neuklapajuci trosak/datum).
+ *
+ * Izvucena iz `potrosenoNaDan` da je dijele citanje cijelog sadrzaja u memoriji (mali fajlovi,
+ * postojeci testovi) i citanje u komadima (`potrosenoNaDanUFajlovima`, veliki fajlovi).
+ *
+ * @param dan datum u obliku YYYY-MM-DD, poredi se sa pocetkom ISO timestampa
+ */
+function doprinosLinije(linija: string, dan: string): number {
+  if (!linija.trim()) return 0;
+  try {
+    const z = JSON.parse(linija) as Partial<AuditEntry>;
+    if (z.ok !== true) return 0;
+    if (typeof z.krediti !== "number" || !Number.isFinite(z.krediti)) return 0;
+    if (typeof z.ts !== "string" || !z.ts.startsWith(dan)) return 0;
+    return z.krediti;
+  } catch {
+    // Pokvarena linija se preskace; plafon mora raditi i na ostecenom logu.
+    return 0;
+  }
+}
+
+/**
+ * Zbir potrosenih kredita u zadanom danu, procitan iz JSONL loga vec ucitanog u memoriju.
  *
  * Cista funkcija nad tekstom loga, da se testira bez fajla. Broje se samo uspjesne radnje sa
  * poznatim troskom: odbijeni pokusaji nose razlog u `error` i nemaju `krediti`, pa ne ulaze.
@@ -108,16 +131,94 @@ export function auditSinkFromPath(path: string | undefined): AuditSink {
 export function potrosenoNaDan(sadrzajLoga: string, dan: string): number {
   let ukupno = 0;
   for (const linija of sadrzajLoga.split("\n")) {
-    if (!linija.trim()) continue;
-    try {
-      const z = JSON.parse(linija) as Partial<AuditEntry>;
-      if (z.ok !== true) continue;
-      if (typeof z.krediti !== "number" || !Number.isFinite(z.krediti)) continue;
-      if (typeof z.ts !== "string" || !z.ts.startsWith(dan)) continue;
-      ukupno += z.krediti;
-    } catch {
-      // Pokvarena linija se preskace; plafon mora raditi i na ostecenom logu.
+    ukupno += doprinosLinije(linija, dan);
+  }
+  return ukupno;
+}
+
+// ---- mjesecna rotacija ----
+
+/**
+ * Izvodi putanju mjesecnog audit fajla iz zadane osnovne putanje: `.olx-pik/audit.jsonl` za
+ * avgust 2026. postaje `.olx-pik/audit-2026-08.jsonl`. Direktorij i osnova imena (bez ekstenzije)
+ * se izvode iz zadane putanje, a ne pretpostavljaju kao `.olx-pik`, da override kroz
+ * `OLX_AUDIT_FILE` i dalje radi.
+ */
+export function putanjaMjesecnogAudita(auditFile: string, datum: Date = new Date()): string {
+  const dir = dirname(auditFile);
+  const ext = extname(auditFile);
+  const osnova = basename(auditFile, ext);
+  const godina = datum.getFullYear();
+  const mjesec = String(datum.getMonth() + 1).padStart(2, "0");
+  return join(dir, `${osnova}-${godina}-${mjesec}${ext}`);
+}
+
+/**
+ * Fajlovi koje treba procitati da se dobije tacna danasnja potrosnja: tekuci mjesecni fajl (u
+ * njega se pise od rotacije) i zatecena osnovna putanja (migracioni slucaj: na zivim klonovima
+ * stari fajl vec postoji i danasnji zapisi mogu biti u njemu). Redoslijed nije bitan, oba se
+ * broje.
+ */
+export function putanjeAuditaZaCitanje(auditFile: string, datum: Date = new Date()): string[] {
+  return [putanjaMjesecnogAudita(auditFile, datum), auditFile];
+}
+
+// Velicina bafera za citanje u komadima. Dovoljno veliki da rijetko treba vise od par komada za
+// tipican dnevni obim zapisa, dovoljno mali da fajl od nekoliko stotina MB nikad ne uzme cijeli
+// odjednom u memoriju.
+const VELICINA_BAFERA = 64 * 1024;
+
+/**
+ * Cita fajl SINHRONO u komadima fiksne velicine i za svaku kompletnu liniju zove `obradiLiniju`.
+ * Linije se sastavljaju preko sirovih bajtova (trazi se 0x0A), ne preko dekodiranog teksta, da
+ * multibajtni UTF-8 karakter koji padne tacno na granicu komada ne bude prepolovljen.
+ *
+ * Fajl koji ne postoji (ENOENT) se tiho preskace: to znaci "iz ovog fajla nula", ne greska.
+ * Svaka druga greska otvaranja ili citanja se PROPAGIRA, da pozivalac (dnevni plafon) i dalje
+ * pada zatvoreno na ostecenom ili nedostupnom logu.
+ */
+function citajLinijeUKomadima(putanja: string, obradiLiniju: (linija: string) => void): void {
+  let fd: number;
+  try {
+    fd = openSync(putanja, "r");
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException)?.code === "ENOENT") return;
+    throw e;
+  }
+  try {
+    const bafer = Buffer.alloc(VELICINA_BAFERA);
+    let ostatak = Buffer.alloc(0);
+    let procitano: number;
+    while ((procitano = readSync(fd, bafer, 0, VELICINA_BAFERA, null)) > 0) {
+      const komad = ostatak.length > 0 ? Buffer.concat([ostatak, bafer.subarray(0, procitano)]) : bafer.subarray(0, procitano);
+      let pocetak = 0;
+      let indeks: number;
+      while ((indeks = komad.indexOf(0x0a, pocetak)) !== -1) {
+        obradiLiniju(komad.toString("utf8", pocetak, indeks));
+        pocetak = indeks + 1;
+      }
+      ostatak = komad.subarray(pocetak);
     }
+    if (ostatak.length > 0) obradiLiniju(ostatak.toString("utf8"));
+  } finally {
+    closeSync(fd);
+  }
+}
+
+/**
+ * Zbir potrosenih kredita u zadanom danu, citajuci zadane JSONL fajlove SINHRONO u komadima
+ * (bez `readFileSync` cijelog fajla u memoriju). Koristi se za dnevni plafon, gdje log moze
+ * narasti dovoljno da `readFileSync` baci `ERR_STRING_TOO_LONG`.
+ *
+ * Fajl koji ne postoji doprinosi 0 i nije greska (vidi `citajLinijeUKomadima`); svaka druga
+ * greska se propagira.
+ */
+export function potrosenoNaDanUFajlovima(putanje: string[], dan: string): number {
+  let ukupno = 0;
+  for (const putanja of putanje) {
+    citajLinijeUKomadima(putanja, (linija) => {
+      ukupno += doprinosLinije(linija, dan);
+    });
   }
   return ukupno;
 }
