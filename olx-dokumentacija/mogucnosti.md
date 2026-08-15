@@ -8,7 +8,7 @@ Ovaj fajl je GENERISAN iz koda, pravi ga `node scripts/popis-mogucnosti.mjs`. Ne
 - MCP resursa: 8
 - CLI komandi: 62
 - Zakazanih poslova: 11
-- Postavki: 25
+- Postavki: 27
 - Skillova: 11
 - Podagenata: 6
 
@@ -342,13 +342,15 @@ ADMIN poslovi nemaju Windows blizanca namjerno: admin masina na Windowsu nije up
 | OLX_MCP_PROFILE | mcpProfil | admin | Koje alate MCP server registruje. |
 | OLX_MIN_REQUEST_INTERVAL_MS | minRequestIntervalMs | 350 |  |
 | OLX_PASSWORD | password |  |  |
+| OLX_SNAPSHOT_PROREDJIVANJE_GUSTINA_DANA | snapshotProredjivanjeGustinaDana | 7 | Iznad praga starosti se cuva samo prvi (najstariji) snapshot u svakom bloku od ovoliko dana (npr. 7 = priblizno sedmicno). Vidi `proredjiStareSnapshote` (snapshoti.ts) za tacno pravilo. |
+| OLX_SNAPSHOT_PROREDJIVANJE_PRAG_DANA | snapshotProredjivanjePragDana | 90 | Iznad ove starosti (dana) se dnevni snapshoti pregleda (`views-YYYY-MM-DD.json`) vise ne cuvaju za svaki dan, nego prorjeduju na `snapshotProredjivanjeGustinaDana` (funkcija `proredjiStareSnapshote`, snapshoti.ts). Iznad ove granice dnevna preciznost vec izgubi smisao za postojecu analizu (`mrtviOglasi` trazi 14 dana, efekat izdvajanja do ~30), a fajl po danu na velikom katalogu je krupan i sve ih nosi backup stanja (`src/core/backup-spisak.ts`). |
 | OLX_TIMEOUT_MS | timeoutMs | 20000 |  |
 | OLX_TOKEN | token |  |  |
 | OLX_USERNAME | username |  |  |
 
 ## Varijable okruzenja u cijelom repou
 
-Ukupno 98 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 89 cini konfiguraciju klona.
+Ukupno 100 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 91 cini konfiguraciju klona.
 
 Ostale dolaze iz okoline (harness sesije, plugin loader, proxy) i u `.env.example` namjerno ne stoje: klijent ih ne postavlja rukom. Zato se prazna kolona kod njih ne racuna kao propust.
 
@@ -437,6 +439,8 @@ Nema takvih.
 | OLX_SLIKE_ODGODA_MIN | konfiguracija klona | 2 | src/core/slike-ciscenje.test.ts, src/core/slike-ciscenje.ts | da |
 | OLX_SLIKE_POTROSENE_FILE | konfiguracija klona | 2 | src/core/slike-ciscenje.test.ts, src/core/slike-ciscenje.ts | da |
 | OLX_SLIKE_TRAG_FILE | konfiguracija klona | 1 | src/core/slike-trag.ts | da |
+| OLX_SNAPSHOT_PROREDJIVANJE_GUSTINA_DANA | konfiguracija klona | 3 | scripts/lib/stats-snapshot.test.mjs, src/core/config.ts, src/core/snapshoti.ts | da |
+| OLX_SNAPSHOT_PROREDJIVANJE_PRAG_DANA | konfiguracija klona | 3 | scripts/lib/stats-snapshot.test.mjs, src/core/config.ts, src/core/snapshoti.ts | da |
 | OLX_SNAPSHOT_U_TOKU_FILE | konfiguracija klona | 2 | src/core/snapshoti.test.ts, src/core/snapshoti.ts |  |
 | OLX_STANJE_RADNA | konfiguracija klona | 2 | src/core/git-stanje.test.ts, src/core/git-stanje.ts | da |
 | OLX_STANJE_REPO | konfiguracija klona | 6 | deploy/windows/instaliraj-zadatke.ps1, scripts/backup-nadzor.sh, scripts/instaliraj-cron.sh, scripts/lib/analiza-flote.mjs, scripts/nadzor-flote.mjs, scripts/provjeri-klon.mjs | da |

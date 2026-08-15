@@ -10,6 +10,18 @@ sekcija 7.
 
 ## Nije izdano
 
+**Stari dnevni snapshoti pregleda se sad mogu prorjediti.** `.olx-pik/snapshots/views-YYYY-MM-DD.json`
+se pisao svaki dan i nikad nije brisan, a `posao backup` te fajlove gura u backup stanja
+(`src/core/backup-spisak.ts`), pa je repo stanja rastao bez kraja. Nova funkcija
+`proredjiStareSnapshote` (`src/core/snapshoti.ts`) brise stare fajlove po deterministickom
+pravilu: snapshoti noviji od `OLX_SNAPSHOT_PROREDJIVANJE_PRAG_DANA` (podrazumijevano 90 dana) se
+cuvaju svi, a iznad tog praga ostaje samo prvi (najstariji) snapshot u svakom bloku od
+`OLX_SNAPSHOT_PROREDJIVANJE_GUSTINA_DANA` dana (podrazumijevano 7, priblizno sedmicno). Datum se
+cita iskljucivo iz imena fajla, nijedan fajl se ne otvara da bi se odlucilo o brisanju; radni fajl
+`.snapshot-u-toku.json` i bilo koje drugo ime ostaju netaknuti. Funkcija nikad ne baca: nepostojeci
+direktorij vraca nule bez greske, a jedan fajl koji se ne da obrisati ne prekida ciscenje ostalih.
+Poziva iz CLI-ja ili croma jos nema, ovo je samo funkcija spremna za spajanje.
+
 **`stats snapshot` dobio budzet po pokretanju i nastavak preko vise dana.** Na velikom katalogu
 posao (jedan `getListing` po oglasu, serijski) nije stizao obici sav do sljedeceg termina i padao je
 svaki dan. Sad ima tvrd budzet vremena (`OLX_BUDZET_SNAPSHOT_MS`, podrazumijevano 15 minuta): kad
