@@ -116,6 +116,9 @@ export interface ListingSummary {
   title: string;
   price?: number;
   display_price?: string;
+  // Unix timestamp ZADNJE OBNOVE, ne datuma objave: obnova pomjera datum koji oglas nosi u
+  // pretrazi. Kod oglasa koji jos nije obnavljan jednak je datumu objave, pa se "nikad obnovljen"
+  // ne razlikuje od "obnovljen tada" bez poredjenja sa created_at. Detalji u API-INVENTAR.md.
   date?: number;
   sponsored?: number;
   available?: boolean;
