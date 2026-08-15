@@ -8,7 +8,7 @@ Ovaj fajl je GENERISAN iz koda, pravi ga `node scripts/popis-mogucnosti.mjs`. Ne
 - MCP resursa: 8
 - CLI komandi: 62
 - Zakazanih poslova: 11
-- Postavki: 23
+- Postavki: 25
 - Skillova: 11
 - Podagenata: 6
 
@@ -84,7 +84,7 @@ Uslovni alati (registruju se samo pod navedenim uslovom):
 ## MCP resursi
 
 - `olx://categories` (OLX/PIK stablo kategorija (puni JSON)): Detaljni snapshot cijelog stabla (olx-dokumentacija/categories.json), velik. Za obicnu pretragu kategorije koristi olx://categories-index (CSV). Ovaj puni JSON citaj samo kad trebas polja kojih nema u CSV-u.
-- `olx://categories-index` (OLX/PIK index kategorija (CSV)): Lagani CSV za PRONALAZAK kategorije: kolone id, parent_id, level, path, name i zastavice (brand_required, model_required, has_models, show_condition, listing_fee, base_listing_price). Koristi OVO za izbor kategorije po imenu/path. Za forme i opcije izabrane kategorije pozovi alat olx_category_attributes <id> (i olx_category za detalje), ne ucitavaj cijeli categories JSON.
+- `olx://categories-index` (OLX/PIK index kategorija (CSV, samo gornji nivoi)): CSV sa SAMO gornjim nivoima stabla kategorija (kolone id, parent_id, level, path, name i zastavice brand_required, model_required, has_models, show_condition, listing_fee, base_listing_price); napomena na vrhu kaze koliko je redova prikazano od ukupno. Kategoriju po imenu nadji alatom olx_find_category, spusti se niz stablo alatom olx_category_children <id>, a obavezna polja forme procitaj alatom olx_category_attributes <id>.
 - `olx://knowledgebase` (OLX/PIK AI Knowledgebase): Interni vodic: API referenca, pravila vidljivosti i dijagnostika. Procitaj prije savjetovanja.
 - `olx://locations` (OLX/PIK lokacije (puni JSON)): Detaljni snapshot lokacija (olx-dokumentacija/locations.json): drzave, entiteti, gradovi sa lat/lon/zip/state. Za obican pronalazak country_id/city_id koristi olx://locations-index (CSV). Ovaj JSON citaj samo za dodatne detalje.
 - `olx://locations-index` (OLX/PIK index lokacija (CSV)): Lagani CSV za PRONALAZAK lokacije: kolone type (country|city), id, name, code, canton_id. Koristi OVO da nadjes country_id (BiH = 49) i city_id po imenu. Puni JSON (olx://locations) citaj samo za detalje (lat/lon, zip, state).
@@ -273,7 +273,7 @@ Uslovni alati (registruju se samo pod navedenim uslovom):
 - `stats profil`: Kompaktna statistika vlastitog profila (2 opcija)
   - `--views <mode>`: none|sample|snapshot
   - `--sample-size <n>`: velicina uzorka za sample
-- `stats snapshot`: Dnevni snimak pregleda SVIH aktivnih oglasa u .olx-pik/snapshots (sporo: jedan zahtjev po oglasu; za cron)
+- `stats snapshot`: Dnevni snimak pregleda SVIH aktivnih oglasa u .olx-pik/snapshots (sporo: jedan zahtjev po oglasu; za cron, budzet po pokretanju, nastavlja se preko vise pokretanja dok se katalog ne obidje cio)
 
 ### telegram
 
@@ -326,6 +326,7 @@ ADMIN poslovi nemaju Windows blizanca namjerno: admin masina na Windowsu nije up
 | OLX_BUDZET_LISTE_GRUPNI_MS | budzetListeGrupniMs | 120000 | Budzet vremena za grupne radnje koje se rade uz izricitu potvrdu, gdje je potpunost liste preduslov ispravnosti. |
 | OLX_BUDZET_LISTE_KONKURENT_MS | budzetListeKonkurentMs | 20000 | Budzet vremena za obilazak TUDJEG shopa (konkurenta) u serijskom prolazu kroz cijeli Excel spisak kandidata. Vlastiti kljuc namjerno, odvojen od `budzetListeMs`: red kandidata ceka svaki konkurent redom, pa dizanje razgovornog budzeta ne smije usporiti citav obilazak. |
 | OLX_BUDZET_LISTE_MS | budzetListeMs | 75000 | Budzet vremena za prelistavanje u alatima koje covjek zove u razgovoru i ceka odgovor. Budzet vremena a ne broj stranica: broj stranica je los posrednik za trajanje, jer ne zna za retry, ne zna da je throttle podesen i ne zna da je API te veceri spor. Racunica: 1 stranica je 20 oglasa i oko 0,57 s (350 ms throttle plus oko 220 ms mreze), pa 75 s budzeta znaci oko 131 stranicu odnosno oko 2620 oglasa. Krov prekoracaja je jedna stranica u letu (20 s timeout puta 5 pokusaja plus backoff), oko 107 s, sto ostaje ispod MCP zida od 300 s (polje `timeout` u .mcp.json). |
+| OLX_BUDZET_SNAPSHOT_MS | budzetSnapshotMs | 900000 | Budzet vremena PO POKRETANJU za `stats snapshot` (CLI, cron): koliko dugo smije obilaziti oglase (jedan `getListing` po oglasu) prije nego uredno stane i ostavi nastavak za sljedece pokretanje, upisan u radni fajl (`snapshoti.ts`). Odvojen od `budzetListeMs` jer taj budzet vrijedi za PRELISTAVANJE (paginaciju), a ovaj za sam OBILAZAK vec procitanog spiska ID-eva; MCP zid od 300 s ovdje ne vrijedi, jer `stats snapshot` nije MCP alat nego cron posao bez ikoga da ceka odgovor, pa budzet moze biti izdasniji. Racunica: throttle 350 ms plus mreza daje oko 0,57 s po oglasu, pa 15 minuta (900 000 ms) znaci oko 1580 oglasa po pokretanju. |
 | OLX_CLIENT_ID | clientId |  |  |
 | OLX_CLIENT_TOKEN | clientToken |  |  |
 | OLX_DAN_CIKLUSA_KVOTE | danCiklusaKvote |  | Dan u mjesecu kad se obnavlja kvota besplatnih obnova, 1 do 31. Rezerva za nalog bez shopa: inace se dan cita iz `shop.ends_at` i ovo ostaje prazno. Postavljena vrijednost ima prednost nad izmjerenim danom iz kvota dnevnika, isto kao ciklus (olx://pravila-brojeva). |
@@ -337,6 +338,7 @@ ADMIN poslovi nemaju Windows blizanca namjerno: admin masina na Windowsu nije up
 | OLX_MAX_SPEND_PER_DAY | maxSpendPerDay | 0 | Tvrdi dnevni plafon potrosnje u kreditima. 0 znaci bez plafona. |
 | OLX_MAX_STAVKI_U_ODGOVORU | maxStavkiUOdgovoru | 200 | Prag reza za spiskove u odgovoru grupnih alata (olx_bulk_price, olx_bulk_sklanjanje, olx_refresh_bulk): koliko stavki kandidata/gresaka/neaktivnih smije stati u JEDAN odgovor. Odvojen od `maxOglasaUOdgovoru`, jer taj prag nosi racunicu za PUN oglas u kompaktnom CSV obliku (olx_list_listings), a ovdje su stavke laksi objekti ({id, title} ili {id, greska}). Nije izlozen kao parametar seme alata (za razliku od operativnih `limit` polja koja biraju KOLIKO oglasa se stvarno mijenja): ovo je tehnicki osigurac protiv velikog JSON odgovora, ne poslovna odluka koju poziva bira po pozivu, pa ostaje plafon u okruzenju. Rez je uvijek vidljiv: uz odsjecenu listu ide broj koliko je stvarno bilo (src/core/obuhvat.ts). |
 | OLX_MAX_STRANICA_LISTE | maxStranicaListe | 5000 | OSIGURAC, ne podesavanje brzine: jedini zadatak mu je da pokvaren `last_page` sa API-ja ne vrti prelistavanje beskonacno. 5000 stranica je 100 000 oglasa, iznad svakog realnog kataloga, pa se u normalnom radu nikad ne pali. |
+| OLX_MAX_TRAJANJE_SNAPSHOT_PROLAZA_MS | maxTrajanjeSnapshotProlazaMs | 172800000 | Tvrda granica (ms) koliko NAJDUZE smije trajati jedan PROLAZ `stats snapshot` kroz cijeli katalog, mjereno od pocetka prolaza upisanog u radni fajl (ne od pocetka jednog pokretanja). Prolaz obuhvata spisak ID-eva zamrznut na pocetku (da snapshot ostane koherentan snimak jednog trenutka), pa predug prolaz unosi gresku ogranicenu upravo ovom granicom. Kad je granica premasena, radni fajl se ODBACUJE (ne dovrsava se) i prolaz krece iznova. Konzervativna vrijednost, ZNATNO ispod 14 dana: `mrtviOglasi` (stats.ts) i CLI `stats alarmi` prijavljuju mrtve oglase tek nad periodom od najmanje 14 dana, pa razmazan prolaz do 48 sati ostaje mali dio tog prozora i ne kvari racun vidljivo. |
 | OLX_MCP_PROFILE | mcpProfil | admin | Koje alate MCP server registruje. |
 | OLX_MIN_REQUEST_INTERVAL_MS | minRequestIntervalMs | 350 |  |
 | OLX_PASSWORD | password |  |  |
@@ -346,13 +348,13 @@ ADMIN poslovi nemaju Windows blizanca namjerno: admin masina na Windowsu nije up
 
 ## Varijable okruzenja u cijelom repou
 
-Ukupno 95 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 86 cini konfiguraciju klona.
+Ukupno 98 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 89 cini konfiguraciju klona.
 
 Ostale dolaze iz okoline (harness sesije, plugin loader, proxy) i u `.env.example` namjerno ne stoje: klijent ih ne postavlja rukom. Zato se prazna kolona kod njih ne racuna kao propust.
 
 Varijable koje kod cita a kojih nema u `.env.example` (moguc propust u primjeru, klijent ne vidi da postoje):
 
-Nema takvih.
+- OLX_SNAPSHOT_U_TOKU_FILE
 
 Varijable koje su u `.env.example` a kod ih nigdje ne cita (moguc visak ili zastarjela varijabla):
 
@@ -379,6 +381,7 @@ Nema takvih.
 | OLX_BUDZET_LISTE_GRUPNI_MS | konfiguracija klona | 1 | src/core/config.ts | da |
 | OLX_BUDZET_LISTE_KONKURENT_MS | konfiguracija klona | 1 | src/core/config.ts | da |
 | OLX_BUDZET_LISTE_MS | konfiguracija klona | 1 | src/core/config.ts | da |
+| OLX_BUDZET_SNAPSHOT_MS | konfiguracija klona | 3 | scripts/lib/stats-snapshot.test.mjs, src/core/config.ts, src/core/snapshoti.ts | da |
 | OLX_CLIENT_ID | konfiguracija klona | 2 | src/core/config.ts, src/core/index.ts | da |
 | OLX_CLIENT_TOKEN | konfiguracija klona | 2 | src/core/config.ts, src/core/index.ts | da |
 | OLX_DAN_CIKLUSA_KVOTE | konfiguracija klona | 4 | src/cli/index.ts, src/core/client.test.ts, src/core/config.ts, src/core/stats.ts | da |
@@ -402,7 +405,8 @@ Nema takvih.
 | OLX_MAX_RETRIES | konfiguracija klona | 3 | scripts/lib/pokreni-cli.mjs, src/core/client.test.ts, src/core/config.ts | da |
 | OLX_MAX_SPEND_PER_DAY | konfiguracija klona | 4 | scripts/pripremi-runtime.mjs, scripts/provjeri-klon.mjs, src/core/audit.ts, src/core/config.ts | da |
 | OLX_MAX_STAVKI_U_ODGOVORU | konfiguracija klona | 1 | src/core/config.ts | da |
-| OLX_MAX_STRANICA_LISTE | konfiguracija klona | 1 | src/core/config.ts | da |
+| OLX_MAX_STRANICA_LISTE | konfiguracija klona | 2 | scripts/lib/stats-snapshot.test.mjs, src/core/config.ts | da |
+| OLX_MAX_TRAJANJE_SNAPSHOT_PROLAZA_MS | konfiguracija klona | 2 | scripts/lib/stats-snapshot.test.mjs, src/core/config.ts | da |
 | OLX_MCP_PROFILE | konfiguracija klona | 6 | scripts/kontekst-izvjestaj.mjs, scripts/lib/popis-kod.mjs, scripts/lib/sesija.mjs, scripts/pripremi-runtime.mjs, scripts/provjeri-klon.mjs, scripts/provjeri-prompt.sh | da |
 | OLX_MIN_REQUEST_INTERVAL_MS | konfiguracija klona | 3 | scripts/lib/pokreni-cli.mjs, src/core/client.test.ts, src/core/config.ts | da |
 | OLX_MOST_POTEZ_TIMEOUT_MS | konfiguracija klona | 1 | scripts/telegram-most.mjs | da |
@@ -433,6 +437,7 @@ Nema takvih.
 | OLX_SLIKE_ODGODA_MIN | konfiguracija klona | 2 | src/core/slike-ciscenje.test.ts, src/core/slike-ciscenje.ts | da |
 | OLX_SLIKE_POTROSENE_FILE | konfiguracija klona | 2 | src/core/slike-ciscenje.test.ts, src/core/slike-ciscenje.ts | da |
 | OLX_SLIKE_TRAG_FILE | konfiguracija klona | 1 | src/core/slike-trag.ts | da |
+| OLX_SNAPSHOT_U_TOKU_FILE | konfiguracija klona | 2 | src/core/snapshoti.test.ts, src/core/snapshoti.ts |  |
 | OLX_STANJE_RADNA | konfiguracija klona | 2 | src/core/git-stanje.test.ts, src/core/git-stanje.ts | da |
 | OLX_STANJE_REPO | konfiguracija klona | 6 | deploy/windows/instaliraj-zadatke.ps1, scripts/backup-nadzor.sh, scripts/instaliraj-cron.sh, scripts/lib/analiza-flote.mjs, scripts/nadzor-flote.mjs, scripts/provjeri-klon.mjs | da |
 | OLX_STANJE_TOKEN | konfiguracija klona | 1 | src/core/git-stanje.ts | da |

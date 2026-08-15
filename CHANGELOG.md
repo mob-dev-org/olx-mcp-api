@@ -10,6 +10,22 @@ sekcija 7.
 
 ## Nije izdano
 
+**`stats snapshot` dobio budzet po pokretanju i nastavak preko vise dana.** Na velikom katalogu
+posao (jedan `getListing` po oglasu, serijski) nije stizao obici sav do sljedeceg termina i padao je
+svaki dan. Sad ima tvrd budzet vremena (`OLX_BUDZET_SNAPSHOT_MS`, podrazumijevano 15 minuta): kad
+istekne usred obilaska, posao STAJE UREDNO (izlazni kod 0, bez javljanja adminu) i upisuje napredak
+u radni fajl (`.olx-pik/snapshots/.snapshot-u-toku.json`), a sljedece pokretanje nastavlja TACNO od
+zapamcenog spiska ID-eva (ucitanog jednom, na pocetku prolaza) umjesto da cita katalog iznova.
+Djelimican snapshot se i dalje NIKAD ne pise (brana na nepotpunu listu ostaje netaknuta): tek kad je
+cio zapamceni spisak obidjen, snapshot ide na disk i radni fajl se brise. Prolaz koji traje duze od
+`OLX_MAX_TRAJANJE_SNAPSHOT_PROLAZA_MS` (podrazumijevano 48h, znatno ispod 14-dnevnog prozora za
+mrtve oglase) se odbacuje i krece iznova, uz javljanje administratoru; isto vazi za radni fajl koji
+pripada drugom nalogu (podmetnut ili zaostao sa drugog klona). Snapshot je uz to dosao do verzije 3:
+svaki oglas sad nosi i `procitano_ts`, trenutak kad je TAJ oglas procitan (koristan tek kad se
+prolaz razvuce na vise dana). Polje se NAMJERNO jos ne koristi ni u jednom racunu (`promjenaPregleda`,
+`mrtviOglasi` i ostatak `stats.ts` su netaknuti): skuplja se od sada za buducu upotrebu, a stari
+snapshoti (verzija 1 i 2) se i dalje citaju normalno.
+
 **Audit log rotira po mjesecu i vise se ne cita cijeli u memoriju.** Dnevni plafon
 (`OLX_MAX_SPEND_PER_DAY`) cita audit log na SVAKOJ radnji koja trosi kredite, a log je rastao bez
 kraja. Na dovoljno velikom logu `readFileSync` baca gresku, a posto plafon namjerno pada zatvoreno,
