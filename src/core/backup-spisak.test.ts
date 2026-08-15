@@ -165,6 +165,19 @@ test("REGRESIJA: da su slike arhive u podmapi 'slike', crni obrazac bi ih tiho i
   assert.equal(r.preskoci.length, 1, "podmapa slike pada na crni obrazac, zato je ne koristimo");
 });
 
+test("mjesecni audit fajl (rotacija) ulazi u bijeli spisak, uz zatecenu osnovnu putanju", () => {
+  const r = razvrstaj([".olx-pik/audit.jsonl", ".olx-pik/audit-2026-08.jsonl"], {} as NodeJS.ProcessEnv);
+  assert.equal(r.uzmi.length, 2, `oba audit fajla su trebala proci, a nepoznato je: ${r.nepoznato.join(", ")}`);
+  assert.equal(r.nepoznato.length, 0);
+});
+
+test("mjesecni audit fajl prati pomjerenu OLX_AUDIT_FILE putanju", () => {
+  const env = { OLX_AUDIT_FILE: "drugdje/a.jsonl" } as NodeJS.ProcessEnv;
+  const r = razvrstaj(["drugdje/a.jsonl", "drugdje/a-2026-08.jsonl"], env);
+  assert.equal(r.uzmi.length, 2, `oba audit fajla su trebala proci, a nepoznato je: ${r.nepoznato.join(", ")}`);
+  assert.equal(r.nepoznato.length, 0);
+});
+
 test("REGRESIJA: disk telemetrija je pokrivena postojecim obrascem za resursi folder", () => {
   // Novi fajl disk telemetrije (disk-YYYY-MM.jsonl) zivi u istom folderu kao memorijska
   // telemetrija (resursi-YYYY-MM.jsonl). Oba trebaju biti na crnom spisku kroz obrazac za

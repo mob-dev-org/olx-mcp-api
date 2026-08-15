@@ -13,6 +13,7 @@
 // Ovaj modul ne dira disk ni mrezu: prima popis putanja, vraca odluku. Kopiranje je u
 // `stanje-kopija.ts`, git u `git-stanje.ts`.
 
+import { dirname, basename, extname } from "node:path";
 import { putanjaDnevnika } from "./ai-dnevnik.js";
 import { putanjaTraga } from "./slike-trag.js";
 import { putanjaRitma } from "./ritam-obnova.js";
@@ -45,7 +46,22 @@ export function bijeliSpisak(env: NodeJS.ProcessEnv = process.env): StavkaSpiska
   const stavke: StavkaSpiska[] = [
     { putanja: putanjaPamcenja(env), opis: "pamcenje bota o klijentu" },
     { putanja: putanjaIzuzeca(env), opis: "oglasi koje klijent ne da dizati" },
+    // Zatecena osnovna putanja: klonovi od prije rotacije jos imaju zapise ovdje, i novi log
+    // (audit.ts) i dalje cita i nju za dnevni plafon, pa mora ostati u backupu.
     { putanja: loadConfig(env).auditFile, opis: "trag svih radnji i troska" },
+    // Mjesecni audit fajlovi nastali rotacijom (audit-YYYY-MM.jsonl), susjedi zatecene putanje.
+    // Isti obrazac stil kao SNAPSHOT_DIR nize: putanja mape + regex na ostatak imena.
+    (() => {
+      const osnovnaPutanja = loadConfig(env).auditFile;
+      const ext = extname(osnovnaPutanja);
+      const osnova = basename(osnovnaPutanja, ext);
+      const escapedExt = ext.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return {
+        putanja: dirname(osnovnaPutanja),
+        obrazac: new RegExp(`^${osnova}-\\d{4}-\\d{2}${escapedExt}$`),
+        opis: "trag svih radnji i troska (mjesecna rotacija)",
+      };
+    })(),
     { putanja: putanjaDnevnika(env), opis: "potrosnja vanjskog AI racuna" },
     // Ide na daljinu jer je dokazni materijal: jedini zapis o tome sta je trazeno od generatora
     // slika i sta je odbijeno. Bez njega se zloupotreba ne moze rekonstruisati poslije oporavka.
