@@ -83,3 +83,92 @@ test("ucitajSnapshote na nepostojecem folderu vraca praznu listu", () => {
   assert.deepEqual(ucitajSnapshote(join(tmpdir(), "olx-snapshoti-ne-postoji-nikako")), []);
   assert.equal(zadnjiSnapshot(join(tmpdir(), "olx-snapshoti-ne-postoji-nikako")), null);
 });
+
+test("zadnjiSnapshot ne otvara starije fajlove", () => {
+  const dir = radniDir();
+  const izvornaGreska = console.error;
+  const pozivi: unknown[][] = [];
+  console.error = (...args: unknown[]) => {
+    pozivi.push(args);
+  };
+  try {
+    const stari = snapshot(Math.floor(Date.parse("2026-08-01T03:00:00Z") / 1000), [{ id: 1, views: 10 }]);
+    const novi = snapshot(Math.floor(Date.parse("2026-08-10T03:00:00Z") / 1000), [{ id: 1, views: 40 }]);
+    // Stariji fajl je necitljiv JSON: da je otvoren, ispisao bi na stderr.
+    writeFileSync(join(dir, "views-2026-07-30.json"), '{"verzija":2,"ts":175', "utf8");
+    upisiSnapshot(stari, dir);
+    upisiSnapshot(novi, dir);
+
+    assert.deepEqual(zadnjiSnapshot(dir), novi, "vraca se najnoviji ispravan snapshot");
+    assert.deepEqual(pozivi, [], "stariji (pokvareni) fajl nije ni otvaran, pa nema ispisa na stderr");
+  } finally {
+    console.error = izvornaGreska;
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("zadnjiSnapshot se vraca na prethodni fajl kad je najnoviji pokvaren", () => {
+  const dir = radniDir();
+  try {
+    const prethodni = snapshot(Math.floor(Date.parse("2026-08-05T03:00:00Z") / 1000), [{ id: 1, views: 5 }]);
+    upisiSnapshot(prethodni, dir);
+    // Najnoviji po imenu, ali necitljiv JSON.
+    writeFileSync(join(dir, "views-2026-08-06.json"), '{"verzija":2,"ts":175', "utf8");
+
+    assert.deepEqual(zadnjiSnapshot(dir), prethodni, "preskace pokvaren najnoviji i vraca prethodni ispravan");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("ucitajSnapshote sa prozorom u danima izostavlja starije a zadrzava novije", () => {
+  const dir = radniDir();
+  try {
+    const danas = new Date();
+    const prijeMjesec = new Date(danas.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const prijeDanZaDanom = new Date(danas.getTime() - 1 * 24 * 60 * 60 * 1000);
+
+    const format = (d: Date) => d.toISOString().slice(0, 10);
+    const stariTs = Math.floor(Date.parse(`${format(prijeMjesec)}T03:00:00Z`) / 1000);
+    const noviTs = Math.floor(Date.parse(`${format(prijeDanZaDanom)}T03:00:00Z`) / 1000);
+    const stari = snapshot(stariTs, [{ id: 1, views: 1 }]);
+    const novi = snapshot(noviTs, [{ id: 2, views: 2 }]);
+    upisiSnapshot(stari, dir);
+    upisiSnapshot(novi, dir);
+
+    const ucitani = ucitajSnapshote(dir, 7);
+    assert.deepEqual(ucitani.map((s) => s.ts), [novi.ts], "samo snapshot unutar 7 dana ostaje");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("ucitajSnapshote sa prozorom ukljucuje fajl tacno na granici", () => {
+  const dir = radniDir();
+  try {
+    const naGranici = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+    const datum = naGranici.toISOString().slice(0, 10);
+    const ts = Math.floor(Date.parse(`${datum}T03:00:00Z`) / 1000);
+    const snap = snapshot(ts, [{ id: 1, views: 1 }]);
+    upisiSnapshot(snap, dir);
+
+    const ucitani = ucitajSnapshote(dir, 5);
+    assert.deepEqual(ucitani.map((s) => s.ts), [snap.ts], "fajl tacno na granici prozora ulazi u rezultat");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("ucitajSnapshote sa prozorom koji ne obuhvata nijedan fajl vraca praznu listu", () => {
+  const dir = radniDir();
+  try {
+    const davno = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+    const datum = davno.toISOString().slice(0, 10);
+    const ts = Math.floor(Date.parse(`${datum}T03:00:00Z`) / 1000);
+    upisiSnapshot(snapshot(ts, [{ id: 1, views: 1 }]), dir);
+
+    assert.deepEqual(ucitajSnapshote(dir, 2), [], "prozor koji ne obuhvata nijedan fajl ne baca, vraca []");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
