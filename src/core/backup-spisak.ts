@@ -134,6 +134,12 @@ export function crniObrasci(): { obrazac: RegExp; razlog: string }[] {
     { obrazac: /(^|\/)slike-potrosene\.json$/, razlog: "prolazni popis slika za brisanje" },
     { obrazac: /(^|\/)prompt-[^/]*\.md$/, razlog: "sastavlja se pri svakom startu" },
     { obrazac: /(^|\/)cron-[^/]*\.log$/, razlog: "log" },
+    // Napredak snapshot prolaza koji jos traje (`stats snapshot` sa budzetom po pokretanju).
+    // Prolazan i sam se obnavlja: poslije oporavka sljedeci prolaz krece iznova i napravi ga
+    // ponovo, a djelimicno prikupljeni oglasi bez svog prolaza ne znace nista. Mora biti na
+    // JEDNOM od spiskova, jer pogon svaki fajl koji nije ni na bijelom ni na crnom svakodnevno
+    // prijavljuje adminu kao nepoznato stanje.
+    { obrazac: /(^|\/)\.snapshot-u-toku\.json$/, razlog: "prolazni napredak snapshot prolaza" },
     { obrazac: /\.tmp$/, razlog: "polovicno upisan fajl" },
     { obrazac: /\.lock$/, razlog: "lock" },
     { obrazac: /\.pid$/, razlog: "pid" },

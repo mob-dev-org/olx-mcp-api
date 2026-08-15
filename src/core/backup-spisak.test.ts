@@ -187,3 +187,21 @@ test("REGRESIJA: disk telemetrija je pokrivena postojecim obrascem za resursi fo
   assert.equal(r.uzmi.length, 0);
   assert.equal(r.nepoznato.length, 0);
 });
+
+test("napredak snapshot prolaza se ne salje u backup, ali ni ne prijavljuje kao nepoznato", () => {
+  // `stats snapshot` sa budzetom po pokretanju pise napredak u ovaj fajl dok prolaz traje.
+  // Prolazan je i sam se obnavlja, pa ne ide na daljinu; ali MORA biti na jednom od spiskova,
+  // jer bi ga inace pogon svaki dan prijavljivao adminu kao nepoznato stanje.
+  const r = razvrstaj([".olx-pik/snapshots/.snapshot-u-toku.json"]);
+  assert.equal(r.uzmi.length, 0);
+  assert.equal(r.nepoznato.length, 0, "ne smije se prijaviti kao nepoznato stanje");
+  assert.equal(r.preskoci.length, 1);
+  assert.match(r.preskoci[0]!.razlog, /prolazn/);
+});
+
+test("REGRESIJA: dnevni snapshoti i dalje idu u backup uz radni fajl na crnom spisku", () => {
+  // Crni obrazac za radni fajl ne smije zahvatiti prave snapshote iz iste mape.
+  const r = razvrstaj([".olx-pik/snapshots/views-2026-08-14.json"]);
+  assert.equal(r.uzmi.length, 1);
+  assert.equal(r.preskoci.length, 0);
+});
