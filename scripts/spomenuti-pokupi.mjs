@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Pokupi imena prodavaca koja su KLIJENTI sami spomenuli, iz svih klonova flote, na admin masinu.
 //
 // Klijentu konkurencija nije u paketu i bot mu o njoj ne radi nista. Ali kad covjek sam navede ime
@@ -19,7 +19,7 @@
 // Ponasanje pri gresci je isto kao kod uzora: bez popisa klonova staje sa porukom i kodom 1, a
 // klon koji nema fajl ili ga ne moze procitati se preskace bez rusenja cijelog prolaza.
 //
-// Pokretanje: node scripts/spomenuti-pokupi.mjs
+// Pokretanje: bun scripts/spomenuti-pokupi.mjs
 // Zakazivanje: deploy/launchd/ba.codefactory.olx.ADMIN.spomenuti.plist
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";

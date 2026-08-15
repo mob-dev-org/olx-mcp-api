@@ -1,13 +1,13 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // CLI za telemetriju resursa (RSS memorije sesija/cuvara, stanje masine) koju uzorkuje
 // scripts/cuvar-sesije.mjs preko scripts/lib/resursi.mjs. Ovaj fajl NISTA ne uzorkuje sam:
 // samo cita zivo stanje (PID fajlovi + platformske sonde) i JSONL istoriju, pa formatira
 // citljiv sazetak. Sva racunica (agregacija, RSS stabla, sonde) zivi u lib/resursi.mjs.
 //
 // Komande:
-//   node scripts/resursi.mjs pregled [--svi <root-dir>]
-//   node scripts/resursi.mjs izvjestaj [--dana N] [--svi <root-dir>]
-//   node scripts/resursi.mjs dijagnostika
+//   bun scripts/resursi.mjs pregled [--svi <root-dir>]
+//   bun scripts/resursi.mjs izvjestaj [--dana N] [--svi <root-dir>]
+//   bun scripts/resursi.mjs dijagnostika
 //
 // Bez `--svi` radi iskljucivo NA TEKUCEM KLONU (KORIJEN ovog fajla). Sa `--svi <root-dir>`
 // obradjuje SVAKI direktorij u `root-dir` koji ima podfolder `.olx-pik` (znak da je to klon).
@@ -385,9 +385,9 @@ function zastavica(ime, ostatak, default_) {
 
 function usage() {
   console.error("Upotreba:");
-  console.error("  node scripts/resursi.mjs pregled [--svi <root-dir>]");
-  console.error("  node scripts/resursi.mjs izvjestaj [--dana N] [--svi <root-dir>]");
-  console.error("  node scripts/resursi.mjs dijagnostika");
+  console.error("  bun scripts/resursi.mjs pregled [--svi <root-dir>]");
+  console.error("  bun scripts/resursi.mjs izvjestaj [--dana N] [--svi <root-dir>]");
+  console.error("  bun scripts/resursi.mjs dijagnostika");
 }
 
 async function main() {

@@ -102,16 +102,16 @@ postoje samo na disku ove masine, a snapshoti se retroaktivno ne mogu vratiti.
 Tri komande u tri poteza (PowerShell 5.1 nema `&&`):
 
 ```
-npm ci
-npm run build
-npm test
+bun install
+bun run build
+bun run test
 ```
 
 ## 4. Telegram runtime, oba bota
 
 ```
-node scripts/pripremi-runtime.mjs <klijentov_bot_token> <id_grupe> <id1,id2,...>
-node scripts/pripremi-admin-runtime.mjs <admin_bot_token> <admin_telegram_id> [id_admin_grupe]
+bun scripts/pripremi-runtime.mjs <klijentov_bot_token> <id_grupe> <id1,id2,...>
+bun scripts/pripremi-admin-runtime.mjs <admin_bot_token> <admin_telegram_id> [id_admin_grupe]
 ```
 
 - Prva komanda pravi `.claude-runtime/` (klijentska sesija), druga `.claude-runtime-admin/`
@@ -147,8 +147,8 @@ node scripts/pripremi-admin-runtime.mjs <admin_bot_token> <admin_telegram_id> [i
   runtimea, sto gubi sva uparivanja. Umjesto toga:
 
   ```
-  node dist/cli/index.js telegram grupe dodaj <id_grupe>
-  node dist/cli/index.js telegram grupe
+  bun dist/cli/index.js telegram grupe dodaj <id_grupe>
+  bun dist/cli/index.js telegram grupe
   ```
 
   Id grupe se ocita iz `@getidsbot`. Prva komanda je idempotentna, druga pokazuje kome tacno idu
@@ -158,7 +158,7 @@ node scripts/pripremi-admin-runtime.mjs <admin_bot_token> <admin_telegram_id> [i
 ## 4c. Prva proba sesije, u istom terminalu
 
 ```
-node scripts/pokreni-klijenta.mjs
+bun scripts/pokreni-klijenta.mjs
 ```
 
 Radi na obje platforme i greska se vidi ODMAH u prvom planu (pogresan login, plugin, bun,
@@ -178,7 +178,7 @@ Windows: `powershell -ExecutionPolicy Bypass -File deploy/windows/instaliraj-zad
 ## 6. Preflight, kapija bez izuzetka
 
 ```
-node scripts/provjeri-klon.mjs
+bun scripts/provjeri-klon.mjs
 ```
 
 Dok ijedna stavka pise FALI, sa klijentom se NE pocinje: svaka stavka nosi tacnu komandu za

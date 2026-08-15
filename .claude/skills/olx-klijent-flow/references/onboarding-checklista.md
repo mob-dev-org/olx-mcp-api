@@ -68,7 +68,7 @@ Reci klijentu u jednoj poruci, pa to zapisi u baseline:
 
 ## Provjera na kraju
 
-- **`node scripts/provjeri-klon.mjs` prolazi bez ijedne FALI stavke.** To je jedina potpuna
+- **`bun scripts/provjeri-klon.mjs` prolazi bez ijedne FALI stavke.** To je jedina potpuna
   provjera spremnosti (konfiguracija, runtime, zakazani poslovi, cuvar, snapshot) i dok ona
   ne prodje, sa klijentom se ne pocinje.
 - `olx_whoami` vraca klijentov nalog.

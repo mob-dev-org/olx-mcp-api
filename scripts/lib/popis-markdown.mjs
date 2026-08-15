@@ -280,7 +280,7 @@ export function uMarkdown(podaci) {
   const dijelovi = [
     "# Sta ovaj sistem moze",
     "",
-    "Ovaj fajl je GENERISAN iz koda, pravi ga `node scripts/popis-mogucnosti.mjs`. Ne dira se " +
+    "Ovaj fajl je GENERISAN iz koda, pravi ga `bun scripts/popis-mogucnosti.mjs`. Ne dira se " +
       "rukom: rucna izmjena ovdje nestaje na sljedecem pokretanju generatora. Za objasnjenje " +
       "obicnim jezikom procitaj `sta-sistem-radi.md` u istoj mapi.",
     "",

@@ -4,10 +4,10 @@ Dodaje se povrh `CLAUDE.md` kroz `scripts/claude-olx.sh`. Klijentski runtime ovo
 
 ## Tok rada
 
-- `npm run build` prije svakog pokretanja (`dist/` nije u gitu). `npm test`, `npm run typecheck`.
-- `npm run chat` pokrece Claude Code sa samo `olx-pik` MCP serverom. Plugine gasi
+- `bun run build` prije svakog pokretanja (`dist/` nije u gitu). `bun run test`, `bun run typecheck`.
+- `bun run chat` pokrece Claude Code sa samo `olx-pik` MCP serverom. Plugine gasi
   `.claude/settings.json`, kljuc `enabledPlugins`.
-- `npm run kontekst` mjeri sta ide modelu u svakom potezu; sa `-- --sa-globalnim` mjeri i
+- `bun run kontekst` mjeri sta ide modelu u svakom potezu; sa `-- --sa-globalnim` mjeri i
   globalne MCP servere. Pokrenuti prije i poslije svake izmjene koja dira MCP seme ili promptove.
 - `scripts/provjeri-prompt.sh` dokazuje da tvrde granice stvarno stizu u kontekst u oba profila.
   Pokrenuti prije brisanja bilo kojeg pravila iz skillova.
@@ -16,10 +16,10 @@ Dodaje se povrh `CLAUDE.md` kroz `scripts/claude-olx.sh`. Klijentski runtime ovo
 
 ## Klijentski pogon
 
-- `node scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>` pravi `.claude-runtime/`:
+- `bun scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>` pravi `.claude-runtime/`:
   vlastiti `CLAUDE_CONFIG_DIR` i `TELEGRAM_STATE_DIR`, pa svaki klon ima svoj bot i nijedan
   globalni MCP server. U BotFatheru obavezno `/setprivacy` pa `Disable`.
-- `node scripts/pokreni-klijenta.mjs` pokrece klijentsku sesiju rucno (prvi test pri
+- `bun scripts/pokreni-klijenta.mjs` pokrece klijentsku sesiju rucno (prvi test pri
   onboardingu), u istom terminalu, na obje platforme.
 - U pogonu sesije drzi `scripts/cuvar-sesije.mjs [klijent|admin-bot]`: restart na pad, nocni
   restart u 03h (tada cisti i Telegram inbox) i restart poslije neaktivnosti (klijent 2h,
@@ -28,12 +28,12 @@ Dodaje se povrh `CLAUDE.md` kroz `scripts/claude-olx.sh`. Klijentski runtime ovo
 - AI pogon klijentske sesije bira `OLX_KLIJENT_AI` u `.env` klona: `pretplata` (default, faza
   testiranja) ili `deepseek` (OLX_DEEPSEEK_* varijable; bez njih se sesija ne pokrece). Nista
   se ne konfigurise u zshrc-u ni globalno po masini.
-- Rucna DeepSeek sesija u terminalu: `node scripts/claude-ds.mjs` (`--env` samo ispise
+- Rucna DeepSeek sesija u terminalu: `bun scripts/claude-ds.mjs` (`--env` samo ispise
   podesavanja). Cita isti `.env` kao pogon, pa rucno i pogonsko okruzenje ne mogu se razici, i
   radi na obje platforme. Stara zsh funkcija `claude-ds` iz `~/.zshrc` se ne koristi: bila je
   globalna po masini, pa je na Windowsu nije ni bilo. Provjera endpointa bez sesije:
-  `npm run deepseek:proba`.
-- Admin bot po klonu (opcion): `node scripts/pripremi-admin-runtime.mjs <bot_token>
+  `bun run deepseek:proba`.
+- Admin bot po klonu (opcion): `bun scripts/pripremi-admin-runtime.mjs <bot_token>
   <admin_id> [id_grupe]` pravi `.claude-runtime-admin/`, pa `instaliraj-cron.sh` sam doda
   posao `admin-bot`. Vlasnikov privatni kanal, admin MCP profil, uvijek pretplata, bez Bash-a.
   BotFather privacy za admin bota OSTAJE UKLJUCEN: u grupi prima samo mention i reply, pa se
@@ -48,16 +48,16 @@ Dodaje se povrh `CLAUDE.md` kroz `scripts/claude-olx.sh`. Klijentski runtime ovo
   starom kodu. Windows ekvivalent: `deploy/windows/azuriraj.ps1` (isti popis, Task Scheduler
   umjesto launchd).
 - Izdanje nosi anotiran tag `vX.Y.Z`, a `stabilno` je prekidac koji kaze koje izdanje flota vozi.
-  Izdanje se pravi sa `node scripts/izdanje.mjs <broj>` (skill `olx-izdanje`): skripta provjeri
+  Izdanje se pravi sa `bun scripts/izdanje.mjs <broj>` (skill `olx-izdanje`): skripta provjeri
   granu, cistu kopiju, sinhron sa remoteom, slobodan tag i sekciju u `CHANGELOG.md`, pa pusti
-  `npm version` koji vrti testove, prepise `src/core/verzija.ts` i izgradi. Pustanje u flotu je
-  `node scripts/pusti-u-flotu.mjs`: bez zastavice gura commit i tagove i stane (sve povratno), a uz
+  `bun pm version` koji vrti testove, prepise `src/core/verzija.ts` i izgradi. Pustanje u flotu je
+  `bun scripts/pusti-u-flotu.mjs`: bez zastavice gura commit i tagove i stane (sve povratno), a uz
   `--pomjeri-stabilno` pomjeri prekidac i sam azurira flotu. Vracanje je isti potez sa
   `--izdanje v0.3.0 --pomjeri-stabilno`. Cijeli tok, sa changelogom i evidencijom, vodi skill
   `olx-izdanje`; sta je uslo po izdanju: `CHANGELOG.md`.
-- Zaostaje li klon: `node scripts/provjeri-izdanje.mjs` (isto javi i `SessionStart` hook pri
+- Zaostaje li klon: `bun scripts/provjeri-izdanje.mjs` (isto javi i `SessionStart` hook pri
   pokretanju sesije, osim u klijentskoj bot sesiji gdje je namjerno tih). Povlacenje jednog klona:
-  `node scripts/azuriraj-ovaj-klon.mjs [--restart]`; pri padu builda ili testova sam vraca klon na
+  `bun scripts/azuriraj-ovaj-klon.mjs [--restart]`; pri padu builda ili testova sam vraca klon na
   prethodno izdanje. Sesija to ne pokrece sama od sebe, ni jedna: zamjena koda ispod zive sesije
   ostavlja MCP server na starom buildu.
   Skripta se pokrece na masini gdje klonovi ZIVE, pa klonovi na Windowsu ne mogu biti azurirani
@@ -76,7 +76,7 @@ dotakne odgovarajuci fajl (`paths` frontmatter). Ne prepisuju se ovdje ni u skil
 pitanja o platformi i API-ju koristi podagenta `olx-korpus` umjesto ucitavanja velikih
 fajlova dokumentacije u razgovor.
 
-Prije rada prema klijentu na klonu prvo `node scripts/provjeri-klon.mjs`: dok ijedna stavka
+Prije rada prema klijentu na klonu prvo `bun scripts/provjeri-klon.mjs`: dok ijedna stavka
 FALI, klijent se ne dira (detalji u CLAUDE.md, sekcija "Spremnost klona").
 
 Jos dva podagenta za admina (rade i kroz admin bota, klijentska sesija ih ne vidi):

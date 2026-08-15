@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { Command } from "commander";
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, rmSync, existsSync } from "node:fs";
 import { dirname, join, resolve as resolvePath } from "node:path";
@@ -967,7 +967,7 @@ plan
       upisiPlan(noviPlan, opts.file);
       ispisiPlan(noviPlan);
       console.error(`Plan je snimljen u ${opts.file}. Nista nije naplaceno.`);
-      console.error(`Izvrsenje: node dist/cli/index.js sponsor plan izvrsi --yes`);
+      console.error(`Izvrsenje: bun dist/cli/index.js sponsor plan izvrsi --yes`);
     } catch (e) {
       fail(e);
     }
@@ -1550,7 +1550,7 @@ const telegram = program.command("telegram").description("Grupe u kojima bot rad
 // bi popunio .env i time zaobisao pravi izvor umjesto da ga popravi.
 const BEZ_ODREDISTA =
   "Telegram poruka NIJE poslana: nema nijednog odredista. Ili fali TELEGRAM_BOT_TOKEN u .env, " +
-  "ili nema nijedne grupe. Dodaj grupu sa: node dist/cli/index.js telegram grupe dodaj <id_grupe>";
+  "ili nema nijedne grupe. Dodaj grupu sa: bun dist/cli/index.js telegram grupe dodaj <id_grupe>";
 
 function spisakOdredista(): { iz_accessa: string[]; iz_enva: string[]; odredista: string[]; access_fajl: string } {
   const izAccessa = grupeKlijenta();
@@ -1685,7 +1685,7 @@ function porukaOMrtvimGrupama(mrtvi: NalazChata[]): string {
     ...redovi,
     "",
     "Ako je to namjerno, ukloni ih:",
-    ...mrtvi.map((n) => `  node dist/cli/index.js telegram grupe ukloni ${n.chatId}`),
+    ...mrtvi.map((n) => `  bun dist/cli/index.js telegram grupe ukloni ${n.chatId}`),
     "Ako je grupa presla u supergrupu, id se promijenio i novi treba dodati rucno.",
   ].join("\n");
 }
@@ -1851,7 +1851,7 @@ posao
         await javiAdminu(
           `Dnevni posao: serija snapshota je prekinuta. U zadnjih 60 dana ima ${snapshoti.length} snimaka, ` +
             "a stariji postoje, pa posao snapshot ocito ne radi. Izvjestaj o mrtvim oglasima izostaje dok se ne popravi. " +
-            "Provjeri zakazan posao snapshot; rucno: node dist/cli/index.js stats snapshot",
+            "Provjeri zakazan posao snapshot; rucno: bun dist/cli/index.js stats snapshot",
         );
       }
       // Bez odluke klijenta se nista ne obnavlja: prvi put ide puno pitanje sa listom (do 10,

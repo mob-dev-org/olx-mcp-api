@@ -100,7 +100,7 @@ const okrog = {
 // prihvatiti djetetovu konekciju (deadlock).
 function pokreni(skripta, args) {
   return new Promise((res) => {
-    const d = spawn("node", [resolve(KORIJEN, skripta), ...args], { env: okrog });
+    const d = spawn(process.execPath, [resolve(KORIJEN, skripta), ...args], { env: okrog });
     let out = "", err = "";
     d.stdout.on("data", (b) => (out += b));
     d.stderr.on("data", (b) => (err += b));

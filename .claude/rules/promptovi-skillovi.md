@@ -23,7 +23,7 @@ podagente.
 
 - Opis skilla (description) je u kontekstu SVAKE sesije: jedna recenica namjene + okidaci,
   nista vise. Tijelo skilla se placa tek na otvaranje, tu smije biti detalja.
-- Prompt promjena se mjeri: `npm run kontekst` prije i poslije, a `scripts/provjeri-prompt.sh`
+- Prompt promjena se mjeri: `bun run kontekst` prije i poslije, a `scripts/provjeri-prompt.sh`
   dokazuje da granice i dalje stizu u oba profila. Bez toga se prompt ne mijenja.
 - Za posao preko mnogo oglasa: podagenti iz `.claude/agents/` (obrazac u skillu
   `olx-serijski-posao`), ne jedan dugacak razgovor. Podagent vraca par redova, ne payload.

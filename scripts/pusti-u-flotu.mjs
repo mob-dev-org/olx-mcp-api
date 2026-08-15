@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Zadnji dio izdanja: pusti oznaceno izdanje u flotu.
 //
 // Radi ono sto `izdanje.mjs` namjerno ne radi: push na remote, pomjeranje prekidaca `stabilno` i
@@ -10,10 +10,10 @@
 // pitanju na koje niko ne odgovara kad skriptu pokrece sesija.
 //
 // Pokretanje:
-//   node scripts/pusti-u-flotu.mjs --suho                    # samo pokazi plan
-//   node scripts/pusti-u-flotu.mjs                           # push commita i tagova
-//   node scripts/pusti-u-flotu.mjs --pomjeri-stabilno         # i prekidac i azuriranje flote
-//   node scripts/pusti-u-flotu.mjs --izdanje v0.3.0 --pomjeri-stabilno   # vracanje na staro
+//   bun scripts/pusti-u-flotu.mjs --suho                    # samo pokazi plan
+//   bun scripts/pusti-u-flotu.mjs                           # push commita i tagova
+//   bun scripts/pusti-u-flotu.mjs --pomjeri-stabilno         # i prekidac i azuriranje flote
+//   bun scripts/pusti-u-flotu.mjs --izdanje v0.3.0 --pomjeri-stabilno   # vracanje na staro
 
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -68,7 +68,7 @@ if (!IZDANJE) {
   } catch {
     stani(
       "HEAD ne stoji na tagu izdanja",
-      "napravi izdanje (node scripts/izdanje.mjs <broj>) ili zadaj --izdanje v0.3.0",
+      "napravi izdanje (bun scripts/izdanje.mjs <broj>) ili zadaj --izdanje v0.3.0",
     );
   }
 }
@@ -117,7 +117,7 @@ if (!POMJERI) {
   console.log("");
   console.log("Povratni dio je gotov. Nepovratni ostaje, jer ga flota osjeti odmah:");
   console.log("");
-  console.log(`  node scripts/pusti-u-flotu.mjs --izdanje ${IZDANJE} --pomjeri-stabilno`);
+  console.log(`  bun scripts/pusti-u-flotu.mjs --izdanje ${IZDANJE} --pomjeri-stabilno`);
   console.log("");
   console.log(`Do tada prekidac "${PREKIDAC}" pokazuje na staro izdanje i klonovi vide staro.`);
   process.exit(0);
@@ -169,4 +169,4 @@ if (BEZ_FLOTE) {
 }
 
 console.log("");
-console.log(`Flota vozi ${IZDANJE}. Provjera na klonu: node scripts/provjeri-izdanje.mjs`);
+console.log(`Flota vozi ${IZDANJE}. Provjera na klonu: bun scripts/provjeri-izdanje.mjs`);

@@ -19,7 +19,7 @@ test("popis mogucnosti je usaglasen sa kodom", () => {
   const ishod = spawnSync(process.execPath, [join(KORIJEN, "scripts", "popis-mogucnosti.mjs"), "--provjeri"], {
     cwd: KORIJEN,
     encoding: "utf8",
-    // Rok postoji da pad generatora ne zaledi cijeli `npm test`, koji je kapija izdanja.
+    // Rok postoji da pad generatora ne zaledi cijeli `bun run test`, koji je kapija izdanja.
     timeout: 60000,
   });
 

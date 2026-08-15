@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Pravi popis mogucnosti sistema IZ KODA, umjesto da ga neko odrzava rukom.
 //
 // Rucni popis je vec jednom ostario, i to tiho: dokumentacija je tvrdila jedno a kod radio drugo,
@@ -7,10 +7,10 @@
 // `loadConfig`, launchd sabloni, frontmatter skillova.
 //
 // Pokretanje:
-//   node scripts/popis-mogucnosti.mjs             upise popis u olx-dokumentacija/
-//   node scripts/popis-mogucnosti.mjs --provjeri  nista ne upisuje, samo javi ako je popis zaostao
+//   bun scripts/popis-mogucnosti.mjs             upise popis u olx-dokumentacija/
+//   bun scripts/popis-mogucnosti.mjs --provjeri  nista ne upisuje, samo javi ako je popis zaostao
 //
-// Rezim `--provjeri` je ono zbog cega ovo ima smisla: on visi na `npm test`, a `npm test` je kapija
+// Rezim `--provjeri` je ono zbog cega ovo ima smisla: on visi na `bun run test`, a to je kapija
 // izdanja, pa zaostao popis ne moze doci do klijenta. Zato ovaj rezim smije citati SAMO fajlove
 // repoa i `dist/`: nikad `~/.claude`, nikad git, nikad mrezu. Isti test se vrti i na klijentskim
 // klonovima pri azuriranju, gdje bi svaka zavisnost od stanja masine bila lazna uzbuna.
@@ -75,7 +75,7 @@ if (podaci.poslovaBezBlizanca.length > 0) {
 if (zamjerke.length > 0) {
   console.error("Popis mogucnosti nije usaglasen sa kodom:\n");
   for (const z of zamjerke) console.error(`  ${z}\n`);
-  console.error("Popravka generisanog dijela: node scripts/popis-mogucnosti.mjs");
+  console.error("Popravka generisanog dijela: bun scripts/popis-mogucnosti.mjs");
   process.exit(1);
 }
 

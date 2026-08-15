@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Telegram most: bot koji NE zavisi od zive interaktivne Claude Code sesije.
 //
 // Zasto postoji. Kanal (`--channels`) radi samo u interaktivnoj sesiji, a interaktivna sesija
@@ -19,8 +19,8 @@
 //   je izgubljen klijent.
 //
 // Pokretanje:
-//   node scripts/telegram-most.mjs            # pogon
-//   node scripts/telegram-most.mjs --jednom   # obradi sto ceka pa izadji (za probu)
+//   bun scripts/telegram-most.mjs            # pogon
+//   bun scripts/telegram-most.mjs --jednom   # obradi sto ceka pa izadji (za probu)
 //
 // Pogon (DeepSeek ili pretplata) bira se okruzenjem: ovaj proces samo prenosi svoje okruzenje.
 
@@ -28,16 +28,11 @@ import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { dirname, join, resolve } from "node:path";
+import { ucitajEnvGlobalno } from "./lib/envfajl.mjs";
 
 // ---- konfiguracija ----
 
-if (typeof process.loadEnvFile === "function" && existsSync(".env")) {
-  try {
-    process.loadEnvFile(".env");
-  } catch {
-    // .env sa neispravnim redom: provjeri-klon.mjs to prijavljuje jasnije
-  }
-}
+if (existsSync(".env")) ucitajEnvGlobalno(".env"); // .env sa neispravnim redom: provjeri-klon.mjs to prijavljuje jasnije
 
 const JEDNOM = process.argv.includes("--jednom");
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -457,7 +452,7 @@ const pristup = citajPristup();
 if (!pristup) {
   console.error(
     `Nema ${join(RUNTIME, "channels", "telegram", "access.json")}. Most bez allowlista ne prima nista.\n` +
-      "Pripremi runtime: node scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>",
+      "Pripremi runtime: bun scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>",
   );
   process.exit(2);
 }

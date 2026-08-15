@@ -1,7 +1,7 @@
 // Mjeri sta se salje modelu u svakom potezu i sta se salje samo po potrebi.
 // Sluzi da se odluci sta vrijedi trimovati, umjesto da se nagadja.
-// Pokretanje: npm run kontekst          (samo ovaj repo, bez pokretanja tudjih procesa)
-//             npm run kontekst -- --sa-globalnim   (mjeri i globalne MCP servere)
+// Pokretanje: bun run kontekst          (samo ovaj repo, bez pokretanja tudjih procesa)
+//             bun run kontekst -- --sa-globalnim   (mjeri i globalne MCP servere)
 //
 // Podjela je vazna:
 //   uvijek  = MCP seme alata, CLAUDE.md, opisi skillova iz frontmattera
@@ -74,7 +74,7 @@ function opisSkilla(putanja) {
  * Za tudje (globalne) servere prazan odgovor ostaje podnosljiv, oni se samo preskoce.
  */
 // Oznake klijentske sesije se djetetu NE nasljedjuju: ovaj alat MJERI profil koji je sam zadao,
-// ne onaj koji zatekne u ljusci. Bez ovoga bi `npm run kontekst` pokrenut iz ljuske u kojoj je
+// ne onaj koji zatekne u ljusci. Bez ovoga bi `bun run kontekst` pokrenut iz ljuske u kojoj je
 // ostao CLAUDE_CONFIG_DIR nekog klona tiho izmjerio 44 alata umjesto 59 i upisao taj broj u
 // izvjestaj, a broj iz alata za mjerenje niko ne provjerava drugim putem. Prazan string, ne
 // delete: spread nize mora pregaziti vrijednost iz process.env, a `loadConfig` prazno cita kao
@@ -156,7 +156,7 @@ async function dohvatiNase(env) {
       `Ne mogu procitati MCP alate iz dist/mcp/server.js (profil ${env.OLX_MCP_PROFILE}): ` +
         `${ishod.greska ?? "vratio je praznu listu"}.`,
     );
-    console.error("Je li build prosao (npm run build)? Izvjestaj bez ovoga lazno pokazuje pad konteksta.");
+    console.error("Je li build prosao (bun run build)? Izvjestaj bez ovoga lazno pokazuje pad konteksta.");
     process.exit(1);
   }
   return ishod;
@@ -310,7 +310,7 @@ if (globalniServeri.length === 0) {
   console.log("  globalni MCP serveri: nema ih u ~/.claude.json");
 } else if (!SA_GLOBALNIM) {
   console.log(`  globalni MCP serveri (${globalniServeri.length}): ${globalniServeri.map(([i]) => i).join(", ")}`);
-  console.log("  nisu izmjereni. Za mjerenje: npm run kontekst -- --sa-globalnim");
+  console.log("  nisu izmjereni. Za mjerenje: bun run kontekst -- --sa-globalnim");
   console.log("  (mjerenje ih stvarno pokrece, pa se ne radi bez trazenja)");
 } else {
   for (const [ime, spec] of globalniServeri) {
@@ -395,5 +395,5 @@ for (const model of ["deepseek-v4-flash", "deepseek-v4-pro"]) {
 }
 console.log(
   "\n  ako DeepSeek automatski kesira ponovljeni prefiks, ovo pada oko 50 puta.\n" +
-    "  provjeri kolonu kes u npm run ai:usage.",
+    "  provjeri kolonu kes u bun run ai:usage.",
 );

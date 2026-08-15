@@ -192,23 +192,23 @@ dobiju polovicne analize.
 | audit log svake izmjene i troska (nosi i verziju) | pravo brisanje oglasa (`listings rm`) |
 | prijava da klon zaostaje za izdanjem (hook pri startu sesije) | izdanje i pustanje u flotu (`izdanje.mjs`, skill `olx-izdanje`) |
 | admin bot: nadzor i rad preko Telegrama | priprema admin runtime-a (jednom po klonu) |
-| cuvar drzi sesiju zivom (pad, nocni i idle restart; strazar rezim opt in po klonu, prvo admin bot) | rucna proba sesije u prvom planu: `node scripts/pokreni-klijenta.mjs` (prije nje ugasiti cuvara) |
-| biljezenje tokena u transkriptima sesija | `npm run tokeni -- --upisi` sedmicno (trajni dnevnik) |
+| cuvar drzi sesiju zivom (pad, nocni i idle restart; strazar rezim opt in po klonu, prvo admin bot) | rucna proba sesije u prvom planu: `bun scripts/pokreni-klijenta.mjs` (prije nje ugasiti cuvara) |
+| biljezenje tokena u transkriptima sesija | `bun run tokeni -- --upisi` sedmicno (trajni dnevnik) |
 
 ## 6. Onboarding novog klijenta (rucni koraci, redom)
 
 **Izvrsna verzija ove liste je skill `olx-novi-klijent`**: otvori Claude Code i reci
 "postavi novog klijenta", sesija vodi kroz sve korake i sama izvrsava sto moze. Lista ispod
-je referenca istog redoslijeda. Na kraju UVIJEK `node scripts/provjeri-klon.mjs`: dok ijedna
+je referenca istog redoslijeda. Na kraju UVIJEK `bun scripts/provjeri-klon.mjs`: dok ijedna
 stavka FALI, sa klijentom se ne pocinje.
 
 1. Kloniraj repo u novi folder (jedan klon = jedan nalog), pa `git checkout --detach stabilno`.
 2. `.env`: `OLX_TOKEN`, `OLX_MCP_PROFILE=klijent`, `OLX_MAX_SPEND_PER_DAY`, Telegram varijable,
    pa `OLX_KLIJENT` i `OLX_STANJE_REPO` za backup stanja (bez njih klijentovo pamcenje, izuzeca i
    snapshoti postoje samo na disku te masine).
-3. Build: `npm ci`, pa `npm run build`, pa `npm test` (tri poteza; PowerShell 5.1 nema `&&`).
+3. Build: `bun install`, pa `bun run build`, pa `bun run test` (tri poteza; PowerShell 5.1 nema `&&`).
 4. BotFather: novi bot, pa `/setprivacy` na Disable.
-5. `node scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>` — pravi izolovani
+5. `bun scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>` — pravi izolovani
    runtime (svoj bot, svoj allowlist, bez globalnih servera). Ta skripta radi SAMO jednom, na
    praznom klonu: svaku sljedecu grupu dodaje `telegram grupe dodaj <id>`, jer bi brisanje
    runtimea radi ponovne pripreme pobrisalo sva uparivanja.
@@ -223,7 +223,7 @@ stavka FALI, sa klijentom se ne pocinje.
 5c. Windows, sesija na pretplati: jednom po runtime-u `$env:CLAUDE_CONFIG_DIR=".claude-runtime"`
    pa `claude login`, i to PRIJE instalacije poslova (kredencijali zive u config diru; na
    DeepSeeku ne treba, na macOS-u je pretplata u Keychainu).
-6. Prva proba sesije: `node scripts/pokreni-klijenta.mjs` u istom terminalu, na obje platforme.
+6. Prva proba sesije: `bun scripts/pokreni-klijenta.mjs` u istom terminalu, na obje platforme.
    Greska (login, plugin, bun, token) se vidi odmah u prvom planu. Ugasi sa Ctrl+C prije
    sljedeceg koraka: cuvar odmah digne svoju sesiju, a dvije sesije na istom bot tokenu se
    sudaraju na Telegramu.
@@ -233,7 +233,7 @@ stavka FALI, sa klijentom se ne pocinje.
 8. Dodaj putanju klona u `~/.olx-klijenti.txt` NA MASINI GDJE KLON ZIVI (azuriranja i AI runda).
 9. Test iz grupe: pitanje, objava sa slikom, i jedan trosak da se vidi tok potvrde.
 10. Opcion, admin bot: novi bot u BotFatheru (privacy NE dirati, ostaje ukljucen), pa
-   `node scripts/pripremi-admin-runtime.mjs <bot_token> <tvoj_id> [id_admin_grupe]`, pa ponovo
+   `bun scripts/pripremi-admin-runtime.mjs <bot_token> <tvoj_id> [id_admin_grupe]`, pa ponovo
    instalater poslova iz koraka 7. Na Windowsu jos i jedan `claude login` sa
    `$env:CLAUDE_CONFIG_DIR=".claude-runtime-admin"` (na macOS-u ne treba, pretplata je u
    Keychainu).
@@ -250,19 +250,19 @@ Dva taga rade zajedno i imaju razlicite poslove:
 - **`stabilno`** je prekidac koji kaze koje izdanje flota vozi. Lightweight tag, pomjera se.
 
 ```
-rad na main  ->  test na svom klonu  ->  npm version  ->  tag vX.Y.Z  ->  stabilno  ->  azuriraj
+rad na main  ->  test na svom klonu  ->  bun pm version  ->  tag vX.Y.Z  ->  stabilno  ->  azuriraj
 ```
 
 1. Rad ide na `main`. Feature grana se spoji u `main` kad je gotova.
-2. Na svom klonu: `npm test`, `npm run typecheck`, `scripts/provjeri-prompt.sh`. Tag se ne
+2. Na svom klonu: `bun run test`, `bun run typecheck`, `scripts/provjeri-prompt.sh`. Tag se ne
    pomjera na neprovjereno stanje.
-3. `npm version <broj>`: hook `preversion` sam vrti `npm test`, pa se broj podigne u
+3. `bun pm version <broj>`: hook `preversion` sam vrti `bun run test`, pa se broj podigne u
    `package.json` i `package-lock.json`, hook `version` prepise `src/core/verzija.ts` kroz
    `scripts/upisi-verziju.mjs`, i npm napravi commit i anotiran tag `vX.Y.Z`. Prije toga upisi
    sekciju u `CHANGELOG.md`: test pada ako izdanje nema zapis.
-4. `node scripts/pusti-u-flotu.mjs` gura commit i tagove na remote i tu STANE. Do ove tacke je sve
+4. `bun scripts/pusti-u-flotu.mjs` gura commit i tagove na remote i tu STANE. Do ove tacke je sve
    povratno.
-5. Nepovratni dio, iza eksplicitne zastavice: `node scripts/pusti-u-flotu.mjs --pomjeri-stabilno`
+5. Nepovratni dio, iza eksplicitne zastavice: `bun scripts/pusti-u-flotu.mjs --pomjeri-stabilno`
    pomjeri prekidac na izdanje i sam pokrene azuriranje flote. Prekidac ide zadnji namjerno:
    `stabilno` je jedini ref koji flota prati, pa se pomjera samo kad je sve ostalo vec na remoteu.
    **Pokrece se na masini gdje klonovi zive**, jer restartuje njihove poslove: klonovi na Windowsu
@@ -275,11 +275,11 @@ Cijeli tok od "posao je gotov" do "flota vozi novo", ukljucujuci changelog i evi
 | --- | --- | --- |
 | macOS, Linux | `scripts/azuriraj-sve.sh` | `scripts/azuriraj-sve.sh --suho` |
 | Windows | `powershell -ExecutionPolicy Bypass -File deploy\windows\azuriraj.ps1` | isto uz `-Suho` |
-| jedan klon, iz njega samog | `node scripts/azuriraj-ovaj-klon.mjs [--restart]` | isto uz `--suho` |
+| jedan klon, iz njega samog | `bun scripts/azuriraj-ovaj-klon.mjs [--restart]` | isto uz `--suho` |
 
-Verzija ne mora biti napravljena rucno: `node scripts/izdanje.mjs <broj>` odbija izdanje koje bi
+Verzija ne mora biti napravljena rucno: `bun scripts/izdanje.mjs <broj>` odbija izdanje koje bi
 bilo polovicno (pogresna grana, prljava kopija, klon iza remotea, zauzet tag, nedostajuca sekcija u
-`CHANGELOG.md`), pa pusti `npm version` da vrti testove i tagira. Skill: `olx-izdanje`.
+`CHANGELOG.md`), pa pusti `bun pm version` da vrti testove i tagira. Skill: `olx-izdanje`.
 
 Klon ne prati nista sam, pa ne zna kad se prekidac pomjeri. To rjesava `SessionStart` hook
 (`provjeri-izdanje.mjs --samo-zaostajanje`): pri pokretanju sesije javi da klon zaostaje i da
@@ -293,7 +293,7 @@ ostavljaju checkout, pa klon zavrsi sa novim `src` i starim `dist`. Vrijedi ih n
 se budu dirale.
 
 Oba rade isto, po klonu iz `~/.olx-klijenti.txt`: fetch tagova **sa `--force`**, checkout
-`stabilno`, `npm ci`, build, testovi, pa restart samo DUGOZIVIH poslova (`sesija`, `admin-bot`).
+`stabilno`, `bun install`, build, testovi, pa restart samo DUGOZIVIH poslova (`sesija`, `admin-bot`).
 Na kraju prijavljuju i na kojem je izdanju flota (`git describe --tags`), pa razilazenje izdanja
 medju klonovima ne moze proci neopazeno.
 
@@ -317,7 +317,7 @@ Vracanje na prethodnu verziju je pomjeranje prekidaca na prethodno izdanje pa po
 to je jedan potez:
 
 ```
-node scripts/pusti-u-flotu.mjs --izdanje v0.3.0 --pomjeri-stabilno
+bun scripts/pusti-u-flotu.mjs --izdanje v0.3.0 --pomjeri-stabilno
 ```
 
 Samo pomjeranje taga ne mijenja nista ni na jednoj masini, jer nema posla koji automatski povlaci.
@@ -325,7 +325,7 @@ Sta je bilo prethodno izdanje procitaj iz `CHANGELOG.md` ili `git tag -l "v*"`.
 
 Jedan rub koji vrijedi znati: azuriranje preskace klon sa lokalnim izmjenama, pa i vracanje moze
 tiho ostaviti jedan klon na losoj verziji. Na kojem je izdanju koji klon vidi se u zbiru
-azuriranja i u `node scripts/provjeri-klon.mjs` (prva stavka).
+azuriranja i u `bun scripts/provjeri-klon.mjs` (prva stavka).
 
 ## 8. Gdje zivi klijentsko stanje i kako se spasava
 
@@ -524,7 +524,7 @@ flowchart TB
     stablo["Zbir RSS-a stabla:<br/>sesija + MCP + bun poller"]
     masina["Stanje masine:<br/>MemAvailable / vm_stat / freemem,<br/>swap, load"]
     jsonl[(".olx-pik/resursi/resursi-YYYY-MM.jsonl<br/>fajl po mjesecu, cuva se 12 mjeseci<br/>CRNI spisak backupa")]
-    cli["node scripts/resursi.mjs<br/>pregled | izvjestaj | dijagnostika"]
+    cli["bun scripts/resursi.mjs<br/>pregled | izvjestaj | dijagnostika"]
     covjek["Vlasnik flote"]
 
     cuvar --> ps --> stablo --> jsonl

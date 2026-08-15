@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Napravi izdanje: provjeri preduslove, podigni broj, napravi anotiran tag.
 //
 // Zasto skripta a ne popis koraka u dokumentu: redoslijed ovdje nije stvar ukusa. Tag na
@@ -8,17 +8,18 @@
 // Sta radi:
 //   1. provjeri granu, cistu radnu kopiju i da si u sinhronu sa remoteom
 //   2. provjeri da CHANGELOG.md ima sekciju za NOVI broj (prije nego se broj podigne)
-//   3. `npm version <broj>` — hook `preversion` vrti testove, hook `version` prepise
-//      src/core/verzija.ts, npm napravi commit i anotiran tag vX.Y.Z
+//   3. `bun pm version <broj>` — hook `preversion` vrti testove, hook `version` prepise
+//      src/core/verzija.ts, bun napravi commit i anotiran tag vX.Y.Z (isti pre/post hook obrazac
+//      kao npm version, provjereno izvrsavanjem 15.08.2026)
 //   4. ispise tacne komande koje ostaju rucno: push i pomjeranje prekidaca `stabilno`
 //
 // Sta NE radi, namjerno: ne pusha i ne pomjera `stabilno`. Oba su potezi koje flota odmah
 // osjeti, pa ostaju ljudska odluka. Puna procedura: olx-dokumentacija/arhitektura.md, sekcija 7.
 //
 // Pokretanje:
-//   node scripts/izdanje.mjs 0.5.0
-//   node scripts/izdanje.mjs minor          # npm semver rijeci takodjer rade
-//   node scripts/izdanje.mjs 0.5.0 --suho   # samo provjere, nista se ne mijenja
+//   bun scripts/izdanje.mjs 0.5.0
+//   bun scripts/izdanje.mjs minor          # semver rijeci takodjer rade
+//   bun scripts/izdanje.mjs 0.5.0 --suho   # samo provjere, nista se ne mijenja
 
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -33,7 +34,7 @@ const SUHO = argumenti.includes("--suho");
 const ZELJENI = argumenti.find((a) => !a.startsWith("--"));
 
 if (!ZELJENI) {
-  console.error("Koji broj? Primjer: node scripts/izdanje.mjs 0.5.0");
+  console.error("Koji broj? Primjer: bun scripts/izdanje.mjs 0.5.0");
   console.error("Ili semver rijec: patch | minor | major");
   process.exit(1);
 }
@@ -48,7 +49,7 @@ function stani(sta, popravka) {
   process.exit(1);
 }
 
-// Koji broj ce izdanje nositi. Semver rijeci razrjesava npm, pa ih racunamo unaprijed da bismo
+// Koji broj ce izdanje nositi. Semver rijeci razrjesava bun pm version, pa ih racunamo unaprijed da bismo
 // mogli provjeriti CHANGELOG PRIJE nego se bilo sta promijeni.
 function sljedeciBroj(trenutni, zeljeni) {
   if (/^\d+\.\d+\.\d+$/.test(zeljeni)) return zeljeni;
@@ -73,7 +74,7 @@ if (grana !== "main") {
 }
 console.log(`  ok  grana: ${grana}`);
 
-// 2. Cista radna kopija. npm version i sam odbija prljavo stablo, ali greska bude nejasna.
+// 2. Cista radna kopija. bun pm version i sam odbija prljavo stablo, ali greska bude nejasna.
 if (git("status", "--porcelain", "--untracked-files=no")) {
   stani("radna kopija ima necommitovane izmjene", "commituj ili odloziti izmjene (git stash)");
 }
@@ -98,7 +99,7 @@ if (postojeci) stani(`tag ${tag} vec postoji`, "izaberi drugi broj; tagovi izdan
 console.log(`  ok  tag ${tag} je slobodan`);
 
 // 5. CHANGELOG mora imati sekciju za NOVI broj. Isto tvrdi i verzija.test.ts, ali tamo se vidi
-//    tek kad `npm version` vec podigne broj, pa bi izdanje puklo na pola.
+//    tek kad `bun pm version` vec podigne broj, pa bi izdanje puklo na pola.
 const changelog = readFileSync(join(KORIJEN, "CHANGELOG.md"), "utf8");
 if (!new RegExp(`^## ${NOVI.replace(/\./g, "\\.")}( |$)`, "m").test(changelog)) {
   stani(
@@ -110,17 +111,17 @@ console.log(`  ok  CHANGELOG.md ima sekciju za ${NOVI}`);
 
 if (SUHO) {
   console.log("");
-  console.log(`Sve provjere prolaze. Pravo izdanje: node scripts/izdanje.mjs ${ZELJENI}`);
+  console.log(`Sve provjere prolaze. Pravo izdanje: bun scripts/izdanje.mjs ${ZELJENI}`);
   process.exit(0);
 }
 
-// 6. npm version radi ostalo: preversion vrti testove, version prepise konstantu, pa commit i tag.
+// 6. bun pm version radi ostalo: preversion vrti testove, version prepise konstantu, pa commit i tag.
 console.log("");
-console.log(`Pokrecem npm version ${NOVI} (testovi idu kroz preversion hook)...`);
+console.log(`Pokrecem bun pm version ${NOVI} (testovi idu kroz preversion hook)...`);
 try {
-  execFileSync("npm", ["version", NOVI, "-m", "Izdanje %s"], { stdio: "inherit" });
+  execFileSync("bun", ["pm", "version", NOVI, "-m", "Izdanje %s"], { stdio: "inherit" });
 } catch {
-  stani("npm version je pao", "najcesce padnu testovi; popravi pa ponovo, nista nije tagirano");
+  stani("bun pm version je pao", "najcesce padnu testovi; popravi pa ponovo, nista nije tagirano");
 }
 
 console.log("");

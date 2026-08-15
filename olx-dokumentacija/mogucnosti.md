@@ -1,6 +1,6 @@
 # Sta ovaj sistem moze
 
-Ovaj fajl je GENERISAN iz koda, pravi ga `node scripts/popis-mogucnosti.mjs`. Ne dira se rukom: rucna izmjena ovdje nestaje na sljedecem pokretanju generatora. Za objasnjenje obicnim jezikom procitaj `sta-sistem-radi.md` u istoj mapi.
+Ovaj fajl je GENERISAN iz koda, pravi ga `bun scripts/popis-mogucnosti.mjs`. Ne dira se rukom: rucna izmjena ovdje nestaje na sljedecem pokretanju generatora. Za objasnjenje obicnim jezikom procitaj `sta-sistem-radi.md` u istoj mapi.
 
 ## Sazetak
 
@@ -305,16 +305,16 @@ Uslovni alati (registruju se samo pod navedenim uslovom):
 | --- | --- | --- | --- | --- |
 | ai-runda | ADMIN | nedjeljom 21:00 | `scripts/ai-runda.sh` | nema (namjerno) |
 | backup-nadzor | ADMIN | ponedjeljkom 09:00 | `scripts/backup-nadzor.sh` | nema (namjerno) |
-| nadzor-flote | ADMIN | svaki dan 06:30 | `node scripts/nadzor-flote.mjs` | nema (namjerno) |
-| onboarding-puller | ADMIN | svakih 3 minuta | `node scripts/onboarding-puller.mjs` | nema (namjerno) |
+| nadzor-flote | ADMIN | svaki dan 06:30 | `bun scripts/nadzor-flote.mjs` | nema (namjerno) |
+| onboarding-puller | ADMIN | svakih 3 minuta | `bun scripts/onboarding-puller.mjs` | nema (namjerno) |
 | saznanja | ADMIN | svaki dan 08:00 | `scripts/saznanja-pokupi.sh` | nema (namjerno) |
-| spomenuti | ADMIN | svaki dan 08:15 | `node scripts/spomenuti-pokupi.mjs` | nema (namjerno) |
-| admin-bot | KLIJENT | stalno, dize se pri prijavi | `node scripts/cuvar-sesije.mjs admin-bot` | da |
-| backup | KLIJENT | svaki dan 08:10 | `node dist/cli/index.js posao backup` | da |
-| dnevno | KLIJENT | svaki dan 07:20 | `node dist/cli/index.js posao dnevni` | da |
-| sedmicno | KLIJENT | ponedjeljkom 07:40 | `node dist/cli/index.js posao sedmicni` | da |
-| sesija | KLIJENT | stalno, dize se pri prijavi | `node scripts/cuvar-sesije.mjs` | da |
-| snapshot | KLIJENT | svaki dan 02:40 | `node dist/cli/index.js stats snapshot` | da |
+| spomenuti | ADMIN | svaki dan 08:15 | `bun scripts/spomenuti-pokupi.mjs` | nema (namjerno) |
+| admin-bot | KLIJENT | stalno, dize se pri prijavi | `bun scripts/cuvar-sesije.mjs admin-bot` | da |
+| backup | KLIJENT | svaki dan 08:10 | `bun dist/cli/index.js posao backup` | da |
+| dnevno | KLIJENT | svaki dan 07:20 | `bun dist/cli/index.js posao dnevni` | da |
+| sedmicno | KLIJENT | ponedjeljkom 07:40 | `bun dist/cli/index.js posao sedmicni` | da |
+| sesija | KLIJENT | stalno, dize se pri prijavi | `bun scripts/cuvar-sesije.mjs` | da |
+| snapshot | KLIJENT | svaki dan 02:40 | `bun dist/cli/index.js stats snapshot` | da |
 
 ADMIN poslovi nemaju Windows blizanca namjerno: admin masina na Windowsu nije upotrebljiva, pa za te poslove blizanac ni ne postoji.
 

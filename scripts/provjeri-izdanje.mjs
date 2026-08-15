@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Zaostaje li ovaj klon za izdanjem koje flota treba da vozi?
 //
 // Zasto postoji: klon stoji detached na tagu i NE prati nista sam. Kad se pomjeri prekidac
@@ -7,14 +7,14 @@
 //
 // Sto NE radi: ne povlaci, ne gradi, ne restartuje. Samo javi i da komandu. Zamjena koda ispod
 // zive sesije ostavlja MCP server na starom buildu, a noc bez nadzora nije trenutak za build.
-// Povlacenje je `node scripts/azuriraj-ovaj-klon.mjs`, svjestan potez.
+// Povlacenje je `bun scripts/azuriraj-ovaj-klon.mjs`, svjestan potez.
 //
 // Nikad ne pada i nikad ne blokira: bez mreze, bez gita, bez remotea izlazi tiho sa kodom 0.
 // Pozvan je iz SessionStart hooka, pa bi svaki pad bio pad pokretanja sesije.
 //
 // Pokretanje:
-//   node scripts/provjeri-izdanje.mjs                     # stanje, uvijek ispise
-//   node scripts/provjeri-izdanje.mjs --samo-zaostajanje   # tisina kad je sve u redu (hook)
+//   bun scripts/provjeri-izdanje.mjs                     # stanje, uvijek ispise
+//   bun scripts/provjeri-izdanje.mjs --samo-zaostajanje   # tisina kad je sve u redu (hook)
 
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -127,7 +127,7 @@ if (ispred) {
   console.log(
     `Izdanje ovog klona: ${lokalno} — ISPRED prekidaca "${TAG}" (${cilj}).\n` +
       `Normalno za razvojni klon: rad je gotov, izdanje jos nije pusteno u flotu.\n` +
-      `Kad je provjereno: node scripts/izdanje.mjs <broj>`,
+      `Kad je provjereno: bun scripts/izdanje.mjs <broj>`,
   );
   process.exit(0);
 }
@@ -135,7 +135,7 @@ console.log(
   [
     `KLON ZAOSTAJE: radi na ${lokalno}, a prekidac "${TAG}" pokazuje na ${cilj}.`,
     `Azuriranje ovog klona (gradi i testira prije zamjene, pa restartuje sesije):`,
-    `  node scripts/azuriraj-ovaj-klon.mjs`,
+    `  bun scripts/azuriraj-ovaj-klon.mjs`,
     `Sta je uslo: CHANGELOG.md. Povlacenje NIJE automatsko namjerno, jer zamjena koda ispod zive`,
     `sesije ostavlja MCP server na starom buildu.`,
   ].join("\n"),

@@ -39,7 +39,7 @@ while IFS= read -r -u 3 klon; do
     continue
   fi
 
-  izlaz="$(cd "$klon" && node dist/cli/index.js posao backup --nadzor 2>&1)" || {
+  izlaz="$(cd "$klon" && bun dist/cli/index.js posao backup --nadzor 2>&1)" || {
     kasne+=("$ime: provjera nije prosla ($(echo "$izlaz" | tail -1))")
     continue
   }

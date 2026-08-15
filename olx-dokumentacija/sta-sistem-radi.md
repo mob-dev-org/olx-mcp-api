@@ -8,7 +8,7 @@ pisane da se mogu IZGOVORITI naglas, bez ijednog imena alata. Kad dopisujes, drz
 covjek dobija, ne sta sistem radi.
 
 Uz svaku temu stoji nevidljivi red `<!-- pokriva: ... -->`. On ne sluzi citaocu nego provjeri:
-`node scripts/popis-mogucnosti.mjs --provjeri` trazi da svaka sposobnost iz koda pripada tacno
+`bun scripts/popis-mogucnosti.mjs --provjeri` trazi da svaka sposobnost iz koda pripada tacno
 jednoj temi. Kad neko doda nov alat, provjera pada dok se ime ne dopise u odgovarajuci red. Ako ne
 pripada nijednoj temi, to je stvarno nova sposobnost i trazi novu temu sa svojom recenicom.
 

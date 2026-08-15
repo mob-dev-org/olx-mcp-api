@@ -16,7 +16,7 @@
 //   iv   AES-GCM nonce (12 bajta)
 //   ct   sifrat + GCM tag
 //
-// Provjera: `node scripts/lib/ecies.mjs --self-test` uradi roundtrip i javi OK ili padne.
+// Provjera: `bun scripts/lib/ecies.mjs --self-test` uradi roundtrip i javi OK ili padne.
 
 const subtle = globalThis.crypto?.subtle;
 if (!subtle) {

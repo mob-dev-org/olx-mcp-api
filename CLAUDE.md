@@ -74,7 +74,7 @@ Odgovori i skillovi ne kopiraju brojeve ni pravila, nego pokazuju na:
 ## Spremnost klona
 
 Prije bilo kakvog rada PREMA KLIJENTU na klonu (pokretanje sesije, poslova, onboarding,
-probne poruke) pokreni `node scripts/provjeri-klon.mjs` i prikazi rezultat: ona kaze sta
+probne poruke) pokreni `bun scripts/provjeri-klon.mjs` i prikazi rezultat: ona kaze sta
 fali i tacnu komandu za popravku. Dok ijedna stavka FALI, ne krece se sa klijentom, prvo se
 sredi klon. Na SVJEZEM (praznom) klonu preflight je spisak posljedica a ne uputa: tamo
 postavku od pocetka do kraja vodi skill `olx-novi-klijent`, a preflight je kapija na kraju. Vrijedi za terminalske sesije (gdje Bash postoji); Telegram sesije to ne rade,

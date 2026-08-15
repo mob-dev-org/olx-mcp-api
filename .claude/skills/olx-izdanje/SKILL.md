@@ -28,7 +28,7 @@ Kad iz poruke nije jasno koji je režim, radi povratni i ponudi drugi jednom re�
 Radi korake redom. Ne preskači i ne mijenjaj red: svaki sljedeći pretpostavlja da je prethodni
 prošao.
 
-**1. Je li posao stvarno gotov.** `npm test` i `npm run typecheck`. Ako su dirani promptovi ili
+**1. Je li posao stvarno gotov.** `bun run test` i `bun run typecheck`. Ako su dirani promptovi ili
 runtime, i `scripts/provjeri-prompt.sh` (troši tokene, pa samo tada). Ako nešto pada, izdanje se ne
 pravi: popravi pa se vrati na ovaj korak.
 
@@ -47,19 +47,19 @@ prepiši iz postojećih unosa u tom fajlu.
 Ako je sve necommitovano, prvo commituj rad (ne izdanje, sam rad), jer skripta odbija prljavu
 radnu kopiju.
 
-**4. Izdanje.** `node scripts/izdanje.mjs <broj>`. Skripta provjeri granu, čistu kopiju, sinhron sa
-remoteom, slobodan tag i sekciju u changelogu, pa pusti `npm version`: `preversion` vrti testove,
+**4. Izdanje.** `bun scripts/izdanje.mjs <broj>`. Skripta provjeri granu, čistu kopiju, sinhron sa
+remoteom, slobodan tag i sekciju u changelogu, pa pusti `bun pm version`: `preversion` vrti testove,
 `version` prepiše `src/core/verzija.ts`, `postversion` izgradi. Ako stane, popravi ono što kaže i
 ponovi; ništa nije tagirano dok ne prođe.
 
-**5. Puštanje.** `node scripts/pusti-u-flotu.mjs` gura commit i tagove na remote i tu stane. U
+**5. Puštanje.** `bun scripts/pusti-u-flotu.mjs` gura commit i tagove na remote i tu stane. U
 režimu "do kraja" dodaj `--pomjeri-stabilno`: tada pomjeri i prekidač i sam pokrene ažuriranje
 flote. Redoslijed je u skripti i nije stvar ukusa; prekidač ide zadnji jer je jedini ref koji
 klonovi prate.
 
 **6. Provjera da je stvarno prošlo.** Ne tvrdi da je gotovo bez ovoga:
 
-- `node scripts/provjeri-klon.mjs` prva stavka pokazuje novi broj i izdanje.
+- `bun scripts/provjeri-klon.mjs` prva stavka pokazuje novi broj i izdanje.
 - `git ls-remote --tags origin` pokazuje `stabilno` na novom `v` tagu.
 - Ako flota ima klonova, zbir ažuriranja kaže na kojem su izdanju. "Izdanja se razilaze" znači da
   je neki klon ostao na starom i to je nalaz, ne šum.
@@ -72,7 +72,7 @@ dostupan alat za predviđeni kanal, ponudi da je pošalješ; ne šalji bez njego
 
 ```
 git tag -l "v*"                                                   # koje je bilo prije
-node scripts/pusti-u-flotu.mjs --izdanje v0.3.0 --pomjeri-stabilno
+bun scripts/pusti-u-flotu.mjs --izdanje v0.3.0 --pomjeri-stabilno
 ```
 
 Samo pomjeranje prekidača ne mijenja ništa ni na jednoj mašini, jer nema posla koji automatski
@@ -84,8 +84,8 @@ i vraćanje može tiho ostaviti jedan klon na lošoj verziji. Zato korak 6 posto
 Na pitanje "zaostaje li ovaj klon" ili kad hook pri pokretanju sesije javi zaostajanje:
 
 ```
-node scripts/provjeri-izdanje.mjs                    # gdje je klon, gdje je prekidac
-node scripts/azuriraj-ovaj-klon.mjs [--restart]      # povuci na prekidac
+bun scripts/provjeri-izdanje.mjs                    # gdje je klon, gdje je prekidac
+bun scripts/azuriraj-ovaj-klon.mjs [--restart]      # povuci na prekidac
 ```
 
 Ažuriranje jednog klona pri padu builda ili testova samo vraća klon na prethodno izdanje i ponovo
@@ -109,7 +109,7 @@ klijentska ili admin bot sesija, predloži komandu i stani.
 ## Gdje se vidi koja verzija radi
 
 `olx --version`, MCP handshake, polje `version` u `.olx-pik/audit.jsonl`, i prva stavka
-`node scripts/provjeri-klon.mjs`. Na kojem izdanju klon stoji: `git describe --tags`. Šta je ušlo
+`bun scripts/provjeri-klon.mjs`. Na kojem izdanju klon stoji: `git describe --tags`. Šta je ušlo
 u koje izdanje: `CHANGELOG.md`.
 
 ## Dalje

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Povlaci gotove onboarding sesije sa Workera, desifruje token i sprema ga u pravi klon.
 //
 // Zasto pull, a ne push: ka ovoj masini nema ulazne HTTP tacke (sav Telegram promet je izlazni,
@@ -9,7 +9,7 @@
 // pokreni onboarding analizu (ako postoji) -> javi klijentu i adminu -> obrisi sesiju.
 //
 // Token se NIKAD ne ispisuje. Pokretanje:
-//   node scripts/onboarding-puller.mjs [--bez-analize]
+//   bun scripts/onboarding-puller.mjs [--bez-analize]
 
 import { existsSync, copyFileSync, writeFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
@@ -116,7 +116,7 @@ for (const s of sesije) {
   // 3. provjera pristupa (CLI ucita .env klona sam)
   // `whoami` je komanda na vrhu, NE podkomanda `auth`. Sa "auth whoami" je commander vracao
   // "unknown command" i provjera je padala na SVAKOM klonu, uvijek (nadjeno uzivo 31.07.2026).
-  const who = spawnSync("node", ["dist/cli/index.js", "whoami"], {
+  const who = spawnSync(process.execPath, ["dist/cli/index.js", "whoami"], {
     cwd: klon,
     encoding: "utf8",
     timeout: 30000,

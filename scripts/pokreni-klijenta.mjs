@@ -1,10 +1,10 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Pokrece klijentsku Claude Code sesiju za ovaj klon, u ISTOM terminalu, na obje platforme:
 //
-//   macOS:              node scripts/pokreni-klijenta.mjs   (ili scripts/pokreni-klijenta.sh)
-//   Windows PowerShell: node scripts/pokreni-klijenta.mjs
+//   macOS:              bun scripts/pokreni-klijenta.mjs   (ili scripts/pokreni-klijenta.sh)
+//   Windows PowerShell: bun scripts/pokreni-klijenta.mjs
 //
-// Node umjesto basha namjerno (pravilo pogona): .sh na Windowsu ili ne postoji ili ga sistem
+// Bun umjesto basha namjerno (pravilo pogona): .sh na Windowsu ili ne postoji ili ga sistem
 // otvara kroz Git Bash u novom prozoru. Sva logika (provjere, AI pogon, argv, spawn) zivi u
 // scripts/lib/sesija.mjs i dijeli se sa cuvarem (scripts/cuvar-sesije.mjs), pa se rucna sesija
 // i pogon ne mogu raziici.
@@ -16,7 +16,7 @@
 // rezim bi ugasio MCP server Telegram plugina. Kanal je Telegram, pa sesija mora ostati u
 // prvom planu i biti interaktivna.
 //
-// Dodatni argumenti se prosljedjuju Claudeu: node scripts/pokreni-klijenta.mjs --resume
+// Dodatni argumenti se prosljedjuju Claudeu: bun scripts/pokreni-klijenta.mjs --resume
 
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -31,14 +31,11 @@ import {
   sastaviPrompt,
   stazeSesije,
 } from "./lib/sesija.mjs";
+import { ucitajEnvGlobalno } from "./lib/envfajl.mjs";
 
 const KORIJEN = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(KORIJEN);
-try {
-  process.loadEnvFile(".env");
-} catch {
-  // postojanje .env provjerava provjeriPreduslove, sa jasnom porukom
-}
+ucitajEnvGlobalno(".env"); // postojanje .env provjerava provjeriPreduslove, sa jasnom porukom
 
 const TIP = "klijent";
 const STAZE = stazeSesije(TIP, KORIJEN);

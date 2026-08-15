@@ -1,10 +1,10 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Azurira OVAJ klon na izdanje koje nosi prekidac `stabilno` (ili na zadano izdanje).
 //
 // Blizanac `scripts/azuriraj-sve.sh` radi isto za cijelu flotu sa admin masine. Ovo je za jedan
 // klon iz njega samog: kad sjednes u klijentski klon i sesija javi da zaostaje, ili kad se
-// oporavlja jedan klon a ostale ne treba dirati. Node a ne bash, jer radi NA klonu klijenta,
-// dakle i na Windowsu (.claude/rules/pogon.md).
+// oporavlja jedan klon a ostale ne treba dirati. Bun (ne Node, ne bash), jer radi NA klonu
+// klijenta, dakle i na Windowsu (.claude/rules/pogon.md).
 //
 // Razlika prema azuriraj-sve.sh koja je namjerna: ako build ili testovi padnu, klon se VRACA na
 // izdanje sa kojeg je krenuo. Tamo checkout ostaje, pa klon zavrsi sa novim `src` i starim
@@ -16,10 +16,10 @@
 // tacna komanda.
 //
 // Pokretanje:
-//   node scripts/azuriraj-ovaj-klon.mjs                 # na `stabilno`, bez restarta
-//   node scripts/azuriraj-ovaj-klon.mjs --restart       # i restartuj dugozive poslove
-//   node scripts/azuriraj-ovaj-klon.mjs --izdanje v0.3.0  # vracanje na konkretno izdanje
-//   node scripts/azuriraj-ovaj-klon.mjs --suho          # samo pokazi sta bi uradila
+//   bun scripts/azuriraj-ovaj-klon.mjs                 # na `stabilno`, bez restarta
+//   bun scripts/azuriraj-ovaj-klon.mjs --restart       # i restartuj dugozive poslove
+//   bun scripts/azuriraj-ovaj-klon.mjs --izdanje v0.3.0  # vracanje na konkretno izdanje
+//   bun scripts/azuriraj-ovaj-klon.mjs --suho          # samo pokazi sta bi uradila
 
 import { execFileSync } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
@@ -78,7 +78,7 @@ if (izmjene) {
 }
 
 if (SUHO) {
-  console.log("Suho: uradila bih fetch --tags --force, checkout, npm ci, build, test");
+  console.log("Suho: uradila bih fetch --tags --force, checkout, bun install, build, test");
   console.log(RESTART ? "  pa restart dugozivih poslova" : "  bez restarta (dodaj --restart)");
   process.exit(0);
 }
@@ -96,10 +96,12 @@ if (!korak(`checkout ${CILJ}`, () => git("checkout", "--detach", "--quiet", CILJ
 
 const novoIme = git("describe", "--tags", "--always");
 let palo = "";
+// `bun run test` (skript), NE goli `bun test`: bun test je Bunov vlastiti test runner koji
+// zaobilazi scripts/testovi.mjs i njegovo pojedinacno-po-fajlu pokretanje (vidi napomenu tamo).
 for (const [opis, komanda, argumenti] of [
-  ["npm ci", "npm", ["ci", "--silent"]],
-  ["build", "npm", ["run", "build", "--silent"]],
-  ["testovi", "npm", ["test", "--silent"]],
+  ["bun install", "bun", ["install", "--frozen-lockfile"]],
+  ["build", "bun", ["run", "build"]],
+  ["testovi", "bun", ["run", "test"]],
 ]) {
   const prosao = korak(opis, () =>
     execFileSync(komanda, argumenti, { stdio: ["ignore", "pipe", "pipe"], shell: WIN }),
@@ -122,7 +124,7 @@ if (palo) {
   if (vracen) {
     // Build mora odgovarati kodu na koji smo se vratili, inace pogon vozi mjesavinu.
     korak("build starog izdanja", () =>
-      execFileSync("npm", ["run", "build", "--silent"], { stdio: ["ignore", "pipe", "pipe"], shell: WIN }),
+      execFileSync("bun", ["run", "build"], { stdio: ["ignore", "pipe", "pipe"], shell: WIN }),
     );
     console.log("");
     console.log(`Klon je na ${pocetnoIme}, kao prije. Izdanje ${CILJ} nije uslo.`);
@@ -130,7 +132,7 @@ if (palo) {
   } else {
     console.log("");
     console.log(`RUCNO: vracanje nije proslo. Klon je na ${novoIme} sa neispravnim buildom.`);
-    console.log(`  git checkout --detach ${pocetniHead} && npm ci && npm run build`);
+    console.log(`  git checkout --detach ${pocetniHead} && bun install && bun run build`);
   }
   process.exit(1);
 }

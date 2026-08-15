@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Podsjetnik pri pokretanju sesije: kratak pregled potrosnje resursa OVOG klona (RSS sesije,
 // cuvara, stanje masine), da se telemetrija koju cuvar-sesije.mjs vec skuplja i stvarno pogleda,
 // ne samo lezi u .olx-pik/resursi/*.jsonl neprocitana.
@@ -12,7 +12,7 @@
 // biti pad pokretanja sesije, zato je svaka greska progutana.
 //
 // Pokretanje (SessionStart hook):
-//   node scripts/podsjetnik-resursi.mjs
+//   bun scripts/podsjetnik-resursi.mjs
 
 import { execFileSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
@@ -34,7 +34,7 @@ try {
     stdio: ["ignore", "pipe", "ignore"],
   }).toString();
   console.log(izlaz.trim());
-  console.log("(puna istorija: node scripts/resursi.mjs izvjestaj)");
+  console.log("(puna istorija: bun scripts/resursi.mjs izvjestaj)");
 } catch {
   // Best effort podsjetnik, ne kozmeticka provjera koja smije srusiti pokretanje sesije.
 }

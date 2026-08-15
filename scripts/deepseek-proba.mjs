@@ -2,13 +2,14 @@
 // Ne dira OLX API i ne trosi kredite: alati se samo nude modelu, izvrsavanje
 // se ne radi. Svaki poziv se zapisuje u .olx-pik/ai-usage.jsonl.
 //
-// Pokretanje: npm run deepseek:proba
+// Pokretanje: bun run deepseek:proba
 // Kljuc: ~/.claude/deepseek.env, varijabla ANTHROPIC_API_KEY.
 
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { cijenaPoziva, ukupnoUlaz, zapisiPotrosnju, DNEVNIK } from "./ai-cijene.mjs";
+import { ucitajEnvGlobalno } from "./lib/envfajl.mjs";
 
 const MALI_SKUP = ["olx_whoami", "olx_refresh_limits", "olx_sponsor_price"];
 
@@ -17,11 +18,7 @@ const MALI_SKUP = ["olx_whoami", "olx_refresh_limits", "olx_sponsor_price"];
 // kljuc iz ~/.claude/deepseek.env, dakle sa mjesta koje pogon nikad ne vidi: proba je mogla
 // proci a sesija ne raditi, i obrnuto. Globalna putanja ostaje samo kao ispomoc kad .env nema
 // kljuc, jer je pravilo repoa da nista ne zivi globalno po masini.
-try {
-  process.loadEnvFile(".env");
-} catch {
-  // bez .env se pada nize, uz jasnu poruku sta popuniti
-}
+ucitajEnvGlobalno(".env"); // bez .env se pada nize, uz jasnu poruku sta popuniti
 
 const BASE_URL = (process.env.OLX_DEEPSEEK_BASE_URL ?? "https://api.deepseek.com/anthropic").replace(/\/+$/, "");
 const ENDPOINT = `${BASE_URL}/v1/messages`;
@@ -51,7 +48,7 @@ function kljuc() {
 /** Dohvata prave seme alata sa lokalnog MCP servera, isto kao Claude Code. */
 function dohvatiAlate() {
   return new Promise((resolve, reject) => {
-    const child = spawn("node", ["dist/mcp/server.js"], { stdio: ["pipe", "pipe", "ignore"] });
+    const child = spawn(process.execPath, ["dist/mcp/server.js"], { stdio: ["pipe", "pipe", "ignore"] });
     const alati = [];
     let buf = "";
     child.stdout.on("data", (d) => {
@@ -85,7 +82,7 @@ function dohvatiAlate() {
     posalji({ jsonrpc: "2.0", id: 2, method: "tools/list" });
     setTimeout(() => {
       child.kill();
-      if (!alati.length) reject(new Error("MCP server nije vratio alate, jesi li pokrenuo npm run build"));
+      if (!alati.length) reject(new Error("MCP server nije vratio alate, jesi li pokrenuo bun run build"));
       else resolve(alati);
     }, 2500);
   });
@@ -262,4 +259,4 @@ for (const model of ["deepseek-v4-flash", "deepseek-v4-pro"]) {
   );
 }
 
-console.log("\nGotovo. Zbirni pregled potrosnje: npm run ai:usage");
+console.log("\nGotovo. Zbirni pregled potrosnje: bun run ai:usage");

@@ -19,7 +19,7 @@ const SERVER = join(KORIJEN, "dist", "mcp", "server.js");
 function alatiZaOkruzenje(dodatno) {
   return new Promise((resolve_) => {
     // Cist start: oznake sesije i profil NIKAD se ne nasljedjuju iz ljuske u kojoj testovi rade,
-    // inace bi rezultat zavisio od toga ko je i odakle pokrenuo `npm test`.
+    // inace bi rezultat zavisio od toga ko je i odakle pokrenuo `bun run test`.
     const env = {
       ...process.env,
       OLX_SESIJA_TIP: "",
@@ -127,7 +127,7 @@ function pozoviAlat(dodatno, ime, argumenti) {
 
 if (!existsSync(SERVER)) {
   test("MCP profil: build nedostaje", () => {
-    assert.fail(`Nema ${SERVER}. Pokreni npm run build prije testova.`);
+    assert.fail(`Nema ${SERVER}. Pokreni bun run build prije testova.`);
   });
 } else {
   test("bez oznake klijentskog runtimea server daje pun admin popis", async () => {

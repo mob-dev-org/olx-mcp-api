@@ -20,7 +20,7 @@
   <array>
     <string>/bin/bash</string>
     <string>-lc</string>
-    <string>cd KORIJEN &amp;&amp; node dist/cli/index.js posao backup</string>
+    <string>cd KORIJEN &amp;&amp; bun dist/cli/index.js posao backup</string>
   </array>
 
   <key>WorkingDirectory</key>

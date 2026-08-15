@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Prepisuje konstantu VERZIJA u src/core/verzija.ts brojem iz package.json.
 //
 // Pokrece ga npm kroz hook `version`, dakle POSLIJE podizanja broja u package.json a PRIJE

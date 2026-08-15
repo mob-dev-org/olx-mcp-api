@@ -6,6 +6,21 @@
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 
+// Ulazne skripte (cuvar-sesije, pokreni-klijenta, ...) i dalje zele globalni process.env, isti
+// obrazac kao process.loadEnvFile. Bun tu funkciju NEMA (izmjereno 15.08.2026: TypeError, "is not
+// a function"), ali to je bezopasno: Bun SAM, prije nego ijedna linija skripte krene, ucita .env
+// iz tekuceg direktorija u process.env (nativna Bun osobina, bez ikakvog poziva). Zato je pod
+// Bunom ova funkcija no-op; poziv postoji samo da Node put (npr. dok wrangler jos trazi Node)
+// ostane identican kao prije.
+export function ucitajEnvGlobalno(putanja) {
+  if (typeof process.loadEnvFile !== "function") return; // Bun: vec ucitano, nema sta raditi
+  try {
+    process.loadEnvFile(putanja);
+  } catch {
+    // postojanje .env se provjerava dalje niz kod, sa jasnom porukom
+  }
+}
+
 // Procitaj .env u mapu. Zadnja definicija kljuca pobjedjuje (isto kao `grep ... | tail -1`).
 export function procitajEnv(putanja) {
   const mapa = {};

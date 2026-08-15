@@ -78,9 +78,11 @@ while IFS= read -r -u 3 klon; do
   # --force: vidi napomenu u zaglavlju. Bez toga pomicni tag ostaje na starom commitu.
   git -C "$klon" fetch --tags --force --quiet origin || greska="fetch"
   [[ -z "$greska" ]] && { git -C "$klon" checkout --detach --quiet "$TAG" || greska="checkout tag $TAG"; }
-  [[ -z "$greska" ]] && { (cd "$klon" && npm ci --silent) || greska="npm ci"; }
-  [[ -z "$greska" ]] && { (cd "$klon" && npm run build --silent) || greska="build"; }
-  [[ -z "$greska" ]] && { (cd "$klon" && npm test --silent >/dev/null 2>&1) || greska="testovi"; }
+  [[ -z "$greska" ]] && { (cd "$klon" && bun install --frozen-lockfile) || greska="bun install"; }
+  [[ -z "$greska" ]] && { (cd "$klon" && bun run build) || greska="build"; }
+  # `bun run test` (skript), NE goli `bun test`: bun test je Bunov vlastiti test runner koji
+  # zaobilazi scripts/testovi.mjs i njegovo pojedinacno-po-fajlu pokretanje (vidi napomenu tamo).
+  [[ -z "$greska" ]] && { (cd "$klon" && bun run test >/dev/null 2>&1) || greska="testovi"; }
   # Testovi pisu probni audit u radni folder; ne smije ostati u klijentovom .olx-pik.
   rm -f "$klon/.olx-pik/test-audit.jsonl" 2>/dev/null || true
 
@@ -94,7 +96,7 @@ while IFS= read -r -u 3 klon; do
   # drze stari kod u memoriji. Kalendarski poslovi (snapshot/dnevno/sedmicno) se NE diraju:
   # kickstart -k bi ih IZVRSIO odmah, pa bi klijent dobio jutarnji izvjestaj usred dana i
   # potrosila bi se dnevna runda obnova van reda. Oni novi kod ionako uzmu na sljedecem
-  # zakazanom terminu, jer su jednokratni node procesi.
+  # zakazanom terminu, jer su jednokratni bun procesi.
   ime="$(basename "$klon")"
   for posao in sesija admin-bot; do
     oznaka="ba.codefactory.olx.$ime.$posao"

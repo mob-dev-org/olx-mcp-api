@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Potrosnja tokena OVOG klona (jednog klijenta), za predikciju troska API-ja.
 //
 // Izvor su transkripti Claude sesija: svaki odgovor modela nosi tacan usage blok (ulaz,
@@ -11,12 +11,12 @@
 // prezivi ciscenje. Pokreni sedmicno (rucno ili iz crona) i predikcija ima punu historiju.
 //
 // Upotreba iz korijena klona:
-//   node scripts/tokeni-izvjestaj.mjs                 zadnjih 30 dana, tabela po danu
-//   node scripts/tokeni-izvjestaj.mjs --od 7          zadnjih 7 dana
-//   node scripts/tokeni-izvjestaj.mjs --dan 2026-07-28
-//   node scripts/tokeni-izvjestaj.mjs --upisi         azuriraj trajni dnevnik
-//   node scripts/tokeni-izvjestaj.mjs --json          masinski izlaz
-//   node scripts/tokeni-izvjestaj.mjs --dir <putanja> dodatni projects/ folder (testiranje)
+//   bun scripts/tokeni-izvjestaj.mjs                 zadnjih 30 dana, tabela po danu
+//   bun scripts/tokeni-izvjestaj.mjs --od 7          zadnjih 7 dana
+//   bun scripts/tokeni-izvjestaj.mjs --dan 2026-07-28
+//   bun scripts/tokeni-izvjestaj.mjs --upisi         azuriraj trajni dnevnik
+//   bun scripts/tokeni-izvjestaj.mjs --json          masinski izlaz
+//   bun scripts/tokeni-izvjestaj.mjs --dir <putanja> dodatni projects/ folder (testiranje)
 //
 // Cijene dolaze iz scripts/ai-cijene.mjs (jedno mjesto za sve brojeve). Model kojeg tamo
 // nema dobija tokene bez cijene, uz napomenu — broj se ne izmislja.

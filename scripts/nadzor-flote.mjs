@@ -1,10 +1,10 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // ADMIN flotni posao (bez modela): SVAKI DAN obidje sve klonove flote sa admin masine, skenira
 // disk svakog klona (scripts/lib/disk.mjs), upisuje dnevni uzorak stanja masine (CPU/PSI/memorija
 // preko scripts/lib/cpu.mjs i scripts/lib/resursi.mjs) i, SVAKA 3 DANA, pokrece agregiranu analizu
 // flote (scripts/lib/analiza-flote.mjs) koju upisuje u fajl i salje adminu sazetak na Telegram.
 //
-// node scripts/nadzor-flote.mjs [--svi <root>]
+// bun scripts/nadzor-flote.mjs [--svi <root>]
 //
 // Spisak klonova dolazi iz scripts/lib/klonovi.mjs (nadjiKlonove): prioritet cliRoot (--svi) >
 // OLX_KLIJENTI_ROOT (env) > popis (~/.olx-klijenti.txt / OLX_KLIJENTI_POPIS). Ako izvor spiska
@@ -448,7 +448,7 @@ function zastavica(ime, ostatak, default_) {
 
 function usage() {
   console.error("Upotreba:");
-  console.error("  node scripts/nadzor-flote.mjs [--svi <root>]");
+  console.error("  bun scripts/nadzor-flote.mjs [--svi <root>]");
 }
 
 async function main() {

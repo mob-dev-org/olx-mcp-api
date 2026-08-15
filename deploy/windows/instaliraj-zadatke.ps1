@@ -8,7 +8,7 @@
 #   sedmicno  sedmicni pregled, ponedjeljkom 07:40
 #   backup    backup stanja 08:10, samo kad je OLX_STANJE_REPO podesen (uslovni)
 #
-# Preduslovi: node, claude i bun u PATH-u, .env sa OLX_TOKEN u korijenu klona.
+# Preduslovi: bun i claude u PATH-u, .env sa OLX_TOKEN u korijenu klona.
 #
 # Zadaci se registruju za prijavljenog korisnika i rade dok je korisnik prijavljen (bez
 # snimanja lozinke). StartWhenAvailable nadoknadjuje preskocen termin kad se racunar probudi,
@@ -28,22 +28,16 @@ if ($Ime -eq "") { $Ime = Split-Path $Korijen -Leaf }
 if (-not (Test-Path (Join-Path $Korijen ".env"))) {
   throw "Nema .env u $Korijen. Poslovi bi se pokretali bez tokena."
 }
-if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-  throw "node nije u PATH-u."
+if (-not (Get-Command bun -ErrorAction SilentlyContinue)) {
+  throw "bun nije u PATH-u. Instalacija: powershell -c `"irm bun.sh/install.ps1 | iex`""
 }
 if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {
   throw "claude nije u PATH-u. Cuvar sesije bez njega ne moze dici sesiju."
 }
-# bun je zavisnost Telegram plugina (dize njegov MCP server). Upozorenje a ne throw: cron
-# izvjestaji rade i bez njega, ali bot na poruke tiho ne odgovara.
-if (-not (Get-Command bun -ErrorAction SilentlyContinue)) {
-  Write-Host "UPOZORENJE: bun nije u PATH-u. Telegram plugin bez njega ne dize MCP server, pa bot ne odgovara na poruke."
-  Write-Host "            Instalacija: powershell -c `"irm bun.sh/install.ps1 | iex`""
-}
 if (-not (Test-Path (Join-Path $Korijen "dist\cli\index.js"))) {
   Write-Host "Nema dist\. Pokrecem build."
   Push-Location $Korijen
-  try { npm run build } finally { Pop-Location }
+  try { bun run build } finally { Pop-Location }
 }
 New-Item -ItemType Directory -Force -Path (Join-Path $Korijen ".olx-pik") | Out-Null
 
@@ -83,33 +77,33 @@ function Registruj {
   Write-Host "Instaliran: $ImeZadatka"
 }
 
-Registruj -Sufiks "sesija" -Komanda "node scripts\cuvar-sesije.mjs" `
+Registruj -Sufiks "sesija" -Komanda "bun scripts\cuvar-sesije.mjs" `
   -Trigger (New-ScheduledTaskTrigger -AtLogOn) -Trajni $true
 
 # Admin bot je opcion po klonu: zadatak se registruje samo kad je runtime pripremljen
-# (node scripts\pripremi-admin-runtime.mjs). Na Windowsu prije prvog starta treba i jednom
+# (bun scripts\pripremi-admin-runtime.mjs). Na Windowsu prije prvog starta treba i jednom
 # claude login po runtime folderu ($env:CLAUDE_CONFIG_DIR=".claude-runtime-admin" pa claude
 # login), jer kredencijali zive u config diru. Isto vazi i za .claude-runtime kad klijentska
 # sesija ide na pretplatu (OLX_KLIJENT_AI nije deepseek).
 if (Test-Path (Join-Path $Korijen ".claude-runtime-admin")) {
-  Registruj -Sufiks "admin-bot" -Komanda "node scripts\cuvar-sesije.mjs admin-bot" `
+  Registruj -Sufiks "admin-bot" -Komanda "bun scripts\cuvar-sesije.mjs admin-bot" `
     -Trigger (New-ScheduledTaskTrigger -AtLogOn) -Trajni $true
 }
 
-Registruj -Sufiks "snapshot" -Komanda "node dist\cli\index.js stats snapshot" `
+Registruj -Sufiks "snapshot" -Komanda "bun dist\cli\index.js stats snapshot" `
   -Trigger (New-ScheduledTaskTrigger -Daily -At 02:40)
 
-Registruj -Sufiks "dnevno" -Komanda "node dist\cli\index.js posao dnevni" `
+Registruj -Sufiks "dnevno" -Komanda "bun dist\cli\index.js posao dnevni" `
   -Trigger (New-ScheduledTaskTrigger -Daily -At 07:20)
 
-Registruj -Sufiks "sedmicno" -Komanda "node dist\cli\index.js posao sedmicni" `
+Registruj -Sufiks "sedmicno" -Komanda "bun dist\cli\index.js posao sedmicni" `
   -Trigger (New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday -At 07:40)
 
 # Backup stanja u 08:10, poslije dnevnog posla, da uhvati sve sto je taj dan upisano.
 # Instalira se samo kad je repo stanja podesen: inace bi posao svako jutro pao i slao alarm.
 $EnvFajl = Join-Path $Korijen ".env"
 if ((Test-Path $EnvFajl) -and (Select-String -Path $EnvFajl -Pattern '^OLX_STANJE_REPO=.+' -Quiet)) {
-  Registruj -Sufiks "backup" -Komanda "node dist\cli\index.js posao backup" `
+  Registruj -Sufiks "backup" -Komanda "bun dist\cli\index.js posao backup" `
     -Trigger (New-ScheduledTaskTrigger -Daily -At 08:10)
 } else {
   Write-Host "PRESKACEM posao backup: OLX_STANJE_REPO nije podesen u .env. Klijentsko stanje ostaje samo na ovom disku."

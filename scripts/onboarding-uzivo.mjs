@@ -1,9 +1,9 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Onboarding klijenta iz JEDNE komande, bez Cloudflare naloga i bez deploya.
 //
 // Cilj: klijent dobije link, uloguje se, a token i sve ostalo ostane na OVOM kompjuteru.
 //
-//   node scripts/onboarding-uzivo.mjs <putanja-do-klona>
+//   bun scripts/onboarding-uzivo.mjs <putanja-do-klona>
 //
 // Sta radi, redom: pripremi kljuceve i tajnu ako fale, digne Worker LOKALNO (`wrangler dev
 // --local`), otvori Cloudflare brzi tunel do njega, registruje sesiju, ispise link i kopira ga u
@@ -22,13 +22,35 @@
 // rade kao i prije i njihovi testovi ih i dalje pokrivaju. Ova skripta ih samo vodi. Deploy
 // varijanta (README) ostaje moguca za slucaj da ikad zatreba trajan link.
 
-import { existsSync, writeFileSync, chmodSync, readFileSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { existsSync, writeFileSync, chmodSync, readFileSync, readdirSync } from "node:fs";
+import { resolve, dirname, join } from "node:path";
+import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { BAZA, config } from "./lib/podesavanja.mjs";
 import { procitajEnv } from "./lib/envfajl.mjs";
+
+// Wrangler (preko svoje miniflare zavisnosti) trazi Node >=22, nezavisno od toga da li glavni
+// pogon radi na Bunu ili Nodeu: bunx wrangler puca identicnom porukom kao npx wrangler kad je
+// aktivni node < 22 (izmjereno 15.08.2026). Ne diramo globalni `nvm alias default` (pravilo iz
+// .claude/rules/pogon.md: nista se ne konfigurise globalno po masini), nego samo za OVAJ spawn
+// stavimo bin folder odgovarajuce nvm verzije na pocetak PATH-a.
+function nadjiNode22Bin() {
+  if (Number(process.versions.node.split(".")[0]) >= 22) return null; // aktivni node vec dobar
+  const dir = resolve(homedir(), ".nvm", "versions", "node");
+  if (!existsSync(dir)) return null;
+  const kandidati = readdirSync(dir)
+    .filter((v) => /^v\d+\.\d+\.\d+$/.test(v))
+    .map((v) => ({ v, major: Number(v.slice(1).split(".")[0]) }))
+    .filter((x) => x.major >= 22)
+    .sort((a, b) => b.major - a.major || b.v.localeCompare(a.v, undefined, { numeric: true }));
+  // LTS (paran major) ima prednost nad neparnim (Current) releaseom iste ili vece verzije.
+  const lts = kandidati.find((x) => x.major % 2 === 0);
+  const izbor = lts ?? kandidati[0];
+  if (!izbor) return null;
+  return join(dir, izbor.v, "bin");
+}
 
 const KORIJEN = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WORKER_DIR = resolve(KORIJEN, "cloudflare/onboarding");
@@ -40,7 +62,7 @@ const rokMin = Number(arg.find((a) => a.startsWith("--rok-min="))?.split("=")[1]
 const bezAnalize = arg.includes("--bez-analize");
 
 if (!klon) {
-  console.error("Upotreba: node scripts/onboarding-uzivo.mjs <putanja-do-klona> [--port=8787] [--rok-min=30] [--bez-analize]");
+  console.error("Upotreba: bun scripts/onboarding-uzivo.mjs <putanja-do-klona> [--port=8787] [--rok-min=30] [--bez-analize]");
   process.exit(2);
 }
 const klonPut = resolve(klon);
@@ -110,7 +132,7 @@ function pokreniICekaj(komanda, argumenti, opcije, trazi, rokMs, ime) {
 const privFajl = resolve(BAZA, "onboarding-priv.b64");
 if (!existsSync(privFajl)) {
   console.log("Nema admin kljuceva, pravim ih.");
-  const r = spawnSync("node", [resolve(KORIJEN, "scripts/onboarding-kljuc.mjs")], { stdio: "inherit" });
+  const r = spawnSync(process.execPath, [resolve(KORIJEN, "scripts/onboarding-kljuc.mjs")], { stdio: "inherit" });
   if (r.status !== 0) process.exit(1);
 }
 const pubFajl = resolve(BAZA, "onboarding-pub.b64");
@@ -132,11 +154,23 @@ chmodSync(devVars, 0o600);
 
 // ---- 2. Worker lokalno ----
 
+const node22Bin = nadjiNode22Bin();
+if (node22Bin) {
+  console.log(`Aktivni node je <22, wrangler ce se pokrenuti preko ${node22Bin}.`);
+} else if (Number(process.versions.node.split(".")[0]) < 22) {
+  console.error(
+    "Wrangler trazi Node >=22, aktivni je stariji, i nema instalirane nvm verzije >=22.\n" +
+      "Instaliraj je (npr. `nvm install 22`) pa ponovi. Globalni default se namjerno ne dira.",
+  );
+  process.exit(1);
+}
+const envWrangler = node22Bin ? { ...process.env, PATH: `${node22Bin}:${process.env.PATH}` } : process.env;
+
 console.log("Dizem Worker lokalno...");
 await pokreniICekaj(
   "npx",
   ["wrangler", "dev", "--local", "--port", String(port)],
-  { cwd: WORKER_DIR },
+  { cwd: WORKER_DIR, env: envWrangler },
   (s) => (/Ready on https?:\/\/[^\s]+/.test(s) ? "ok" : null),
   90_000,
   "wrangler dev",
@@ -185,7 +219,7 @@ console.log("Tunel je dostupan.");
 
 // ---- 4. link ----
 
-const link = spawnSync("node", [resolve(KORIJEN, "scripts/onboarding-link.mjs"), klonPut], { encoding: "utf8" });
+const link = spawnSync(process.execPath, [resolve(KORIJEN, "scripts/onboarding-link.mjs"), klonPut], { encoding: "utf8" });
 if (link.status !== 0) {
   console.error(link.stdout, link.stderr);
   process.exit(1);
@@ -218,7 +252,7 @@ while (Date.now() < doKada) {
   // internet i vracanje bio nepotreban put koji jos i pada. Izmjereno 31.07.2026: kroz tunel je
   // Node fetch vracao "fetch failed" u petlji, dok je link skripta (curl) prolazila. `workerBase`
   // u configu ostaje adresa tunela, jer je ona ono sto klijent otvara.
-  const r = spawnSync("node", [resolve(KORIJEN, "scripts/onboarding-puller.mjs"), ...(bezAnalize ? ["--bez-analize"] : [])], {
+  const r = spawnSync(process.execPath, [resolve(KORIJEN, "scripts/onboarding-puller.mjs"), ...(bezAnalize ? ["--bez-analize"] : [])], {
     encoding: "utf8",
     env: { ...process.env, PIKGPT_WORKER_BASE: `http://127.0.0.1:${port}` },
   });

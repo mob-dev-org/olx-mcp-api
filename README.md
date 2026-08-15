@@ -13,43 +13,43 @@ Interni CLI i MCP server za upravljanje OLX.ba / PIK.ba shopovima. Jedno jezgro 
 ## Brzi start
 
 ```bash
-npm install
-npm run build
+bun install
+bun run build
 cp .env.example .env     # popuni OLX_TOKEN ili OLX_USERNAME/OLX_PASSWORD
-node dist/cli/index.js whoami
+bun dist/cli/index.js whoami
 ```
 
-Provjere: `npm test` (testovi match logike, bez mreze) i `npm run typecheck`.
+Provjere: `bun run test` (testovi match logike, bez mreze) i `bun run typecheck`.
 
 ## CLI primjeri
 
 ```bash
 # Sigurno (citanje)
-node dist/cli/index.js listings ls --state active --all
-node dist/cli/index.js users profile <username>           # javni profil shopa (paket, ocjene)
-node dist/cli/index.js refresh limits
-node dist/cli/index.js category suggest "golf 7"
-node dist/cli/index.js sponsor price 12345 --type 2 --days 7 --refresh-every 8
+bun dist/cli/index.js listings ls --state active --all
+bun dist/cli/index.js users profile <username>           # javni profil shopa (paket, ocjene)
+bun dist/cli/index.js refresh limits
+bun dist/cli/index.js category suggest "golf 7"
+bun dist/cli/index.js sponsor price 12345 --type 2 --days 7 --refresh-every 8
 
 # Obnova
-node dist/cli/index.js refresh one 12345
-node dist/cli/index.js refresh all --limit 200            # dry-run
-node dist/cli/index.js refresh all --limit 200 --yes      # izvrsi
+bun dist/cli/index.js refresh one 12345
+bun dist/cli/index.js refresh all --limit 200            # dry-run
+bun dist/cli/index.js refresh all --limit 200 --yes      # izvrsi
 
 # Trosak kredita (uvijek trazi --yes)
-node dist/cli/index.js sponsor apply 12345 --type 2 --days 7 --refresh-every 8 --yes
+bun dist/cli/index.js sponsor apply 12345 --type 2 --days 7 --refresh-every 8 --yes
 
 # Planer izdvajanja: predlog u fajl (ne trosi), pa izvrsenje termina dospjelih danas
-node dist/cli/index.js sponsor plan napravi --budzet 500 --dana 7 --trajanje 7
-node dist/cli/index.js sponsor plan prikazi
-node dist/cli/index.js sponsor plan izvrsi              # probni prikaz
-node dist/cli/index.js sponsor plan izvrsi --yes        # naplacuje
+bun dist/cli/index.js sponsor plan napravi --budzet 500 --dana 7 --trajanje 7
+bun dist/cli/index.js sponsor plan prikazi
+bun dist/cli/index.js sponsor plan izvrsi              # probni prikaz
+bun dist/cli/index.js sponsor plan izvrsi --yes        # naplacuje
 
 # Slike (URL-ovi i/ili lokalni fajlovi)
-node dist/cli/index.js listings images add 12345 --url https://primjer.com/1.jpg https://primjer.com/2.jpg
-node dist/cli/index.js listings images add 12345 --file ./slika1.jpg ./slika2.jpg
-node dist/cli/index.js listings images main 12345 67890     # postavi glavnu sliku po imageId
-node dist/cli/index.js listings images rm 12345 67890        # obrisi sliku
+bun dist/cli/index.js listings images add 12345 --url https://primjer.com/1.jpg https://primjer.com/2.jpg
+bun dist/cli/index.js listings images add 12345 --file ./slika1.jpg ./slika2.jpg
+bun dist/cli/index.js listings images main 12345 67890     # postavi glavnu sliku po imageId
+bun dist/cli/index.js listings images rm 12345 67890        # obrisi sliku
 ```
 
 Napomena o slikama (potvrdjeno uzivo): API prima slike samo kao stvarne fajlove preko `multipart/form-data`, pod poljem `images[]`. Ne prihvata `image_url`. Zato `--url` prvo preuzme sliku pa je posalje kao fajl, a `--file` salje lokalni fajl direktno. Oba zavrse isto na `POST /listings/:id/image-upload`.
@@ -61,14 +61,14 @@ slicnosti naslova: IDF Jaccard i trigram Dice, sa normalizacijom dijakritika). K
 kao fajl, pa repo ne nosi kredencijale nijednog vanjskog sistema:
 
 ```bash
-node dist/cli/index.js match --katalog izvoz.csv --out izvjestaj.json
-node dist/cli/index.js match --katalog shopify-izvoz.json --with-sku
+bun dist/cli/index.js match --katalog izvoz.csv --out izvjestaj.json
+bun dist/cli/index.js match --katalog shopify-izvoz.json --with-sku
 ```
 
 Prihvata se CSV sa kolonama `sifra, naziv, zaliha, cijena` (izvoz iz WooCommerce, ERP-a, Excela)
 ili JSON (Shopify izvoz sa `handle/title/skus/totalInventory/price`, ili neutralna imena polja).
 Prazna zaliha ostaje nepoznata, ne nula, da se ne skrije oglas koji je pun. Logika je u
-`src/core/match.ts` i `src/core/katalog.ts`, pokrivena testovima (`npm test`).
+`src/core/match.ts` i `src/core/katalog.ts`, pokrivena testovima (`bun run test`).
 
 ## Snapshot kategorija i lokacija (statički, bez stalnog dohvatanja)
 
@@ -79,7 +79,7 @@ node --env-file=.env dist/cli/index.js category dump      # -> olx-dokumentacija
 node --env-file=.env dist/cli/index.js location dump      # -> locations.json + locations.csv (lagani index)
 ```
 
-`category dump` uz puni `categories.json` pravi i lagani `categories.csv` (index: id, parent_id, level, path, name + zastavice brand/model/has_models/show_condition/fee). CSV se regenerise iz JSON-a i bez API poziva: `node dist/cli/index.js category index`.
+`category dump` uz puni `categories.json` pravi i lagani `categories.csv` (index: id, parent_id, level, path, name + zastavice brand/model/has_models/show_condition/fee). CSV se regenerise iz JSON-a i bez API poziva: `bun dist/cli/index.js category index`.
 
 Zatim commitaj te fajlove. Poslije toga AI/MCP cita kategorije i lokacije iz resursa bez ijednog API poziva:
 
@@ -113,12 +113,12 @@ same, nego se javlja da ih treba pokrenuti ponovo, da se nista ne naplati dva pu
 ## MCP server
 
 ```bash
-npm run build
-node dist/mcp/server.js   # radi preko stdio
+bun run build
+bun dist/mcp/server.js   # radi preko stdio
 ```
 
 Server izlaze `admin` (puna lista) ili `klijent` (suzena, bez kataloga, lokacija i analitike
-konkurenata). Tacan broj alata po profilu mjeri `npm run kontekst`.
+konkurenata). Tacan broj alata po profilu mjeri `bun run kontekst`.
 
 Profil se ne bira samo kroz `.env`. Klijentsku bot sesiju server prepoznaje sam, po `OLX_SESIJA_TIP`
 odnosno po runtime mapi `.claude-runtime` (postavlja ih `scripts/lib/sesija.mjs`), i tada tvrdo
@@ -127,7 +127,7 @@ daje vlasniku pun alat, a musterijin bot ostaje suzen i kad `.env` kaze `admin`.
 
 `OLX_MCP_PROFILE` u `.env` je drugi sloj i smije samo SUZITI: postavljen na `klijent` uzima alate i
 terminalu i admin botu. Da klijentski put stvarno daje suzen profil provjerava
-`node scripts/provjeri-klon.mjs`, i to mjerenjem ishoda, ne citanjem varijable.
+`bun scripts/provjeri-klon.mjs`, i to mjerenjem ishoda, ne citanjem varijable.
 
 ## Pogon klijenta: dvije sesije, cron, AI runda
 
@@ -141,13 +141,13 @@ Puna mapa sa dijagramima je u `olx-dokumentacija/arhitektura.md` — nju procita
   centa po slici) i vrati tekst sesiji. Na pretplati nije potreban i ne registruje se.
 - **Admin bot sesija** (opcion po klonu): vlasnikov privatni Telegram kanal za taj shop,
   profil `admin`, uvijek na pretplati, bez Bash-a. Priprema:
-  `node scripts/pripremi-admin-runtime.mjs <bot_token> <tvoj_telegram_id> [id_admin_grupe]`.
+  `bun scripts/pripremi-admin-runtime.mjs <bot_token> <tvoj_telegram_id> [id_admin_grupe]`.
   BotFather privacy za admin bota OSTAJE ukljucen (u grupi prima samo mention i reply);
   za klijentskog bota se privacy GASI.
 - **Cuvar sesija** `scripts/cuvar-sesije.mjs [klijent|admin-bot]`: drzi sesiju zivom, nocni
   restart u 03h uz ciscenje inboxa, restart poslije mirovanja (klijent 2h, admin 1h) da
   kontekst i trosak ne rastu kroz dan.
-- **Rucna proba sesije** `node scripts/pokreni-klijenta.mjs`: ista klijentska sesija u ISTOM
+- **Rucna proba sesije** `bun scripts/pokreni-klijenta.mjs`: ista klijentska sesija u ISTOM
   terminalu, na obje platforme (Windows PowerShell ukljucen); greska se vidi odmah, umjesto po
   logu cuvara. Prije probe ugasi cuvara ako radi, da dvije sesije ne dijele isti bot token.
   Telegram plugin zivi u `.claude-runtime/plugins/` (po klonu, ne globalno) i instaliraju ga
@@ -178,11 +178,11 @@ Svaki klon biljezi vlastitu potrosnju sam od sebe: transkripti sesija nose tacan
 po poruci (ulaz, kes, izlaz, model), odvojeno za klijentsku i admin sesiju. Izvjestaj:
 
 ```bash
-npm run tokeni                    # zadnjih 30 dana, po danu i modelu, sa USD i projekcijom
-npm run tokeni -- --od 7          # zadnjih 7 dana
-npm run tokeni -- --dan 2026-07-28
-npm run tokeni -- --upisi         # spoji zbirove u trajni dnevnik (pokreni sedmicno)
-npm run tokeni -- --json          # masinski izlaz za dalju obradu
+bun run tokeni                    # zadnjih 30 dana, po danu i modelu, sa USD i projekcijom
+bun run tokeni -- --od 7          # zadnjih 7 dana
+bun run tokeni -- --dan 2026-07-28
+bun run tokeni -- --upisi         # spoji zbirove u trajni dnevnik (pokreni sedmicno)
+bun run tokeni -- --json          # masinski izlaz za dalju obradu
 ```
 
 Transkripti se ciste poslije ~30 dana, pa `--upisi` cuva dnevne zbirove trajno u
@@ -198,8 +198,8 @@ Koraci poslije kloniranja:
 
 ```bash
 # 1. Build (dist/ je u .gitignore, pa se mora lokalno izgraditi)
-npm install
-npm run build
+bun install
+bun run build
 
 # 2. Postavi svoj token u okruzenje (zamijeni vrijednost svojim tokenom)
 export OLX_TOKEN=tvoj_token        # zsh/bash; trajno dodaj u ~/.zshrc ili ~/.bashrc
@@ -273,18 +273,18 @@ nikad ne zapisuje, jer login nosi lozinku. Citanja se ne biljeze osim ako se pos
 ### Verzija i izdanja
 
 Verzija sistema stoji u `src/core/verzija.ts` i vidi se na cetiri mjesta: `olx --version`, MCP
-handshake, polje `version` u audit logu i prva stavka `node scripts/provjeri-klon.mjs`. Na kojem je
+handshake, polje `version` u audit logu i prva stavka `bun scripts/provjeri-klon.mjs`. Na kojem je
 izdanju klon: `git describe --tags`.
 
-Izdanje se pravi sa `node scripts/izdanje.mjs <broj>` (provjeri preduslove, pa `npm version` vrti
+Izdanje se pravi sa `bun scripts/izdanje.mjs <broj>` (provjeri preduslove, pa `bun pm version` vrti
 testove, prepise konstantu i izgradi), nosi anotiran tag `vX.Y.Z`. Pustanje u flotu je
-`node scripts/pusti-u-flotu.mjs [--pomjeri-stabilno]`: bez zastavice sve je povratno, sa njom se
+`bun scripts/pusti-u-flotu.mjs [--pomjeri-stabilno]`: bez zastavice sve je povratno, sa njom se
 pomjera prekidac `stabilno` (koji kaze koje izdanje flota vozi) i azurira flota. Cijeli tok vodi
 skill `olx-izdanje`. Sta je uslo po izdanju: `CHANGELOG.md`. Zasto dva taga:
 `olx-dokumentacija/arhitektura.md`, sekcija 7.
 
-Zaostaje li ovaj klon: `node scripts/provjeri-izdanje.mjs` (isto javi i hook pri pokretanju
-sesije). Povlacenje jednog klona: `node scripts/azuriraj-ovaj-klon.mjs [--restart]`, koji pri padu
+Zaostaje li ovaj klon: `bun scripts/provjeri-izdanje.mjs` (isto javi i hook pri pokretanju
+sesije). Povlacenje jednog klona: `bun scripts/azuriraj-ovaj-klon.mjs [--restart]`, koji pri padu
 builda ili testova sam vraca klon na prethodno izdanje. Sesija kod ne povlaci sama od sebe.
 
 ### Podaci klijenata
@@ -301,6 +301,6 @@ Izvori znanja (jedan izvor istine, ne duplirati brojeve po skillovima):
 - `olx-dokumentacija/mogucnosti.md` — potpun tehnicki popis: alati, resursi, CLI komande, zakazani poslovi, postavke, skillovi i podagenti. GENERISAN iz koda, ne uredjuje se rukom.
 - `olx-dokumentacija/mogucnosti.html` — isti sadrzaj kao stranica, sa pretragom i prekidacem profila. GENERISAN iz koda, ne uredjuje se rukom.
 
-Oba generisana fajla pravi `node scripts/popis-mogucnosti.mjs`, a `npm test` pada kad zaostanu za kodom.
+Oba generisana fajla pravi `bun scripts/popis-mogucnosti.mjs`, a `bun run test` pada kad zaostanu za kodom.
 
 `PLAN.md` je arhiviran handoff iz faze prije builda; stvarno stanje opisuju README i API-INVENTAR.

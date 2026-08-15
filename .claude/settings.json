@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node scripts/hook-telegram-odgovor.mjs"
+            "command": "bun scripts/hook-telegram-odgovor.mjs"
           }
         ]
       }
@@ -29,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node scripts/provjeri-izdanje.mjs --samo-zaostajanje",
+            "command": "bun scripts/provjeri-izdanje.mjs --samo-zaostajanje",
             "timeout": 15
           }
         ]

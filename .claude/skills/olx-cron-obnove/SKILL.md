@@ -19,12 +19,12 @@ nalogu; poznata protivrjecnost zvanicne pomoci i izmjerenog stanja je opisana u
 
 1. `olx_whoami` — potvrdi nalog ovog klona i reci korisniku koji je. Ako padne (401 ili 403),
    stani i prijavi: token ne vrijedi ili shop nema odobren API pristup (skill olx-mcp-setup).
-1a. Dnevni snapshot pregleda (CLI, PRIJE obnova): `node dist/cli/index.js stats snapshot`.
+1a. Dnevni snapshot pregleda (CLI, PRIJE obnova): `bun dist/cli/index.js stats snapshot`.
    Traje 1-2 minute (jedan zahtjev po oglasu), pise `.olx-pik/snapshots/views-YYYY-MM-DD.json`.
    Bez ovih dnevnih snimaka se efekat izdvajanja ne moze mjeriti (`olx_sponsor_effect`).
 2. `olx_refresh_limits` — `free_limit`, `free_count`. Preostalo = `free_limit - free_count`.
 3. Dnevni budzet obnova NE racunaj sam. Racun zivi na jednom mjestu, u `dnevniPlanObnova`
-   (`src/core/stats.ts`), i vidi se kroz `node dist/cli/index.js posao dnevni --suho`, koji vraca
+   (`src/core/stats.ts`), i vidi se kroz `bun dist/cli/index.js posao dnevni --suho`, koji vraca
    `cilj_danas`. Tri stvari koje su ranije bile prepisane ovdje i bile POGRESNE:
    - Rok nije kraj kalendarskog mjeseca nego ciklus pretplate (`shop.ends_at`); polje
      `dana_do_reseta`, a `rok_poznat` kaze smije li se rok izgovoriti korisniku. Kad je
@@ -82,8 +82,8 @@ ne u promptu. Zato dnevna obnova ne treba Claudea: obicna crontab linija radi is
 troska po tokenima i bez zavisnosti od modela ili pretplate.
 
 ```
-0 3 * * * cd /putanja/do/olx-mcp-api && node dist/cli/index.js refresh all --limit 60 --yes >> .olx-pik/cron.log 2>&1
-30 2 * * * cd /putanja/do/olx-mcp-api && node dist/cli/index.js stats snapshot >> .olx-pik/cron.log 2>&1
+0 3 * * * cd /putanja/do/olx-mcp-api && bun dist/cli/index.js refresh all --limit 60 --yes >> .olx-pik/cron.log 2>&1
+30 2 * * * cd /putanja/do/olx-mcp-api && bun dist/cli/index.js stats snapshot >> .olx-pik/cron.log 2>&1
 ```
 
 Druga linija je dnevni snapshot pregleda (prije obnova, da snimak ne pokupi svjeze datume);

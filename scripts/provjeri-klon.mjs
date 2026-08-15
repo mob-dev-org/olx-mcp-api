@@ -1,27 +1,24 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Preflight provjera klijentskog klona: sta je usteklo, sta fali i TACNA komanda za popravku.
 //
 // Pokrece se PRIJE bilo kakvog rada sa klijentom na klonu (onboarding korak, pocetak rada u
 // terminalu, dijagnostika). Ne zove OLX, ne trosi nista; cita fajlove i stanje masine.
-// Radi na macOS i Windows (zato Node, vidi .claude/rules/pogon.md).
+// Radi na macOS i Windows (zato Bun, ne bash; vidi .claude/rules/pogon.md).
 //
 // Izlaz: checklista OK / FALI / PAZNJA sa komandom uz svaku stavku koja fali.
 // Exit kod: 0 kad nista ne FALI (PAZNJA ne obara), 1 inace.
 //
-// Pokretanje: node scripts/provjeri-klon.mjs
+// Pokretanje: bun scripts/provjeri-klon.mjs
 
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { ucitajEnvGlobalno } from "./lib/envfajl.mjs";
 
 const KORIJEN = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(KORIJEN);
-try {
-  process.loadEnvFile(".env");
-} catch {
-  // .env se provjerava kao stavka nize
-}
+ucitajEnvGlobalno(".env"); // .env se provjerava kao stavka nize
 
 const IME = basename(KORIJEN);
 const WIN = process.platform === "win32";
@@ -102,13 +99,11 @@ function idoviIzEnva(v) {
   }
 }
 
-// 1. Node verzija: ispod 20.12 se .env TIHO preskace (loadEnvFile ne postoji), pa bi
-//    OLX_KLIJENT_AI nestao i klijent bi tiho presao na vlasnikovu pretplatu.
-{
-  const [major, minor] = process.versions.node.split(".").map(Number);
-  if (major > 20 || (major === 20 && minor >= 12)) ok("Node verzija", process.versions.node);
-  else fali("Node verzija", `${process.versions.node} je ispod 20.12, .env se tiho preskace`, "instaliraj Node 22 LTS");
-}
+// 1. Bun runtime: pogon vozi na Bunu (Telegram plugin ga i inace trazi, .claude/rules/pogon.md),
+//    i .env autoload ide kroz njega, ne kroz Node process.loadEnvFile (Bun tu funkciju nema, ali
+//    .env iz cwd ucita sam prije nego skripta i krene, izmjereno 15.08.2026).
+if (typeof Bun !== "undefined") ok("Bun runtime", Bun.version);
+else fali("Bun runtime", "pogon vozi na Bunu, aktivni proces nije Bun", "instaliraj Bun: curl -fsSL https://bun.sh/install | bash");
 
 // 2. claude u PATH-u
 if (komandaPostoji("claude")) ok("claude u PATH-u");
@@ -143,7 +138,7 @@ if (!existsSync(".env")) {
       fali(
         "Odredista izvjestaja",
         "nema nijedne grupe: ni u access.json ni u TELEGRAM_CHAT_ID, pa dnevni posao pada",
-        "node dist/cli/index.js telegram grupe dodaj <id_grupe>",
+        "bun dist/cli/index.js telegram grupe dodaj <id_grupe>",
       );
     } else {
       ok("Odredista izvjestaja", `${ukupno} (${izAccessa.length} iz access.json, ${izEnva.length} iz .env)`);
@@ -156,7 +151,7 @@ if (!existsSync(".env")) {
       paznja(
         "Grupa bez dolaznog pristupa",
         `${samoUEnvu.join(", ")} prima izvjestaj ali nije u access.json, pa bot tu ne odgovara na poruke`,
-        `node dist/cli/index.js telegram grupe dodaj ${samoUEnvu[0]}`,
+        `bun dist/cli/index.js telegram grupe dodaj ${samoUEnvu[0]}`,
       );
     }
   }
@@ -207,7 +202,7 @@ else paznja("KLIJENT-javno.md", "bot ne zna ton, footer ni granice klijenta", `$
 {
   const cli = join("dist", "cli", "index.js");
   if (!existsSync(cli)) {
-    fali("Build (dist/)", "nema kompajliranog koda", "npm ci && npm run build");
+    fali("Build (dist/)", "nema kompajliranog koda", "bun install && bun run build");
   } else {
     let najnovijiSrc = 0;
     const obidji = (dir) => {
@@ -222,7 +217,7 @@ else paznja("KLIJENT-javno.md", "bot ne zna ton, footer ni granice klijenta", `$
     } catch {
       // bez src/ (npr. arhivski klon) poredjenje nema smisla
     }
-    if (najnovijiSrc > statSync(cli).mtimeMs) fali("Build svjezina", "src/ je noviji od dist/, pogon vozi stari kod", "npm run build");
+    if (najnovijiSrc > statSync(cli).mtimeMs) fali("Build svjezina", "src/ je noviji od dist/, pogon vozi stari kod", "bun run build");
     else ok("Build svjez");
   }
 }
@@ -237,7 +232,7 @@ else paznja("KLIJENT-javno.md", "bot ne zna ton, footer ni granice klijenta", `$
 {
   const config = join("dist", "core", "config.js");
   if (!existsSync(config)) {
-    paznja("Klijentski profil", "nema dist/core/config.js, provjera preskocena", "npm run build");
+    paznja("Klijentski profil", "nema dist/core/config.js, provjera preskocena", "bun run build");
   } else {
     try {
       const { odrediMcpProfil } = await import(pathToFileURL(resolve(config)).href);
@@ -256,7 +251,7 @@ else paznja("KLIJENT-javno.md", "bot ne zna ton, footer ni granice klijenta", `$
         );
       }
     } catch (e) {
-      paznja("Klijentski profil", `provjera nije mogla da se izvrsi (${e?.message ?? e})`, "npm run build");
+      paznja("Klijentski profil", `provjera nije mogla da se izvrsi (${e?.message ?? e})`, "bun run build");
     }
   }
 }
@@ -266,13 +261,13 @@ else paznja("KLIJENT-javno.md", "bot ne zna ton, footer ni granice klijenta", `$
   const rt = ".claude-runtime";
   const tg = join(rt, "channels", "telegram");
   if (!existsSync(rt)) {
-    fali("Telegram runtime", "sesija se ne moze pokrenuti bez .claude-runtime", "node scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>");
+    fali("Telegram runtime", "sesija se ne moze pokrenuti bez .claude-runtime", "bun scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>");
   } else if (!existsSync(join(tg, ".env")) || !existsSync(join(tg, "access.json"))) {
     // "Ponovi pripremu" nije izvrsivo: pripremi skripta odbija postojeci runtime.
     fali(
       "Telegram runtime",
       ".claude-runtime postoji ali fali telegram .env ili access.json",
-      `obrisi ${rt} pa ponovo: node scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id> (PAZNJA: brisanje gubi postojeca uparivanja)`,
+      `obrisi ${rt} pa ponovo: bun scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id> (PAZNJA: brisanje gubi postojeca uparivanja)`,
     );
   } else {
     const grupe = grupeIzAccessa(rt);
@@ -401,7 +396,7 @@ else paznja("KLIJENT-javno.md", "bot ne zna ton, footer ni granice klijenta", `$
     // nema fajla ili proces mrtav
   }
   if (radi) ok("Cuvar sesije radi");
-  else paznja("Cuvar sesije", "ne radi (normalno ako poslovi jos nisu instalirani ili je masina svjeze podignuta)", "instalira ga korak zakazanih poslova; rucna proba u prvom planu: node scripts/pokreni-klijenta.mjs, a pogon: node scripts/cuvar-sesije.mjs");
+  else paznja("Cuvar sesije", "ne radi (normalno ako poslovi jos nisu instalirani ili je masina svjeze podignuta)", "instalira ga korak zakazanih poslova; rucna proba u prvom planu: bun scripts/pokreni-klijenta.mjs, a pogon: bun scripts/cuvar-sesije.mjs");
 }
 
 // 9. Snapshot svjezina (temelj mjerenja pregleda)
@@ -415,8 +410,8 @@ else paznja("KLIJENT-javno.md", "bot ne zna ton, footer ni granice klijenta", `$
   } catch {
     // jos nema snapshota
   }
-  if (!zadnji) paznja("Dnevni snapshot", "jos nijedan: mjerenje pregleda i izdvajanja ne moze poceti", "node dist/cli/index.js stats snapshot");
-  else if (Date.now() - zadnji > 48 * 60 * 60 * 1000) paznja("Dnevni snapshot", `zadnji je stariji od 48h (${new Date(zadnji).toISOString().slice(0, 10)})`, "provjeri posao snapshot; rucno: node dist/cli/index.js stats snapshot");
+  if (!zadnji) paznja("Dnevni snapshot", "jos nijedan: mjerenje pregleda i izdvajanja ne moze poceti", "bun dist/cli/index.js stats snapshot");
+  else if (Date.now() - zadnji > 48 * 60 * 60 * 1000) paznja("Dnevni snapshot", `zadnji je stariji od 48h (${new Date(zadnji).toISOString().slice(0, 10)})`, "provjeri posao snapshot; rucno: bun dist/cli/index.js stats snapshot");
   else ok("Dnevni snapshot svjez");
 }
 
@@ -432,8 +427,8 @@ else paznja("KLIJENT-javno.md", "bot ne zna ton, footer ni granice klijenta", `$
     } catch {
       // posao jos nije radio
     }
-    if (!zadnji) paznja("Backup stanja", "podesen, ali jos nijednom nije radio", "node dist/cli/index.js posao backup --suho  # pa bez --suho");
-    else if (Date.now() - zadnji > 48 * 60 * 60 * 1000) paznja("Backup stanja", `zadnji je stariji od 48h (${new Date(zadnji).toISOString().slice(0, 10)})`, "provjeri posao backup; rucno: node dist/cli/index.js posao backup");
+    if (!zadnji) paznja("Backup stanja", "podesen, ali jos nijednom nije radio", "bun dist/cli/index.js posao backup --suho  # pa bez --suho");
+    else if (Date.now() - zadnji > 48 * 60 * 60 * 1000) paznja("Backup stanja", `zadnji je stariji od 48h (${new Date(zadnji).toISOString().slice(0, 10)})`, "provjeri posao backup; rucno: bun dist/cli/index.js posao backup");
     else ok("Backup stanja svjez");
   }
 }

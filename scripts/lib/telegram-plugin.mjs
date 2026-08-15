@@ -67,7 +67,7 @@ export function instalirajTelegramPlugin(runtimeDir) {
 
   console.error("Telegram plugin NIJE instaliran automatski. Moguci uzroci: claude nije u PATH-u,");
   console.error("nema GitHub SSH kljuca (marketplace se klonira preko SSH-a) ili nema mreze.");
-  console.error("Instaliraj rucno, pa provjeri sa: node scripts/provjeri-klon.mjs");
+  console.error("Instaliraj rucno, pa provjeri sa: bun scripts/provjeri-klon.mjs");
   console.error(
     `  macOS/Linux: CLAUDE_CONFIG_DIR=${runtimeDir} claude plugin marketplace add anthropics/claude-plugins-official && CLAUDE_CONFIG_DIR=${runtimeDir} claude plugin install telegram@claude-plugins-official`,
   );

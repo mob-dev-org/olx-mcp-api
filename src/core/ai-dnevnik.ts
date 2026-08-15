@@ -1,6 +1,6 @@
 // Dnevnik AI poziva koji ne idu kroz sesiju (vision proxy, generisanje slika).
 //
-// Format reda je isti kao u scripts/ai-cijene.mjs (zapisiPotrosnju), da npm run ai:usage vidi
+// Format reda je isti kao u scripts/ai-cijene.mjs (zapisiPotrosnju), da bun run ai:usage vidi
 // sve pozive na jednom mjestu. Ovdje je namjerno duplikat tog formata a ne import: .mjs se ne
 // uvozi u TS build. Jedan zapis po pozivu, samo brojevi, NIKAD sadrzaj poruka ni slike.
 

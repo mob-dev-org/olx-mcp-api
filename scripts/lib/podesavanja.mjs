@@ -46,7 +46,7 @@ export function trebaConfig() {
 
 export function privatniKljuc() {
   if (!existsSync(PRIV)) {
-    throw new Error(`Nema privatnog kljuca: ${PRIV}. Napravi ga: node scripts/onboarding-kljuc.mjs`);
+    throw new Error(`Nema privatnog kljuca: ${PRIV}. Napravi ga: bun scripts/onboarding-kljuc.mjs`);
   }
   return readFileSync(PRIV, "utf8").trim();
 }

@@ -26,10 +26,10 @@ POSLOVI=(snapshot dnevno sedmicno)
 if [[ -d .claude-runtime ]]; then
   POSLOVI+=(sesija)
 else
-  echo "PRESKACEM posao sesija: nema .claude-runtime (node scripts/pripremi-runtime.mjs). Bez njega nema klijentskog bota." >&2
+  echo "PRESKACEM posao sesija: nema .claude-runtime (bun scripts/pripremi-runtime.mjs). Bez njega nema klijentskog bota." >&2
 fi
 
-# Admin bot je opcion po klonu (node scripts/pripremi-admin-runtime.mjs).
+# Admin bot je opcion po klonu (bun scripts/pripremi-admin-runtime.mjs).
 if [[ -d .claude-runtime-admin ]]; then
   POSLOVI+=(admin-bot)
 fi
@@ -42,9 +42,14 @@ else
   echo "PRESKACEM posao backup: OLX_STANJE_REPO nije podesen u .env. Klijentsko stanje ostaje samo na ovom disku." >&2
 fi
 
+if ! command -v bun &>/dev/null; then
+  echo "bun nije u PATH-u. Instalacija: curl -fsSL https://bun.sh/install | bash" >&2
+  exit 1
+fi
+
 if [[ ! -f dist/cli/index.js ]]; then
   echo "Nema dist/. Pokrecem build." >&2
-  npm run build
+  bun run build
 fi
 
 if [[ ! -f .env ]]; then

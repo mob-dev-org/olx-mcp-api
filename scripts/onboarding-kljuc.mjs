@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Pravi admin par kljuceva za web onboarding (ECDH P-256, vidi scripts/lib/ecies.mjs).
 //
 // Privatni kljuc je JEDINO sto moze desifrovati token koji stigne sa Cloudflarea. Zato:
@@ -10,9 +10,9 @@
 // slobodno ispisuje i kopira u clipboard.
 //
 // Pokretanje:
-//   node scripts/onboarding-kljuc.mjs            # napravi par ako ne postoji, ispisi javni
-//   node scripts/onboarding-kljuc.mjs --force    # prepisi postojeci privatni (OPREZ)
-//   node scripts/onboarding-kljuc.mjs --show      # samo ponovo ispisi javni iz postojeceg para
+//   bun scripts/onboarding-kljuc.mjs            # napravi par ako ne postoji, ispisi javni
+//   bun scripts/onboarding-kljuc.mjs --force    # prepisi postojeci privatni (OPREZ)
+//   bun scripts/onboarding-kljuc.mjs --show      # samo ponovo ispisi javni iz postojeceg para
 //
 // Putanja privatnog fajla: PIKGPT_ONBOARDING_KEY (default ~/.pikgpt/onboarding-priv.b64).
 

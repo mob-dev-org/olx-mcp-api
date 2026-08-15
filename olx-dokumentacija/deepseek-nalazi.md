@@ -1,7 +1,7 @@
 # DeepSeek kao model za Claude Code, izmjereno stanje
 
 Grana `deepseek-testing`. Sve u ovom dokumentu je izmjereno 26.07.2026. skriptama
-`npm run deepseek:proba` i `npm run kontekst`, ne pretpostavljeno. Brojevi se osvjezavaju
+`bun run deepseek:proba` i `bun run kontekst`, ne pretpostavljeno. Brojevi se osvjezavaju
 ponovnim pokretanjem tih skripti.
 
 ## Kako je povezano
@@ -287,7 +287,7 @@ stavka iz ovog poglavlja koja je i dalje otvorena.
 
 ### Izlaz koji ne zavisi od kanala: Telegram most
 
-`scripts/telegram-most.mjs` (`npm run most`). Umjesto da Telegram visi na zivoj interaktivnoj
+`scripts/telegram-most.mjs` (`bun run most`). Umjesto da Telegram visi na zivoj interaktivnoj
 sesiji, most sam vodi razgovor:
 
 ```
@@ -353,7 +353,7 @@ Oba pitanja rjesava jedan test, i za njega postoji skripta. Trazi PROBNI bot iz 
 nikad klijentov, jer dva pollera na istom tokenu daju 409 i obaraju ziv bot:
 
 ```
-( set -a; . ~/.claude/deepseek.env; set +a; npm run kanal:proba -- <bot_token> <telegram_id> )
+( set -a; . ~/.claude/deepseek.env; set +a; bun run kanal:proba -- <bot_token> <telegram_id> )
 ```
 
 Skripta pokrene sesiju u `-p --input-format stream-json` rezimu, dakle bez terminala, sa
@@ -472,10 +472,10 @@ klijent zeli, radi on sam u aplikaciji.
 ## Kako se mjeri ponovo
 
 ```
-npm run kontekst          # sta ide u svaki potez i koliko to kosta
-npm run deepseek:proba    # provjera endpointa i oba modela, pise u dnevnik
-npm run ai:usage          # zbirna potrosnja po modelu, zadatku i danu
-npm run ai:usage -- --dan 2026-07-26
+bun run kontekst          # sta ide u svaki potez i koliko to kosta
+bun run deepseek:proba    # provjera endpointa i oba modela, pise u dnevnik
+bun run ai:usage          # zbirna potrosnja po modelu, zadatku i danu
+bun run ai:usage -- --dan 2026-07-26
 ```
 
 Dnevnik je `.olx-pik/ai-usage.jsonl`, jedan red po pozivu, samo brojevi bez sadrzaja poruka.
@@ -494,10 +494,10 @@ Provajder se za rucni rad bira komandom, ne globalnim podesavanjem:
 | Komanda | Sta radi |
 |---|---|
 | `claude` | Anthropic na pretplati. Default, nista se ne mijenja. |
-| `node scripts/claude-ds.mjs` | DeepSeek, gola razvojna sesija (globalni `~/.claude`). Varijable vaze samo unutar tog procesa. Radi na obje platforme. |
-| `node scripts/pokreni-klijenta.mjs` | Rucna KLIJENTSKA sesija: runtime klona, Telegram kanal, i DeepSeek kad je `OLX_KLIJENT_AI=deepseek` (mapiranje kroz `scripts/lib/sesija.mjs`). Radi na obje platforme. |
-| `node scripts/claude-ds.mjs --env` | Ispise podesavanja bez pokretanja sesije, za provjeru. Token se ne ispisuje. |
-| `npm run deepseek:proba` | Provjeri endpoint i tool calling bez pokretanja sesije. Cita isti `.env`. |
+| `bun scripts/claude-ds.mjs` | DeepSeek, gola razvojna sesija (globalni `~/.claude`). Varijable vaze samo unutar tog procesa. Radi na obje platforme. |
+| `bun scripts/pokreni-klijenta.mjs` | Rucna KLIJENTSKA sesija: runtime klona, Telegram kanal, i DeepSeek kad je `OLX_KLIJENT_AI=deepseek` (mapiranje kroz `scripts/lib/sesija.mjs`). Radi na obje platforme. |
+| `bun scripts/claude-ds.mjs --env` | Ispise podesavanja bez pokretanja sesije, za provjeru. Token se ne ispisuje. |
+| `bun run deepseek:proba` | Provjeri endpoint i tool calling bez pokretanja sesije. Cita isti `.env`. |
 
 Kljuc i podesavanja idu u `.env` klona (`OLX_DEEPSEEK_AUTH_TOKEN`, `OLX_DEEPSEEK_BASE_URL`), dakle
 na isto mjesto odakle ih cita pogon klijentske sesije. Stari `~/.claude/deepseek.env` proba jos

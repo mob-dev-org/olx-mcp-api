@@ -34,9 +34,9 @@ Backup NEMA nijedan token, namjerno. Svi se unose rucno, i svi su obnovljivi.
    - `OLX_DEEPSEEK_*` ako klon vozi DeepSeek, `OLX_SLIKA_API_KEY` ako se generisu slike,
      `OLX_VID_API_KEY` za objavu iz fotografije na DeepSeek pogonu (vision proxy)
 
-3. **Build.** `npm ci`, pa `npm run build`, pa `npm test` (tri poteza; PowerShell 5.1 nema `&&`).
+3. **Build.** `bun install`, pa `bun run build`, pa `bun run test` (tri poteza; PowerShell 5.1 nema `&&`).
 
-4. **Telegram runtime.** `node scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>`,
+4. **Telegram runtime.** `bun scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>`,
    pa `pripremi-admin-runtime.mjs` ako klon ima admin bota. Skripte na kraju SAME instaliraju
    Telegram plugin u runtime (provjeri njihov izlaz; padne li, ispisu rucne komande), a `bun`
    mora biti u PATH-u jer plugin njime dize svoj MCP server. Na Windowsu i Linuxu jos i
@@ -48,7 +48,7 @@ Backup NEMA nijedan token, namjerno. Svi se unose rucno, i svi su obnovljivi.
 5. **Vracanje stanja.** Tek sada, kad runtime folderi postoje:
 
    ```
-   node dist/cli/index.js posao backup --vrati --potvrdi
+   bun dist/cli/index.js posao backup --vrati --potvrdi
    ```
 
    Bez `--potvrdi` se odbija, jer vracanje u pogresan folder gazi dan rada. Postojeci fajlovi se
@@ -62,8 +62,8 @@ Backup NEMA nijedan token, namjerno. Svi se unose rucno, i svi su obnovljivi.
 7. **Popis flote.** Upisi putanju klona u `~/.olx-klijenti.txt`. Taj fajl zivi na masini, ne u
    klonu, i nijedan backup po klijentu ga ne pokriva. Ako masina strada, gubi se spisak flote.
 
-8. **Provjera.** `node scripts/provjeri-klon.mjs` mora biti bez FALI, pa
-   `node dist/cli/index.js posao backup --samo-provjeri` mora javiti nula razlika.
+8. **Provjera.** `bun scripts/provjeri-klon.mjs` mora biti bez FALI, pa
+   `bun dist/cli/index.js posao backup --samo-provjeri` mora javiti nula razlika.
 
 ## Prvi backup za novog klijenta
 

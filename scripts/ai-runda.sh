@@ -134,7 +134,7 @@ while IFS= read -r klon; do
   fi
 
   # Ovdje NEMA < /dev/null: stdin ovog poziva je pipe sa analizom, ne popis klonova.
-  if printf '%s' "$izlaz" | (cd "$klon" && node dist/cli/index.js posao posalji --stdin >/dev/null); then
+  if printf '%s' "$izlaz" | (cd "$klon" && bun dist/cli/index.js posao posalji --stdin >/dev/null); then
     proslo=$((proslo + 1))
     echo "$ime: analiza poslana klijentu"
   else

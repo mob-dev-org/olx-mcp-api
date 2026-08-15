@@ -19,7 +19,7 @@ import { poPolju } from "./popis-poredak.mjs";
 async function uvezi(korijen, relativno) {
   const putanja = join(korijen, ...relativno);
   if (!existsSync(putanja)) {
-    throw new Error(`Nema ${relativno.join("/")}. Pokreni build prije generatora popisa (npm run build).`);
+    throw new Error(`Nema ${relativno.join("/")}. Pokreni build prije generatora popisa (bun run build).`);
   }
   return import(pathToFileURL(putanja).href);
 }

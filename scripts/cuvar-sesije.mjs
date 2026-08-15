@@ -1,8 +1,8 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Cuvar stalne Claude sesije. Jedan kod, dva tipa sesije:
 //
-//   node scripts/cuvar-sesije.mjs             klijentska sesija (default)
-//   node scripts/cuvar-sesije.mjs admin-bot   vlasnikova admin sesija
+//   bun scripts/cuvar-sesije.mjs             klijentska sesija (default)
+//   bun scripts/cuvar-sesije.mjs admin-bot   vlasnikova admin sesija
 //
 // Za oba tipa radi isto troje:
 //
@@ -101,20 +101,17 @@ import {
 } from "./lib/resursi.mjs";
 import { odluciAlarmMasine, provjeriPritisakMasine } from "./lib/pritisak-masine.mjs";
 import { cpuStabla } from "./lib/cpu.mjs";
+import { ucitajEnvGlobalno } from "./lib/envfajl.mjs";
 
 const KORIJEN = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(KORIJEN);
-try {
-  process.loadEnvFile(".env");
-} catch {
-  // postojanje .env se provjerava nize, sa jasnom porukom
-}
+ucitajEnvGlobalno(".env"); // postojanje .env se provjerava nize, sa jasnom porukom
 
 // ---- tip sesije ----
 
 const TIP = process.argv[2] ?? "klijent";
 if (TIP !== "klijent" && TIP !== "admin-bot") {
-  console.error(`Nepoznat tip sesije "${TIP}". Upotreba: node scripts/cuvar-sesije.mjs [klijent|admin-bot]`);
+  console.error(`Nepoznat tip sesije "${TIP}". Upotreba: bun scripts/cuvar-sesije.mjs [klijent|admin-bot]`);
   process.exit(1);
 }
 const JE_ADMIN = TIP === "admin-bot";

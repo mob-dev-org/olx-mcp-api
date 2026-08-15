@@ -28,8 +28,8 @@ dovoljno: to vodi skill `olx-novi-klijent`.
 
 1. Build (jednom, i poslije svake izmjene koda; iz korijena repoa):
    ```bash
-   npm install
-   npm run build
+   bun install
+   bun run build
    ```
 2. Token. Preporuceno je vec dobijen Bearer token (po korisniku). Postavi ga na jedan od nacina:
    - U `.env` (u korijenu): `OLX_TOKEN=...` (CLI ga cita preko `--env-file=.env`).

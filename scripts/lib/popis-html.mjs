@@ -309,7 +309,7 @@ export function uHtml(podaci) {
 <body>
 <main>
 <h1>Sta ovaj sistem moze</h1>
-<p class="uvod">Stranica je generisana iz koda (<code>node scripts/popis-mogucnosti.mjs</code>) i ne dira se rukom. Za objasnjenje obicnim jezikom procitaj <code>sta-sistem-radi.md</code>.</p>
+<p class="uvod">Stranica je generisana iz koda (<code>bun scripts/popis-mogucnosti.mjs</code>) i ne dira se rukom. Za objasnjenje obicnim jezikom procitaj <code>sta-sistem-radi.md</code>.</p>
 <div class="trake">
 ${brojke.map(([ime, broj]) => `<span class="brojka"><b>${broj}</b> ${ime}</span>`).join("\n")}
 </div>

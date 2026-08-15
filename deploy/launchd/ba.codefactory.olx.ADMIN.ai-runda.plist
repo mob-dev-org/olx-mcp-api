@@ -12,7 +12,7 @@
   Nedjelja 21:00: termin razmaknut od nocnih snapshota (02:40) i jutarnjih poruka (07:20), a
   dovoljno kasno da ne jede dnevni limit pretplate koji admin koristi za rad.
 
-  bash -lc zbog PATH-a: claude i node dolaze iz login profila.
+  bash -lc zbog PATH-a: claude i bun dolaze iz login profila.
 -->
 <plist version="1.0">
 <dict>

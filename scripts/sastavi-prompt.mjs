@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Sastavlja sistemski prompt sesije u JEDAN fajl i ispise njegovu putanju.
 //
 // Zasto uopste postoji: `--append-system-prompt-file` NIJE aditivan. Izmjereno 30.07.2026. sa dva
@@ -20,7 +20,7 @@
 // se mijenja pamcenje ili profil, dakle rijetko, i uvijek izmedju sesija a nikad usred razgovora.
 //
 // Upotreba:
-//   node scripts/sastavi-prompt.mjs [klijent|admin-bot]   # ispise putanju sastavljenog fajla
+//   bun scripts/sastavi-prompt.mjs [klijent|admin-bot]   # ispise putanju sastavljenog fajla
 
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";

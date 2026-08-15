@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
@@ -324,7 +324,7 @@ let uslovRegistracije: string | undefined;
  * Zasto baca umjesto da preskoci: oba uslova su danas prosta provjera env kljuca, pa generator
  * popisa uveze server sa postavljenim kljucevima i tako vidi i te alate. Kad bi neko dodao granu
  * pod uslovom koji generator ne zna uciniti tacnim, alati u njoj bi tiho nestali iz popisa, sto je
- * tacno bolest zbog koje popis uopste postoji. Ovako se to sazna odmah, i to kroz `npm test`, jer
+ * tacno bolest zbog koje popis uopste postoji. Ovako se to sazna odmah, i to kroz `bun run test`, jer
  * provjera svjezine popisa uvozi ovaj modul.
  */
 function pocniUslov(ime: string): void {
@@ -438,7 +438,7 @@ server.registerResource(
           {
             uri: uri.href,
             mimeType: "text/plain",
-            text: "CSV index jos nije generisan. Pokreni: node dist/cli/index.js category dump (ili category index).",
+            text: "CSV index jos nije generisan. Pokreni: bun dist/cli/index.js category dump (ili category index).",
           },
         ],
       };
@@ -479,7 +479,7 @@ server.registerResource(
           {
             uri: uri.href,
             mimeType: "text/plain",
-            text: "Snapshot kategorija jos nije generisan. Pokreni: node dist/cli/index.js category dump",
+            text: "Snapshot kategorija jos nije generisan. Pokreni: bun dist/cli/index.js category dump",
           },
         ],
       };
@@ -506,7 +506,7 @@ server.registerResource(
           {
             uri: uri.href,
             mimeType: "text/plain",
-            text: "CSV index lokacija jos nije generisan. Pokreni: node dist/cli/index.js location dump (ili location index).",
+            text: "CSV index lokacija jos nije generisan. Pokreni: bun dist/cli/index.js location dump (ili location index).",
           },
         ],
       };
@@ -533,7 +533,7 @@ server.registerResource(
           {
             uri: uri.href,
             mimeType: "text/plain",
-            text: "Snapshot lokacija jos nije generisan. Pokreni: node dist/cli/index.js location dump",
+            text: "Snapshot lokacija jos nije generisan. Pokreni: bun dist/cli/index.js location dump",
           },
         ],
       };

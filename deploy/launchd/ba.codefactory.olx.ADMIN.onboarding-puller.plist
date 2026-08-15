@@ -11,12 +11,12 @@
     launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/ba.codefactory.olx.ADMIN.onboarding-puller.plist
 
   Prije instalacije mora postojati ~/.pikgpt/config.json (workerBase, pullSecret) i privatni
-  kljuc (node scripts/onboarding-kljuc.mjs). Bez njih puller izadje sa greskom u log.
+  kljuc (bun scripts/onboarding-kljuc.mjs). Bez njih puller izadje sa greskom u log.
 
   StartInterval 180: klijentov login se pokupi u roku od par minuta. Puller radi jedan prolaz i
   izadje; kad nema spremnih sesija, brzo zavrsi bez troska.
 
-  bash -lc zbog PATH-a: node dolazi iz login profila.
+  bash -lc zbog PATH-a: bun dolazi iz login profila.
 -->
 <plist version="1.0">
 <dict>
@@ -27,7 +27,7 @@
   <array>
     <string>/bin/bash</string>
     <string>-lc</string>
-    <string>cd KORIJEN &amp;&amp; node scripts/onboarding-puller.mjs</string>
+    <string>cd KORIJEN &amp;&amp; bun scripts/onboarding-puller.mjs</string>
   </array>
 
   <key>WorkingDirectory</key>

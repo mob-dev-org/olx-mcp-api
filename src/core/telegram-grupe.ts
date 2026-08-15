@@ -161,7 +161,7 @@ export function upisiPristup(p: Pristup, opcije: { putanja?: string; mtimeOcekiv
   if (!existsSync(putanja)) {
     throw new Error(
       `Nema ${putanja}. Runtime se ne pravi ovom komandom, jer bi nastao polovican: ` +
-        "pokreni prvo node scripts/pripremi-runtime.mjs.",
+        "pokreni prvo bun scripts/pripremi-runtime.mjs.",
     );
   }
   if (opcije.mtimeOcekivan !== undefined) {

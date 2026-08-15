@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Priprema klijentski runtime u ovom klonu: .claude-runtime/
 //
 // Node umjesto basha namjerno: isti fajl radi na macOS-u i Windowsu (pravilo pogona).
@@ -10,7 +10,7 @@
 //      bi svi klijenti dijelili ~/.claude/channels/telegram i jedan bi citao tudje poruke.
 //
 // Upotreba iz korijena klona:
-//   node scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>[,<jos_jedan>...]
+//   bun scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>[,<jos_jedan>...]
 //
 // Prije ovoga u BotFatheru za tog bota OBAVEZNO: /setprivacy -> Disable.
 // Bez toga bot u grupi vidi samo poruke u kojima je izricito spomenut i nista nece raditi.
@@ -25,8 +25,8 @@ const KORIJEN = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const [botToken, idGrupe, korisniciArg] = process.argv.slice(2);
 if (!botToken || !idGrupe || !korisniciArg) {
-  console.error("Upotreba: node scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>[,<telegram_id>...]");
-  console.error("Primjer:  node scripts/pripremi-runtime.mjs 123:AAH... -5270659685 7061697037,7061697038");
+  console.error("Upotreba: bun scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>[,<telegram_id>...]");
+  console.error("Primjer:  bun scripts/pripremi-runtime.mjs 123:AAH... -5270659685 7061697037,7061697038");
   process.exit(1);
 }
 const korisnici = korisniciArg.split(",").map((k) => k.trim()).filter(Boolean);
@@ -89,15 +89,15 @@ console.log("Sljedeci koraci:");
 stavka("U .env ovog klona postavi OLX_TOKEN, OLX_MCP_PROFILE=klijent i OLX_MAX_SPEND_PER_DAY.");
 stavka("U BotFatheru za ovog bota: /setprivacy -> Disable (inace bot ne vidi poruke u grupi).");
 if (!plugin.ok) {
-  stavka("Instaliraj Telegram plugin rucno (komande iznad), pa provjeri: node scripts/provjeri-klon.mjs");
+  stavka("Instaliraj Telegram plugin rucno (komande iznad), pa provjeri: bun scripts/provjeri-klon.mjs");
 }
 if (process.platform === "win32") {
   stavka("Ako sesija ide na pretplatu (OLX_KLIJENT_AI nije deepseek), jednom po klonu u PowerShellu:");
   console.log('     $env:CLAUDE_CONFIG_DIR=".claude-runtime" pa claude login (kredencijali zive u config diru).');
   console.log("     Sa OLX_KLIJENT_AI=deepseek login ne treba: auth ide kroz OLX_DEEPSEEK_AUTH_TOKEN iz .env.");
   stavka("Instaliraj poslove: powershell -ExecutionPolicy Bypass -File deploy\\windows\\instaliraj-zadatke.ps1");
-  stavka("Rucni test sesije (u istom terminalu): node scripts/pokreni-klijenta.mjs");
+  stavka("Rucni test sesije (u istom terminalu): bun scripts/pokreni-klijenta.mjs");
 } else {
   stavka("Instaliraj poslove: scripts/instaliraj-cron.sh");
-  stavka("Rucni test sesije: node scripts/pokreni-klijenta.mjs ili node scripts/cuvar-sesije.mjs");
+  stavka("Rucni test sesije: bun scripts/pokreni-klijenta.mjs ili bun scripts/cuvar-sesije.mjs");
 }

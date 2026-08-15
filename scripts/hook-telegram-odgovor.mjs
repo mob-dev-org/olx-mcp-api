@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Stop hook: ne pusti sesiju da zavrsi potez ako je poruka dosla sa Telegram kanala a odgovor
 // nije poslan alatom `reply`.
 //
@@ -17,7 +17,7 @@
 //
 // Registruje se u .claude/settings.json:
 //   "hooks": { "Stop": [{ "hooks": [{ "type": "command",
-//     "command": "node scripts/hook-telegram-odgovor.mjs" }] }] }
+//     "command": "bun scripts/hook-telegram-odgovor.mjs" }] }] }
 
 import { readFileSync } from "node:fs";
 

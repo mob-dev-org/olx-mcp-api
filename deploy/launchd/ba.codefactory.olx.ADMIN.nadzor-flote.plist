@@ -17,7 +17,7 @@
 
   Izvor spiska klonova (podrazumijevano ~/.olx-klijenti.txt / OLX_KLIJENTI_POPIS) pokriva
   uobicajen slucaj. Za folder-sken umjesto popisa dodaj argument u ProgramArguments ispod:
-    ... node scripts/nadzor-flote.mjs --svi ~/olx-klonovi
+    ... bun scripts/nadzor-flote.mjs --svi ~/olx-klonovi
 
   Gdje skripta pise stanje (masina-YYYY-MM.jsonl, cpu-stanje.json, zadnja-analiza.json,
   analiza-YYYY-MM-DD.md) se moze promijeniti preko OLX_NADZOR_DIR (i izvor spiska klonova preko
@@ -38,12 +38,12 @@
   komanda za admina na Windows masini:
 
     schtasks /create /tn "OLX ADMIN nadzor-flote" ^
-      /tr "node C:\putanja\do\repoa\scripts\nadzor-flote.mjs" ^
+      /tr "bun C:\putanja\do\repoa\scripts\nadzor-flote.mjs" ^
       /sc daily /st 06:30
 
   ---- Linux, alternativa (cron), isti raspored:
 
-    30 6 * * * cd /putanja/do/repoa && node scripts/nadzor-flote.mjs >> .olx-pik/cron-nadzor-flote.log 2>&1
+    30 6 * * * cd /putanja/do/repoa && bun scripts/nadzor-flote.mjs >> .olx-pik/cron-nadzor-flote.log 2>&1
 -->
 <plist version="1.0">
 <dict>
@@ -54,7 +54,7 @@
   <array>
     <string>/bin/bash</string>
     <string>-lc</string>
-    <string>cd KORIJEN &amp;&amp; node scripts/nadzor-flote.mjs</string>
+    <string>cd KORIJEN &amp;&amp; bun scripts/nadzor-flote.mjs</string>
   </array>
 
   <key>WorkingDirectory</key>

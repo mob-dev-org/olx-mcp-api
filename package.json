@@ -3,31 +3,28 @@
   "version": "0.14.0",
   "description": "Interni CLI i MCP server za upravljanje OLX.ba / PIK.ba shopovima",
   "type": "module",
-  "engines": {
-    "node": ">=18"
-  },
   "bin": {
     "olx": "dist/cli/index.js"
   },
   "scripts": {
     "build": "tsc",
-    "start": "node dist/cli/index.js",
-    "mcp": "node dist/mcp/server.js",
-    "dev:cli": "tsc && node dist/cli/index.js",
-    "dev:mcp": "tsc && node dist/mcp/server.js",
+    "start": "bun dist/cli/index.js",
+    "mcp": "bun dist/mcp/server.js",
+    "dev:cli": "tsc && bun dist/cli/index.js",
+    "dev:mcp": "tsc && bun dist/mcp/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "tsc && node scripts/testovi.mjs",
-    "preversion": "npm test",
-    "version": "node scripts/upisi-verziju.mjs && git add src/core/verzija.ts",
-    "postversion": "npm run build",
+    "test": "tsc && bun scripts/testovi.mjs",
+    "preversion": "bun run test",
+    "version": "bun scripts/upisi-verziju.mjs && git add src/core/verzija.ts",
+    "postversion": "bun run build",
     "chat": "bash scripts/claude-olx.sh",
-    "klijent": "node scripts/pokreni-klijenta.mjs",
-    "deepseek:proba": "tsc && node scripts/deepseek-proba.mjs",
-    "kanal:proba": "node scripts/proba-kanala.mjs",
-    "most": "node scripts/telegram-most.mjs",
-    "ai:usage": "node scripts/ai-usage.mjs",
-    "tokeni": "node scripts/tokeni-izvjestaj.mjs",
-    "kontekst": "tsc && node scripts/kontekst-izvjestaj.mjs"
+    "klijent": "bun scripts/pokreni-klijenta.mjs",
+    "deepseek:proba": "tsc && bun scripts/deepseek-proba.mjs",
+    "kanal:proba": "bun scripts/proba-kanala.mjs",
+    "most": "bun scripts/telegram-most.mjs",
+    "ai:usage": "bun scripts/ai-usage.mjs",
+    "tokeni": "bun scripts/tokeni-izvjestaj.mjs",
+    "kontekst": "tsc && bun scripts/kontekst-izvjestaj.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Priprema runtime za ADMIN bot sesiju ovog klona: .claude-runtime-admin/
 //
 // Admin bot je vlasnikov privatni kanal za ovaj shop (nadzor, odobrenja, vodjenje bez
@@ -6,7 +6,7 @@
 // ne zna. Node umjesto basha namjerno: isti fajl radi na macOS-u i Windowsu.
 //
 // Upotreba iz korijena klona:
-//   node scripts/pripremi-admin-runtime.mjs <bot_token> <admin_telegram_id> [id_grupe]
+//   bun scripts/pripremi-admin-runtime.mjs <bot_token> <admin_telegram_id> [id_grupe]
 //
 // Bez id_grupe bot radi samo u direktnim porukama sa administratorom. Sa id_grupe radi i u
 // zajednickoj admin grupi, uz requireMention: pise samo kad ga se oznaci ili mu se odgovori.
@@ -25,8 +25,8 @@ const KORIJEN = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const [botToken, adminId, idGrupe] = process.argv.slice(2);
 if (!botToken || !adminId) {
-  console.error("Upotreba: node scripts/pripremi-admin-runtime.mjs <bot_token> <admin_telegram_id> [id_grupe]");
-  console.error("Primjer:  node scripts/pripremi-admin-runtime.mjs 123:AAH... 7061697037 -100987654321");
+  console.error("Upotreba: bun scripts/pripremi-admin-runtime.mjs <bot_token> <admin_telegram_id> [id_grupe]");
+  console.error("Primjer:  bun scripts/pripremi-admin-runtime.mjs 123:AAH... 7061697037 -100987654321");
   process.exit(1);
 }
 
@@ -95,7 +95,7 @@ if (idGrupe) {
   stavka("Bot radi samo u tvom DM-u. Za zajednicku grupu pokreni ponovo sa [id_grupe].");
 }
 if (!plugin.ok) {
-  stavka("Instaliraj Telegram plugin rucno (komande iznad), pa provjeri: node scripts/provjeri-klon.mjs");
+  stavka("Instaliraj Telegram plugin rucno (komande iznad), pa provjeri: bun scripts/provjeri-klon.mjs");
 }
 if (process.platform === "win32") {
   stavka("Windows: kredencijali pretplate zive u config diru, pa jednom po klonu u PowerShellu:");
@@ -105,4 +105,4 @@ if (process.platform === "win32") {
   stavka("macOS: login ne treba (pretplata je u Keychainu, zajednicka za sve sesije).");
   stavka("Instaliraj poslove ponovo da se doda cuvar admin bota: scripts/instaliraj-cron.sh");
 }
-stavka("Rucni test: node scripts/cuvar-sesije.mjs admin-bot");
+stavka("Rucni test: bun scripts/cuvar-sesije.mjs admin-bot");

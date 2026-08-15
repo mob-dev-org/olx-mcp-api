@@ -45,8 +45,8 @@ export function provjeriPreduslove(tip, korijen, env) {
   if (!existsSync(runtime)) {
     greske.push(
       jeAdmin
-        ? `Nema ${runtime}. Pokreni prvo: node scripts/pripremi-admin-runtime.mjs <bot_token> <admin_telegram_id> [id_grupe]`
-        : `Nema ${runtime}. Pokreni prvo: node scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>`,
+        ? `Nema ${runtime}. Pokreni prvo: bun scripts/pripremi-admin-runtime.mjs <bot_token> <admin_telegram_id> [id_grupe]`
+        : `Nema ${runtime}. Pokreni prvo: bun scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>`,
     );
   }
   if (!existsSync(join(korijen, ".env"))) {

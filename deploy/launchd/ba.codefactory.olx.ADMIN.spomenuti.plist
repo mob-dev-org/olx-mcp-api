@@ -22,7 +22,7 @@
   <array>
     <string>/bin/bash</string>
     <string>-lc</string>
-    <string>cd KORIJEN &amp;&amp; node scripts/spomenuti-pokupi.mjs</string>
+    <string>cd KORIJEN &amp;&amp; bun scripts/spomenuti-pokupi.mjs</string>
   </array>
 
   <key>WorkingDirectory</key>

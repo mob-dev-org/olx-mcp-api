@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Pokrece Claude Code sesiju na DeepSeek pogonu, sa konfiguracijom iz .env OVOG klona.
 //
 // Zasto postoji: isto je radila zsh funkcija `claude-ds` iz ~/.zshrc, ali to je konfiguracija
@@ -10,23 +10,27 @@
 // Varijable vaze SAMO unutar procesa koji ova skripta pokrene. Nista se ne exportuje u shell.
 //
 // Pokretanje:
-//   node scripts/claude-ds.mjs              # sesija na DeepSeeku
-//   node scripts/claude-ds.mjs --env        # samo ispisi podesavanja, ne pokreci nista
-//   node scripts/claude-ds.mjs -p "upit"    # svi ostali argumenti idu Claudeu
+//   bun scripts/claude-ds.mjs              # sesija na DeepSeeku
+//   bun scripts/claude-ds.mjs --env        # samo ispisi podesavanja, ne pokreci nista
+//   bun scripts/claude-ds.mjs -p "upit"    # svi ostali argumenti idu Claudeu
 
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { ucitajEnvGlobalno } from "./lib/envfajl.mjs";
 
 const KORIJEN = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(KORIJEN);
 
-try {
-  process.loadEnvFile(".env");
-} catch {
+// Provjera fajla ide ODVOJENO od ucitavanja: pod Bunom process.loadEnvFile ne postoji, pa bi
+// try/catch oko samog poziva pogresno prijavio "nema .env" i kad .env stvarno postoji (Bun ga je
+// vec sam ucitao prije ove linije, izmjereno 15.08.2026).
+if (!existsSync(".env")) {
   console.error("Nema .env u korijenu klona. Napravi ga iz .env.example pa popuni OLX_DEEPSEEK_*.");
   process.exit(1);
 }
+ucitajEnvGlobalno(".env");
 
 const arg = process.argv.slice(2);
 const SAMO_ENV = arg.includes("--env");

@@ -31,7 +31,7 @@ Ucitava se samo kad se dira kod. Klijentska i admin bot sesija ovo nikad ne vide
   ide na stderr (`console.error`).
 - Novi alat: registracija ide kroz postojeci wrapper (audit kontekst + filter profila). Odmah
   odluci ide li u `SAMO_ADMIN`. Opis alata je dio konteksta svakog zahtjeva, pisi ga skrto;
-  poslije izmjene sema pokreni `npm run kontekst` i uporedi prije/poslije.
+  poslije izmjene sema pokreni `bun run kontekst` i uporedi prije/poslije.
 - Alati vracaju kompaktan oblik po defaultu; puni payload samo iza eksplicitnog `full` ili
   slicnog prekidaca. Kombinacija `all` + `full` ostaje zabranjena.
 
@@ -54,7 +54,7 @@ Ucitava se samo kad se dira kod. Klijentska i admin bot sesija ovo nikad ne vide
 ## Verzija
 
 - Broj verzije se NE mijenja usred obicnog rada. Mijenja ga samo izdanje, kroz
-  `npm version <broj>`, koji podigne `package.json` i kroz hook prepise `src/core/verzija.ts`.
+  `bun pm version <broj>`, koji podigne `package.json` i kroz hook prepise `src/core/verzija.ts`.
   Parnost tih dvaju cuva `src/core/verzija.test.ts`, kao i postojanje sekcije u `CHANGELOG.md`.
 - `VERZIJA` iz `src/core/verzija.js` je jedini izvor za CLI `--version`, MCP handshake i polje
   `version` u audit zapisu. Novi potrosac verzije uvozi konstantu, ne prepisuje broj.
@@ -63,5 +63,5 @@ Ucitava se samo kad se dira kod. Klijentska i admin bot sesija ovo nikad ne vide
 
 ## Provjera
 
-`npm test` i `npm run typecheck` prije svakog zavrsetka posla. Nova cista funkcija dobija test
+`bun run test` i `bun run typecheck` prije svakog zavrsetka posla. Nova cista funkcija dobija test
 u istom potezu, ne kasnije.

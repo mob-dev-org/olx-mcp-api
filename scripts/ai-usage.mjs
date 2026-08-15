@@ -1,6 +1,6 @@
 // Zbirni pregled potrosnje modela iz .olx-pik/ai-usage.jsonl.
-// Pokretanje: npm run ai:usage
-// Filtriranje: npm run ai:usage -- --dan 2026-07-26
+// Pokretanje: bun run ai:usage
+// Filtriranje: bun run ai:usage -- --dan 2026-07-26
 
 import { readFileSync, existsSync } from "node:fs";
 import { CIJENE, DNEVNIK } from "./ai-cijene.mjs";
@@ -9,7 +9,7 @@ const argv = process.argv.slice(2);
 const dan = argv.includes("--dan") ? argv[argv.indexOf("--dan") + 1] : null;
 
 if (!existsSync(DNEVNIK)) {
-  console.log(`Nema dnevnika (${DNEVNIK}). Pokreni npm run deepseek:proba ili radi kroz sesiju.`);
+  console.log(`Nema dnevnika (${DNEVNIK}). Pokreni bun run deepseek:proba ili radi kroz sesiju.`);
   process.exit(0);
 }
 

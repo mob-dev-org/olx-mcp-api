@@ -1,7 +1,7 @@
 // Trag zahtjeva za generisanje slike: sta je trazeno, ne samo koliko puta.
 //
 // Zasto odvojen fajl a ne polje u ai-usage.jsonl: taj dnevnik izricito garantuje "samo brojevi,
-// NIKAD sadrzaj poruka ni slike" (ai-dnevnik.ts), jer ga cita npm run ai:usage i jer se salje u
+// NIKAD sadrzaj poruka ni slike" (ai-dnevnik.ts), jer ga cita bun run ai:usage i jer se salje u
 // izvjestaje. Ovdje nam treba suprotno: doslovan tekst koji je klijent napisao, jer bez njega se
 // zloupotreba ne moze ni dokazati ni istraziti. Zato dva fajla sa dvije razlicite garancije.
 //

@@ -12,7 +12,7 @@
 //   OLX_VID_MODEL      opciono, default gemini-3.1-flash-lite (najjeftiniji, dovoljan za opis)
 //   OLX_VID_MAX_DNEVNO opciono, dnevni plafon poziva (fallback ispod)
 //
-// Svaki poziv se biljezi u .olx-pik/ai-usage.jsonl kroz zapisiAiPoziv, pa ga npm run ai:usage
+// Svaki poziv se biljezi u .olx-pik/ai-usage.jsonl kroz zapisiAiPoziv, pa ga bun run ai:usage
 // vidi zajedno sa ostalim AI pozivima. Isti dnevnik (izvor: "vid") sluzi i dnevnom plafonu ispod,
 // preko brojPozivaDanas iz ai-dnevnik.ts.
 

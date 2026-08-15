@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Proba Telegram kanala na pogonu koji je trenutno u okruzenju.
 //
 // Odgovara na jedno pitanje: kad covjek posalje poruku botu, da li sesija na OVOM modelu
@@ -13,11 +13,11 @@
 // bota. Koristi PROBNI bot iz BotFathera, ne klijentov: dva pollera na istom tokenu daju
 // 409 Conflict i obaraju ziv bot.
 //
-//   node scripts/proba-kanala.mjs <bot_token> <tvoj_telegram_id> [--sekundi 150]
+//   bun scripts/proba-kanala.mjs <bot_token> <tvoj_telegram_id> [--sekundi 150]
 //
 // Pogon se bira okruzenjem, ne ovom skriptom, da mapiranje varijabli ostane na jednom mjestu:
-//   pretplata:  node scripts/proba-kanala.mjs ...
-//   deepseek:   ( set -a; . ~/.claude/deepseek.env; set +a; node scripts/proba-kanala.mjs ... )
+//   pretplata:  bun scripts/proba-kanala.mjs ...
+//   deepseek:   ( set -a; . ~/.claude/deepseek.env; set +a; bun scripts/proba-kanala.mjs ... )
 
 import { spawn } from "node:child_process";
 import { chmodSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
@@ -33,7 +33,7 @@ const SEKUNDI = sekundiArg !== -1 ? Number(argv[sekundiArg + 1]) : 150;
 
 if (!token || !telegramId || !/^\d+$/.test(telegramId)) {
   console.error(
-    "Upotreba: node scripts/proba-kanala.mjs <bot_token> <tvoj_telegram_id> [--sekundi 150]\n" +
+    "Upotreba: bun scripts/proba-kanala.mjs <bot_token> <tvoj_telegram_id> [--sekundi 150]\n" +
       "Telegram ID je broj; dobija se od @userinfobot.",
   );
   process.exit(2);

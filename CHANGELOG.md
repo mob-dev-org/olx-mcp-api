@@ -3,12 +3,33 @@
 Cemu sluzi: kad klijent kaze "od jucer ne radi", ovdje stoji sta je uslo izmedju dva izdanja.
 Nije zapis svakog commita, nego samo onoga sto se vidi u radu ili moze pokvariti postojece.
 
-Kako se cita broj verzije: `node dist/cli/index.js --version`, polje `version` u
-`.olx-pik/audit.jsonl`, ili `node scripts/provjeri-klon.mjs`. Na kojem izdanju klon stoji:
+Kako se cita broj verzije: `bun dist/cli/index.js --version`, polje `version` u
+`.olx-pik/audit.jsonl`, ili `bun scripts/provjeri-klon.mjs`. Na kojem izdanju klon stoji:
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
 ## Nije izdano
+
+**Pogon prelazi sa Node-a na Bun.** CLI, MCP server, cuvar sesije, Telegram most i sve pomocne
+skripte sad se pokrecu preko `bun`, ne preko `node`: `package.json` skripte, shebang linije,
+launchd sabloni (`deploy/launchd/*.plist`) i Windows Task Scheduler blizanci
+(`deploy/windows/*.ps1`) su promijenjeni na `bun`. Provjereno izvrsavanjem: `bun install` (104
+paketa, nula upozorenja, nema native/kompajliranih zavisnosti), `bun run build` daje identican
+`dist/` kao `npm run build`, i `bun run test` prolazi svih 831 test istim rezultatom kao Node.
+`scripts/testovi.mjs` je prepravljen da pod Bunom pokrece svaki test-fajl u SVOM pozivu `bun test
+<fajl>`, jer batch poziv sa vise fajlova odjednom tiho ispusti vecinu testova bez ijedne greske
+(izmjereno 15.08.2026, iskoristeno u `.olx-pik/`). `process.loadEnvFile` (koristio se u pet ulaznih
+skripti za globalno ucitavanje `.env`) ne postoji u Bunu; zamijenjen dijeljenim
+`ucitajEnvGlobalno` (`scripts/lib/envfajl.mjs`) koji je pod Bunom no-op (Bun sam ucita `.env` iz
+cwd prije nego skripta i krene), a `scripts/claude-ds.mjs` je uz to imao stvarni bug: catch blok je
+tvrdio da `.env` fali i kad je fajl bio ispravan, samo zato sto funkcija ne postoji pod Bunom, sad
+se to provjerava odvojeno (`existsSync`). `bun pm version` zamjenjuje `npm version` u
+`scripts/izdanje.mjs`, provjereno da isto postuje `preversion`/`version`/`postversion` hookove.
+Node ostaje instaliran na masini SAMO kao zavisnost za `scripts/onboarding-uzivo.mjs` (jednokratni
+admin alat za onboarding klijenta preko lokalnog Cloudflare Workera): `wrangler` sam zahtijeva
+Node >=22 nezavisno od Buna, i ta skripta sad sama nadje odgovarajucu nvm verziju za taj jedan
+spawn, bez diranja globalnog `nvm alias default`. Klijentska flota i dalje vozi Node dok se
+migracija ne potvrdi u praksi na prvom klonu; ovo izdanje samo priprema pogon.
 
 **Ime prodavca koje klijent sam spomene se tiho zapise, i jednom dnevno skupi sa cijele flote.**
 Klijentu konkurencija nije u paketu i odgovor mu ostaje isti, ali ime koje je on sam naveo je bolji

@@ -16,7 +16,7 @@
   <array>
     <string>/bin/bash</string>
     <string>-lc</string>
-    <string>cd KORIJEN &amp;&amp; node scripts/cuvar-sesije.mjs admin-bot</string>
+    <string>cd KORIJEN &amp;&amp; bun scripts/cuvar-sesije.mjs admin-bot</string>
   </array>
 
   <key>WorkingDirectory</key>

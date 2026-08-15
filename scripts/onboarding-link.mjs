@@ -1,11 +1,11 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Napravi onboarding link za JEDAN klon i registruj sesiju na Workeru.
 //
 // Klon mora vec postojati (redoslijed iz olx-novi-klijent: klon, .env, Telegram runtime, cron,
 // pa tek token). Ovaj korak zamjenjuje rucni curl login: klijent umjesto terminala dobije link.
 //
 // Pokretanje:
-//   node scripts/onboarding-link.mjs <putanja-klona>
+//   bun scripts/onboarding-link.mjs <putanja-klona>
 //
 // Ispisuje link i kopira ga u clipboard. Mapiranje session -> klon se pamti u
 // ~/.pikgpt/onboarding-sesije.json, odakle ga puller cita.
@@ -18,7 +18,7 @@ import { trebaConfig, citajMapu, upisiMapu } from "./lib/podesavanja.mjs";
 
 const arg = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 if (!arg[0]) {
-  console.error("Upotreba: node scripts/onboarding-link.mjs <putanja-klona>");
+  console.error("Upotreba: bun scripts/onboarding-link.mjs <putanja-klona>");
   process.exit(1);
 }
 

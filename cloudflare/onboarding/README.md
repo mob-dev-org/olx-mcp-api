@@ -22,7 +22,7 @@ OLX-u u jednom pozivu i odbaci.
 
 1. Kljucevi na admin masini:
    ```
-   node scripts/onboarding-kljuc.mjs
+   bun scripts/onboarding-kljuc.mjs
    ```
    Privatni ide u `~/.pikgpt/onboarding-priv.b64` (0600), javni se ispise i kopira u clipboard.
 
@@ -57,7 +57,7 @@ OLX-u u jednom pozivu i odbaci.
 Klon mora vec postojati (skill `olx-novi-klijent`: klon, `.env`, Telegram runtime, cron). Onda:
 
 ```
-node scripts/onboarding-link.mjs ~/olx-klijenti/<ime>
+bun scripts/onboarding-link.mjs ~/olx-klijenti/<ime>
 ```
 
 Link je kopiran u clipboard. Posalji ga klijentu. Kad se uloguje, puller u roku od par minuta:
@@ -72,7 +72,7 @@ Komercijalni dio (budzet kredita, popusti, granice) analiza NAMJERNO ne dira. Pr
 ## Provjere (bez deploya)
 
 ```
-node scripts/lib/ecies.mjs --self-test        # enkripcija radi, pogresan kljuc pada
+bun scripts/lib/ecies.mjs --self-test        # enkripcija radi, pogresan kljuc pada
 node cloudflare/onboarding/test-worker.mjs     # rute, brojac pokusaja, token nikad citljiv u KV
 node cloudflare/onboarding/test-mac.mjs         # link + puller do upisa OLX_TOKEN u .env
 ```
@@ -83,7 +83,7 @@ masini (u nekim sandbox okruzenjima child proces ne moze do lokalnog servera).
 ## Najkraci put: jedna komanda, bez Cloudflare naloga
 
 ```
-node scripts/onboarding-uzivo.mjs <putanja-do-klona>
+bun scripts/onboarding-uzivo.mjs <putanja-do-klona>
 ```
 
 Skripta sama pripremi kljuceve i tajnu, digne Worker LOKALNO (`wrangler dev --local`), otvori

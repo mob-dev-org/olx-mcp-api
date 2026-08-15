@@ -100,9 +100,11 @@ foreach ($linija in Get-Content $Popis) {
     & git -C $klon checkout --detach --quiet $Tag 2>$null
     if ($LASTEXITCODE -ne 0) { $greska = "checkout tag $Tag" }
   }
-  if ($greska -eq "" -and -not (Pokreni $klon "npm" @("ci", "--silent"))) { $greska = "npm ci" }
-  if ($greska -eq "" -and -not (Pokreni $klon "npm" @("run", "build", "--silent"))) { $greska = "build" }
-  if ($greska -eq "" -and -not (Pokreni $klon "npm" @("test", "--silent"))) { $greska = "testovi" }
+  if ($greska -eq "" -and -not (Pokreni $klon "bun" @("install", "--frozen-lockfile"))) { $greska = "bun install" }
+  if ($greska -eq "" -and -not (Pokreni $klon "bun" @("run", "build"))) { $greska = "build" }
+  # `bun run test` (skript), NE goli `bun test`: bun test je Bunov vlastiti test runner koji
+  # zaobilazi scripts/testovi.mjs i njegovo pojedinacno-po-fajlu pokretanje (vidi napomenu tamo).
+  if ($greska -eq "" -and -not (Pokreni $klon "bun" @("run", "test"))) { $greska = "testovi" }
 
   # Testovi pisu probni audit u radni folder; ne smije ostati u klijentovom .olx-pik.
   Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $klon ".olx-pik\test-audit.jsonl")
@@ -117,7 +119,7 @@ foreach ($linija in Get-Content $Popis) {
   # stari kod i stari prompt u memoriji. Kalendarski zadaci (snapshot/dnevno/sedmicno) se NE
   # diraju: Start-ScheduledTask bi ih IZVRSIO odmah, pa bi klijent dobio jutarnji izvjestaj
   # usred dana i potrosila bi se dnevna runda obnova van reda. Oni novi kod ionako uzmu na
-  # sljedecem zakazanom terminu, jer su jednokratni node procesi.
+  # sljedecem zakazanom terminu, jer su jednokratni bun procesi.
   $ime = Split-Path $klon -Leaf
   foreach ($posao in @("sesija", "admin-bot")) {
     $oznaka = "ba.codefactory.olx.$ime.$posao"

@@ -99,7 +99,7 @@ export function obidjiDirektorijum(putanja, { readdirSync = readdirSyncDefault, 
 
 /**
  * Brzo mjeri ukupnu velicinu foldera (npr. `node_modules`, `dist`) BEZ file-level obilaska:
- * `node_modules`/`dist` se regenerisu pri svakom `npm ci`/build (mtime hiljada fajlova mijenja se
+ * `node_modules`/`dist` se regenerisu pri svakom `bun install`/build (mtime hiljada fajlova mijenja se
  * bez stvarne promjene sadrzaja), pa file-level detalj za njih nikad ne treba, samo ukupan broj
  * bajtova.
  *
@@ -196,7 +196,7 @@ export const FOLDERI_KLIJENTSKOG_MATERIJALA = [
 const KATEGORIJE_KLIJENTSKOG_MATERIJALA = ["olx_pik_arhiva", "olx_pik_klijent_fajlovi", "olx_pik_slike", "telegram_inbox"];
 
 // Kategorije sa file-level detaljem iz kojih topNovi smije birati kandidate. Namjerno NE
-// ukljucuje: node_modules/dist (nikad nemaju file-level detalj, mtime im je sum od npm ci/build,
+// ukljucuje: node_modules/dist (nikad nemaju file-level detalj, mtime im je sum od bun install/build,
 // vidi velicinaFolderaBrzo) ni kategorije klijentskog materijala (tvrda granica, vidi komentar na
 // vrhu fajla i olx-dokumentacija/granice.md sekcije "Slike"/"Trag i tajne").
 const KATEGORIJE_ZA_TOP_NOVI = ["olx_pik_snapshots", "olx_pik_konkurenti", "olx_pik_resursi", "olx_pik_ostalo", "transkripti", "ostalo_klona"];

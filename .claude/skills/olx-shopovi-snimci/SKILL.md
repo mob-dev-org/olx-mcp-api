@@ -114,7 +114,7 @@ nekoliko aktivnih oglasa. Prinos nije garantovan, samo onoliko kandidata koliko 
 upisalo u tekst.
 
 ```bash
-npm run build   # dist/cli/index.js mora biti svjez
+bun run build   # dist/cli/index.js mora biti svjez
 python3 .claude/skills/olx-shopovi-snimci/scripts/dodaj-telefone.py \
   olx-dokumentacija/shopovi-snimci/shopovi-razdvojeno-2026-07-28.xlsx \
   [--broj-oglasa 5] [--pauza 0.4]

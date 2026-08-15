@@ -2,7 +2,7 @@ import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 /**
- * Da li je modul pokrenut kao ULAZ procesa (`node dist/mcp/server.js`), ili ga je neko samo uvezao.
+ * Da li je modul pokrenut kao ULAZ procesa (`bun dist/mcp/server.js`), ili ga je neko samo uvezao.
  *
  * Zasto postoji: i MCP server i CLI na kraju modula pokrecu sami sebe (`main()`, `parseAsync`).
  * Dok je to bezuslovno, modul se ne moze uvesti da bi mu se procitao popis alata ili stablo

@@ -27,7 +27,7 @@ test("VERZIJA je jednaka verziji u package.json, inace audit log tvrdi drugi bro
   assert.equal(
     VERZIJA,
     pkg.version,
-    "Broj se ne mijenja rucno: pokreni `npm version <broj>` ili `node scripts/upisi-verziju.mjs`",
+    "Broj se ne mijenja rucno: pokreni `bun pm version <broj>` ili `bun scripts/upisi-verziju.mjs`",
   );
 });
 

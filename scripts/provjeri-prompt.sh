@@ -6,7 +6,7 @@
 # automatski. Obje pretpostavke su nevidljive dok ne otkazu. Ako otkazu, bot ostane bez pravila o
 # trosku i brisanju, a to se ne primijeti dok neko ne potrosi kredite ili ne obrise oglas.
 #
-# Ovo NIJE test koda nego test prompta, pa se ne vrti u `npm test`. Pokrece se rucno prije
+# Ovo NIJE test koda nego test prompta, pa se ne vrti u `bun run test`. Pokrece se rucno prije
 # brisanja bilo kojeg pravila iz skillova, i iz scripts/azuriraj-sve.sh nakon izmjene promptova.
 #
 # Trosak: nekoliko kratkih `claude -p` poziva. Nijedan ne trosi OLX kredite, jer se model samo

@@ -11,15 +11,15 @@ mogao provjeriti.
 
 ## Checklista, redom
 
-0. **Preflight**: `node scripts/provjeri-klon.mjs` — jedan potez pokrije verziju, konfiguraciju,
+0. **Preflight**: `bun scripts/provjeri-klon.mjs` — jedan potez pokrije verziju, konfiguraciju,
    build, runtime, zakazane poslove, cuvara i snapshot. Cesto je cijela dijagnoza vec tu;
    dalje korake radi za ono sto preflight ne vidi (zivi procesi u kvaru, logovi, audit).
-0b. **Koje izdanje klon vozi**: `node scripts/provjeri-izdanje.mjs`. Vrijedi rano, jer mijenja
+0b. **Koje izdanje klon vozi**: `bun scripts/provjeri-izdanje.mjs`. Vrijedi rano, jer mijenja
    citanje svega ostalog: simptom koji je nastao "od jucer" na klonu koji zaostaje za izdanjem
    cesto je popravka koja postoji ali nije dosla. Verzija stoji i u svakom redu
    `.olx-pik/audit.jsonl` (polje `version`), pa se iz loga vidi na kojem je kodu radnja izvrsena.
    Sta je uslo izmedju dva izdanja: `CHANGELOG.md`. Popravka je
-   `node scripts/azuriraj-ovaj-klon.mjs`, i to je komanda za admina, ne za tebe.
+   `bun scripts/azuriraj-ovaj-klon.mjs`, i to je komanda za admina, ne za tebe.
 1. **Procesi**: zive li cuvar i sesija?
    - macOS/Linux: `pgrep -fl "cuvar-sesije|claude"`; Windows: `tasklist | findstr /i "node claude"`
    - PID fajlovi: `.olx-pik/cuvar-sesije.pid`, `.olx-pik/cuvar-admin-bota.pid`,
@@ -28,10 +28,10 @@ mogao provjeriti.
    "Sesija NIJE pokrenuta", "Limit", "AUTH", "TROSAK".
 3. **Zakazani poslovi**: macOS `launchctl list | grep ba.codefactory.olx`;
    Windows `schtasks /query /fo list | findstr /i olx`. Posao koji fali ili "-" status je nalaz.
-4. **Nalog**: read-only CLI, ne trosi nista: `node dist/cli/index.js auth whoami` i
-   `node dist/cli/index.js refresh limits`. 401 = istekao token, to je cest korijen svega.
+4. **Nalog**: read-only CLI, ne trosi nista: `bun dist/cli/index.js auth whoami` i
+   `bun dist/cli/index.js refresh limits`. 401 = istekao token, to je cest korijen svega.
 5. **Trag**: rep `.olx-pik/audit.jsonl` (sta je zadnje radjeno i kada; `ok:false` redovi),
-   `.olx-pik/ai-usage.jsonl` za skok troska, `npm run ai:usage -- --dan <datum>`.
+   `.olx-pik/ai-usage.jsonl` za skok troska, `bun run ai:usage -- --dan <datum>`.
 6. **Svjezina builda**: `git -C . log -1 --format=%cd` naspram mtime `dist/` (npr.
    `ls -lt dist/cli/index.js`). Kod noviji od dist-a znaci da pogon vozi stari build.
 7. **Telegram tok**: mtime `.claude-runtime/channels/telegram/inbox/` (stizu li poruke) naspram
