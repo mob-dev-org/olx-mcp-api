@@ -2205,8 +2205,12 @@ server.registerTool(
   {
     title: "Arhiva skinutih artikala",
     description:
-      "Lokalna arhiva artikala skinutih sa shopa (olx_skini_artikal). Radnja 'lista' vraca pregled, 'detalj' pun zapis jednog artikla po originalnom broju oglasa.",
-    inputSchema: { radnja: z.enum(["lista", "detalj"]), id: z.number().int().optional() },
+      "Lokalna arhiva artikala skinutih sa shopa (olx_skini_artikal). Radnja 'lista' vraca pregled (odsjecen na limit, ukupno je pun broj), 'detalj' pun zapis jednog artikla po originalnom broju oglasa.",
+    inputSchema: {
+      radnja: z.enum(["lista", "detalj"]),
+      id: z.number().int().optional(),
+      limit: z.number().int().min(1).max(50).default(20).describe("gornja granica za radnju 'lista'; ukupno u odgovoru ostaje pun broj"),
+    },
     annotations: readOnly,
   },
   async (args) => {
@@ -2218,7 +2222,13 @@ server.registerTool(
       }
       const zapisi = ucitajSveZapise();
       const velicinaMb = Math.round((velicinaArhive() / 1_048_576) * 10) / 10;
-      return ok({ ukupno: zapisi.length, velicina_mb: velicinaMb, artikli: kompaktSpisak(zapisi) });
+      const odsjecak = odsijeciSpisak(kompaktSpisak(zapisi), args.limit);
+      return ok({
+        ukupno: odsjecak.ukupno,
+        velicina_mb: velicinaMb,
+        artikli: odsjecak.stavke,
+        ...(odsjecak.odsjeceno ? { odsjeceno: true } : {}),
+      });
     } catch (e) {
       return errResult(String(e instanceof Error ? e.message : e));
     }
