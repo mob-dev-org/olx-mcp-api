@@ -10,14 +10,18 @@
 //   OLX_SLIKA_API_KEY  Gemini kljuc, isti kao za generisanje slika; jedino obavezno
 //   OLX_VID_API_KEY    opciono, poseban Gemini kljuc samo za vid (pobjedjuje kad postoji)
 //   OLX_VID_MODEL      opciono, default gemini-3.1-flash-lite (najjeftiniji, dovoljan za opis)
+//   OLX_VID_MAX_DNEVNO opciono, dnevni plafon poziva (fallback ispod)
 //
 // Svaki poziv se biljezi u .olx-pik/ai-usage.jsonl kroz zapisiAiPoziv, pa ga npm run ai:usage
-// vidi zajedno sa ostalim AI pozivima.
+// vidi zajedno sa ostalim AI pozivima. Isti dnevnik (izvor: "vid") sluzi i dnevnom plafonu ispod,
+// preko brojPozivaDanas iz ai-dnevnik.ts.
 
 import { readFileSync } from "node:fs";
 import { extname } from "node:path";
-import { zapisiAiPoziv } from "./ai-dnevnik.js";
+import { brojPozivaDanas, zapisiAiPoziv } from "./ai-dnevnik.js";
 import { pozoviGemini } from "./gemini.js";
+
+const IZVOR = "vid";
 
 const PODRZANI_TIPOVI: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -61,7 +65,7 @@ export interface OpisSlike {
 
 function zabiljezi(model: string, usage: { input_tokens: number; output_tokens: number }, trajanjeMs: number, ok: boolean, greska?: string): void {
   zapisiAiPoziv({
-    izvor: "vid",
+    izvor: IZVOR,
     zadatak: "opis_slike",
     model,
     ulazTokena: usage.input_tokens,
@@ -70,6 +74,41 @@ function zabiljezi(model: string, usage: { input_tokens: number; output_tokens: 
     ok,
     greska,
   });
+}
+
+// ---- dnevni plafon (cisto racunanje, testirano bez diska) ----
+
+/**
+ * Fallback broj kad OLX_VID_MAX_DNEVNO nije postavljen ili je besmislen.
+ *
+ * Zasto poseban plafon, NE dijeljen sa generisanjem slike (slika-limit.ts, FALLBACK_LIMIT=10):
+ * vision poziv (gemini-3.1-flash-lite, kratak tekstualni izlaz) je red velicine jeftiniji od
+ * generisanja slike (izlazna SLIKA, $30/milion tokena), a olx_opisi_sliku sjedi na putu objave
+ * artikla iz fotografije za sesiju bez vida (DeepSeek): svaka takva objava prvo prolazi kroz vid,
+ * pa bi dijeljeni plafon od 10 blokirao normalan rad vec posle par artikala dnevno. 150 je
+ * osjetno vece: pokriva i najprometniji dan kataloga, uz zanemarljiv trosak po pozivu.
+ *
+ * Namjerno NEMA jednodnevnog admin override-a kao slika-limit.ts (nije trazen ovim zadatkom):
+ * dijeljenje jedne generičke funkcije parametrizovane imenom env varijable bi ustedu koda
+ * platilo zamagljivanjem dva razlicita plafona, pa ova funkcija ostaje odvojena i jednostavnija.
+ */
+const FALLBACK_LIMIT_VID = 150;
+
+/** Limit iz env varijable OLX_VID_MAX_DNEVNO, ili fallback iznad. */
+export function vidEnvLimit(env: NodeJS.ProcessEnv = process.env): number {
+  const sirovo = Number(env.OLX_VID_MAX_DNEVNO);
+  return Number.isFinite(sirovo) && sirovo > 0 ? Math.floor(sirovo) : FALLBACK_LIMIT_VID;
+}
+
+/** Cista provjera dnevnog plafona vida: da li je danasnji broj poziva vec dostigao limit. */
+export function provjeriPlafonVida(danas: number, limit: number): { ok: true } | { ok: false; poruka: string } {
+  if (danas < limit) return { ok: true };
+  return {
+    ok: false,
+    poruka:
+      `Dnevni plafon opisa slike (vid) je dostignut (${danas}/${limit}). ` +
+      "Promijeni OLX_VID_MAX_DNEVNO u .env na masini ako treba trajno veci limit.",
+  };
 }
 
 /**
@@ -85,6 +124,13 @@ export async function opisiSliku(putanja: string, pitanje?: string): Promise<Opi
   if (!mediaType) {
     throw new Error(`Nepodrzan format slike: ${putanja}. Podrzano: ${Object.keys(PODRZANI_TIPOVI).join(", ")}.`);
   }
+
+  // Plafon PRIJE poziva vanjskog servisa: neuspjeli/odbijeni zahtjev ne smije trositi mrezu.
+  const limit = vidEnvLimit();
+  const danasPoziva = brojPozivaDanas(IZVOR);
+  const nalazPlafona = provjeriPlafonVida(danasPoziva, limit);
+  if (!nalazPlafona.ok) throw new Error(nalazPlafona.poruka);
+
   const podaci = readFileSync(putanja).toString("base64");
   const model = vidModel();
   const upit = pitanje?.trim() || PODRAZUMIJEVANO_PITANJE;
