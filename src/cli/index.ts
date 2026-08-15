@@ -34,7 +34,15 @@ import {
   ukloniGrupu,
   upisiPristup,
 } from "../core/telegram-grupe.js";
-import { SNAPSHOT_DIR, ucitajSnapshote, upisiSnapshot, zadnjiSnapshot } from "../core/snapshoti.js";
+import {
+  obrisiSnapshotUToku,
+  SNAPSHOT_DIR,
+  ucitajSnapshote,
+  ucitajSnapshotUToku,
+  upisiSnapshot,
+  upisiSnapshotUToku,
+  zadnjiSnapshot,
+} from "../core/snapshoti.js";
 import { razvrstaj } from "../core/backup-spisak.js";
 import { kopirajURadnu, popisiStanje, uporediSaKopijom, vratiIzRadne } from "../core/stanje-kopija.js";
 import { bootstrap, commitIPush, danaDoIsteka, masinaSePoklapa, postavkeStanja, zadnjiUpis } from "../core/git-stanje.js";
@@ -1265,27 +1273,76 @@ stats
 
 stats
   .command("snapshot")
-  .description("Dnevni snimak pregleda SVIH aktivnih oglasa u .olx-pik/snapshots (sporo: jedan zahtjev po oglasu; za cron)")
+  .description(
+    "Dnevni snimak pregleda SVIH aktivnih oglasa u .olx-pik/snapshots (sporo: jedan zahtjev po oglasu; " +
+      "za cron, budzet po pokretanju, nastavlja se preko vise pokretanja dok se katalog ne obidje cio)",
+  )
   .action(async () => {
     try {
-      const start = Date.now();
+      const startPokretanja = Date.now();
+      const cfg = loadConfig();
       const c = await withAuth();
       const username = await c.resolveUsername();
       mkdirSync(SNAPSHOT_DIR, { recursive: true });
       const otpusti = zauzmiKljuc(`${SNAPSHOT_DIR}/snapshot`);
       try {
-        const aktivni = await c.listAllByState("active", username);
-        if (!aktivni.potpuno) {
-          throw new Error(
-            `Lista aktivnih oglasa nije potpuna (procitano ${aktivni.oglasi.length} od ` +
-              `${aktivni.ukupno ?? "nepoznato"} oglasa, razlog: ${aktivni.razlog ?? "nepoznat"}). ` +
-              "Snapshot se ne pise: nepotpun snimak bi sutra prijavio zive oglase kao mrtve.",
+        const sadaSekunde = Math.floor(Date.now() / 1000);
+        let radni = ucitajSnapshotUToku();
+
+        // Podmetnut ili zaostao radni fajl drugog naloga se nikad ne nastavlja: jedan klon je
+        // jedan nalog, pa bi nastavak ovdje upisao tudje ID-eve u nas snimak.
+        if (radni && radni.account !== username) {
+          console.error(
+            `Radni fajl snapshota pripada drugom nalogu (${radni.account}), odbacujem i pocinjem prolaz iznova.`,
           );
+          obrisiSnapshotUToku();
+          radni = null;
         }
-        const oglasi = [];
-        let obradjeno = 0;
-        for (const o of aktivni.oglasi) {
-          const full = await c.getListing(o.id);
+
+        // Prolaz razmazan preko vise pokretanja unosi gresku ogranicenu upravo ovom granicom
+        // (mrtvi oglasi se racunaju tek nad periodom od najmanje 14 dana). Prestar prolaz se
+        // ODBACUJE umjesto da se nastavi, i to se javlja administratoru: to je jedini nacin da
+        // neko sazna da katalog nikako ne stize da se obidje u zadatom roku.
+        if (radni && sadaSekunde - radni.pocetak > cfg.maxTrajanjeSnapshotProlazaMs / 1000) {
+          const poruka =
+            `stats snapshot: prolaz je trajao duze od dozvoljenih ${cfg.maxTrajanjeSnapshotProlazaMs} ms ` +
+            `i odbacen je nedovrsen (procitano ${radni.oglasi.length} od ${radni.idevi.length} oglasa). ` +
+            "Prolaz krece iznova od pocetka kataloga.";
+          console.error(poruka);
+          await javiAdminu(poruka);
+          obrisiSnapshotUToku();
+          radni = null;
+        }
+
+        if (!radni) {
+          // Spisak ID-eva se cita SAMO ovdje, na pocetku prolaza, i dalje se ne osvjezava:
+          // snapshot time ostaje koherentan snimak jednog trenutka. Oglas objavljen usred
+          // prolaza nije u ovom snapshotu, nego u sljedecem.
+          const aktivni = await c.listAllByState("active", username);
+          if (!aktivni.potpuno) {
+            throw new Error(
+              `Lista aktivnih oglasa nije potpuna (procitano ${aktivni.oglasi.length} od ` +
+                `${aktivni.ukupno ?? "nepoznato"} oglasa, razlog: ${aktivni.razlog ?? "nepoznat"}). ` +
+                "Snapshot se ne pise: nepotpun snimak bi sutra prijavio zive oglase kao mrtve.",
+            );
+          }
+          radni = {
+            pocetak: sadaSekunde,
+            account: username,
+            idevi: aktivni.oglasi.map((o) => o.id),
+            oglasi: [],
+            broj_poziva: Math.max(1, Math.ceil(aktivni.oglasi.length / 20)) + 1,
+            trajanje_ms: 0,
+          };
+        }
+
+        const vecObidjeno = new Set(radni.oglasi.map((o) => o.id));
+        const preostaliIdevi = radni.idevi.filter((id) => !vecObidjeno.has(id));
+
+        let obradjenoOvajPuta = 0;
+        let budzetIstekao = false;
+        for (const id of preostaliIdevi) {
+          const full = await c.getListing(id);
           // Polja za higijenu se hvataju ovdje jer je puni oglas ionako vec dohvacen. Bez toga bi
           // onboarding izvjestaj morao ponoviti isti prolaz kroz sve oglase, a to je minute.
           const images = Array.isArray(full.images) ? (full.images as unknown[]) : [];
@@ -1296,7 +1353,7 @@ stats
             : [];
           const podnaslov = typeof full.short_description === "string" ? full.short_description.trim() : "";
           const opis = typeof full.additional?.description === "string" ? full.additional.description.trim() : "";
-          oglasi.push({
+          radni.oglasi.push({
             id: full.id,
             title: full.title,
             views: typeof full.views === "number" ? full.views : 0,
@@ -1311,29 +1368,59 @@ stats
             opis_znakova: opis.length,
             atributa: attributes.length,
             category_id: typeof full.category_id === "number" ? full.category_id : undefined,
+            // Verzija 3 (vidi ViewsSnapshotOglas): kad je BAS OVAJ oglas procitan. Upisuje se, ali
+            // se namjerno ne koristi ni u jednom racunu ovog izdanja.
+            procitano_ts: Math.floor(Date.now() / 1000),
           });
-          obradjeno += 1;
-          if (obradjeno % 20 === 0) console.error(`Snapshot: ${obradjeno}/${aktivni.oglasi.length} oglasa...`);
+          radni.broj_poziva += 1;
+          obradjenoOvajPuta += 1;
+          if (radni.oglasi.length % 20 === 0) {
+            console.error(`Snapshot: ${radni.oglasi.length}/${radni.idevi.length} oglasa...`);
+          }
+          // Budzet po pokretanju, ne po prolazu: kad istekne, pokretanje staje uredno (radni fajl
+          // upisan, izlazni kod 0), a nastavak ide sljedecim pokretanjem crona.
+          if (Date.now() - startPokretanja >= cfg.budzetSnapshotMs) {
+            budzetIstekao = true;
+            break;
+          }
         }
+        radni.trajanje_ms += Date.now() - startPokretanja;
+
+        if (budzetIstekao && radni.oglasi.length < radni.idevi.length) {
+          // Djelimican snapshot se NIKAD ne pise. Ovo nije kvar nego planiran nastavak: izlazni
+          // kod ostaje 0 i posaoFail se ne zove.
+          upisiSnapshotUToku(radni);
+          out({
+            nastavlja_se: true,
+            oglasa_obidjeno: radni.oglasi.length,
+            oglasa_ukupno: radni.idevi.length,
+            oglasa_ovo_pokretanje: obradjenoOvajPuta,
+            trajanje_ms: Date.now() - startPokretanja,
+          });
+          return;
+        }
+
         const snapshot = {
-          // Verzija 2 nosi i polja za higijenu. Citac ne gleda verziju nego prisustvo polja, pa
-          // se snapshoti verzije 1 i dalje ucitavaju normalno.
-          verzija: 2,
+          // Verzija 3 nosi procitano_ts po oglasu (vidi ViewsSnapshotOglas u stats.ts). Citac ne
+          // gleda broj verzije nego prisustvo polja, pa se snapshoti verzije 1, 2 i 3 i dalje
+          // ucitavaju normalno.
+          verzija: 3,
           ts: Math.floor(Date.now() / 1000),
           account: username,
-          broj_poziva: aktivni.oglasi.length + Math.max(1, Math.ceil(aktivni.oglasi.length / 20)) + 1,
-          trajanje_ms: Date.now() - start,
-          oglasi,
+          broj_poziva: radni.broj_poziva,
+          trajanje_ms: radni.trajanje_ms,
+          oglasi: radni.oglasi,
         };
         const putanja = upisiSnapshot(snapshot);
-        out({ fajl: putanja, oglasa: oglasi.length, trajanje_ms: snapshot.trajanje_ms });
+        obrisiSnapshotUToku();
+        out({ fajl: putanja, oglasa: snapshot.oglasi.length, trajanje_ms: snapshot.trajanje_ms });
       } finally {
         otpusti();
       }
     } catch (e) {
       // Snapshot radi nocu iz crona bez ikoga za ekranom. Pad (istekao token, zaglavljen
       // lock) bez javljanja adminu znaci da vremenska serija tiho stane; zato posaoFail,
-      // ne fail.
+      // ne fail. Prekid na budzetu NIJE pad (vidi return iznad) i tu ne dolazi.
       await posaoFail("snapshot", e);
     }
   });

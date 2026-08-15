@@ -61,6 +61,27 @@ export interface OlxConfig {
   // svaki konkurent redom, pa dizanje razgovornog budzeta ne smije usporiti citav obilazak.
   budzetListeKonkurentMs: number;
   /**
+   * Budzet vremena PO POKRETANJU za `stats snapshot` (CLI, cron): koliko dugo smije obilaziti
+   * oglase (jedan `getListing` po oglasu) prije nego uredno stane i ostavi nastavak za sljedece
+   * pokretanje, upisan u radni fajl (`snapshoti.ts`). Odvojen od `budzetListeMs` jer taj budzet
+   * vrijedi za PRELISTAVANJE (paginaciju), a ovaj za sam OBILAZAK vec procitanog spiska ID-eva;
+   * MCP zid od 300 s ovdje ne vrijedi, jer `stats snapshot` nije MCP alat nego cron posao bez
+   * ikoga da ceka odgovor, pa budzet moze biti izdasniji. Racunica: throttle 350 ms plus mreza
+   * daje oko 0,57 s po oglasu, pa 15 minuta (900 000 ms) znaci oko 1580 oglasa po pokretanju.
+   */
+  budzetSnapshotMs: number;
+  /**
+   * Tvrda granica (ms) koliko NAJDUZE smije trajati jedan PROLAZ `stats snapshot` kroz cijeli
+   * katalog, mjereno od pocetka prolaza upisanog u radni fajl (ne od pocetka jednog pokretanja).
+   * Prolaz obuhvata spisak ID-eva zamrznut na pocetku (da snapshot ostane koherentan snimak
+   * jednog trenutka), pa predug prolaz unosi gresku ogranicenu upravo ovom granicom. Kad je
+   * granica premasena, radni fajl se ODBACUJE (ne dovrsava se) i prolaz krece iznova.
+   * Konzervativna vrijednost, ZNATNO ispod 14 dana: `mrtviOglasi` (stats.ts) i CLI `stats alarmi`
+   * prijavljuju mrtve oglase tek nad periodom od najmanje 14 dana, pa razmazan prolaz do 48 sati
+   * ostaje mali dio tog prozora i ne kvari racun vidljivo.
+   */
+  maxTrajanjeSnapshotProlazaMs: number;
+  /**
    * Najveci broj oglasa koji `olx_list_listings` u grani `all` smije staviti u JEDAN odgovor.
    * Iznad toga se katalog isporucuje u komadima (parametar `komad`), umjesto da se tiho sijece
    * ili da se odgovor odbije (deepseek-nalazi.md, tabela oko linije 110). Izmjereno: 120 oglasa u
@@ -152,6 +173,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): OlxConfig {
     budzetListeMs: num(env.OLX_BUDZET_LISTE_MS, 75000),
     budzetListeGrupniMs: num(env.OLX_BUDZET_LISTE_GRUPNI_MS, 120000),
     budzetListeKonkurentMs: num(env.OLX_BUDZET_LISTE_KONKURENT_MS, 20000),
+    budzetSnapshotMs: num(env.OLX_BUDZET_SNAPSHOT_MS, 900000),
+    maxTrajanjeSnapshotProlazaMs: num(env.OLX_MAX_TRAJANJE_SNAPSHOT_PROLAZA_MS, 172800000),
     maxOglasaUOdgovoru: num(env.OLX_MAX_OGLASA_U_ODGOVORU, 500),
     maxStavkiUOdgovoru: num(env.OLX_MAX_STAVKI_U_ODGOVORU, 200),
   };

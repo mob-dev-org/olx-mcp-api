@@ -9,7 +9,7 @@ import { test } from "node:test";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pokreniMockOlx } from "./mock-olx-server.mjs";
-import { pokreniCli, testniDir } from "./pokreni-cli.mjs";
+import { pokreniCli, testniDir, zadnjiJson } from "./pokreni-cli.mjs";
 
 const OGLASI = [
   { id: 11, title: "Prvi", views: 10 },
@@ -60,6 +60,189 @@ test("stats snapshot odbija rad dok kljuc drzi ziv proces", async () => {
     assert.equal(mock.pozivi.getListing.length, 0);
     // Tudji kljuc se ne otima.
     assert.equal(readFileSync(join(snapshoti, "snapshot.lock"), "utf8"), String(process.pid));
+  } finally {
+    await mock.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("stats snapshot na budzetu 0 staje uredno: pise radni fajl, ne pise snapshot", async () => {
+  const mock = await pokreniMockOlx({ aktivni: OGLASI });
+  const dir = testniDir("snapshot-budzet");
+  try {
+    // Budzet 0 znaci da provjera nakon PRVOG obradjenog oglasa uvijek prijavi da je budzet
+    // potrosen (Date.now() - start >= 0 je uvijek tacno), pa se prolaz zaustavlja nakon jednog.
+    const r = await pokreniCli(["stats", "snapshot"], {
+      cwd: dir,
+      mockUrl: mock.url,
+      env: { OLX_BUDZET_SNAPSHOT_MS: "0" },
+    });
+
+    assert.equal(r.kod, 0, "prekid na budzetu je planiran nastavak, ne kvar");
+    assert.deepEqual(mock.pozivi.getListing.map((p) => p.id), [11], "obradjen tacno jedan oglas");
+    assert.equal(
+      existsSync(join(dir, ".olx-pik", "snapshots", "views-" + danas() + ".json")),
+      false,
+      "djelimican snapshot se nikad ne pise",
+    );
+
+    const radniPutanja = join(dir, ".olx-pik", "snapshots", ".snapshot-u-toku.json");
+    assert.equal(existsSync(radniPutanja), true, "radni fajl je upisan");
+    const radni = JSON.parse(readFileSync(radniPutanja, "utf8"));
+    assert.equal(radni.account, "testni-shop");
+    assert.deepEqual(radni.idevi, [11, 12, 13], "cio spisak zamrznut na pocetku prolaza");
+    assert.deepEqual(radni.oglasi.map((o) => o.id), [11]);
+
+    const izlaz = zadnjiJson(r.stdout);
+    assert.equal(izlaz?.nastavlja_se, true);
+    assert.equal(izlaz?.oglasa_obidjeno, 1);
+    assert.equal(izlaz?.oglasa_ukupno, 3);
+
+    assert.equal(existsSync(join(dir, ".olx-pik", "snapshots", "snapshot.lock")), false, "kljuc je otpusten");
+  } finally {
+    await mock.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("drugo pokretanje nastavlja po zapamcenom spisku i dovrsi snapshot", async () => {
+  const mock = await pokreniMockOlx({ aktivni: OGLASI });
+  const dir = testniDir("snapshot-nastavak");
+  try {
+    // Prvo pokretanje: budzet 0, stane nakon oglasa 11.
+    await pokreniCli(["stats", "snapshot"], { cwd: dir, mockUrl: mock.url, env: { OLX_BUDZET_SNAPSHOT_MS: "0" } });
+    assert.deepEqual(mock.pozivi.getListing.map((p) => p.id), [11]);
+
+    // Drugo pokretanje: normalan budzet, nastavlja TACNO od preostalih ID-eva (12, 13), ne
+    // ponavlja 11.
+    const r = await pokreniCli(["stats", "snapshot"], { cwd: dir, mockUrl: mock.url });
+
+    assert.equal(r.kod, 0);
+    assert.deepEqual(mock.pozivi.getListing.map((p) => p.id), [11, 12, 13], "11 nije ponovo procitan");
+
+    const snapshotPutanja = join(dir, ".olx-pik", "snapshots", "views-" + danas() + ".json");
+    assert.equal(existsSync(snapshotPutanja), true, "snapshot je konacno upisan");
+    const snapshot = JSON.parse(readFileSync(snapshotPutanja, "utf8"));
+    assert.equal(snapshot.verzija, 3);
+    assert.deepEqual(
+      snapshot.oglasi.map((o) => o.id).sort((a, b) => a - b),
+      [11, 12, 13],
+      "svi oglasi kataloga su u konacnom snapshotu",
+    );
+    assert.ok(
+      snapshot.oglasi.every((o) => typeof o.procitano_ts === "number"),
+      "svaki oglas nosi trenutak kad je procitan",
+    );
+
+    assert.equal(
+      existsSync(join(dir, ".olx-pik", "snapshots", ".snapshot-u-toku.json")),
+      false,
+      "radni fajl je obrisan poslije uspjesnog zavrsetka",
+    );
+  } finally {
+    await mock.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("prolaz stariji od granice se odbacuje, snapshot se ne pise i prolaz krece iznova", async () => {
+  const mock = await pokreniMockOlx({ aktivni: OGLASI });
+  const dir = testniDir("snapshot-prestar");
+  try {
+    const snapshoti = join(dir, ".olx-pik", "snapshots");
+    mkdirSync(snapshoti, { recursive: true });
+    // Radni fajl "star" 1 sat, uz granicu od samo 1000 ms: odmah premasena.
+    const staraOsoba = {
+      pocetak: Math.floor(Date.now() / 1000) - 3600,
+      account: "testni-shop",
+      idevi: [11, 12, 13],
+      oglasi: [{ id: 11, views: 10 }],
+      broj_poziva: 2,
+      trajanje_ms: 100,
+    };
+    writeFileSync(join(snapshoti, ".snapshot-u-toku.json"), JSON.stringify(staraOsoba), "utf8");
+
+    const r = await pokreniCli(["stats", "snapshot"], {
+      cwd: dir,
+      mockUrl: mock.url,
+      env: { OLX_MAX_TRAJANJE_SNAPSHOT_PROLAZA_MS: "1000" },
+    });
+
+    assert.equal(r.kod, 0, "odbacen prestar prolaz i restart nije kvar posla");
+    assert.match(r.stderr, /trajao duze/i, "javlja se razlog odbacivanja");
+    // Prolaz je krenuo iznova od pocetka kataloga: svi oglasi su procitani, ukljucujuci 11
+    // (nije preuzet iz odbacenog radnog fajla).
+    assert.deepEqual(mock.pozivi.getListing.map((p) => p.id), [11, 12, 13]);
+
+    const snapshotPutanja = join(dir, ".olx-pik", "snapshots", "views-" + danas() + ".json");
+    assert.equal(existsSync(snapshotPutanja), true, "novi prolaz je stigao do kraja i upisao snapshot");
+  } finally {
+    await mock.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("radni fajl sa drugim nalogom se odbacuje", async () => {
+  const mock = await pokreniMockOlx({ aktivni: OGLASI });
+  const dir = testniDir("snapshot-tudji-nalog");
+  try {
+    const snapshoti = join(dir, ".olx-pik", "snapshots");
+    mkdirSync(snapshoti, { recursive: true });
+    const tudji = {
+      pocetak: Math.floor(Date.now() / 1000),
+      account: "neki-drugi-shop",
+      idevi: [11, 12, 13],
+      oglasi: [{ id: 11, views: 999 }],
+      broj_poziva: 2,
+      trajanje_ms: 100,
+    };
+    writeFileSync(join(snapshoti, ".snapshot-u-toku.json"), JSON.stringify(tudji), "utf8");
+
+    const r = await pokreniCli(["stats", "snapshot"], { cwd: dir, mockUrl: mock.url });
+
+    assert.equal(r.kod, 0);
+    assert.match(r.stderr, /drugom nalogu/i);
+    // Prolaz je krenuo iznova, dakle 11 je ponovo procitan (nije preuzet tudji zapis).
+    assert.deepEqual(mock.pozivi.getListing.map((p) => p.id), [11, 12, 13]);
+
+    const snapshotPutanja = join(dir, ".olx-pik", "snapshots", "views-" + danas() + ".json");
+    const snapshot = JSON.parse(readFileSync(snapshotPutanja, "utf8"));
+    assert.equal(snapshot.account, "testni-shop");
+    assert.equal(
+      snapshot.oglasi.find((o) => o.id === 11)?.views,
+      10,
+      "vrijednost je iz svjeze procitanog oglasa, ne iz tudjeg zapisa",
+    );
+  } finally {
+    await mock.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("stats snapshot i dalje odbija upis nepotpune liste aktivnih oglasa (brana ostaje)", async () => {
+  const mock = await pokreniMockOlx({ aktivni: OGLASI });
+  const dir = testniDir("snapshot-nepotpuno");
+  try {
+    // Osigurac na 0 stranica cini prvu (i jedinu) stranicu "previse", pa je lista nepotpuna
+    // (razlog "osigurac") bez ijednog dodatnog poziva.
+    const r = await pokreniCli(["stats", "snapshot"], {
+      cwd: dir,
+      mockUrl: mock.url,
+      env: { OLX_MAX_STRANICA_LISTE: "0" },
+    });
+
+    assert.equal(r.kod, 1, "brana i dalje odbija nepotpunu listu");
+    assert.match(r.stderr, /nije potpuna/i);
+    assert.equal(mock.pozivi.getListing.length, 0, "obilazak oglasa nije ni pocinjao");
+    assert.equal(
+      existsSync(join(dir, ".olx-pik", "snapshots", "views-" + danas() + ".json")),
+      false,
+    );
+    assert.equal(
+      existsSync(join(dir, ".olx-pik", "snapshots", ".snapshot-u-toku.json")),
+      false,
+      "ni radni fajl se ne pravi kad lista nije potpuna",
+    );
   } finally {
     await mock.close();
     rmSync(dir, { recursive: true, force: true });

@@ -7,7 +7,17 @@ import { test } from "node:test";
 import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ucitajSnapshote, upisiSnapshot, zadnjiSnapshot } from "./snapshoti.js";
+import {
+  obrisiSnapshotUToku,
+  putanjaSnapshotaUToku,
+  SNAPSHOT_DIR,
+  ucitajSnapshote,
+  ucitajSnapshotUToku,
+  upisiSnapshot,
+  upisiSnapshotUToku,
+  zadnjiSnapshot,
+} from "./snapshoti.js";
+import type { SnapshotUToku } from "./snapshoti.js";
 import type { ViewsSnapshot } from "./stats.js";
 
 function radniDir(): string {
@@ -171,4 +181,105 @@ test("ucitajSnapshote sa prozorom koji ne obuhvata nijedan fajl vraca praznu lis
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+// ===== radni fajl "stats snapshot" prolaza u toku =====
+
+function radniSnapshot(preklop: Partial<SnapshotUToku> = {}): SnapshotUToku {
+  return {
+    pocetak: Math.floor(Date.parse("2026-08-10T03:00:00Z") / 1000),
+    account: "testni-shop",
+    idevi: [1, 2, 3],
+    oglasi: [{ id: 1, views: 10 }],
+    broj_poziva: 2,
+    trajanje_ms: 500,
+    ...preklop,
+  };
+}
+
+test("upisiSnapshotUToku pa ucitajSnapshotUToku vraca isti sadrzaj", () => {
+  const dir = radniDir();
+  const putanja = join(dir, ".snapshot-u-toku.json");
+  try {
+    const ulaz = radniSnapshot();
+    upisiSnapshotUToku(ulaz, putanja);
+    assert.equal(existsSync(putanja), true, "radni fajl je na disku");
+    assert.deepEqual(ucitajSnapshotUToku(putanja), ulaz, "round-trip ne gubi ni jedno polje");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("upisiSnapshotUToku ne ostavlja privremeni .tmp fajl", () => {
+  const dir = radniDir();
+  const putanja = join(dir, ".snapshot-u-toku.json");
+  try {
+    upisiSnapshotUToku(radniSnapshot(), putanja);
+    assert.equal(existsSync(`${putanja}.tmp`), false, "tmp je preimenovan, ne ostavljen");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("ucitajSnapshotUToku na nepostojecem fajlu vraca null", () => {
+  const dir = radniDir();
+  try {
+    assert.equal(ucitajSnapshotUToku(join(dir, "nema-ovog.json")), null);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("ucitajSnapshotUToku na pokvarenom JSON-u vraca null umjesto da baci", () => {
+  const dir = radniDir();
+  const putanja = join(dir, ".snapshot-u-toku.json");
+  try {
+    writeFileSync(putanja, '{"pocetak":175', "utf8");
+    assert.equal(ucitajSnapshotUToku(putanja), null);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("ucitajSnapshotUToku na validnom JSON-u pogresnog oblika vraca null", () => {
+  const dir = radniDir();
+  const putanja = join(dir, ".snapshot-u-toku.json");
+  try {
+    writeFileSync(putanja, '{"pocetak":"nije broj"}', "utf8");
+    assert.equal(ucitajSnapshotUToku(putanja), null);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("obrisiSnapshotUToku uklanja fajl i ne baca kad fajl ne postoji", () => {
+  const dir = radniDir();
+  const putanja = join(dir, ".snapshot-u-toku.json");
+  try {
+    upisiSnapshotUToku(radniSnapshot(), putanja);
+    assert.equal(existsSync(putanja), true);
+    obrisiSnapshotUToku(putanja);
+    assert.equal(existsSync(putanja), false, "radni fajl je uklonjen");
+    assert.doesNotThrow(() => obrisiSnapshotUToku(putanja), "brisanje vec obrisanog fajla ne baca");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("putanjaSnapshotaUToku postuje OLX_SNAPSHOT_U_TOKU_FILE override", () => {
+  const custom = "/tmp/neki-drugi-put/.snapshot-u-toku.json";
+  assert.equal(putanjaSnapshotaUToku({ OLX_SNAPSHOT_U_TOKU_FILE: custom }), custom);
+  assert.equal(
+    putanjaSnapshotaUToku({}),
+    `${SNAPSHOT_DIR}/.snapshot-u-toku.json`,
+    "bez override-a se koristi podrazumijevana putanja pored dnevnih snapshota",
+  );
+});
+
+test("ime radnog fajla ne odgovara obrascu za dnevne snapshote", () => {
+  // Bijeli spisak backupa (src/core/backup-spisak.ts) prepoznaje dnevne snapshote po
+  // /^views-\d{4}-\d{2}-\d{2}\.json$/. Radni fajl mora pasti izvan tog obrasca.
+  const ime = putanjaSnapshotaUToku({}).split("/").pop() ?? "";
+  assert.match(ime, /^\./, "ime radnog fajla pocinje tackom");
+  assert.equal(/^views-\d{4}-\d{2}-\d{2}\.json$/.test(ime), false);
 });

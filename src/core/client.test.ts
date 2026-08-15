@@ -75,6 +75,8 @@ function testConfig(overrides: Partial<OlxConfig> = {}): OlxConfig {
     budzetListeMs: 20000,
     budzetListeGrupniMs: 120000,
     budzetListeKonkurentMs: 20000,
+    budzetSnapshotMs: 900000,
+    maxTrajanjeSnapshotProlazaMs: 172800000,
     maxOglasaUOdgovoru: 500,
     maxStavkiUOdgovoru: 200,
     ...overrides,

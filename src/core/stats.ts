@@ -1471,6 +1471,19 @@ export interface ViewsSnapshotOglas {
   opis_znakova?: number;
   atributa?: number;
   category_id?: number;
+  /**
+   * Trenutak (unix sekunde) kad je BAS OVAJ oglas procitan unutar prolaza, dodano u verziji 3.
+   * Prolaz sad moze trajati vise pokretanja (budzet po pokretanju, `stats snapshot` u
+   * src/cli/index.ts), pa oglasi u istom snapshotu vise nisu nuzno procitani u istoj sekundi.
+   *
+   * NAMJERNO SE NE KORISTI NIGDJE U RACUNU: `promjenaPregleda`, `mrtviOglasi` i sav ostatak ovog
+   * fajla i dalje racunaju iskljucivo prema `ViewsSnapshot.ts` (trenutak PISANJA snapshota), ne
+   * prema ovom polju. Ovo je svjesna odluka vlasnika toolkita: podatak je bezvrijedan unazad (stari
+   * snapshoti ga nemaju), pa se skuplja OD SADA za buducu upotrebu, ali se racun koji hrani
+   * klijentski alarm u OVOM izdanju ne mijenja. NE brisati ovaj komentar i NE dirati ovo polje kao
+   * "mrtav kod" bez provjere da li ga je neko poceo koristiti.
+   */
+  procitano_ts?: number;
 }
 
 export interface ViewsSnapshot {
