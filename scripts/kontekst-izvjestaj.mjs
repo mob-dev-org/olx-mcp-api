@@ -73,13 +73,21 @@ function opisSkilla(putanja) {
  *
  * Za tudje (globalne) servere prazan odgovor ostaje podnosljiv, oni se samo preskoce.
  */
+// Oznake klijentske sesije se djetetu NE nasljedjuju: ovaj alat MJERI profil koji je sam zadao,
+// ne onaj koji zatekne u ljusci. Bez ovoga bi `npm run kontekst` pokrenut iz ljuske u kojoj je
+// ostao CLAUDE_CONFIG_DIR nekog klona tiho izmjerio 44 alata umjesto 59 i upisao taj broj u
+// izvjestaj, a broj iz alata za mjerenje niko ne provjerava drugim putem. Prazan string, ne
+// delete: spread nize mora pregaziti vrijednost iz process.env, a `loadConfig` prazno cita kao
+// nezadano. Vidi `odrediMcpProfil` u src/core/config.ts.
+const bezOznakaSesije = { OLX_SESIJA_TIP: "", CLAUDE_CONFIG_DIR: "" };
+
 function dohvatiAlate({ command = "node", args = ["dist/mcp/server.js"], env, cekaj = 2500 } = {}) {
   return new Promise((resolve) => {
     let child;
     try {
       child = spawn(command, args, {
         stdio: ["pipe", "pipe", "ignore"],
-        env: env ? { ...process.env, ...env } : process.env,
+        env: env ? { ...process.env, ...bezOznakaSesije, ...env } : process.env,
       });
     } catch {
       resolve({ alati: [], resursi: [], greska: "pokretanje nije uspjelo" });

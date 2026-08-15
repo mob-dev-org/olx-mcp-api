@@ -35,6 +35,14 @@ async function uvezi(korijen, relativno) {
  */
 export async function skupiMcp(korijen) {
   process.env.OLX_MCP_PROFILE = "admin";
+  // Oznake klijentske sesije se brisu iz OVOG procesa prije uvoza servera, iz istog razloga zbog
+  // kojeg se gore postavljaju lazni kljucevi: popis mora biti isti na svakoj masini. Server od
+  // sada sam prepoznaje klijentski runtime (`odrediMcpProfil`, src/core/config.ts), pa bi
+  // generator pokrenut iz ljuske u kojoj je ostao CLAUDE_CONFIG_DIR nekog klona registrovao samo
+  // klijentske alate i upisao krnj popis. Time bi `--provjeri` padao samo na nekim masinama, a to
+  // je najgora vrsta neuspjeha: izgleda kao slucajan kvar, a nije.
+  delete process.env.OLX_SESIJA_TIP;
+  delete process.env.CLAUDE_CONFIG_DIR;
   process.env.OLX_VID_API_KEY ||= "popis-mogucnosti";
   process.env.OLX_SLIKA_API_KEY ||= "popis-mogucnosti";
 

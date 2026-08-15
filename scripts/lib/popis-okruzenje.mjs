@@ -33,6 +33,20 @@ const OBRAZAC_IMENA = new RegExp(`(?:${PREFIKSI.join("|")})_[A-Z0-9_]+`, "g");
 function jeKonfiguracija(ime) {
   return PREFIKSI_KONFIGURACIJE.some((p) => ime.startsWith(`${p}_`));
 }
+/**
+ * Varijable koje kod cita, ali koje NAMJERNO ne stoje u `.env.example`, jer ih ne postavlja covjek
+ * nego pogon pri pokretanju sesije. Za razliku od `PREFIKSI_SPOLJA`, ovo su nase `OLX_` varijable,
+ * pa ih prefiks ne moze razlikovati. Bez ovog spiska bi popis trajno tvrdio da je rijec o propustu
+ * i time obezvrijedio spisak pravih propusta.
+ */
+const NE_IDU_U_PRIMJER = new Set([
+  // Oznaku tipa sesije zadaje `scripts/lib/sesija.mjs` svakom pokretanju bota, i po njoj MCP server
+  // suzava profil (`odrediMcpProfil`). Rucni upis u `.env` ne bi mogao popustiti tu branu (eksplicitan
+  // env procesa pobjedjuje `.env`), ali bi zbunio: primjer bi nudio da se postavi nesto sto alat
+  // postavlja sam.
+  "OLX_SESIJA_TIP",
+]);
+
 const NAJVISE_PUTANJA = 6;
 
 /**
@@ -152,7 +166,7 @@ export function skupiOkruzenje(korijen) {
   const imenaUKodu = new Set(varijable.map((v) => v.ime));
   const uPrimjeruAneUKodu = [...uPrimjeru].filter((ime) => !imenaUKodu.has(ime)).sort(poredi);
   const uKoduANeUPrimjeru = varijable
-    .filter((v) => v.konfiguracija && !v.uPrimjeru)
+    .filter((v) => v.konfiguracija && !v.uPrimjeru && !NE_IDU_U_PRIMJER.has(v.ime))
     .map((v) => v.ime)
     .sort(poredi);
 

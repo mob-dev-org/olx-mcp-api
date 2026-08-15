@@ -15,10 +15,11 @@ import { pathToFileURL } from "node:url";
 
 /**
  * Vrijednosti kojima se ispituje svaka varijabla. Trebaju biti raznovrsne jer parseri odbacuju sto
- * im ne odgovara: broj za `num`, "1" za `bool`, "klijent" za nabrajanje profila. Kad ni jedna ne
+ * im ne odgovara: broj za `num`, "1" za `bool`, "klijent" za nabrajanje profila, putanja koja se
+ * zavrsava na `.claude-runtime` za prepoznavanje klijentske sesije. Kad ni jedna ne
  * promijeni rezultat, varijabla se prijavljuje kao neutvrdjena umjesto da se nagadja.
  */
-const PROBE = ["424242", "proba-vrijednost", "1", "klijent"];
+const PROBE = ["424242", "proba-vrijednost", "1", "klijent", "/klon/.claude-runtime"];
 
 /** Stabilan otisak vrijednosti polja, da se `undefined` razlikuje od praznog stringa. */
 function otisak(v) {
