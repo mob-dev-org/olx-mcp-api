@@ -10,7 +10,8 @@ prijedloge koje klijent poslije odobrava svom botu.
 1. `olx_whoami`, pa `olx_profile_stats` sa `views: "snapshot"`. Ako snapshota nema, bez
    pregleda, ne mjeri uzorkom (predugo za rundu).
 2. `olx_account_alerts` i `olx_mrtvi_oglasi`.
-3. Kompaktna lista aktivnih oglasa (`olx_list_listings`), bez `full`.
+3. `olx_onboarding_report` u formatu `json`: iz njega se biraju kandidati za korak 4, najslabiji
+   naslovi i mrtvi oglasi.
 4. Fan-out na podagente po obrascu iz skilla `olx-serijski-posao`, svi pozivi u jednoj poruci:
    - `olx-seo-pisac` za najvise 10 najslabijih naslova (kratki, bez podnaslova, bez kljucnih
      rijeci).

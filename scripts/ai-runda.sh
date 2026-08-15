@@ -34,16 +34,34 @@ if [[ ! -f "$POPIS" ]]; then
   exit 1
 fi
 
-# Dvostruka brana povrh recepta: i da model u sesiji zaluta, mutirajuci alati su iskljuceni.
-# Napomena odrzavanja: ovo je crna lista, pa je svaki NOVI mutirajuci alat po defaultu
-# dozvoljen dok se ovdje ne doda. Pri dodavanju alata u MCP server provjeri i ovu listu.
-# olx_sponsor_plan je tu jer pise plan-izdvajanja.json i zauzima lock (runda je read-only);
-# olx_opisi_sliku jer placa Anthropic API po pozivu, a runda ne radi sa slikama.
-ZABRANJENI="mcp__olx-pik__olx_update_listing,mcp__olx-pik__olx_create_listing,mcp__olx-pik__olx_publish_listing,mcp__olx-pik__olx_refresh_listing,mcp__olx-pik__olx_refresh_bulk,mcp__olx-pik__olx_sponsor_listing,mcp__olx-pik__olx_set_discount,mcp__olx-pik__olx_finish_discount,mcp__olx-pik__olx_finish_listing,mcp__olx-pik__olx_hide_listing,mcp__olx-pik__olx_unhide_listing,mcp__olx-pik__olx_bulk_price,mcp__olx-pik__olx_bulk_sklanjanje,mcp__olx-pik__olx_upload_images,mcp__olx-pik__olx_delete_image,mcp__olx-pik__olx_set_main_image,mcp__olx-pik__olx_sponsor_plan,mcp__olx-pik__olx_opisi_sliku"
+# Bijela lista umjesto crne: mcp__olx-pik vise nije dozvoljen kao cijeli server, nego se
+# nabraja tacno onih par alata koje runda smije zvati. Crna lista je propustala upravo ono
+# zbog cega je postojala: olx_opisi_sliku je bio zabranjen jer placa Anthropic API po pozivu,
+# a olx_generiraj_sliku (skuplji i uz to pise na disk) NIJE bio na spisku, jer je dosao poslije
+# i niko nije azurirao branu. Bijela lista taj rizik ne nosi: novi alat u MCP serveru je po
+# defaultu NEDOSTUPAN dok se ovdje eksplicitno ne doda.
+#
+# Runda je strogo read-only nad OLX-om (vidi runtime/recepti/ai-runda.md), pa NIJEDAN alat koji
+# mijenja stanje ili trosi kredite nije na ovom spisku: ni objave, ni obnove, ni izdvajanje, ni
+# slike, ni cijene. olx_zabiljezi_saznanje je izuzetak jer ne dira OLX, samo pise lokalnu
+# biljesku o odstupanju platforme (CLAUDE.md trazi da se to zabiljezi odmah).
+#
+# Spisak prati korake recepta runtime/recepti/ai-runda.md:
+#   1. olx_whoami, olx_profile_stats
+#   2. olx_account_alerts, olx_mrtvi_oglasi
+#   3. olx_onboarding_report
+#   4. olx_competitor_report i olx_user_profile (zove ih podagent olx-konkurent, koji u
+#      .claude/agents/ ima tacno ta dva alata; olx-seo-pisac i olx-trijaza imaju samo Read)
+DOZVOLJENI="mcp__olx-pik__olx_whoami,mcp__olx-pik__olx_profile_stats,mcp__olx-pik__olx_account_alerts,mcp__olx-pik__olx_mrtvi_oglasi,mcp__olx-pik__olx_onboarding_report,mcp__olx-pik__olx_competitor_report,mcp__olx-pik__olx_user_profile,mcp__olx-pik__olx_zabiljezi_saznanje,Read,Task,Write(.olx-pik/prijedlozi/**)"
 
-# U print modu nema koga da klikne na permission prompt, pa se sve sto sesija smije mora
-# dozvoliti unaprijed. Write je suzen na folder prijedloga.
-DOZVOLJENI="mcp__olx-pik,Read,Task,Write(.olx-pik/prijedlozi/**)"
+# Pojas i tregere povrh bijele liste: bijela lista je vec dovoljna brana (alat koji nije na
+# njoj se ne moze pozvati), ali ako model u sesiji nekim putem ipak zatrazi mutirajuci alat,
+# ovo je druga, nezavisna prepreka. Za razliku od DOZVOLJENI ovo NIJE kompletan spisak svih
+# alata ovog MCP servera nego samo onih koji mijenjaju stanje na OLX-u ili trose kredit; alati
+# koji pisu samo lokalnu konfiguraciju klona (olx_zapamti, olx_ritam_obnova, olx_izuzeca,
+# olx_limit_slika, olx_pozadina) namjerno nisu ovdje, jer ne diraju shop ni novac. Pri dodavanju
+# NOVOG mutirajuceg ili placenog alata u MCP server, dodaj ga i ovdje.
+ZABRANJENI="mcp__olx-pik__olx_update_listing,mcp__olx-pik__olx_create_listing,mcp__olx-pik__olx_publish_listing,mcp__olx-pik__olx_refresh_listing,mcp__olx-pik__olx_refresh_bulk,mcp__olx-pik__olx_sponsor_listing,mcp__olx-pik__olx_set_discount,mcp__olx-pik__olx_finish_discount,mcp__olx-pik__olx_finish_listing,mcp__olx-pik__olx_hide_listing,mcp__olx-pik__olx_unhide_listing,mcp__olx-pik__olx_skini_artikal,mcp__olx-pik__olx_vrati_artikal,mcp__olx-pik__olx_bulk_price,mcp__olx-pik__olx_bulk_sklanjanje,mcp__olx-pik__olx_upload_images,mcp__olx-pik__olx_delete_image,mcp__olx-pik__olx_set_main_image,mcp__olx-pik__olx_sponsor_plan,mcp__olx-pik__olx_opisi_sliku,mcp__olx-pik__olx_generiraj_sliku"
 
 javi_adminu() {
   # Isti best-effort obrazac kao u azuriraj-sve.sh: bez tokena u okruzenju se samo preskoci.
