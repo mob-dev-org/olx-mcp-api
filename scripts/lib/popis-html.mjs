@@ -121,7 +121,7 @@ function filtriraj() {
       const poProfilu =
         profil === "svi" ||
         !tr.dataset.profil ||
-        (profil === "klijent" ? tr.dataset.profil === "oba" : tr.dataset.profil === "admin");
+        (profil === "klijent" ? tr.dataset.profil !== "admin" : tr.dataset.profil !== "klijent");
       const vidljiv = poTekstu && poProfilu;
       tr.hidden = !vidljiv;
       if (vidljiv) vidljivih += 1;
@@ -174,7 +174,7 @@ function redoviAlata(podaci) {
       [
         { tekst: a.ime, klasa: "ime" },
         { tekst: a.opis ?? "" },
-        { tekst: a.profil === "admin" ? "samo admin" : "klijent i admin" },
+        { tekst: a.profil === "admin" ? "samo admin" : a.profil === "klijent" ? "samo klijent" : "klijent i admin" },
         { tekst: a.vrsta, klasa: klasaVrste(a.vrsta) },
         { tekst: a.traziPotvrdu ? "da" : "" },
         { tekst: a.uslov ? a.uslovOpis ?? a.uslov : "" },
@@ -289,7 +289,7 @@ export function uHtml(podaci) {
 
   const brojke = [
     ["alata", podaci.alati.length],
-    ["klijentu dostupno", podaci.alati.filter((a) => a.profil === "oba").length],
+    ["klijentu dostupno", podaci.alati.filter((a) => a.profil !== "admin").length],
     ["resursa", podaci.resursi.length],
     ["CLI komandi", podaci.cli.filter((k) => !k.grupa).length],
     ["zakazanih poslova", podaci.poslovi.length],

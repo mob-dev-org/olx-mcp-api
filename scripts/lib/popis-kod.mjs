@@ -47,7 +47,7 @@ export async function skupiMcp(korijen) {
   process.env.OLX_SLIKA_API_KEY ||= "popis-mogucnosti";
 
   const m = await uvezi(korijen, ["dist", "mcp", "server.js"]);
-  const { POPIS_ALATA, POPIS_RESURSA, SAMO_ADMIN, USLOVI } = m;
+  const { POPIS_ALATA, POPIS_RESURSA, SAMO_ADMIN, SAMO_KLIJENT, USLOVI } = m;
 
   if (!Array.isArray(POPIS_ALATA) || POPIS_ALATA.length === 0) {
     throw new Error("dist/mcp/server.js nije prijavio nijedan alat. Je li build zastario?");
@@ -69,7 +69,7 @@ export async function skupiMcp(korijen) {
   const alati = POPIS_ALATA.map((a) => ({
     ...a,
     // Profil se izvodi, ne cita drugim procesom: filter u serveru je tacno ovaj uslov.
-    profil: SAMO_ADMIN.has(a.ime) ? "admin" : "oba",
+    profil: SAMO_ADMIN.has(a.ime) ? "admin" : SAMO_KLIJENT.has(a.ime) ? "klijent" : "oba",
     vrsta: a.samoCitanje ? "citanje" : a.razoran ? "trosak ili nepovratno" : "upis",
     uslovOpis: a.uslov ? USLOVI[a.uslov] : undefined,
   })).sort(poPolju("ime"));

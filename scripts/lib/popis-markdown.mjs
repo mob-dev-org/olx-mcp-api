@@ -61,7 +61,8 @@ function formatPodrazumijevano(postavka) {
 }
 
 function naslovProfila(alat) {
-  return alat.profil === "admin" ? "samo admin" : "oba";
+  if (alat.profil === "admin") return "samo admin";
+  return alat.profil === "klijent" ? "samo klijent" : "oba";
 }
 
 function sekcijaAlati(podaci) {
@@ -255,7 +256,7 @@ function sekcijaAgenti(podaci) {
 }
 
 function sekcijaSazetak(podaci) {
-  const klijentuDostupno = podaci.alati.filter((a) => a.profil === "oba").length;
+  const klijentuDostupno = podaci.alati.filter((a) => a.profil !== "admin").length;
   const cliKomandi = podaci.cli.filter((k) => !k.grupa).length;
 
   return [
