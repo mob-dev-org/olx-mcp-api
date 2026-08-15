@@ -4,11 +4,12 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   obrisiSnapshotUToku,
+  proredjiStareSnapshote,
   putanjaSnapshotaUToku,
   SNAPSHOT_DIR,
   ucitajSnapshote,
@@ -282,4 +283,94 @@ test("ime radnog fajla ne odgovara obrascu za dnevne snapshote", () => {
   const ime = putanjaSnapshotaUToku({}).split("/").pop() ?? "";
   assert.match(ime, /^\./, "ime radnog fajla pocinje tackom");
   assert.equal(/^views-\d{4}-\d{2}-\d{2}\.json$/.test(ime), false);
+});
+
+// ===== proredjiStareSnapshote =====
+
+function pisiSnapshotDatuma(dir: string, datum: string): void {
+  writeFileSync(join(dir, `views-${datum}.json`), JSON.stringify(snapshot(0)), "utf8");
+}
+
+test("proredjiStareSnapshote cuva sve snapshote novije od praga", () => {
+  const dir = radniDir();
+  try {
+    const danas = new Date();
+    const format = (d: Date) => d.toISOString().slice(0, 10);
+    for (const dana of [0, 3, 10]) {
+      pisiSnapshotDatuma(dir, format(new Date(danas.getTime() - dana * 24 * 60 * 60 * 1000)));
+    }
+    const r = proredjiStareSnapshote(dir, { pragDana: 30, gustinaDana: 7 });
+    assert.deepEqual(r, { obrisano: 0, zadrzano: 3 }, "sve unutar praga ostaju, nijedno se ne dira");
+    assert.equal(readdirSync(dir).length, 3);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("proredjiStareSnapshote iznad praga zadrzava samo prvi u svakom bloku od gustinaDana", () => {
+  const dir = radniDir();
+  try {
+    // Fiksni, davno prosli datumi (1970), pa su "iznad praga" bez obzira na danasnji datum.
+    // Sa gustinaDana=7: dani od epohe za 01-05 je 4 (blok 0); za 01-08 je 7 (blok 1); za
+    // 01-12 je 11 (blok 1, isti kao 01-08). Ocekivano: 01-05 i 01-08 (najstariji u svom bloku)
+    // ostaju, 01-12 se brise jer dijeli blok sa vec zadrzanim 01-08.
+    pisiSnapshotDatuma(dir, "1970-01-05");
+    pisiSnapshotDatuma(dir, "1970-01-08");
+    pisiSnapshotDatuma(dir, "1970-01-12");
+
+    const r = proredjiStareSnapshote(dir, { pragDana: 30, gustinaDana: 7 });
+    assert.deepEqual(r, { obrisano: 1, zadrzano: 2 });
+    assert.deepEqual(
+      readdirSync(dir).sort(),
+      ["views-1970-01-05.json", "views-1970-01-08.json"],
+      "najstariji clan svakog bloka ostaje, ostali u istom bloku se brisu",
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("proredjiStareSnapshote ne dira radni fajl ni bilo koje drugo ime", () => {
+  const dir = radniDir();
+  try {
+    pisiSnapshotDatuma(dir, "1970-01-08"); // blok 1 (najstariji, ostaje)
+    pisiSnapshotDatuma(dir, "1970-01-12"); // blok 1, isti kao gore, brise se
+    writeFileSync(join(dir, ".snapshot-u-toku.json"), "{}", "utf8");
+    writeFileSync(join(dir, "nesto-drugo.txt"), "x", "utf8");
+
+    const r = proredjiStareSnapshote(dir, { pragDana: 30, gustinaDana: 7 });
+    assert.equal(r.obrisano, 1, "samo views-1970-01-12.json je kandidat za brisanje");
+    assert.equal(existsSync(join(dir, ".snapshot-u-toku.json")), true, "radni fajl ostaje netaknut");
+    assert.equal(existsSync(join(dir, "nesto-drugo.txt")), true, "nepoznato ime ostaje netaknuto");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("proredjiStareSnapshote na nepostojecem direktoriju vraca nule bez greske", () => {
+  assert.deepEqual(
+    proredjiStareSnapshote(join(tmpdir(), "olx-snapshoti-proredi-ne-postoji"), { pragDana: 30, gustinaDana: 7 }),
+    { obrisano: 0, zadrzano: 0 },
+  );
+});
+
+test("proredjiStareSnapshote: fajl koji se ne da obrisati ne prekida ciscenje ostalih", () => {
+  const dir = radniDir();
+  try {
+    // Isti blok (1970, blok 1): 01-08 je najstariji i ostaje; 01-09 i 01-12 su kandidati za
+    // brisanje. 01-09 je namjerno direktorij (ne fajl), pa unlinkSync na njemu baca; funkcija
+    // ipak mora nastaviti i obrisati 01-12.
+    pisiSnapshotDatuma(dir, "1970-01-08");
+    mkdirSync(join(dir, "views-1970-01-09.json"));
+    pisiSnapshotDatuma(dir, "1970-01-12");
+
+    const r = proredjiStareSnapshote(dir, { pragDana: 30, gustinaDana: 7 });
+    assert.equal(r.zadrzano, 1, "samo najstariji (01-08) racuna se kao zadrzan");
+    assert.equal(r.obrisano, 1, "01-12 je uspjesno obrisan iako je 01-09 pukao");
+    assert.equal(existsSync(join(dir, "views-1970-01-08.json")), true);
+    assert.equal(existsSync(join(dir, "views-1970-01-09.json")), true, "direktorij koji se ne da obrisati ostaje");
+    assert.equal(existsSync(join(dir, "views-1970-01-12.json")), false, "01-12 je obrisan");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

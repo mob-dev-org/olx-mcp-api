@@ -79,6 +79,8 @@ function testConfig(overrides: Partial<OlxConfig> = {}): OlxConfig {
     maxTrajanjeSnapshotProlazaMs: 172800000,
     maxOglasaUOdgovoru: 500,
     maxStavkiUOdgovoru: 200,
+    snapshotProredjivanjePragDana: 90,
+    snapshotProredjivanjeGustinaDana: 7,
     ...overrides,
   };
 }

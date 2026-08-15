@@ -4,7 +4,16 @@
 // citanja moraju biti isti za CLI (koji pise) i MCP server (koji cita), pa zive na jednom
 // mjestu. Racunanje nad snapshotima je u stats.ts (ciste funkcije).
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname } from "node:path";
 import type { ViewsSnapshot, ViewsSnapshotOglas } from "./stats.js";
 
@@ -93,6 +102,76 @@ export function upisiSnapshot(snapshot: ViewsSnapshot, dir: string = SNAPSHOT_DI
   writeFileSync(tmp, `${JSON.stringify(snapshot)}\n`, "utf8");
   renameSync(tmp, putanja);
   return putanja;
+}
+
+export interface ProredjivanjeRezultat {
+  obrisano: number;
+  zadrzano: number;
+}
+
+// Prorjeduje stare dnevne snapshote (views-YYYY-MM-DD.json), da .olx-pik/snapshots i backup
+// stanja (src/core/backup-spisak.ts) ne rastu bez kraja.
+//
+// Pravilo (deterministicko, ne zavisi od redoslijeda citanja direktorija): snapshoti noviji od
+// `pragDana` se cuvaju SVI. Iznad tog praga se cuva samo PRVI (najstariji) snapshot u svakom
+// bloku od `gustinaDana` dana; blok se racuna od "dana 0" (1970-01-01 UTC) kao
+// floor(danaOdEpohe / gustinaDana), pa je pripadnost bloku cista funkcija datuma iz imena
+// fajla, a ne toga u kom redu ih citajuci direktorij vrati. Zadrzava se najstariji u bloku (ne
+// nasumican) jer je fajlovi() lista vec sortirana rastuce prije grupisanja, pa prvi susret sa
+// blokom u toj petlji uvijek jeste najstariji clan bloka.
+//
+// Datum se cita ISKLJUCIVO iz imena fajla (datumIzImena), nikad iz mtime ni sadrzaja: nijedan
+// fajl se ne otvara da bi se odlucilo o brisanju. `imenaSnapshota` hvata TACNO obrazac
+// "views-YYYY-MM-DD.json", pa radni fajl ".snapshot-u-toku.json" (pocinje tackom) i bilo koje
+// drugo ime nikad nisu kandidat za brisanje.
+//
+// Obrazac preslikava ocistiStareResurse (scripts/lib/resursi.mjs, oko linije 525): try/catch oko
+// CIJELOG poziva i oko SVAKOG pojedinacnog brisanja (jedan fajl koji se ne da obrisati ne
+// prekida ciscenje ostalih), nepostojeci direktorij vraca nule bez greske, funkcija NIKAD ne
+// baca. Samo brise fajlove: ne pise nista na disk i ne zove mrezu.
+//
+// `pragDana` i `gustinaDana` su konfigurabilni kroz okruzenje (OLX_SNAPSHOT_PROREDJIVANJE_PRAG_DANA,
+// OLX_SNAPSHOT_PROREDJIVANJE_GUSTINA_DANA, procitani preko loadConfig u config.ts); ova funkcija
+// ostaje cista prema env-u (isti obrazac kao ostale core cisto-racunske funkcije: mrtviOglasi,
+// intervalUzPrag) i prima vec izvucene brojeve, sa defaultima koji se poklapaju sa loadConfig().
+export function proredjiStareSnapshote(
+  dir: string = SNAPSHOT_DIR,
+  opcije: { pragDana?: number; gustinaDana?: number } = {},
+): ProredjivanjeRezultat {
+  const pragDana = opcije.pragDana ?? 90;
+  const gustinaDana = opcije.gustinaDana ?? 7;
+  let obrisano = 0;
+  let zadrzano = 0;
+  try {
+    if (!existsSync(dir)) return { obrisano: 0, zadrzano: 0 };
+    const granica = datumGranice(pragDana);
+    const fajlovi = imenaSnapshota(dir); // rastuce sortirano (leksikografski = hronoloski)
+    const zadrzaniBlokovi = new Set<number>();
+
+    for (const f of fajlovi) {
+      const datum = datumIzImena(f);
+      if (datum >= granica) {
+        zadrzano += 1;
+        continue;
+      }
+      const danaOdEpohe = Math.floor(Date.parse(`${datum}T00:00:00Z`) / 86_400_000);
+      const blok = Math.floor(danaOdEpohe / gustinaDana);
+      if (!zadrzaniBlokovi.has(blok)) {
+        zadrzaniBlokovi.add(blok); // prvi susret sa blokom je najstariji clan (niz je sortiran)
+        zadrzano += 1;
+        continue;
+      }
+      try {
+        unlinkSync(`${dir}/${f}`);
+        obrisano += 1;
+      } catch {
+        // jedan fajl koji se ne da obrisati ne smije prekinuti ciscenje ostalih
+      }
+    }
+    return { obrisano, zadrzano };
+  } catch {
+    return { obrisano, zadrzano };
+  }
 }
 
 // ===== radni fajl "stats snapshot" prolaza u toku =====

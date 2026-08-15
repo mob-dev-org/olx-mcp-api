@@ -101,6 +101,20 @@ export interface OlxConfig {
    * vidljiv: uz odsjecenu listu ide broj koliko je stvarno bilo (src/core/obuhvat.ts).
    */
   maxStavkiUOdgovoru: number;
+  /**
+   * Iznad ove starosti (dana) se dnevni snapshoti pregleda (`views-YYYY-MM-DD.json`) vise ne
+   * cuvaju za svaki dan, nego prorjeduju na `snapshotProredjivanjeGustinaDana` (funkcija
+   * `proredjiStareSnapshote`, snapshoti.ts). Iznad ove granice dnevna preciznost vec izgubi
+   * smisao za postojecu analizu (`mrtviOglasi` trazi 14 dana, efekat izdvajanja do ~30), a
+   * fajl po danu na velikom katalogu je krupan i sve ih nosi backup stanja
+   * (`src/core/backup-spisak.ts`).
+   */
+  snapshotProredjivanjePragDana: number;
+  /**
+   * Iznad praga starosti se cuva samo prvi (najstariji) snapshot u svakom bloku od ovoliko dana
+   * (npr. 7 = priblizno sedmicno). Vidi `proredjiStareSnapshote` (snapshoti.ts) za tacno pravilo.
+   */
+  snapshotProredjivanjeGustinaDana: number;
 }
 
 function num(value: string | undefined, fallback: number): number {
@@ -177,6 +191,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): OlxConfig {
     maxTrajanjeSnapshotProlazaMs: num(env.OLX_MAX_TRAJANJE_SNAPSHOT_PROLAZA_MS, 172800000),
     maxOglasaUOdgovoru: num(env.OLX_MAX_OGLASA_U_ODGOVORU, 500),
     maxStavkiUOdgovoru: num(env.OLX_MAX_STAVKI_U_ODGOVORU, 200),
+    snapshotProredjivanjePragDana: num(env.OLX_SNAPSHOT_PROREDJIVANJE_PRAG_DANA, 90),
+    snapshotProredjivanjeGustinaDana: num(env.OLX_SNAPSHOT_PROREDJIVANJE_GUSTINA_DANA, 7),
   };
 }
 
