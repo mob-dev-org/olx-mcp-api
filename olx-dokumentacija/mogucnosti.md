@@ -344,12 +344,6 @@ ADMIN poslovi nemaju Windows blizanca namjerno: admin masina na Windowsu nije up
 | OLX_TOKEN | token |  |  |
 | OLX_USERNAME | username |  |  |
 
-### Razilazenja za provjeru
-
-Prazna vrijednost varijable ovdje daje drugaciji rezultat nego kad varijabla uopste nije postavljena. Ovo nije nuzno greska, ali vrijedi provjeriti da li je to namjera:
-
-- OLX_BASE_URL: prazna vrijednost daje drugaciji rezultat nego odsutna varijabla (polje baseUrl: "" naspram "https://api.olx.ba")
-
 ## Varijable okruzenja u cijelom repou
 
 Ukupno 95 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 86 cini konfiguraciju klona.
@@ -381,7 +375,7 @@ Nema takvih.
 | OLX_AUDIT_FILE | konfiguracija klona | 6 | src/core/audit.test.ts, src/core/audit.ts, src/core/backup-spisak.test.ts, src/core/backup-spisak.ts, src/core/client.test.ts, src/core/config.ts | da |
 | OLX_AUDIT_READS | konfiguracija klona | 2 | src/core/client.test.ts, src/core/config.ts | da |
 | OLX_BACKUP_PRAG_DANA | konfiguracija klona | 1 | scripts/backup-nadzor.sh | da |
-| OLX_BASE_URL | konfiguracija klona | 5 | scripts/lib/mock-olx-server.mjs, scripts/lib/pokreni-cli.mjs, src/core/client.test.ts, src/core/config.ts, src/core/link.ts | da |
+| OLX_BASE_URL | konfiguracija klona | 6 | scripts/lib/mock-olx-server.mjs, scripts/lib/pokreni-cli.mjs, src/core/client.test.ts, src/core/config.test.ts, src/core/config.ts, src/core/link.ts | da |
 | OLX_BUDZET_LISTE_GRUPNI_MS | konfiguracija klona | 1 | src/core/config.ts | da |
 | OLX_BUDZET_LISTE_KONKURENT_MS | konfiguracija klona | 1 | src/core/config.ts | da |
 | OLX_BUDZET_LISTE_MS | konfiguracija klona | 1 | src/core/config.ts | da |
