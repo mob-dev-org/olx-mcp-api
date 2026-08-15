@@ -1,10 +1,9 @@
 ---
 name: olx-serijski-posao
 description: >-
-  Posao koji ide kroz mnogo oglasa odjednom: SEO prolaz, ciscenje kataloga, obilazak konkurenata,
-  duga lista za objavu kroz vise dana. Okidaci: "prodji kroz sve oglase", "sredi cijeli katalog",
-  "ocisti katalog", "provjeri sve konkurente", "objavi cijelu listu", "export sa shopa". Samo za
-  admin sesiju, ne za razgovor sa klijentom.
+  Posao koji ide kroz mnogo oglasa odjednom: SEO prolaz, ciscenje kataloga, duga lista za objavu
+  kroz vise dana. Okidaci: "prodji kroz sve oglase", "sredi cijeli katalog", "ocisti katalog",
+  "objavi cijelu listu", "export sa shopa". Samo za admin sesiju, ne za razgovor sa klijentom.
 ---
 
 # Serijski posao kroz mnogo oglasa

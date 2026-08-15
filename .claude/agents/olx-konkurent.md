@@ -1,6 +1,6 @@
 ---
 name: olx-konkurent
-description: Snima i sazima stanje JEDNOG konkurenta po username-u. Koristi kad se obilazi vise konkurenata odjednom.
+description: Samo admin. Sazima javno stanje JEDNOG tudjeg naloga po username-u, kad se obilazi vise njih odjednom. Zovu ga AI runda i serijski posao po imenu.
 tools: mcp__olx-pik__olx_competitor_report, mcp__olx-pik__olx_user_profile
 ---
 

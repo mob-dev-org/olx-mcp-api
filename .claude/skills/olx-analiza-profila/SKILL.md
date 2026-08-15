@@ -2,8 +2,8 @@
 name: olx-analiza-profila
 description: >-
   Analiza vlastitog OLX/PIK shopa i savjet sta popraviti: oglasi, cijene, svjezina, sta obnoviti
-  ili izdvojiti. Pokriva i analizu konkurenta po username-u. Okidaci: "analiziraj moje oglase",
-  "zasto nemam pozive", "pregled profila", "sta da izdvojim", "analiziraj konkurenta".
+  ili izdvojiti. Okidaci: "analiziraj moje oglase", "zasto nemam pozive", "pregled profila",
+  "sta da izdvojim".
 ---
 
 # OLX/PIK analiza profila i savjetovanje

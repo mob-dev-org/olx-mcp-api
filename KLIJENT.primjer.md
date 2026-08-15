@@ -5,7 +5,7 @@ klijenta; ovaj sablon ide u git. Jedan klon repozitorija radi za jednog klijenta
 novog, kloniraj repo ponovo.
 
 Brojeve koji se mijenjaju (paket, krediti, kvota obnova, broj oglasa) ne prepisuj ovdje. Oni se
-citaju sa API-ja (`olx_whoami`, `olx_user_profile`, `olx_refresh_limits`), inace zastare i bot
+citaju sa API-ja (`olx_whoami`, `olx_profile_stats`, `olx_refresh_limits`), inace zastare i bot
 savjetuje na osnovu neceg netacnog.
 
 ## Ko je klijent
