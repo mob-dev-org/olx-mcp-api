@@ -1654,7 +1654,13 @@ server.registerTool(
     description:
       "Sklanja vise oglasa odjednom: radnja 'hide' kad se artikal vraca na stanje, 'finish' kad je prodan (ostaje u historiji profila). confirm=false (default) vraca samo listu. Zavrsavanje se kroz ovaj server NE moze ponistiti, pa listu obavezno pokazi korisniku prije potvrde. Kratak spisak ids cita samo te oglase, dug spisak ide preko kataloga i staje ako ga ne procita u cijelosti.",
     inputSchema: {
-      ids: z.array(z.number().int()).min(1).max(4600),
+      ids: z
+        .array(z.number().int())
+        .min(1)
+        .max(
+          4600,
+          "Spisak ids je predug za jedan poziv. Podijeli ga u manje grupe i pozovi alat vise puta; svaka grupa ide sa svojom potvrdom.",
+        ),
       radnja: z.enum(["hide", "finish"]),
       confirm: z.boolean().default(false),
     },
@@ -1708,11 +1714,19 @@ server.registerTool(
       if (!args.confirm) {
         const oglasiOdsjecak = odsijeciSpisak(izabrani, config.maxStavkiUOdgovoru);
         const nisuAktivniOdsjecak = odsijeciSpisak(nepoznati, config.maxStavkiUOdgovoru);
+        // Kad je spisak rezan, potvrda se daje nad skupom koji je covjek vidio samo dijelom, a
+        // 'finish' se kroz ovaj server ne vraca. Polje `oglasi_ukupno` pored liste nije dovoljno:
+        // model prepricava odgovor svojim rijecima i bez izricite recenice prepricao bi ga kao da
+        // je prikazan cijeli spisak. Zato napomena ide RIJECIMA, ne samo kao broj.
+        const napomena = oglasiOdsjecak.odsjeceno
+          ? `Prikazano je prvih ${oglasiOdsjecak.stavke.length} od ${oglasiOdsjecak.ukupno} oglasa. Potvrda se odnosi na SVIH ${oglasiOdsjecak.ukupno}, ne samo na prikazane. Reci to korisniku prije nego zatrazis potvrdu.`
+          : null;
         return {
           dry_run: true,
           radnja: args.radnja,
           oglasi: oglasiOdsjecak.stavke,
           ...(oglasiOdsjecak.odsjeceno ? { oglasi_ukupno: oglasiOdsjecak.ukupno } : {}),
+          ...(napomena ? { napomena } : {}),
           nisu_aktivni: nisuAktivniOdsjecak.stavke,
           ...(nisuAktivniOdsjecak.odsjeceno ? { nisu_aktivnih_ukupno: nisuAktivniOdsjecak.ukupno } : {}),
           ...(stanjeProvjereno ? {} : { stanje_provjereno: false }),

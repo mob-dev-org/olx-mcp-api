@@ -18,10 +18,14 @@ test("loadConfig: prazan OLX_BASE_URL pada na podrazumijevani, ne na prazan stri
   assert.equal(loadConfig({ OLX_BASE_URL: "" }).baseUrl, PODRAZUMIJEVANI_BASE_URL);
 });
 
-test("loadConfig: OLX_BASE_URL koji je samo razmaci se tretira kao zadan", () => {
-  // Namjerno: `||` hvata samo prazan string. Razmaci su i dalje "nesto je zadano", pa se ne
-  // pogadja sta je korisnik mislio. Ovo fiksira zateceno ponasanje, da promjena bude svjesna.
-  assert.equal(loadConfig({ OLX_BASE_URL: "   " }).baseUrl, "   ");
+test("loadConfig: OLX_BASE_URL od samih razmaka pada na podrazumijevani", () => {
+  // Adresa od samih razmaka ne moze biti ispravna ni u jednom citanju, a otkazala bi isto kao
+  // prazna: svi pozivi pucaju bez ocitog razloga. Zato se trimuje i tretira kao nezadano.
+  assert.equal(loadConfig({ OLX_BASE_URL: "   " }).baseUrl, PODRAZUMIJEVANI_BASE_URL);
+});
+
+test("loadConfig: OLX_BASE_URL sa razmacima oko adrese zadrzava adresu", () => {
+  assert.equal(loadConfig({ OLX_BASE_URL: "  https://proba.local  " }).baseUrl, "https://proba.local");
 });
 
 test("loadConfig: zadan OLX_BASE_URL se koristi i gubi kose crte na kraju", () => {

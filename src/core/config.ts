@@ -127,10 +127,11 @@ function deviceIme(env: NodeJS.ProcessEnv): string {
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): OlxConfig {
   return {
-    // `||`, ne `??`: prazan `OLX_BASE_URL=` u .env je cesta greska pri postavci klona, a `??` bi
-    // praznu vrijednost propustio kao ispravnu i svaki API poziv bi pucao bez ocitog razloga.
-    // Prazna vrijednost znaci "nije zadano", isto kao izostanak varijable, kao i kod ostalih polja.
-    baseUrl: (env.OLX_BASE_URL || "https://api.olx.ba").replace(/\/+$/, ""),
+    // Trim pa `||`, ne `??`: prazan ili razmacima popunjen `OLX_BASE_URL=` u .env je cesta greska
+    // pri postavci klona. Adresa od samih razmaka ne moze biti ispravna ni u jednom citanju, a
+    // otkazala bi isto kao prazna: svi API pozivi pucaju bez ocitog razloga. Zato oboje znaci
+    // "nije zadano", isto kao izostanak varijable, kao i kod ostalih polja.
+    baseUrl: (env.OLX_BASE_URL?.trim() || "https://api.olx.ba").replace(/\/+$/, ""),
     token: env.OLX_TOKEN || undefined,
     username: env.OLX_USERNAME || undefined,
     password: env.OLX_PASSWORD || undefined,
