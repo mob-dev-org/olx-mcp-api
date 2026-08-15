@@ -17,6 +17,7 @@ import { withAuditContext } from "../core/audit.js";
 import { VERZIJA } from "../core/verzija.js";
 import { parseSponsorOptions } from "../core/sponsor-options.js";
 import { odaberiStrategiju, odsijeciSpisak, podijeliUKomade, uputaZaNepotpun } from "../core/obuhvat.js";
+import { suziKategorijeIndeks } from "../core/kategorije-indeks.js";
 import {
   efekatIzdvajanja,
   izracunajNoveCijene,
@@ -329,14 +330,22 @@ server.registerResource(
   },
 );
 
-// ---- Lagani CSV index kategorija (preferirano za pretragu) ----
+// ---- CSV index kategorija: SAMO gornji nivoi (za orijentaciju, ne za konacan izbor) ----
+// Cijeli CSV ima >2000 redova; puni ga ne servira ni admin ni klijent profil. Rez je vidljiv kroz
+// # napomenu na vrhu CSV-a (suziKategorijeIndeks u core).
+//
+// Uputa KOJIM alatom se ide dublje zavisi od profila: olx_find_category i olx_category_children su
+// u SAMO_ADMIN, pa u klijentskom profilu ne postoje. Klijent kategoriju bira olx_suggest_category
+// alatom. Zato i opis i napomena u CSV-u granaju po profilu; jedan tekst za oba bi klijenta slao
+// na alat koji ne moze pozvati.
 server.registerResource(
   "categories-index",
   "olx://categories-index",
   {
-    title: "OLX/PIK index kategorija (CSV)",
-    description:
-      "Lagani CSV za PRONALAZAK kategorije: kolone id, parent_id, level, path, name i zastavice (brand_required, model_required, has_models, show_condition, listing_fee, base_listing_price). Koristi OVO za izbor kategorije po imenu/path. Za forme i opcije izabrane kategorije pozovi alat olx_category_attributes <id> (i olx_category za detalje), ne ucitavaj cijeli categories JSON.",
+    title: "OLX/PIK index kategorija (CSV, samo gornji nivoi)",
+    description: zaKlijenta
+      ? "CSV sa SAMO gornjim nivoima stabla kategorija (kolone id, parent_id, level, path, name i zastavice brand_required, model_required, has_models, show_condition, listing_fee, base_listing_price); napomena na vrhu kaze koliko je redova prikazano od ukupno. Za konkretnu kategoriju koristi olx_suggest_category, a obavezna polja forme procitaj alatom olx_category_attributes <id>."
+      : "CSV sa SAMO gornjim nivoima stabla kategorija (kolone id, parent_id, level, path, name i zastavice brand_required, model_required, has_models, show_condition, listing_fee, base_listing_price); napomena na vrhu kaze koliko je redova prikazano od ukupno. Kategoriju po imenu nadji alatom olx_find_category, spusti se niz stablo alatom olx_category_children <id>, a obavezna polja forme procitaj alatom olx_category_attributes <id>.",
     mimeType: "text/csv",
   },
   async (uri) => {
@@ -351,7 +360,8 @@ server.registerResource(
         ],
       };
     }
-    const text = readFileSync(CATEGORIES_CSV_PATH, "utf8");
+    const puniCsv = readFileSync(CATEGORIES_CSV_PATH, "utf8");
+    const { text } = suziKategorijeIndeks(puniCsv, undefined, zaKlijenta);
     return { contents: [{ uri: uri.href, mimeType: "text/csv", text }] };
   },
 );
