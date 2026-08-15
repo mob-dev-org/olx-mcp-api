@@ -13,7 +13,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const KORIJEN = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(KORIJEN);
@@ -122,9 +122,10 @@ if (!existsSync(".env")) {
   if (process.env.OLX_TOKEN || (process.env.OLX_USERNAME && process.env.OLX_PASSWORD)) ok("OLX pristup (token ili kredencijali)");
   else fali("OLX pristup", "ni OLX_TOKEN ni OLX_USERNAME/OLX_PASSWORD nisu postavljeni", "upisi OLX_TOKEN u .env");
 
-  const profil = (process.env.OLX_MCP_PROFILE ?? "").trim().toLowerCase();
-  if (profil === "klijent") ok("OLX_MCP_PROFILE=klijent");
-  else paznja("OLX_MCP_PROFILE", `"${profil || "(prazno)"}" pada na admin: klijent bi vidio i admin alate`, "postavi OLX_MCP_PROFILE=klijent u .env");
+  // OLX_MCP_PROFILE se ovdje NAMJERNO vise ne provjerava. Klijentski profil vise ne zavisi od te
+  // vrijednosti: MCP server sam prepoznaje klijentsku sesiju i tvrdo je suzava. Podrazumijevana
+  // vrijednost je od sada `admin`, da goli `claude` u klonu vlasniku da pun alat. Umjesto citanja
+  // varijable, nize (tacka 5b, poslije provjere builda) stoji MJERENJE stvarnog ishoda.
 
   for (const v of ["TELEGRAM_BOT_TOKEN", "TELEGRAM_ADMIN_CHAT_ID"]) {
     if (process.env[v]) ok(v);
@@ -223,6 +224,40 @@ else paznja("KLIJENT-javno.md", "bot ne zna ton, footer ni granice klijenta", `$
     }
     if (najnovijiSrc > statSync(cli).mtimeMs) fali("Build svjezina", "src/ je noviji od dist/, pogon vozi stari kod", "npm run build");
     else ok("Build svjez");
+  }
+}
+
+// 5b. Klijentski put STVARNO daje klijentski profil.
+//
+// Mjeri se ishod, ne cita vrijednost iz .env: `.env` od sada podrazumijevano kaze `admin` (da goli
+// `claude` u klonu vlasniku da pun alat), pa bi citanje varijable ovdje prijavilo kvar tamo gdje ga
+// nema, a pravi kvar (klijentska sesija koja dobije admin alate) ne bi ni primijetilo. Zove se ista
+// funkcija koju koristi i MCP server, sa okruzenjem kakvo klijentskoj sesiji pravi
+// `okruzenjeSesije` (scripts/lib/sesija.mjs), i to uz NAJGORI slucaj: .env koji kaze admin.
+{
+  const config = join("dist", "core", "config.js");
+  if (!existsSync(config)) {
+    paznja("Klijentski profil", "nema dist/core/config.js, provjera preskocena", "npm run build");
+  } else {
+    try {
+      const { odrediMcpProfil } = await import(pathToFileURL(resolve(config)).href);
+      const klijentskiPut = {
+        OLX_SESIJA_TIP: "klijent",
+        CLAUDE_CONFIG_DIR: join(process.cwd(), ".claude-runtime"),
+        OLX_MCP_PROFILE: "admin",
+      };
+      const dobijeno = odrediMcpProfil(klijentskiPut);
+      if (dobijeno === "klijent") ok("Klijentski profil (izmjeren, ne procitan iz .env)");
+      else {
+        fali(
+          "Klijentski profil",
+          `klijentska sesija bi dobila profil "${dobijeno}": musterija bi vidjela i admin alate`,
+          "prijavi ovo odmah, brana u src/core/config.ts (odrediMcpProfil) ne radi",
+        );
+      }
+    } catch (e) {
+      paznja("Klijentski profil", `provjera nije mogla da se izvrsi (${e?.message ?? e})`, "npm run build");
+    }
   }
 }
 

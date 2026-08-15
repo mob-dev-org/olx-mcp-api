@@ -52,8 +52,17 @@ export function provjeriPreduslove(tip, korijen, env) {
   if (!existsSync(join(korijen, ".env"))) {
     greske.push(`Nema .env u ${korijen}. Kopiraj .env.example i postavi OLX_TOKEN.`);
   }
-  if (!jeAdmin && (env.OLX_MCP_PROFILE ?? "").trim().toLowerCase() !== "klijent") {
-    upozorenja.push("Upozorenje: OLX_MCP_PROFILE nije klijent u .env. Klijent ce vidjeti i admin alate.");
+  // Ranije je ovdje stajalo upozorenje da ce klijent vidjeti admin alate ako .env ne kaze
+  // `klijent`. To vise nije tacno: klijentsku sesiju MCP server prepoznaje sam, po OLX_SESIJA_TIP
+  // odnosno po runtime mapi, i tvrdo je suzava bez obzira na .env (odrediMcpProfil,
+  // src/core/config.ts). Podrazumijevana vrijednost u .env je od sada `admin`, da goli `claude` u
+  // klonu daje pun alat vlasniku.
+  //
+  // Upozorenje se zato okrece: sada je vrijedno javiti SUPROTAN slucaj, kad .env tvrdi `klijent`
+  // za ADMIN bota, jer tu .env stvarno suzava i admin bi tiho ostao bez svojih alata. Klijentski
+  // smjer se ne provjerava jer ga .env vise ne moze pokvariti.
+  if (jeAdmin && (env.OLX_MCP_PROFILE ?? "").trim().toLowerCase() === "klijent") {
+    upozorenja.push("Upozorenje: OLX_MCP_PROFILE je klijent u .env. Admin bot ce ostati bez admin alata.");
   }
   return { greske, upozorenja };
 }
@@ -139,6 +148,10 @@ export function okruzenjeSesije({ osnova, aiEnv, obrisi, runtime, telegramDir, m
     CLAUDE_CONFIG_DIR: runtime,
     TELEGRAM_STATE_DIR: telegramDir,
     OLX_MCP_PROFILE: mcpProfil,
+    // Tip sesije, izricito. Ovo je PRVI sloj brane: MCP server po njemu sam prepoznaje klijentsku
+    // sesiju i tvrdo forsira klijentski profil, bez obzira sta pise u .env klona (odrediMcpProfil,
+    // src/core/config.ts). OLX_MCP_PROFILE iznad ostaje drugi sloj, ne jedini.
+    OLX_SESIJA_TIP: mcpProfil === "klijent" ? "klijent" : "admin-bot",
   };
   for (const kljuc of obrisi) delete okruzenje[kljuc];
   return okruzenje;
