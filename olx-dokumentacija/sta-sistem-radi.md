@@ -99,11 +99,20 @@ znati je li mu bolje ili gore.
 
 ## Konkurencija
 
-<!-- pokriva: olx_competitor_report, olx_user_profile, olx_onboarding_report, cli:users, posao:onboarding-puller -->
+<!-- pokriva: olx_competitor_report, olx_user_profile, olx_zabiljezi_konkurenta, olx_onboarding_report, cli:users, posao:onboarding-puller, posao:spomenuti -->
 
 Tudji shop se gleda samo javnim podacima, onim sto svako vidi na sajtu: koliko ima oglasa, koliko
 su svjezi, u kojem su rasponu cijene, koliko izdvajaju. Iz toga se vidi gdje si u odnosu na njih i
 sta rade drugacije.
+
+Ovo je posao koji radimo mi, ne bot u razgovoru sa vlasnikom shopa. Njemu pracenje drugih prodavaca
+nije u paketu i bot mu na takvo pitanje kaze da se javi nama. Kad vlasnik sam spomene ime nekog
+prodavca, bot to ime tiho zabiljezi, da znamo koga stvarno gleda; nista o tom nalogu se pritom ne
+dohvata i vlasniku se nista ne prikazuje.
+
+Ta imena se jednom dnevno skupe sa svih klijenata na jedno mjesto, objedinjena po prodavcu. Ime
+koje se ponavlja kod vise klijenata je jaci signal od imena koje je jednom palo kod jednog, pa se
+odmah vidi koga vrijedi pogledati.
 
 ## Nalog, limiti i lokacije
 

@@ -10,6 +10,27 @@ sekcija 7.
 
 ## Nije izdano
 
+**Ime prodavca koje klijent sam spomene se tiho zapise, i jednom dnevno skupi sa cijele flote.**
+Klijentu konkurencija nije u paketu i odgovor mu ostaje isti, ali ime koje je on sam naveo je bolji
+trag o tome koga stvarno gleda nego bilo koje nase pogadjanje. Bot ga upise u
+`.olx-pik/spomenuti-konkurenti.jsonl` svog klona i o tome ne kaze nista; ako ga covjek izricito
+pita pamti li, ne laze. Alat postoji SAMO u klijentskom profilu (novi `SAMO_KLIJENT`, obrnuto od
+`SAMO_ADMIN`), jer u admin sesiji nema sagovornika koji bi nekog spomenuo. Zapis nosi samo username
+i kratku napomenu, nikad preprican razgovor: ime se svodi na prvu rijec i na 60 znakova. U
+klijentskom razgovoru se odatle NIKAD nista ne cita, server uvozi samo funkciju upisa. Fajl ide u
+backup stanja, jer se ne moze rekonstruisati ni iz cega. `scripts/spomenuti-pokupi.mjs` (novi ADMIN
+posao, 08:15) obidje klonove iz `~/.olx-klijenti.txt` i slozi pregled objedinjen po prodavcu, sa
+brojem klijenata i brojem spominjanja; ime koje je palo kod vise klijenata stoji prvo. Za razliku
+od `saznanja-pokupi.sh` nema markera dokle je pokupljeno, jer je ovdje vrijedna slika stanja a ne
+dnevnik, pa se izlaz prepisuje.
+
+**Podsjetnik potrosnje resursa pri pokretanju sesije.** Telemetriju o RSS-u sesije, cuvara i masine
+`cuvar-sesije.mjs` vec skuplja sam, ali je niko nije citao. Novi `SessionStart` hook
+(`scripts/podsjetnik-resursi.mjs`) na startu ispise kratak pregled i komandu za punu istoriju. Tih
+je u klijentskoj bot sesiji, iz istog razloga kao provjera izdanja: izlaz hooka ulazi u kontekst, a
+klijent te brojeve ne treba vidjeti niti moze nesto po njima uraditi. Nikad ne pada i nikad ne visi;
+pad hooka bio bi pad pokretanja sesije.
+
 **Konkurencija vise nije dostupna klijentu; adminu ostaje sve.** Klijentski bot na svako pitanje o
 tudjim shopovima, poredjenju sa drugim prodavcima i njihovim cijenama odgovara da to nije dio
 njegovog paketa i upucuje na programere, bez obecanja da ce biti dostupno i bez rijeci o cijeni.

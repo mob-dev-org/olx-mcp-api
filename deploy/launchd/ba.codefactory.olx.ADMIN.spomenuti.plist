@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sablon. Instalira se RUCNO i samo JEDNOM na admin masini (kao i ADMIN.ai-runda), jer
+  skripta sama obilazi sve klonove iz ~/.olx-klijenti.txt.
+
+  Instalacija (KORIJEN je putanja glavnog repoa):
+    sed "s|KORIJEN|$PWD|g" deploy/launchd/ba.codefactory.olx.ADMIN.spomenuti.plist \
+      > ~/Library/LaunchAgents/ba.codefactory.olx.ADMIN.spomenuti.plist
+    launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/ba.codefactory.olx.ADMIN.spomenuti.plist
+
+  Jutro 08:15: petnaest minuta iza ADMIN.saznanja, da dva prolaza kroz sve klonove ne idu u isti
+  cas. Bez modela i bez troska: cisto citanje fajlova.
+
+  Izlaz se PREPISUJE svaki put (slika stanja, ne dnevnik), pa ponovno pokretanje nista ne duplira.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>ba.codefactory.olx.ADMIN.spomenuti</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>cd KORIJEN &amp;&amp; node scripts/spomenuti-pokupi.mjs</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>KORIJEN</string>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>8</integer>
+    <key>Minute</key><integer>15</integer>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>KORIJEN/.olx-pik/cron-spomenuti.log</string>
+  <key>StandardErrorPath</key>
+  <string>KORIJEN/.olx-pik/cron-spomenuti.log</string>
+</dict>
+</plist>

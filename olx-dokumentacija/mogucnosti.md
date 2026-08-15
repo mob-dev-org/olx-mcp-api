@@ -4,10 +4,10 @@ Ovaj fajl je GENERISAN iz koda, pravi ga `node scripts/popis-mogucnosti.mjs`. Ne
 
 ## Sazetak
 
-- MCP alata: 59, od toga klijentu dostupno: 43
+- MCP alata: 60, od toga klijentu dostupno: 44
 - MCP resursa: 8
 - CLI komandi: 62
-- Zakazanih poslova: 11
+- Zakazanih poslova: 12
 - Postavki: 29
 - Skillova: 11
 - Podagenata: 6
@@ -73,6 +73,7 @@ Ovaj fajl je GENERISAN iz koda, pravi ga `node scripts/popis-mogucnosti.mjs`. Ne
 | olx_user_profile | Javni profil tudjeg ili svog shopa po USERNAME-u: paket (Gold/Platinum), poslovni podaci, ocjene, medalje, vrijeme odgovora i datum registracije. | samo admin | citanje |  |
 | olx_vrati_artikal | Vraca ranije skinut artikal (id = originalni broj, vidi olx_arhiva lista). | oba | upis | da |
 | olx_whoami | Vraca trenutni nalog. Koristi za test pristupa API-ju. | oba | citanje |  |
+| olx_zabiljezi_konkurenta | Interno zapisi username drugog prodavca kojeg je korisnik sam spomenuo. | samo klijent | upis |  |
 | olx_zabiljezi_saznanje | Upisi jednu recenicu o neocekivanom ponasanju API-ja ili platforme (nesto radi drugacije od dokumentacije, nova greska, novo ogranicenje). | oba | upis |  |
 | olx_zapamti | Trajno zapise sto klijent kaze o sebi i svojim navikama, da se poslije restarta ne izgubi. | oba | upis |  |
 
@@ -307,6 +308,7 @@ Uslovni alati (registruju se samo pod navedenim uslovom):
 | nadzor-flote | ADMIN | svaki dan 06:30 | `node scripts/nadzor-flote.mjs` | nema (namjerno) |
 | onboarding-puller | ADMIN | svakih 3 minuta | `node scripts/onboarding-puller.mjs` | nema (namjerno) |
 | saznanja | ADMIN | svaki dan 08:00 | `scripts/saznanja-pokupi.sh` | nema (namjerno) |
+| spomenuti | ADMIN | svaki dan 08:15 | `node scripts/spomenuti-pokupi.mjs` | nema (namjerno) |
 | admin-bot | KLIJENT | stalno, dize se pri prijavi | `node scripts/cuvar-sesije.mjs admin-bot` | da |
 | backup | KLIJENT | svaki dan 08:10 | `node dist/cli/index.js posao backup` | da |
 | dnevno | KLIJENT | svaki dan 07:20 | `node dist/cli/index.js posao dnevni` | da |
@@ -352,12 +354,13 @@ ADMIN poslovi nemaju Windows blizanca namjerno: admin masina na Windowsu nije up
 
 ## Varijable okruzenja u cijelom repou
 
-Ukupno 102 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 93 cini konfiguraciju klona.
+Ukupno 104 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 95 cini konfiguraciju klona.
 
 Ostale dolaze iz okoline (harness sesije, plugin loader, proxy) i u `.env.example` namjerno ne stoje: klijent ih ne postavlja rukom. Zato se prazna kolona kod njih ne racuna kao propust.
 
 Varijable koje kod cita a kojih nema u `.env.example` (moguc propust u primjeru, klijent ne vidi da postoje):
 
+- OLX_PODSJETNIK_RESURSI_ROK_MS
 - OLX_SNAPSHOT_U_TOKU_FILE
 
 Varijable koje su u `.env.example` a kod ih nigdje ne cita (moguc visak ili zastarjela varijabla):
@@ -417,6 +420,7 @@ Nema takvih.
 | OLX_NADZOR_DIR | konfiguracija klona | 2 | deploy/launchd/ba.codefactory.olx.ADMIN.nadzor-flote.plist, scripts/nadzor-flote.mjs | da |
 | OLX_PAMCENJE_FILE | konfiguracija klona | 3 | src/core/backup-spisak.test.ts, src/core/backup-spisak.ts, src/core/pamcenje.ts | da |
 | OLX_PASSWORD | konfiguracija klona | 4 | scripts/provjeri-klon.mjs, scripts/provjeri-prompt.sh, src/core/config.ts, src/core/index.ts | da |
+| OLX_PODSJETNIK_RESURSI_ROK_MS | konfiguracija klona | 1 | scripts/podsjetnik-resursi.mjs |  |
 | OLX_POZADINA_DIR | konfiguracija klona | 2 | src/core/pozadina.test.ts, src/core/pozadina.ts | da |
 | OLX_PRIJEDLOZI_DIR | konfiguracija klona | 2 | src/core/backup-spisak.ts, src/core/prijedlozi.ts | da |
 | OLX_PROVJERA_IZDANJA_ROK_MS | konfiguracija klona | 1 | scripts/provjeri-izdanje.mjs | da |
@@ -445,6 +449,7 @@ Nema takvih.
 | OLX_SNAPSHOT_PROREDJIVANJE_GUSTINA_DANA | konfiguracija klona | 3 | scripts/lib/stats-snapshot.test.mjs, src/core/config.ts, src/core/snapshoti.ts | da |
 | OLX_SNAPSHOT_PROREDJIVANJE_PRAG_DANA | konfiguracija klona | 3 | scripts/lib/stats-snapshot.test.mjs, src/core/config.ts, src/core/snapshoti.ts | da |
 | OLX_SNAPSHOT_U_TOKU_FILE | konfiguracija klona | 2 | src/core/snapshoti.test.ts, src/core/snapshoti.ts |  |
+| OLX_SPOMENUTI_KONKURENTI_FILE | konfiguracija klona | 1 | src/core/spomenuti-konkurenti.ts | da |
 | OLX_STANJE_RADNA | konfiguracija klona | 2 | src/core/git-stanje.test.ts, src/core/git-stanje.ts | da |
 | OLX_STANJE_REPO | konfiguracija klona | 6 | deploy/windows/instaliraj-zadatke.ps1, scripts/backup-nadzor.sh, scripts/instaliraj-cron.sh, scripts/lib/analiza-flote.mjs, scripts/nadzor-flote.mjs, scripts/provjeri-klon.mjs | da |
 | OLX_STANJE_TOKEN | konfiguracija klona | 1 | src/core/git-stanje.ts | da |
