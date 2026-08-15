@@ -350,7 +350,7 @@ ADMIN poslovi nemaju Windows blizanca namjerno: admin masina na Windowsu nije up
 
 ## Varijable okruzenja u cijelom repou
 
-Ukupno 100 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 91 cini konfiguraciju klona.
+Ukupno 101 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 92 cini konfiguraciju klona.
 
 Ostale dolaze iz okoline (harness sesije, plugin loader, proxy) i u `.env.example` namjerno ne stoje: klijent ih ne postavlja rukom. Zato se prazna kolona kod njih ne racuna kao propust.
 
@@ -374,7 +374,7 @@ Nema takvih.
 | CLAUDE_CONFIG_DIR | daje okolina | 6 | deploy/windows/instaliraj-zadatke.ps1, scripts/claude-olx.sh, scripts/lib/popis-okruzenje.mjs, scripts/lib/sesija.mjs, scripts/lib/telegram-plugin.mjs, scripts/pokreni-klijenta.mjs | da |
 | CLAUDE_PLUGIN_ROOT | daje okolina | 2 | scripts/claude-olx.sh, scripts/lib/sesija.mjs |  |
 | DEEPSEEK_ENV_FILE | konfiguracija klona | 1 | scripts/deepseek-proba.mjs | da |
-| OLX_AI_USAGE_FILE | konfiguracija klona | 4 | scripts/ai-cijene.mjs, src/core/ai-dnevnik.ts, src/core/backup-spisak.ts, src/core/slika.test.ts | da |
+| OLX_AI_USAGE_FILE | konfiguracija klona | 5 | scripts/ai-cijene.mjs, src/core/ai-dnevnik.ts, src/core/backup-spisak.ts, src/core/slika.test.ts, src/core/vid.test.ts | da |
 | OLX_ARHIVA_DIR | konfiguracija klona | 2 | src/core/arhiva.test.ts, src/core/arhiva.ts | da |
 | OLX_AUDIT_FILE | konfiguracija klona | 6 | src/core/audit.test.ts, src/core/audit.ts, src/core/backup-spisak.test.ts, src/core/backup-spisak.ts, src/core/client.test.ts, src/core/config.ts | da |
 | OLX_AUDIT_READS | konfiguracija klona | 2 | src/core/client.test.ts, src/core/config.ts | da |
@@ -455,6 +455,7 @@ Nema takvih.
 | OLX_TOKEN | konfiguracija klona | 6 | deploy/windows/instaliraj-zadatke.ps1, scripts/ai-runda.sh, scripts/cuvar-sesije.mjs, scripts/lib/envfajl.mjs, scripts/lib/pokreni-cli.mjs, scripts/lib/sesija.mjs | da |
 | OLX_USERNAME | konfiguracija klona | 3 | scripts/provjeri-klon.mjs, src/core/config.ts, src/core/index.ts | da |
 | OLX_VID_API_KEY | konfiguracija klona | 6 | scripts/lib/popis-kod.mjs, src/core/telefon-ekstrakcija.test.ts, src/core/telefon-ekstrakcija.ts, src/core/vid.test.ts, src/core/vid.ts, src/mcp/server.ts | da |
+| OLX_VID_MAX_DNEVNO | konfiguracija klona | 2 | src/core/vid.test.ts, src/core/vid.ts | da |
 | OLX_VID_MODEL | konfiguracija klona | 2 | src/core/vid.test.ts, src/core/vid.ts | da |
 | PIKGPT_DIR | konfiguracija klona | 1 | scripts/lib/podesavanja.mjs | da |
 | PIKGPT_ONBOARDING_KEY | konfiguracija klona | 2 | scripts/lib/podesavanja.mjs, scripts/onboarding-kljuc.mjs | da |

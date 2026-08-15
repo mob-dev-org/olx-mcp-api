@@ -10,6 +10,26 @@ sekcija 7.
 
 ## Nije izdano
 
+**Prekinuta serija snapshota se sada javlja administratoru, umjesto da samo utihne.** Izvjestaj o
+mrtvim oglasima trazi dvije tacke unutar perioda koji racuna. Dosad je, kad ih nije bilo, poredjenje
+tiho posezalo za najstarijim ucitanim snimkom, pa je klijent mogao dobiti "bez pregleda vec 60 dana"
+na osnovu poredjenja sa tackom od prije 120 dana, i to u alarmu koji ga navodi da zavrsi ili sakrije
+oglas. Sada se u tom slucaju ne tvrdi nista. Posto uslov za to znaci da posao snapshot ne radi vec
+skoro dva mjeseca, dnevni posao o tome javi ADMINISTRATORU, ne klijentu: pokvaren pogon je nas
+posao, a klijenta se time ne opterecuje. Nov klon, gdje serija tek pocinje, ne javlja nista.
+
+**`olx_opisi_sliku` (vision proxy) dobio dnevni plafon, i `olx_arhiva` lista rez.** Vid je do sad
+mogao biti pozvan neograniceno iz sesije i svaki poziv je placao vanjski Gemini racun bez ikakve
+brane. Nova env varijabla `OLX_VID_MAX_DNEVNO` (fallback 150, `src/core/vid.ts`) uvodi ZASEBAN
+dnevni plafon, ne dijeljen sa `OLX_SLIKA_MAX_DNEVNO` generisanja slike (fallback 10): vision poziv
+je red velicine jeftiniji, a `olx_opisi_sliku` sjedi na putu objave artikla iz fotografije za
+sesiju bez vida, pa bi dijeljeni plafon blokirao normalan rad vec posle par artikala dnevno.
+Provjera se radi PRIJE poziva Gemini modela i baca jasnu gresku sa uputom na `.env`. `confirm` na
+alat namjerno NIJE dodan (odluka vlasnika: alat je readOnly i stoji na putu objave iz slike).
+Usput, `olx_arhiva` u rezimu `lista` je dosad rasla linearno sa brojem skinutih artikala bez ikakvog
+reza; sad dobija `limit` (podrazumijevano 20, isti obrazac kao `olx_mrtvi_oglasi`), a `ukupno` u
+odgovoru ostaje pun broj bez obzira na rez.
+
 **Stari dnevni snapshoti pregleda se sad mogu prorjediti.** `.olx-pik/snapshots/views-YYYY-MM-DD.json`
 se pisao svaki dan i nikad nije brisan, a `posao backup` te fajlove gura u backup stanja
 (`src/core/backup-spisak.ts`), pa je repo stanja rastao bez kraja. Nova funkcija
