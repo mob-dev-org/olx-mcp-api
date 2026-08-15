@@ -145,8 +145,55 @@ function danUMjesecu(value: string | undefined): number | undefined {
 
 // Nepoznata vrijednost pada na `admin`, ne na `klijent`: pogresno napisan profil ne smije tiho
 // sakriti alate i ostaviti dojam da toolkit nesto ne moze.
-function profil(value: string | undefined): McpProfil {
-  return value?.trim().toLowerCase() === "klijent" ? "klijent" : "admin";
+/** Bazno ime runtime mape klijentskog bota. Admin bot runtime je `.claude-runtime-admin`. */
+const KLIJENTSKI_RUNTIME = ".claude-runtime";
+
+/**
+ * Je li ovo proces pokrenut iz KLIJENTSKE bot sesije. Dvije nezavisne oznake, jer imaju razlicite
+ * slabosti i jedna pokriva rupu druge:
+ *
+ * - `OLX_SESIJA_TIP` postavlja `okruzenjeSesije` (scripts/lib/sesija.mjs) i izrazava NAMJERU, ali
+ *   vrijedi samo dok svaki klijentski ulaz ide kroz tu funkciju (pravilo iz .claude/rules/pogon.md).
+ * - `CLAUDE_CONFIG_DIR` je nusprodukt vezivanja sesije za runtime klona i stize nezavisno od nase
+ *   logike, ali sam po sebi ne kaze tip sesije, pa se bazno ime poredi TACNO: admin bot runtime je
+ *   `.claude-runtime-admin` i namjerno NE smije pasti u ovu granu, jer njemu treba admin profil.
+ *
+ * Izmjereno (a ne pretpostavljeno): MCP server je dijete `claude` procesa i nasljedjuje mu cijelo
+ * okruzenje, pa obje oznake stvarno stignu do ovog koda.
+ */
+function jeKlijentskaSesija(env: NodeJS.ProcessEnv): boolean {
+  // Izricit tip sesije je JACI od putanje i kad kaze da NIJE klijent: ko ga postavlja, taj tacno
+  // zna koju sesiju pokrece. Bez ovoga bi alati koji mjere profil (kontekst-izvjestaj,
+  // provjeri-prompt) bili nasilno gurnuti u klijentski profil samo zato sto su pokrenuti iz
+  // ljuske u kojoj je ostao CLAUDE_CONFIG_DIR nekog klona, pa bi mjerili nesto sto nisu trazili.
+  // Ovo NE siri prava: `.env` sa `klijent` i dalje daje klijenta (vidi odrediMcpProfil nize).
+  const tip = env.OLX_SESIJA_TIP?.trim().toLowerCase();
+  if (tip) return tip === "klijent";
+
+  const konfigDir = env.CLAUDE_CONFIG_DIR?.trim();
+  if (!konfigDir) return false;
+  // Bez `path.basename`, da zavrsna kosa crta i Windows kose crte ne promijene ishod.
+  const bazno = konfigDir.replace(/[/\\]+$/, "").split(/[/\\]/).pop();
+  return bazno === KLIJENTSKI_RUNTIME;
+}
+
+/**
+ * Koji profil vazi za ovaj proces.
+ *
+ * Pravilo, i ono je jedini razlog zasto default smije biti `admin`: oznaka klijentske sesije
+ * nadjacava `.env` SAMO U SMJERU SUZAVANJA, nikad sirenja. Konkretno:
+ *
+ * - klijentska bot sesija dobija `klijent` i kad `.env` kaze `admin` (tvrda brana, ne zavisi od
+ *   toga sta pise u `.env` klona);
+ * - `.env` koji kaze `klijent` i dalje daje `klijent` i bez ijedne oznake;
+ * - bez oznake i bez vrijednosti profil je `admin`, da goli `claude` u klonu daje pun alat.
+ *
+ * Strana na koju se grijesi je namjerna: propust u oznaci moze klijentu dati MANJE alata, nikad
+ * vise. Obrnuto bi musteriji otvorilo sirove dumpove kategorija i lokacija.
+ */
+export function odrediMcpProfil(env: NodeJS.ProcessEnv = process.env): McpProfil {
+  if (jeKlijentskaSesija(env)) return "klijent";
+  return env.OLX_MCP_PROFILE?.trim().toLowerCase() === "klijent" ? "klijent" : "admin";
 }
 
 // Svaki proces se OLX-u predstavlja svojim imenom uredjaja. Kad bi MCP sesija i nocni cron
@@ -178,7 +225,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): OlxConfig {
     timeoutMs: num(env.OLX_TIMEOUT_MS, 20000),
     auditFile: env.OLX_AUDIT_FILE || ".olx-pik/audit.jsonl",
     auditReads: bool(env.OLX_AUDIT_READS, false),
-    mcpProfil: profil(env.OLX_MCP_PROFILE),
+    mcpProfil: odrediMcpProfil(env),
     maxSpendPerDay: num(env.OLX_MAX_SPEND_PER_DAY, 0),
     defaultCountryId: opcioniBroj(env.OLX_DEFAULT_COUNTRY_ID),
     defaultCityId: opcioniBroj(env.OLX_DEFAULT_CITY_ID),
