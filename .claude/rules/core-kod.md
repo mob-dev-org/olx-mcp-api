@@ -41,6 +41,14 @@ Ucitava se samo kad se dira kod. Klijentska i admin bot sesija ovo nikad ne vide
   `ANTHROPIC_*` varijable ne idu u `.env` (loadEnvFile bi ih dao svim procesima).
 - `process.loadEnvFile` NE gazi vec postavljen env: eksplicitni env procesa uvijek pobjedjuje
   `.env`. Na to se oslanja cuvar sesija (OLX_MCP_PROFILE po tipu sesije) — ne mijenjati.
+- Profil MCP servera NIJE prosto citanje `OLX_MCP_PROFILE`. Odluku donosi `odrediMcpProfil`
+  (`config.ts`): oznaka klijentske sesije (`OLX_SESIJA_TIP`, odnosno runtime mapa
+  `.claude-runtime`) tvrdo forsira `klijent`, a `.env` je drugi sloj. Pravilo je da oznaka smije
+  samo SUZITI, nikad prosiriti, jer je default `admin` i propust mora ici u korist manje alata.
+  Provjereno mjerenjem: MCP server je dijete `claude` procesa i nasljedjuje mu cijelo okruzenje.
+- Alat koji MJERI profil (`kontekst-izvjestaj.mjs`, `popis-kod.mjs`, `provjeri-prompt.sh`) mora
+  zadati oznake sam, a ne naslijediti ih iz ljuske: inace tiho mjeri profil koji nije trazio.
+  Isto vazi za svaki novi alat koji pokrece server radi prebrojavanja alata.
 - Citanje konfiguracije samo kroz `loadConfig` u `config.ts`, ne `process.env` po kodu.
 
 ## Verzija

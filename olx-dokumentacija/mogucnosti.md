@@ -8,7 +8,7 @@ Ovaj fajl je GENERISAN iz koda, pravi ga `node scripts/popis-mogucnosti.mjs`. Ne
 - MCP resursa: 8
 - CLI komandi: 62
 - Zakazanih poslova: 11
-- Postavki: 27
+- Postavki: 29
 - Skillova: 11
 - Podagenata: 6
 
@@ -320,6 +320,7 @@ ADMIN poslovi nemaju Windows blizanca namjerno: admin masina na Windowsu nije up
 
 | Varijabla | Polje | Podrazumijevano | Opis |
 | --- | --- | --- | --- |
+| CLAUDE_CONFIG_DIR | mcpProfil | admin | Koje alate MCP server registruje. |
 | OLX_AUDIT_FILE | auditFile | .olx-pik/audit.jsonl | Putanja audit loga (upisi i troskovi). Van gita, po klonu. |
 | OLX_AUDIT_READS | auditReads | ne | Da li se u audit log pisu i citanja (GET). Default ne, da log ostane pregledan. |
 | OLX_BASE_URL | baseUrl | https://api.olx.ba |  |
@@ -342,6 +343,7 @@ ADMIN poslovi nemaju Windows blizanca namjerno: admin masina na Windowsu nije up
 | OLX_MCP_PROFILE | mcpProfil | admin | Koje alate MCP server registruje. |
 | OLX_MIN_REQUEST_INTERVAL_MS | minRequestIntervalMs | 350 |  |
 | OLX_PASSWORD | password |  |  |
+| OLX_SESIJA_TIP | mcpProfil | admin | Koje alate MCP server registruje. |
 | OLX_SNAPSHOT_PROREDJIVANJE_GUSTINA_DANA | snapshotProredjivanjeGustinaDana | 7 | Iznad praga starosti se cuva samo prvi (najstariji) snapshot u svakom bloku od ovoliko dana (npr. 7 = priblizno sedmicno). Vidi `proredjiStareSnapshote` (snapshoti.ts) za tacno pravilo. |
 | OLX_SNAPSHOT_PROREDJIVANJE_PRAG_DANA | snapshotProredjivanjePragDana | 90 | Iznad ove starosti (dana) se dnevni snapshoti pregleda (`views-YYYY-MM-DD.json`) vise ne cuvaju za svaki dan, nego prorjeduju na `snapshotProredjivanjeGustinaDana` (funkcija `proredjiStareSnapshote`, snapshoti.ts). Iznad ove granice dnevna preciznost vec izgubi smisao za postojecu analizu (`mrtviOglasi` trazi 14 dana, efekat izdvajanja do ~30), a fajl po danu na velikom katalogu je krupan i sve ih nosi backup stanja (`src/core/backup-spisak.ts`). |
 | OLX_TIMEOUT_MS | timeoutMs | 20000 |  |
@@ -350,7 +352,7 @@ ADMIN poslovi nemaju Windows blizanca namjerno: admin masina na Windowsu nije up
 
 ## Varijable okruzenja u cijelom repou
 
-Ukupno 101 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 92 cini konfiguraciju klona.
+Ukupno 102 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 93 cini konfiguraciju klona.
 
 Ostale dolaze iz okoline (harness sesije, plugin loader, proxy) i u `.env.example` namjerno ne stoje: klijent ih ne postavlja rukom. Zato se prazna kolona kod njih ne racuna kao propust.
 
@@ -371,7 +373,7 @@ Nema takvih.
 | ANTHROPIC_DEFAULT_HAIKU_MODEL | daje okolina | 3 | scripts/claude-ds.mjs, scripts/lib/sesija.mjs, scripts/lib/sesija.test.mjs |  |
 | ANTHROPIC_MODEL | daje okolina | 4 | scripts/claude-ds.mjs, scripts/lib/sesija.mjs, scripts/lib/sesija.test.mjs, scripts/proba-kanala.mjs |  |
 | CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC | daje okolina | 1 | scripts/provjeri-klon.mjs |  |
-| CLAUDE_CONFIG_DIR | daje okolina | 6 | deploy/windows/instaliraj-zadatke.ps1, scripts/claude-olx.sh, scripts/lib/popis-okruzenje.mjs, scripts/lib/sesija.mjs, scripts/lib/telegram-plugin.mjs, scripts/pokreni-klijenta.mjs | da |
+| CLAUDE_CONFIG_DIR | daje okolina | 6 | deploy/windows/instaliraj-zadatke.ps1, scripts/claude-olx.sh, scripts/kontekst-izvjestaj.mjs, scripts/lib/mcp-profil.test.mjs, scripts/lib/popis-kod.mjs, scripts/lib/popis-okruzenje.mjs | da |
 | CLAUDE_PLUGIN_ROOT | daje okolina | 2 | scripts/claude-olx.sh, scripts/lib/sesija.mjs |  |
 | DEEPSEEK_ENV_FILE | konfiguracija klona | 1 | scripts/deepseek-proba.mjs | da |
 | OLX_AI_USAGE_FILE | konfiguracija klona | 5 | scripts/ai-cijene.mjs, src/core/ai-dnevnik.ts, src/core/backup-spisak.ts, src/core/slika.test.ts, src/core/vid.test.ts | da |
@@ -409,7 +411,7 @@ Nema takvih.
 | OLX_MAX_STAVKI_U_ODGOVORU | konfiguracija klona | 1 | src/core/config.ts | da |
 | OLX_MAX_STRANICA_LISTE | konfiguracija klona | 2 | scripts/lib/stats-snapshot.test.mjs, src/core/config.ts | da |
 | OLX_MAX_TRAJANJE_SNAPSHOT_PROLAZA_MS | konfiguracija klona | 2 | scripts/lib/stats-snapshot.test.mjs, src/core/config.ts | da |
-| OLX_MCP_PROFILE | konfiguracija klona | 6 | scripts/kontekst-izvjestaj.mjs, scripts/lib/popis-kod.mjs, scripts/lib/sesija.mjs, scripts/pripremi-runtime.mjs, scripts/provjeri-klon.mjs, scripts/provjeri-prompt.sh | da |
+| OLX_MCP_PROFILE | konfiguracija klona | 6 | scripts/kontekst-izvjestaj.mjs, scripts/lib/mcp-profil.test.mjs, scripts/lib/popis-kod.mjs, scripts/lib/sesija.mjs, scripts/pripremi-runtime.mjs, scripts/provjeri-klon.mjs | da |
 | OLX_MIN_REQUEST_INTERVAL_MS | konfiguracija klona | 3 | scripts/lib/pokreni-cli.mjs, src/core/client.test.ts, src/core/config.ts | da |
 | OLX_MOST_POTEZ_TIMEOUT_MS | konfiguracija klona | 1 | scripts/telegram-most.mjs | da |
 | OLX_NADZOR_DIR | konfiguracija klona | 2 | deploy/launchd/ba.codefactory.olx.ADMIN.nadzor-flote.plist, scripts/nadzor-flote.mjs | da |
@@ -430,6 +432,7 @@ Nema takvih.
 | OLX_SESIJA_INBOX_DANA | konfiguracija klona | 2 | scripts/cuvar-sesije.mjs, src/core/slike-ciscenje.ts | da |
 | OLX_SESIJA_RESTART_SAT | konfiguracija klona | 1 | scripts/cuvar-sesije.mjs | da |
 | OLX_SESIJA_STRAZAR | konfiguracija klona | 6 | scripts/cuvar-sesije.mjs, scripts/lib/analiza-flote.mjs, scripts/lib/analiza-flote.test.mjs, scripts/lib/resursi.mjs, scripts/lib/resursi.test.mjs, scripts/lib/straza.mjs | da |
+| OLX_SESIJA_TIP | konfiguracija klona | 6 | scripts/kontekst-izvjestaj.mjs, scripts/lib/mcp-profil.test.mjs, scripts/lib/popis-kod.mjs, scripts/lib/popis-okruzenje.mjs, scripts/lib/sesija.mjs, scripts/provjeri-klon.mjs |  |
 | OLX_SLIKA_API_KEY | konfiguracija klona | 6 | scripts/lib/popis-kod.mjs, src/core/slika.test.ts, src/core/slika.ts, src/core/vid.test.ts, src/core/vid.ts, src/mcp/server.ts | da |
 | OLX_SLIKA_BASE_URL | konfiguracija klona | 1 | src/core/slika.ts | da |
 | OLX_SLIKA_DIR | konfiguracija klona | 4 | scripts/telegram-most.mjs, src/core/slika.ts, src/core/slike-ciscenje.test.ts, src/core/slike-ciscenje.ts | da |
@@ -452,7 +455,7 @@ Nema takvih.
 | OLX_TELEGRAM_ACCESS_FILE | konfiguracija klona | 2 | src/core/telegram-grupe.test.ts, src/core/telegram-grupe.ts | da |
 | OLX_TELEGRAM_ACCESS_FILE_ADMIN | konfiguracija klona | 1 | src/core/telegram-grupe.ts | da |
 | OLX_TIMEOUT_MS | konfiguracija klona | 2 | src/core/client.test.ts, src/core/config.ts | da |
-| OLX_TOKEN | konfiguracija klona | 6 | deploy/windows/instaliraj-zadatke.ps1, scripts/ai-runda.sh, scripts/cuvar-sesije.mjs, scripts/lib/envfajl.mjs, scripts/lib/pokreni-cli.mjs, scripts/lib/sesija.mjs | da |
+| OLX_TOKEN | konfiguracija klona | 6 | deploy/windows/instaliraj-zadatke.ps1, scripts/ai-runda.sh, scripts/cuvar-sesije.mjs, scripts/lib/envfajl.mjs, scripts/lib/mcp-profil.test.mjs, scripts/lib/pokreni-cli.mjs | da |
 | OLX_USERNAME | konfiguracija klona | 3 | scripts/provjeri-klon.mjs, src/core/config.ts, src/core/index.ts | da |
 | OLX_VID_API_KEY | konfiguracija klona | 6 | scripts/lib/popis-kod.mjs, src/core/telefon-ekstrakcija.test.ts, src/core/telefon-ekstrakcija.ts, src/core/vid.test.ts, src/core/vid.ts, src/mcp/server.ts | da |
 | OLX_VID_MAX_DNEVNO | konfiguracija klona | 2 | src/core/vid.test.ts, src/core/vid.ts | da |

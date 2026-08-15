@@ -117,9 +117,17 @@ npm run build
 node dist/mcp/server.js   # radi preko stdio
 ```
 
-`OLX_MCP_PROFILE` u `.env` odlucuje koliko alata server izlaze: `admin` (puna lista) ili
-`klijent` (suzena, bez kataloga, lokacija i analitike konkurenata). Tacan broj alata po profilu
-mjeri `npm run kontekst`.
+Server izlaze `admin` (puna lista) ili `klijent` (suzena, bez kataloga, lokacija i analitike
+konkurenata). Tacan broj alata po profilu mjeri `npm run kontekst`.
+
+Profil se ne bira samo kroz `.env`. Klijentsku bot sesiju server prepoznaje sam, po `OLX_SESIJA_TIP`
+odnosno po runtime mapi `.claude-runtime` (postavlja ih `scripts/lib/sesija.mjs`), i tada tvrdo
+uzima klijentski profil bez obzira na `.env`. Posljedica u praksi: goli `claude` u terminalu klona
+daje vlasniku pun alat, a musterijin bot ostaje suzen i kad `.env` kaze `admin`.
+
+`OLX_MCP_PROFILE` u `.env` je drugi sloj i smije samo SUZITI: postavljen na `klijent` uzima alate i
+terminalu i admin botu. Da klijentski put stvarno daje suzen profil provjerava
+`node scripts/provjeri-klon.mjs`, i to mjerenjem ishoda, ne citanjem varijable.
 
 ## Pogon klijenta: dvije sesije, cron, AI runda
 

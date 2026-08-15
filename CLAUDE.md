@@ -18,12 +18,21 @@ Sta se dodaje povrh ovoga:
 
 ## Profili
 
-`OLX_MCP_PROFILE` odlucuje koliko alata MCP server izlaze:
+Dva profila odlucuju koliko alata MCP server izlaze:
 
 - `admin` (default) — puna lista, ukljucujuci sirove dumpove kategorija i lokacija.
 - `klijent` — suzena lista, bez kataloga i lokacija.
 
 Tacan broj alata po profilu procitaj sa servera, ne pamti ga.
+
+Profil se NE cita samo iz `.env`. Server sam prepoznaje klijentsku bot sesiju (po `OLX_SESIJA_TIP`,
+odnosno po runtime mapi `.claude-runtime`) i tada tvrdo uzima klijentski profil, bez obzira sta
+kaze `.env`. Zato goli `claude` u terminalu klona daje PUN alat, a musterijin bot ostaje na suzenoj
+listi i kad `.env` kaze `admin`.
+
+Oznaka sesije smije samo SUZITI, nikad prosiriti: `OLX_MCP_PROFILE=klijent` u `.env` i dalje suzava
+svakoga, ukljucujuci terminal i admin bota. Strana na koju se grijesi je namjerna, jer propust smije
+dati manje alata, nikad vise.
 
 ## Redoslijed citanja podataka
 

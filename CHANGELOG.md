@@ -10,6 +10,22 @@ sekcija 7.
 
 ## Nije izdano
 
+**Goli `claude` u klonu daje pun alat, a musterijin bot ostaje suzen bez obzira na `.env`.** Dosad
+je profil zavisio iskljucivo od `OLX_MCP_PROFILE`, pa je vlasnik u terminalu klijentskog klona
+dobijao suzenu listu. Podrazumijevana vrijednost se okrece na `admin`, ali TEK uz tvrdu branu koja
+ne zavisi od `.env`: MCP server sam prepoznaje klijentsku bot sesiju (po `OLX_SESIJA_TIP`, koji
+postavlja `scripts/lib/sesija.mjs`, odnosno po runtime mapi `.claude-runtime`) i tada uzima
+klijentski profil i kad `.env` kaze `admin`. Oznaka smije samo SUZITI, nikad prosiriti, pa
+`OLX_MCP_PROFILE=klijent` i dalje suzava svakoga. Bez te brane se okretanje defaulta ne bi smjelo
+uraditi, jer bi propust umjesto "klijent vidi manje nego smije" znacio "klijent vidi sve admin
+alate". Admin bot runtime (`.claude-runtime-admin`) namjerno ostaje na admin profilu.
+
+Uz to: alati koji MJERE profil (`npm run kontekst`, generator popisa, `provjeri-prompt.sh`) od sada
+oznake zadaju sami umjesto da ih naslijede iz ljuske. Bez toga bi pokretanje iz ljuske u kojoj je
+ostao `CLAUDE_CONFIG_DIR` nekog klona tiho izmjerilo suzenu listu i upisalo taj broj u izvjestaj.
+`provjeri-klon.mjs` vise ne cita `OLX_MCP_PROFILE` nego MJERI da klijentski put stvarno daje suzen
+profil.
+
 **Prekinuta serija snapshota se sada javlja administratoru, umjesto da samo utihne.** Izvjestaj o
 mrtvim oglasima trazi dvije tacke unutar perioda koji racuna. Dosad je, kad ih nije bilo, poredjenje
 tiho posezalo za najstarijim ucitanim snimkom, pa je klijent mogao dobiti "bez pregleda vec 60 dana"
