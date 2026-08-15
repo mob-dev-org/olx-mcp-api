@@ -10,6 +10,37 @@ sekcija 7.
 
 ## Nije izdano
 
+**Audit log rotira po mjesecu i vise se ne cita cijeli u memoriju.** Dnevni plafon
+(`OLX_MAX_SPEND_PER_DAY`) cita audit log na SVAKOJ radnji koja trosi kredite, a log je rastao bez
+kraja. Na dovoljno velikom logu `readFileSync` baca gresku, a posto plafon namjerno pada zatvoreno,
+to bi odbilo svaku naplatnu radnju. Novi zapisi idu u `audit-YYYY-MM.jsonl` pored zatecene putanje,
+citanje ide u komadima umjesto cijelog fajla odjednom, a racun i dalje obuhvata i zateceni
+`audit.jsonl`, pa se danasnja potrosnja na postojecim klonovima racuna tacno i poslije nadogradnje.
+Ponasanje brane nije mijenjano: nedostupan log i dalje zaustavlja radnju.
+
+**Kad se potrosnja ne moze procitati, jutarnja poruka to kaze umjesto da prikaze nulu.** Dosad je
+greska citanja audit loga u dnevnom poslu tiho postajala "potroseno 0", sto je klijentu pokazivalo
+suprotno od stvarnog stanja. Sada se pise da se podatak nije mogao procitati i javlja se
+administratoru, a posao se nastavlja: dopuna poruke ne smije oboriti jutarnji posao.
+
+**Odgovori grupnih alata vise ne rastu sa brojem oglasa.** `olx_bulk_price`, `olx_bulk_sklanjanje` i
+`olx_refresh_bulk` su vracali pune spiskove neuspjelih, izabranih i izuzetih oglasa, do vise hiljada
+redova u jednom odgovoru. Spiskovi se sada rezu na prag (`OLX_MAX_STAVKI_U_ODGOVORU`), uz obavezno
+polje sa punim brojem kad je rez nastupio, da odgovor nikad ne izgleda potpun kad nije. Radnja se i
+dalje izvrsava nad punim spiskom; rez dira samo prikaz. `olx_bulk_sklanjanje` je uz to dobio gornju
+granicu na broj ulaznih `ids`, koje ranije nije imao.
+
+**Citanje snapshota placa samo ono sto stvarno treba.** `zadnjiSnapshot()` je parsirao do 120 dnevnih
+fajlova da bi vratio jedan, a sada cita od najnovijeg unazad i stane na prvom ispravnom.
+`ucitajSnapshote()` je dobio opcioni prozor u danima, pa pozivalac koji gleda kratku seriju ne placa
+punu. Ponasanje bez zadanog prozora je nepromijenjeno.
+
+**AI runda ide na bijelu listu alata.** Runda je bila zasticena crnom listom, pa je svaki novi alat
+bio dozvoljen dok se ne doda na nju. To je vec propustilo `olx_generiraj_sliku`, koji je skuplji od
+alata zbog kojeg je crna lista i pisana. Sada se nabraja tacno ono sto runda smije, izvedeno iz
+koraka recepta, pa je nov alat po defaultu nedostupan. Korak koji je povlacio kompaktnu listu svih
+aktivnih oglasa prebacen je na agregirani izvjestaj, cija velicina ne raste sa katalogom.
+
 **Popis mogucnosti se od sada generise iz koda, ne pise rukom.** Povod je mjerenje: kod je citao
 86 varijabli okruzenja a `.env.example` ih je opisivao 66, uz pet tvrdnji u dokumentaciji koje su
 bile netacne. Rucni popis je vec bio zaostao, i to tiho, pa je popravka rucnog popisa lijecila
