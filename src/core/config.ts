@@ -69,6 +69,17 @@ export interface OlxConfig {
    * sesije (danas oko 34.000 do 40.000 tokena) za JEDAN odgovor jednog alata.
    */
   maxOglasaUOdgovoru: number;
+  /**
+   * Prag reza za spiskove u odgovoru grupnih alata (olx_bulk_price, olx_bulk_sklanjanje,
+   * olx_refresh_bulk): koliko stavki kandidata/gresaka/neaktivnih smije stati u JEDAN odgovor.
+   * Odvojen od `maxOglasaUOdgovoru`, jer taj prag nosi racunicu za PUN oglas u kompaktnom CSV
+   * obliku (olx_list_listings), a ovdje su stavke laksi objekti ({id, title} ili {id, greska}).
+   * Nije izlozen kao parametar seme alata (za razliku od operativnih `limit` polja koja biraju
+   * KOLIKO oglasa se stvarno mijenja): ovo je tehnicki osigurac protiv velikog JSON odgovora, ne
+   * poslovna odluka koju poziva bira po pozivu, pa ostaje plafon u okruzenju. Rez je uvijek
+   * vidljiv: uz odsjecenu listu ide broj koliko je stvarno bilo (src/core/obuhvat.ts).
+   */
+  maxStavkiUOdgovoru: number;
 }
 
 function num(value: string | undefined, fallback: number): number {
@@ -138,6 +149,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): OlxConfig {
     budzetListeGrupniMs: num(env.OLX_BUDZET_LISTE_GRUPNI_MS, 120000),
     budzetListeKonkurentMs: num(env.OLX_BUDZET_LISTE_KONKURENT_MS, 20000),
     maxOglasaUOdgovoru: num(env.OLX_MAX_OGLASA_U_ODGOVORU, 500),
+    maxStavkiUOdgovoru: num(env.OLX_MAX_STAVKI_U_ODGOVORU, 200),
   };
 }
 

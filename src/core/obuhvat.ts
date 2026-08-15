@@ -67,6 +67,27 @@ export function uputaZaNepotpun(
   );
 }
 
+// Prost rez za odgovore grupnih alata (olx_bulk_price, olx_bulk_sklanjanje, olx_refresh_bulk).
+// Razlicito od podijeliUKomade: ovdje nema parametra "koji komad", samo se odsijece rep spiska i
+// PRIJAVI koliko je stvarno bilo, da tihi rez nikad ne prodje kao potpun odgovor. Radnja koja se
+// stvarno izvrsava (izmjena cijene, obnova, sklanjanje) uvijek ide nad punim, neodsjecenim
+// spiskom; ova funkcija dira samo ono sto se stavlja u JSON odgovor.
+export interface Odsjecak<T> {
+  stavke: T[];
+  ukupno: number;
+  odsjeceno: boolean;
+}
+
+export function odsijeciSpisak<T>(spisak: T[], prag: number): Odsjecak<T> {
+  const sigurniPrag = prag < 1 ? 1 : prag;
+  const odsjeceno = spisak.length > sigurniPrag;
+  return {
+    stavke: odsjeceno ? spisak.slice(0, sigurniPrag) : spisak,
+    ukupno: spisak.length,
+    odsjeceno,
+  };
+}
+
 export function podijeliUKomade<T>(spisak: T[], prag: number, komad: number): Komad<T> {
   const sigurniPrag = prag < 1 ? 1 : prag;
   const komadaUkupno = Math.max(1, Math.ceil(spisak.length / sigurniPrag));

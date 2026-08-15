@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { odaberiStrategiju, podijeliUKomade, uputaZaNepotpun } from "./obuhvat.js";
+import { odaberiStrategiju, odsijeciSpisak, podijeliUKomade, uputaZaNepotpun } from "./obuhvat.js";
 
 test("prazan spisak daje jedan prazan komad", () => {
   const r = podijeliUKomade<number>([], 500, 1);
@@ -57,6 +57,66 @@ test("prag 0 ili negativan se tretira kao 1, ne dijeli sa nulom i ne baca", () =
   const negativan = podijeliUKomade(spisak, -5, 2);
   assert.equal(negativan.komada_ukupno, 3);
   assert.deepEqual(negativan.stavke, [2]);
+});
+
+test("odsijeciSpisak: prazan spisak nije odsjecen", () => {
+  const r = odsijeciSpisak<number>([], 5);
+  assert.deepEqual(r.stavke, []);
+  assert.equal(r.ukupno, 0);
+  assert.equal(r.odsjeceno, false);
+});
+
+test("odsijeciSpisak: spisak krati od praga se ne dira", () => {
+  const spisak = [1, 2, 3];
+  const r = odsijeciSpisak(spisak, 5);
+  assert.deepEqual(r.stavke, spisak);
+  assert.equal(r.ukupno, 3);
+  assert.equal(r.odsjeceno, false);
+});
+
+test("odsijeciSpisak: spisak tacno na pragu se ne dira", () => {
+  const spisak = [1, 2, 3, 4, 5];
+  const r = odsijeciSpisak(spisak, 5);
+  assert.deepEqual(r.stavke, spisak);
+  assert.equal(r.ukupno, 5);
+  assert.equal(r.odsjeceno, false);
+});
+
+test("odsijeciSpisak: spisak duzi od praga se odsijece i prijavi puni broj", () => {
+  const spisak = Array.from({ length: 7 }, (_, i) => i);
+  const r = odsijeciSpisak(spisak, 5);
+  assert.deepEqual(r.stavke, [0, 1, 2, 3, 4]);
+  assert.equal(r.ukupno, 7);
+  assert.equal(r.odsjeceno, true);
+});
+
+test("odsijeciSpisak: prag 0 ili negativan se tretira kao 1, ne baca", () => {
+  const spisak = [1, 2, 3];
+  const r = odsijeciSpisak(spisak, 0);
+  assert.deepEqual(r.stavke, [1]);
+  assert.equal(r.odsjeceno, true);
+});
+
+// Ovo je tacan oblik u kojem grupni alati (olx_bulk_price, olx_bulk_sklanjanje, olx_refresh_bulk)
+// koriste odsijeciSpisak: kad je spisak duzi od praga, odgovor MORA nositi i odsjecenu listu i
+// ukupan broj, da tihi rez nikad ne prodje kao potpun odgovor (olx-dokumentacija/granice.md).
+test("odsijeciSpisak: odgovor alata nosi ukupan broj kad je lista rezana, a kad nije rezana ne dodaje suvisno polje", () => {
+  const kandidati = Array.from({ length: 250 }, (_, i) => ({ id: i, title: `Oglas ${i}` }));
+  const rezano = odsijeciSpisak(kandidati, 200);
+  const odgovorRezan = {
+    candidates: rezano.stavke,
+    ...(rezano.odsjeceno ? { candidates_ukupno: rezano.ukupno } : {}),
+  };
+  assert.equal(odgovorRezan.candidates.length, 200);
+  assert.equal(odgovorRezan.candidates_ukupno, 250);
+
+  const kratak = odsijeciSpisak(kandidati.slice(0, 10), 200);
+  const odgovorNerezan = {
+    candidates: kratak.stavke,
+    ...(kratak.odsjeceno ? { candidates_ukupno: kratak.ukupno } : {}),
+  };
+  assert.equal(odgovorNerezan.candidates.length, 10);
+  assert.ok(!("candidates_ukupno" in odgovorNerezan), "prazno/nerezano polje se ne dodaje");
 });
 
 test("odaberiStrategiju: bez ids i prazan niz idu na katalog", () => {

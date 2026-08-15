@@ -8,7 +8,7 @@ Ovaj fajl je GENERISAN iz koda, pravi ga `node scripts/popis-mogucnosti.mjs`. Ne
 - MCP resursa: 8
 - CLI komandi: 62
 - Zakazanih poslova: 11
-- Postavki: 22
+- Postavki: 23
 - Skillova: 11
 - Podagenata: 6
 
@@ -335,6 +335,7 @@ ADMIN poslovi nemaju Windows blizanca namjerno: admin masina na Windowsu nije up
 | OLX_MAX_OGLASA_U_ODGOVORU | maxOglasaUOdgovoru | 500 | Najveci broj oglasa koji `olx_list_listings` u grani `all` smije staviti u JEDAN odgovor. Iznad toga se katalog isporucuje u komadima (parametar `komad`), umjesto da se tiho sijece ili da se odgovor odbije (deepseek-nalazi.md, tabela oko linije 110). Izmjereno: 120 oglasa u kompaktnom obliku je 6.135 tokena, a CSV je oko 60% jeftiniji, dakle otprilike 20 tokena po oglasu. 500 oglasa je time oko 10.000 tokena, cetvrtina do trecina cijelog prefiksa jedne sesije (danas oko 34.000 do 40.000 tokena) za JEDAN odgovor jednog alata. |
 | OLX_MAX_RETRIES | maxRetries | 4 |  |
 | OLX_MAX_SPEND_PER_DAY | maxSpendPerDay | 0 | Tvrdi dnevni plafon potrosnje u kreditima. 0 znaci bez plafona. |
+| OLX_MAX_STAVKI_U_ODGOVORU | maxStavkiUOdgovoru | 200 | Prag reza za spiskove u odgovoru grupnih alata (olx_bulk_price, olx_bulk_sklanjanje, olx_refresh_bulk): koliko stavki kandidata/gresaka/neaktivnih smije stati u JEDAN odgovor. Odvojen od `maxOglasaUOdgovoru`, jer taj prag nosi racunicu za PUN oglas u kompaktnom CSV obliku (olx_list_listings), a ovdje su stavke laksi objekti ({id, title} ili {id, greska}). Nije izlozen kao parametar seme alata (za razliku od operativnih `limit` polja koja biraju KOLIKO oglasa se stvarno mijenja): ovo je tehnicki osigurac protiv velikog JSON odgovora, ne poslovna odluka koju poziva bira po pozivu, pa ostaje plafon u okruzenju. Rez je uvijek vidljiv: uz odsjecenu listu ide broj koliko je stvarno bilo (src/core/obuhvat.ts). |
 | OLX_MAX_STRANICA_LISTE | maxStranicaListe | 5000 | OSIGURAC, ne podesavanje brzine: jedini zadatak mu je da pokvaren `last_page` sa API-ja ne vrti prelistavanje beskonacno. 5000 stranica je 100 000 oglasa, iznad svakog realnog kataloga, pa se u normalnom radu nikad ne pali. |
 | OLX_MCP_PROFILE | mcpProfil | admin | Koje alate MCP server registruje. |
 | OLX_MIN_REQUEST_INTERVAL_MS | minRequestIntervalMs | 350 |  |
@@ -351,7 +352,7 @@ Prazna vrijednost varijable ovdje daje drugaciji rezultat nego kad varijabla uop
 
 ## Varijable okruzenja u cijelom repou
 
-Ukupno 94 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 85 cini konfiguraciju klona.
+Ukupno 95 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 86 cini konfiguraciju klona.
 
 Ostale dolaze iz okoline (harness sesije, plugin loader, proxy) i u `.env.example` namjerno ne stoje: klijent ih ne postavlja rukom. Zato se prazna kolona kod njih ne racuna kao propust.
 
@@ -377,7 +378,7 @@ Nema takvih.
 | DEEPSEEK_ENV_FILE | konfiguracija klona | 1 | scripts/deepseek-proba.mjs | da |
 | OLX_AI_USAGE_FILE | konfiguracija klona | 4 | scripts/ai-cijene.mjs, src/core/ai-dnevnik.ts, src/core/backup-spisak.ts, src/core/slika.test.ts | da |
 | OLX_ARHIVA_DIR | konfiguracija klona | 2 | src/core/arhiva.test.ts, src/core/arhiva.ts | da |
-| OLX_AUDIT_FILE | konfiguracija klona | 5 | src/core/audit.ts, src/core/backup-spisak.test.ts, src/core/backup-spisak.ts, src/core/client.test.ts, src/core/config.ts | da |
+| OLX_AUDIT_FILE | konfiguracija klona | 6 | src/core/audit.test.ts, src/core/audit.ts, src/core/backup-spisak.test.ts, src/core/backup-spisak.ts, src/core/client.test.ts, src/core/config.ts | da |
 | OLX_AUDIT_READS | konfiguracija klona | 2 | src/core/client.test.ts, src/core/config.ts | da |
 | OLX_BACKUP_PRAG_DANA | konfiguracija klona | 1 | scripts/backup-nadzor.sh | da |
 | OLX_BASE_URL | konfiguracija klona | 5 | scripts/lib/mock-olx-server.mjs, scripts/lib/pokreni-cli.mjs, src/core/client.test.ts, src/core/config.ts, src/core/link.ts | da |
@@ -406,6 +407,7 @@ Nema takvih.
 | OLX_MAX_OGLASA_U_ODGOVORU | konfiguracija klona | 1 | src/core/config.ts | da |
 | OLX_MAX_RETRIES | konfiguracija klona | 3 | scripts/lib/pokreni-cli.mjs, src/core/client.test.ts, src/core/config.ts | da |
 | OLX_MAX_SPEND_PER_DAY | konfiguracija klona | 4 | scripts/pripremi-runtime.mjs, scripts/provjeri-klon.mjs, src/core/audit.ts, src/core/config.ts | da |
+| OLX_MAX_STAVKI_U_ODGOVORU | konfiguracija klona | 1 | src/core/config.ts | da |
 | OLX_MAX_STRANICA_LISTE | konfiguracija klona | 1 | src/core/config.ts | da |
 | OLX_MCP_PROFILE | konfiguracija klona | 6 | scripts/kontekst-izvjestaj.mjs, scripts/lib/popis-kod.mjs, scripts/lib/sesija.mjs, scripts/pripremi-runtime.mjs, scripts/provjeri-klon.mjs, scripts/provjeri-prompt.sh | da |
 | OLX_MIN_REQUEST_INTERVAL_MS | konfiguracija klona | 3 | scripts/lib/pokreni-cli.mjs, src/core/client.test.ts, src/core/config.ts | da |

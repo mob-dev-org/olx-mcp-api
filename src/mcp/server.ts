@@ -16,7 +16,7 @@ import { POLJA, bezNapomene, bezPolja, saNapomenom, saPoljem, ucitajPamcenje, up
 import { withAuditContext } from "../core/audit.js";
 import { VERZIJA } from "../core/verzija.js";
 import { parseSponsorOptions } from "../core/sponsor-options.js";
-import { odaberiStrategiju, podijeliUKomade, uputaZaNepotpun } from "../core/obuhvat.js";
+import { odaberiStrategiju, odsijeciSpisak, podijeliUKomade, uputaZaNepotpun } from "../core/obuhvat.js";
 import {
   efekatIzdvajanja,
   izracunajNoveCijene,
@@ -1632,11 +1632,13 @@ server.registerTool(
             rezultati.push({ id: s.id, ok: false, nova: s.nova, greska: String(e instanceof Error ? e.message : e) });
           }
         }
+        const neuspjeliOdsjecak = odsijeciSpisak(rezultati.filter((r) => !r.ok), config.maxStavkiUOdgovoru);
         return {
           izmijenjeno: rezultati.filter((r) => r.ok).length,
           ukupno: rezultati.length,
           preskoceno: pregled.preskoceno.length,
-          neuspjeli: rezultati.filter((r) => !r.ok),
+          neuspjeli: neuspjeliOdsjecak.stavke,
+          ...(neuspjeliOdsjecak.odsjeceno ? { neuspjelih_ukupno: neuspjeliOdsjecak.ukupno } : {}),
           ...nepoznatiPolje,
         };
       } finally {
@@ -1652,7 +1654,7 @@ server.registerTool(
     description:
       "Sklanja vise oglasa odjednom: radnja 'hide' kad se artikal vraca na stanje, 'finish' kad je prodan (ostaje u historiji profila). confirm=false (default) vraca samo listu. Zavrsavanje se kroz ovaj server NE moze ponistiti, pa listu obavezno pokazi korisniku prije potvrde. Kratak spisak ids cita samo te oglase, dug spisak ide preko kataloga i staje ako ga ne procita u cijelosti.",
     inputSchema: {
-      ids: z.array(z.number().int()).min(1),
+      ids: z.array(z.number().int()).min(1).max(4600),
       radnja: z.enum(["hide", "finish"]),
       confirm: z.boolean().default(false),
     },
@@ -1704,11 +1706,15 @@ server.registerTool(
       }
 
       if (!args.confirm) {
+        const oglasiOdsjecak = odsijeciSpisak(izabrani, config.maxStavkiUOdgovoru);
+        const nisuAktivniOdsjecak = odsijeciSpisak(nepoznati, config.maxStavkiUOdgovoru);
         return {
           dry_run: true,
           radnja: args.radnja,
-          oglasi: izabrani,
-          nisu_aktivni: nepoznati,
+          oglasi: oglasiOdsjecak.stavke,
+          ...(oglasiOdsjecak.odsjeceno ? { oglasi_ukupno: oglasiOdsjecak.ukupno } : {}),
+          nisu_aktivni: nisuAktivniOdsjecak.stavke,
+          ...(nisuAktivniOdsjecak.odsjeceno ? { nisu_aktivnih_ukupno: nisuAktivniOdsjecak.ukupno } : {}),
           ...(stanjeProvjereno ? {} : { stanje_provjereno: false }),
         };
       }
@@ -1721,12 +1727,16 @@ server.registerTool(
           rezultati.push({ id: l.id, ok: false, greska: String(e instanceof Error ? e.message : e) });
         }
       }
+      const neuspjeliOdsjecak = odsijeciSpisak(rezultati.filter((r) => !r.ok), config.maxStavkiUOdgovoru);
+      const nisuAktivniOdsjecak = odsijeciSpisak(nepoznati, config.maxStavkiUOdgovoru);
       return {
         radnja: args.radnja,
         uspjelo: rezultati.filter((r) => r.ok).length,
         ukupno: rezultati.length,
-        neuspjeli: rezultati.filter((r) => !r.ok),
-        nisu_aktivni: nepoznati,
+        neuspjeli: neuspjeliOdsjecak.stavke,
+        ...(neuspjeliOdsjecak.odsjeceno ? { neuspjelih_ukupno: neuspjeliOdsjecak.ukupno } : {}),
+        nisu_aktivni: nisuAktivniOdsjecak.stavke,
+        ...(nisuAktivniOdsjecak.odsjeceno ? { nisu_aktivnih_ukupno: nisuAktivniOdsjecak.ukupno } : {}),
         ...(stanjeProvjereno ? {} : { stanje_provjereno: false }),
       };
     }),
@@ -1788,12 +1798,29 @@ server.registerTool(
         "obnova",
       );
       const candidates = prolaze.slice(0, cap);
-      const izuzeto = preskoceni.length > 0 ? { izuzeto: preskoceni.map((l) => ({ id: l.id, title: l.title })) } : {};
+      // Izuzeti oglasi rastu sa spiskom izuzeca klijenta, pa i njih rezhe isti prag kao ostale
+      // liste; bez toga bi jedan dug spisak izuzeca vratio rez na mala vrata.
+      const izuzetiOdsjecak = odsijeciSpisak(
+        preskoceni.map((l) => ({ id: l.id, title: l.title })),
+        config.maxStavkiUOdgovoru,
+      );
+      const izuzeto =
+        preskoceni.length > 0
+          ? {
+              izuzeto: izuzetiOdsjecak.stavke,
+              ...(izuzetiOdsjecak.odsjeceno ? { izuzetih_ukupno: izuzetiOdsjecak.ukupno } : {}),
+            }
+          : {};
       if (!args.confirm) {
+        const candidatesOdsjecak = odsijeciSpisak(
+          candidates.map((l) => ({ id: l.id, title: l.title })),
+          config.maxStavkiUOdgovoru,
+        );
         return {
           dry_run: true,
           remaining_free: remaining,
-          candidates: candidates.map((l) => ({ id: l.id, title: l.title })),
+          candidates: candidatesOdsjecak.stavke,
+          ...(candidatesOdsjecak.odsjeceno ? { candidates_ukupno: candidatesOdsjecak.ukupno } : {}),
           obuhvat,
           ...izuzeto,
         };
@@ -1807,10 +1834,12 @@ server.registerTool(
           results.push({ id: l.id, ok: false, greska: String(e instanceof Error ? e.message : e) });
         }
       }
+      const neuspjeliOdsjecak = odsijeciSpisak(results.filter((r) => !r.ok), config.maxStavkiUOdgovoru);
       return {
         refreshed: results.filter((r) => r.ok).length,
         total: results.length,
-        neuspjeli: results.filter((r) => !r.ok),
+        neuspjeli: neuspjeliOdsjecak.stavke,
+        ...(neuspjeliOdsjecak.odsjeceno ? { neuspjelih_ukupno: neuspjeliOdsjecak.ukupno } : {}),
         obuhvat,
         ...izuzeto,
       };
