@@ -89,6 +89,27 @@ naglas.
   jednu fotografiju na kojoj stvarno stoji vise artikala, svi se prepoznaju i slazu na pozadinu:
   sav sadrzaj je stvaran i prisutan na fotografiji koju je klijent poslao, sto nije u sukobu sa
   pravilom iznad. Artikli koji se na fotografiji dodiruju prepoznaju se kao jedan.
+- **Tudja fotografija u oglasu je vlasnicka odluka, i ide samo na nov zapakovan artikal.**
+  Referentna (stock) slika (`olx_stock_slika`) je jedini tok u kojem u oglas ulazi fotografija
+  koju klijent nije snimio. Otvorio ga je vlasnik 16.08.2026, svjesno i uz izlozen rizik, i zato
+  stoji iza prekidaca `OLX_STOCK_SLIKE` koji je po defaultu UGASEN: na klonu gdje ga niko nije
+  upalio alata nema. Sto ga ogranicava:
+  - **Samo nov, zapakovan artikal.** Polovan se odbija u kodu. Referentna slika prikazuje MODEL,
+    ne bas taj primjerak, pa bi na polovnom artiklu lagala kupca o ogrebotinama i habanju upravo
+    one stvari koju kupuje. Nepoznato stanje se NE tumaci u korist prolaza, nego trazi izricitu
+    tvrdnju da je artikal nov i potvrdu; isto pravilo kao "nepoznata cijena je naplatna".
+  - **Samo izvor sa poznatom licencom.** Trazi se na Wikimedia Commonsu, gdje svaka slika nosi
+    eksplicitnu slobodnu licencu, i ta licenca se sa autorom vraca uz svakog kandidata. Slika sa
+    proizvodjackog sajta ili web shopa je tudje autorsko djelo bez ikakve dozvole i ne uzima se.
+  - **Samo sa hostova sa spiska.** Preuzima se jedino sa `upload.wikimedia.org`, uz dopunu koja
+    se upisuje rukom u `.env` (`OLX_STOCK_HOSTOVI`), nikad kroz razgovor. Preusmjerenja se ne
+    prate, sadrzaj se provjerava po magic bajtovima a ne po ekstenziji, i vazi granica velicine.
+  - **Korisnik uvijek bira, i uvijek vidi licencu.** Kandidati mu se salju svi, uz ime autora i
+    licencu, jer je navodjenje autora USLOV koristenja slike. Bot ne bira umjesto njega.
+  - **Odgovornost nosi oglasivac.** Bot pribavlja sliku i njenu licencu; da li je smije staviti
+    u svoj oglas i da li je uslov licence ispunio, odgovara klijent kao oglasivac. To mu se kaze
+    kad prvi put zatrazi, ne poslije.
+  - Za tu sliku se AI ne zove i dnevni plafon generisanja se ne trosi.
 
 ## Trag i tajne
 

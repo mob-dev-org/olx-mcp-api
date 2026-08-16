@@ -42,14 +42,15 @@ import { buildPlan, planSazetak, type PlanKandidat } from "../core/plan.js";
 import { opisiSliku, vidKonfigurisan } from "../core/vid.js";
 import { OPSEZI, bezSklonjenog, odvojiIzuzete, preneseno, saDodatim, spisak, ucitajIzuzeca, upisiIzuzeca } from "../core/izuzeca.js";
 import { arhivirajIzZivog, kompaktSpisak, mapaZapisa, noviZapis, planReaktivacije, planVracanja, preuzmiSlike, ucitajSveZapise, ucitajZapis, upisiZapis, velicinaArhive, type ArhivskiZapis } from "../core/arhiva.js";
-import type { Listing, ListingSummary, SviOglasi } from "../core/types.js";
+import type { Listing, ListingState, ListingSummary, SviOglasi } from "../core/types.js";
 import { INTERVAL_MAX, STRATEGIJE, intervalUzPrag, normalizujRitam, ritamZapisan, ucitajRitam, upisiRitam } from "../core/ritam-obnova.js";
 import { procitajOverride, upisiOverride } from "../core/slika-limit.js";
 import { POZADINA_OPIS_MAX, obrisiPozadinu, sacuvajPozadinu, sazetakPozadine, ucitajPozadinu } from "../core/pozadina.js";
 import { DOPUNA_MAX, ODNOSI, RECEPTI, RECEPT_POZADINA, ZADANI_ODNOS, dimenzijeSlike, generisiSliku, maxDnevno, provjeriDopunu, provjeriZahtjevSlike, slikaKonfigurisana, type Odnos } from "../core/slika.js";
 import { SLOT_MARGINA_MAX, SLOT_MARGINA_MIN, SLOT_SIRINA_MAX, SLOT_SIRINA_MIN, ZADANI_SLOT, izracunajIzrez4x3 } from "../core/slaganje.js";
 import { oznaciPotrosene, pocistiPotrosene } from "../core/slike-ciscenje.js";
-import { zapisiZahtjevSlike } from "../core/slike-trag.js";
+import { zapisiStockZahtjev, zapisiZahtjevSlike } from "../core/slike-trag.js";
+import { preuzmiKandidata, provjeriStanjeArtikla, traziKandidate } from "../core/stock-slika.js";
 import { brojPozivaDanas } from "../core/ai-dnevnik.js";
 
 // Ucitaj .env ako postoji (Node 20.12+), da OLX_TOKEN bude dostupan i kad server pokrene MCP
@@ -310,7 +311,16 @@ export const POPIS_RESURSA: ZapisResursa[] = [];
 export const USLOVI: Record<string, string> = {
   vid: "samo kad je podesen Gemini kljuc za vid (OLX_VID_API_KEY ili OLX_SLIKA_API_KEY)",
   slika: "samo kad je podesen kljuc za generisanje slika (OLX_SLIKA_API_KEY)",
+  stock: "samo kad je referentna slika sa interneta upaljena po klonu (OLX_STOCK_SLIKE)",
 };
+
+/**
+ * Prekidac za referentnu (stock) sliku. Ugasen je dok ga vlasnik klona ne upali, jer je to jedini
+ * tok u kojem u oglas ulazi tudja fotografija; vidi granice.md, sekcija Slike.
+ */
+function stockKonfigurisan(): boolean {
+  return Boolean((process.env.OLX_STOCK_SLIKE ?? "").trim());
+}
 
 /**
  * Uslov pod kojim se registruju alati koji slijede. Postavlja se oko uslovne grane i odmah vraca
@@ -1223,6 +1233,133 @@ if (slikaKonfigurisana()) {
           ? `Od sada recept ${RECEPT_POZADINA} SLAZE artikal na ovu sliku pozadine: pozadina i logo na slozenoj slici ostaju tacno kao original, a uz nju se nudi i doradjena varijanta (ljepse uklopljena, logo bez garancije). Reci korisniku da uvijek bira izmedju te dvije.`
           : `Od sada recept ${RECEPT_POZADINA} crta ovu scenu po opisu. Ona se svaki put crta iznova, pa dva oglasa nece imati doslovno istu pozadinu; za identicnu pozadinu treba poslati SLIKU pozadine.`,
       });
+    },
+  );
+}
+zavrsiUslov();
+
+// Referentna (stock) slika za NOV, ZAPAKOVAN artikal poznatog modela.
+//
+// Registruje se samo kad je OLX_STOCK_SLIKE upaljen u .env, i to je namjerno: ovo je jedini tok
+// u kojem u oglas ulazi TUDJA fotografija, pa odluku donosi vlasnik klona, a ne zatecena
+// postavka. Na klonu gdje prekidac stoji prazan alata nema ni u kontekstu.
+//
+// Ide u OBA profila. Odluku o tome hoce li tudja slika u njegov oglas donosi klijent, jer je on
+// oglasivac i on nosi odgovornost za pravo koristenja; alat koji bi postojao samo u admin sesiji
+// tu odluku ne bi ni dobio na sto.
+//
+// Sve brane su u jezgru (stock-slika.ts) i testirane su tamo, jer vaze za svakog pozivaoca:
+// allowlista hosta, magic bajtovi sadrzaja, granica velicine, odbijanje preusmjerenja i brana
+// stanja artikla. Ovdje se one samo redom sprovode, a rezultat nosi licencu i autora.
+pocniUslov("stock");
+if (stockKonfigurisan()) {
+  server.registerTool(
+    "olx_stock_slika",
+    {
+      title: "Referentna slika za nov zapakovan artikal",
+      description:
+        "Za NOV, ZAPAKOVAN artikal poznatog modela (telefon, tehnika) nadje referentne fotografije na " +
+        "Wikimedia Commonsu i preuzme ih, da korisnik izabere jednu. POLOVAN artikal odbija: referentna " +
+        "slika prikazuje model, ne bas taj primjerak, pa bi lagala kupca o stanju. Kad stanje nije poznato, " +
+        "trazi izricito stanje new i potvrdu. Vraca putanje preuzetih kandidata sa LICENCOM i AUTOROM: to " +
+        "je uslov koristenja i mora se pokazati korisniku, jer odgovornost za pravo koristenja slike u " +
+        "oglasu nosi on kao oglasivac. Posalji mu sve kandidate da bira. Izabrana slika ide dalje na " +
+        "olx_upload_images ili kao ulazna fotografija u olx_generiraj_sliku; AI se za nju ne zove i ne " +
+        "trosi se dnevni plafon generisanja. Pokrivenost je ogranicena na poznate modele; kad nema pogotka, " +
+        "kazi da nema i trazi fotografiju od korisnika.",
+      inputSchema: {
+        pojam: z.string().min(2).describe("ime modela kako ga je korisnik rekao, npr. iPhone 15 Pro"),
+        stanje: z
+          .enum(["new", "used"])
+          .optional()
+          .describe('stanje artikla; "new" samo kad je korisnik rekao da je nov i zapakovan'),
+        oglas_id: z
+          .union([z.number(), z.string()])
+          .optional()
+          .describe("ID postojeceg oglasa; kad je zadan, stanje se cita sa oglasa i pobjedjuje zadano"),
+        confirm: z.boolean().optional().describe("true tek nakon sto korisnik potvrdi da je artikal nov i zapakovan"),
+      },
+    },
+    async (args) => {
+      // Stanje sa oglasa je podatak platforme i jaci je od onoga sto je receno u razgovoru.
+      let state: ListingState | undefined;
+      if (args.oglas_id !== undefined) {
+        try {
+          state = (await client.getListing(args.oglas_id)).state;
+        } catch (e) {
+          return errResult(`Oglas ${args.oglas_id} se ne moze procitati, pa se stanje artikla ne zna: ${String(e instanceof Error ? e.message : e)}`);
+        }
+      }
+
+      const nalaz = provjeriStanjeArtikla({ state, stanje: args.stanje, confirm: args.confirm });
+      if (!nalaz.ok) {
+        zapisiStockZahtjev({ pojam: args.pojam, stanje: state ?? args.stanje, odbijeno: true, razlog: nalaz.razlog });
+        return errResult(`Referentna slika se ne moze uzeti: ${nalaz.razlog}.`);
+      }
+
+      try {
+        const kandidati = await traziKandidate(args.pojam);
+        if (kandidati.length === 0) {
+          zapisiStockZahtjev({ pojam: args.pojam, stanje: state ?? args.stanje, odbijeno: true, razlog: "nema pogotka" });
+          return ok({
+            nadjeno: 0,
+            napomena:
+              "Za ovaj pojam nema referentne fotografije sa poznatom licencom. Trazi od korisnika da posalje " +
+              "svoju fotografiju artikla ili kutije.",
+          });
+        }
+
+        const dir = process.env.OLX_SLIKA_DIR || ".olx-pik/slike";
+        const preuzeti: Array<Record<string, unknown>> = [];
+        const neuspjele: Array<{ naslov: string; greska: string }> = [];
+        for (const k of kandidati) {
+          try {
+            const p = await preuzmiKandidata(k.url, dir);
+            zapisiStockZahtjev({
+              pojam: args.pojam,
+              izvorUrl: p.izvorUrl,
+              licenca: k.licenca,
+              autor: k.autor,
+              stanje: state ?? args.stanje,
+              odbijeno: false,
+            });
+            // Trag ide u slike-zahtjevi.jsonl, ne u audit.jsonl. Audit je dnevnik OLX HTTP poziva
+            // (method, path, status su mu obavezna polja) i iz njega se cita potrosnja kredita;
+            // preuzimanje sa Commonsa ne dira ni OLX ni kredite, pa bi tamo samo zamutilo sliku.
+            // Kad izabrana slika stvarno ode na oglas, taj upload upada u audit sam od sebe.
+            preuzeti.push({
+              naslov: k.naslov,
+              putanja: p.putanja,
+              dimenzije: `${k.sirina}x${k.visina}`,
+              bajtova: p.bajtova,
+              licenca: k.licenca,
+              autor: k.autor,
+              izvor: k.izvorStranica,
+            });
+          } catch (e) {
+            neuspjele.push({ naslov: k.naslov, greska: String(e instanceof Error ? e.message : e) });
+          }
+        }
+
+        if (preuzeti.length === 0) {
+          return errResult(`Nijedan kandidat se nije mogao preuzeti: ${neuspjele.map((n) => n.greska).join("; ")}`);
+        }
+
+        return ok({
+          nadjeno: preuzeti.length,
+          kandidati: preuzeti,
+          ...(neuspjele.length ? { neuspjele } : {}),
+          napomena:
+            "Posalji korisniku sve kandidate i reci mu uz svaki licencu i autora, jer je navodjenje autora USLOV " +
+            "koristenja te slike. Reci mu i da fotografija prikazuje model a ne bas taj primjerak, i da " +
+            "odgovornost za pravo koristenja slike u oglasu nosi on. Kad izabere, njegovu putanju daj " +
+            "olx_upload_images ili olx_generiraj_sliku.",
+        });
+      } catch (e) {
+        const greska = String(e instanceof Error ? e.message : e);
+        zapisiStockZahtjev({ pojam: args.pojam, stanje: state ?? args.stanje, odbijeno: true, razlog: greska });
+        return errResult(greska);
+      }
     },
   );
 }

@@ -4,7 +4,7 @@ Ovaj fajl je GENERISAN iz koda, pravi ga `bun scripts/popis-mogucnosti.mjs`. Ne 
 
 ## Sazetak
 
-- MCP alata: 61, od toga klijentu dostupno: 45
+- MCP alata: 62, od toga klijentu dostupno: 46
 - MCP resursa: 8
 - CLI komandi: 63
 - Zakazanih poslova: 12
@@ -67,6 +67,7 @@ Ovaj fajl je GENERISAN iz koda, pravi ga `bun scripts/popis-mogucnosti.mjs`. Ne 
 | olx_sponsor_listing | Izdvaja oglas i TROSI KREDITE. | oba | trosak ili nepovratno | da |
 | olx_sponsor_plan | Izracuna plan izdvajanja: kandidati (zadani ID-evi ili najstariji neizdvojeni aktivni), cijena svakog sa API-ja, raspored po danima do budzeta. | oba | upis |  |
 | olx_sponsor_price | Dohvata cijenu izdvajanja u kreditima. NE trosi kredite. Uvijek pozovi ovo prije izdvajanja. | oba | citanje |  |
+| olx_stock_slika (uslovno) | Za NOV, ZAPAKOVAN artikal poznatog modela (telefon, tehnika) nadje referentne fotografije na Wikimedia Commonsu i preuzme ih, da korisnik izabere jednu. | oba | upis | da |
 | olx_suggest_category | Prijedlog kategorije po naslovu (keyword). Vraca i broj oglasa. | oba | citanje |  |
 | olx_unhide_listing | Vraca skriveni oglas u pretragu. | oba | upis |  |
 | olx_update_listing | Mijenja polja oglasa. | oba | upis | da |
@@ -82,6 +83,7 @@ Uslovni alati (registruju se samo pod navedenim uslovom):
 - **olx_generiraj_sliku**: samo kad je podesen kljuc za generisanje slika (OLX_SLIKA_API_KEY)
 - **olx_opisi_sliku**: samo kad je podesen Gemini kljuc za vid (OLX_VID_API_KEY ili OLX_SLIKA_API_KEY)
 - **olx_pozadina**: samo kad je podesen kljuc za generisanje slika (OLX_SLIKA_API_KEY)
+- **olx_stock_slika**: samo kad je referentna slika sa interneta upaljena po klonu (OLX_STOCK_SLIKE)
 
 ## MCP resursi
 
@@ -360,7 +362,7 @@ ADMIN poslovi nemaju Windows blizanca namjerno: admin masina na Windowsu nije up
 
 ## Varijable okruzenja u cijelom repou
 
-Ukupno 109 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 100 cini konfiguraciju klona.
+Ukupno 111 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 102 cini konfiguraciju klona.
 
 Ostale dolaze iz okoline (harness sesije, plugin loader, proxy) i u `.env.example` namjerno ne stoje: klijent ih ne postavlja rukom. Zato se prazna kolona kod njih ne racuna kao propust.
 
@@ -451,7 +453,7 @@ Nema takvih.
 | OLX_SESIJA_TIP | konfiguracija klona | 6 | scripts/kontekst-izvjestaj.mjs, scripts/lib/mcp-profil.test.mjs, scripts/lib/popis-kod.mjs, scripts/lib/popis-okruzenje.mjs, scripts/lib/sesija.mjs, scripts/lib/sesija.test.mjs |  |
 | OLX_SLIKA_API_KEY | konfiguracija klona | 6 | scripts/lib/popis-kod.mjs, src/core/slika.test.ts, src/core/slika.ts, src/core/vid.test.ts, src/core/vid.ts, src/mcp/server.ts | da |
 | OLX_SLIKA_BASE_URL | konfiguracija klona | 1 | src/core/slika.ts | da |
-| OLX_SLIKA_DIR | konfiguracija klona | 4 | scripts/telegram-most.mjs, src/core/slika.ts, src/core/slike-ciscenje.test.ts, src/core/slike-ciscenje.ts | da |
+| OLX_SLIKA_DIR | konfiguracija klona | 5 | scripts/telegram-most.mjs, src/core/slika.ts, src/core/slike-ciscenje.test.ts, src/core/slike-ciscenje.ts, src/mcp/server.ts | da |
 | OLX_SLIKA_LIMIT_FILE | konfiguracija klona | 2 | src/core/slika-limit.test.ts, src/core/slika-limit.ts | da |
 | OLX_SLIKA_MAX_DNEVNO | konfiguracija klona | 5 | src/core/slika-limit.test.ts, src/core/slika-limit.ts, src/core/slika.test.ts, src/core/slika.ts, src/mcp/server.ts | da |
 | OLX_SLIKA_MODEL | konfiguracija klona | 2 | src/core/gemini.ts, src/core/slika.ts | da |
@@ -466,6 +468,8 @@ Nema takvih.
 | OLX_STANJE_REPO | konfiguracija klona | 6 | deploy/windows/instaliraj-zadatke.ps1, scripts/backup-nadzor.sh, scripts/instaliraj-cron.sh, scripts/lib/analiza-flote.mjs, scripts/nadzor-flote.mjs, scripts/provjeri-klon.mjs | da |
 | OLX_STANJE_TOKEN | konfiguracija klona | 1 | src/core/git-stanje.ts | da |
 | OLX_STANJE_TOKEN_ISTICE | konfiguracija klona | 1 | src/core/git-stanje.ts | da |
+| OLX_STOCK_HOSTOVI | konfiguracija klona | 2 | src/core/stock-slika.test.ts, src/core/stock-slika.ts | da |
+| OLX_STOCK_SLIKE | konfiguracija klona | 2 | scripts/lib/popis-kod.mjs, src/mcp/server.ts | da |
 | OLX_TAG | konfiguracija klona | 5 | deploy/windows/azuriraj.ps1, scripts/azuriraj-ovaj-klon.mjs, scripts/azuriraj-sve.sh, scripts/provjeri-izdanje.mjs, scripts/pusti-u-flotu.mjs | da |
 | OLX_TELEFON_API_KEY | konfiguracija klona | 2 | src/core/telefon-ekstrakcija.test.ts, src/core/telefon-ekstrakcija.ts | da |
 | OLX_TELEFON_MODEL | konfiguracija klona | 2 | src/core/telefon-ekstrakcija.test.ts, src/core/telefon-ekstrakcija.ts | da |

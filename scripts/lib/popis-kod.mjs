@@ -45,6 +45,7 @@ export async function skupiMcp(korijen) {
   delete process.env.CLAUDE_CONFIG_DIR;
   process.env.OLX_VID_API_KEY ||= "popis-mogucnosti";
   process.env.OLX_SLIKA_API_KEY ||= "popis-mogucnosti";
+  process.env.OLX_STOCK_SLIKE ||= "1";
 
   const m = await uvezi(korijen, ["dist", "mcp", "server.js"]);
   const { POPIS_ALATA, POPIS_RESURSA, SAMO_ADMIN, SAMO_KLIJENT, USLOVI } = m;

@@ -163,6 +163,16 @@ Nista drugo se ne pravi, ni kao sala ni kao proba.
   ili logo u njemu ne moze ostati citljiv. To mu reci prije nego takav prostor zada.
 - Fotografija poslana kao fajl ostaje u punoj kvaliteti, obicna se usput smanji. Kad je artikal
   skup ili sitni detalji nose prodaju, trazi fajl.
+- Za NOV, ZAPAKOVAN artikal poznatog modela (telefon, tehnika) moze se potraziti gotova
+  fotografija sa interneta, kad covjek nema sta da slika osim kutije. Prije nego to uradis,
+  reci mu tri stvari, i to prvi put kad zatrazi, ne poslije: da slika prikazuje MODEL a ne bas
+  njegov primjerak, da uz svaku sliku ide ime autora i uslov pod kojim se smije koristiti, i da
+  odgovornost za koristenje te slike u njegovom oglasu nosi on kao oglasivac. Zatim mu posalji
+  sve kandidate uz autora i uslov, pa on bira. Za POLOVAN artikal se to ne radi nikako: takva
+  slika bi sakrila stanje bas te stvari koju prodaje. Kad ne znas je li nov ili polovan, pitaj;
+  ne pretpostavljaj da je nov.
+- Kad za trazeni model nema takve fotografije, reci da nema i trazi da posalje svoju. Nikad ne
+  opisuj sliku koju nisi ni vidio ni dobio.
 
 ## Kad je roba sporna
 

@@ -35,6 +35,45 @@ export function zapisiZahtjevSlike(zahtjev: ZahtjevSlike): void {
     odbijeno: zahtjev.odbijeno,
     razlog: zahtjev.razlog ?? null,
   };
+  upisi(trag, red);
+}
+
+/**
+ * Trag referentne (stock) slike sa interneta. Ide u isti fajl kao i zahtjevi generatoru, jer je
+ * pitanje isto: sta je od slika uslo u oglase i odakle.
+ *
+ * Ovdje je zapis DOKAZ, ne statistika. Kad neko za pola godine pita odakle je ta fotografija i
+ * pod kojom licencom je smjela u oglas, odgovor postoji samo ako su URL, licenca i autor
+ * zapisani u trenutku preuzimanja. Zato se pise i kad je zahtjev odbijen.
+ */
+export interface StockZahtjev {
+  /** Sta je korisnik trazio, doslovno (ime modela). */
+  pojam: string;
+  /** URL sa kojeg je slika stvarno preuzeta; prazno kad do preuzimanja nije ni doslo. */
+  izvorUrl?: string;
+  licenca?: string;
+  autor?: string;
+  /** Stanje artikla kako ga je brana vidjela: "new", "used" ili prazno kad nije bilo poznato. */
+  stanje?: string;
+  odbijeno: boolean;
+  razlog?: string;
+}
+
+export function zapisiStockZahtjev(zahtjev: StockZahtjev): void {
+  upisi(putanjaTraga(), {
+    ts: new Date().toISOString(),
+    vrsta: "stock_slika",
+    pojam: zahtjev.pojam,
+    izvor_url: zahtjev.izvorUrl ?? null,
+    licenca: zahtjev.licenca ?? null,
+    autor: zahtjev.autor ?? null,
+    stanje: zahtjev.stanje ?? null,
+    odbijeno: zahtjev.odbijeno,
+    razlog: zahtjev.razlog ?? null,
+  });
+}
+
+function upisi(trag: string, red: Record<string, unknown>): void {
   try {
     mkdirSync(dirname(trag), { recursive: true });
     appendFileSync(trag, `${JSON.stringify(red)}\n`, "utf8");

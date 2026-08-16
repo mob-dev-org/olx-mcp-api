@@ -77,14 +77,24 @@ usmjerava na ono sto stvarno vuce, a ne po osjecaju.
 
 ## Slike artikla
 
-<!-- pokriva: olx_generiraj_sliku, olx_opisi_sliku, olx_pozadina, olx_limit_slika -->
+<!-- pokriva: olx_generiraj_sliku, olx_opisi_sliku, olx_pozadina, olx_limit_slika, olx_stock_slika -->
 
 Fotografija sa telefona se moze ocistiti tako da artikal dobije miran prostor i ravno svjetlo,
 umjesto stola u magacinu ili sarene prostirke. Pozadinu zadas jednom, pa svi oglasi izgledaju kao
 jedna serija.
 
-Vazno da se kaze unaprijed: pozadina se svaki put crta iznova, pa je slicna a nikad identicna, i
-natpisi i logo se na njoj izoblice. Zato se brendirana pozadina ne nudi.
+Kad posaljes SLIKU pozadine, artikal se sa fotografije izrezuje i lijepi na nju, pa pozadina i
+logo na njoj ostanu tacno kakvi jesu. Uz to dobijes i doradjenu varijantu, ljepse uklopljenu ali
+bez garancije za logo, pa biras koja ide na oglas. Ako na jednoj fotografiji stoji vise artikala,
+svi se prepoznaju i sloze zajedno; oni koji se na slici dodiruju racunaju se kao jedan, pa ih je
+bolje slikati odvojeno.
+
+Kad je pozadina zadana samo rijecima, crta se svaki put iznova, pa je slicna a nikad identicna, i
+natpisi i logo se na njoj izoblice. Zato se brendirana pozadina po opisu ne nudi.
+
+Za nov, zapakovan artikal poznatog modela moze se potraziti i referentna fotografija sa interneta,
+i to samo tamo gdje slika nosi jasnu licencu, koja ti se pokaze uz svakog kandidata. Za polovan
+artikal se to ne radi: takva slika prikazuje model, a ne bas taj primjerak koji prodajes.
 
 ## Da vidis sta se stvarno desava
 

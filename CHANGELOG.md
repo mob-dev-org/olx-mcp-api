@@ -19,6 +19,34 @@ slaganja Gemini se opciono zove SAMO za doradu svjetla i kontaktne sjenke, i kli
 verzije da bira, jer dorada ne garantuje da ce logo ostati citljiv. Geometrija je cista i
 testirana odvojeno od piksela (`src/core/slaganje.ts`).
 
+**Vise stvarnih artikala sa iste fotografije se slaze zajedno.** Kad na jednoj poslanoj fotografiji
+stvarno stoji vise artikala, svi se prepoznaju i slazu na istu pozadinu, najvise 4. Sadrzaj je pri
+tom sav stvaran i prisutan na fotografiji koju je klijent poslao, pa ovo nije u sukobu sa pravilom
+da generisana slika prikazuje samo artikal koji se oglasava. imgly ne radi instance segmentaciju
+(jedan poziv vraca jednu masku sa svim objektima), pa razdvajanje ide u kodu, connected components
+nad alpha kanalom; segmentacija time ostaje JEDAN poziv po fotografiji, bez visestrukog troska.
+Raspored je jedan red po dnu sa zajednickom donjom linijom, sirina se dijeli proporcionalno
+korijenu povrsine, a gornja margina koja cuva logo na pozadini ostaje netaknuta. Artikli koji se
+na fotografiji DODIRUJU prepoznaju se kao jedan i budu izrezani kao blok; to se u kodu ne moze
+popraviti, pa se kaze i u opisu alata i klijentu. Brana koja za ovaj recept dozvoljava samo jednu
+ulaznu fotografiju ostaje.
+
+**Referentna (stock) slika za nov, zapakovan artikal.** Novi alat `olx_stock_slika` nadje i
+preuzme referentne fotografije poznatog modela (telefon, tehnika), da korisnik izabere jednu, kad
+nema sta da slika osim kutije. Ovo je jedini tok u kojem u oglas ulazi tudja fotografija, pa je
+vlasnicka odluka i stoji iza prekidaca `OLX_STOCK_SLIKE` koji je po defaultu UGASEN: na klonu gdje
+ga niko nije upalio alata nema ni u kontekstu. Izvor je Wikimedia Commons, i to je glavna zastita
+a ne slucajan izbor: svaka slika tamo nosi eksplicitnu slobodnu licencu, koja se sa imenom autora
+vraca uz svakog kandidata i mora se pokazati korisniku, jer je atribucija uslov koristenja. Sve
+ostale brane su u jezgru i testirane: polovan artikal se odbija (referentna slika prikazuje model,
+ne bas taj primjerak), nepoznato stanje trazi izricitu tvrdnju i potvrdu umjesto da tiho prodje,
+preuzima se samo sa hostova sa spiska (dopuna samo rukom u `.env`), preusmjerenja se ne prate,
+sadrzaj se provjerava po magic bajtovima a ne po ekstenziji, i vazi granica velicine. Trag sa
+izvornim URL-om, licencom i autorom ide u `.olx-pik/slike-zahtjevi.jsonl`, i kad je zahtjev
+odbijen. Za tu sliku se AI ne zove i dnevni plafon generisanja se ne trosi. Odgovornost za pravo
+koristenja slike u oglasu nosi oglasivac, ne bot, i to mu se kaze prije nego sliku dobije.
+Pokrivenost je ogranicena na poznate modele; kad nema pogotka, odgovor je da nema.
+
 **Deterministicko slaganje ne trosi dnevni plafon dorade.** `OLX_SLIKA_MAX_DNEVNO` se trosi samo
 kad se Gemini stvarno pozove. Kad je plafon dostignut, slaganje i dalje vrati slozenu sliku, a
 dorada se preskoci uz jasan razlog umjesto da cijela radnja padne.
