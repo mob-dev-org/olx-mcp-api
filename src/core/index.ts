@@ -13,6 +13,7 @@ import {
   type AuditSink,
 } from "./audit.js";
 import { objasniPogotke, provjeriRobu, type PogodakRobe } from "./zabranjena-roba.js";
+import { nadjiSumnjive } from "./backup-spisak.js";
 import { VERZIJA } from "./verzija.js";
 import { izvuciTelefon } from "./telefon-ekstrakcija.js";
 import { izmjereniDanReseta, ucitajKvotuDnevnik } from "./kvota-dnevnik.js";
@@ -256,9 +257,12 @@ export class OlxClient {
 
     // Jedan zapis po logickom pozivu, ne po HTTP pokusaju, da backoff ne pravi spam u logu.
     // Tijelo i query nikad ne ulaze u zapis (login nosi lozinku).
-    const zapisi = (status: number, ok: boolean, error?: string): void => {
+    const zapisi = (status: number, ok: boolean, error?: string, errorBody?: unknown): void => {
       if (method === "GET" && !this.config.auditReads) return;
       const ctx = currentAuditContext();
+      // Sirovo tijelo ima smisla samo na neuspjehu; na uspjehu ga niko ne trazi jer ga MCP
+      // wrapper vec vraca u odgovoru alata.
+      const skraceno = !ok ? pripremiErrorBody(errorBody) : undefined;
       this.audit({
         ts: new Date().toISOString(),
         version: VERZIJA,
@@ -272,6 +276,7 @@ export class OlxClient {
         attempts: attempt,
         ...(this.cachedUsername ? { account: this.cachedUsername } : {}),
         ...(error ? { error } : {}),
+        ...(skraceno ? { error_body: skraceno } : {}),
         // Trosak se biljezi samo na uspjesnom pozivu: neuspjeh nije naplacen, a kad bi usao u
         // log, dnevni plafon bi se trosio na radnje koje se nikad nisu desile.
         ...(ok && typeof krediti === "number" ? { krediti } : {}),
@@ -355,7 +360,7 @@ export class OlxClient {
           zapisi(res.status, false, poruka);
           throw new OlxAuthError(poruka);
         }
-        zapisi(res.status, false, `Zahtjev nije uspio (${res.status})`);
+        zapisi(res.status, false, `Zahtjev nije uspio (${res.status})`, parsed);
         throw new OlxApiError(`Zahtjev nije uspio (${res.status}) ${method} ${path}`, res.status, parsed);
       } catch (err) {
         clearTimeout(timer);
@@ -1530,4 +1535,27 @@ function safeJson(text: string): unknown {
   } catch {
     return text;
   }
+}
+
+// Koliko znakova sirovog tijela greske ide u audit zapis. Jedan ogroman payload ne smije razduti
+// log fajl, a razlog greske je gotovo uvijek u prvih par stotina znakova.
+const MAX_ERROR_BODY_LEN = 2000;
+
+/**
+ * Priprema sirovo tijelo neuspjesnog odgovora za audit log: stringifikacija i skracivanje na
+ * `MAX_ERROR_BODY_LEN`. Vraca `undefined` kad nema tijela ILI kad tekst izgleda kao tajna (isti
+ * obrasci kao u `backup-spisak.ts`, "Trag i tajne": token nikad u odgovor, poruku, ni ovdje u
+ * log). Vrlo malo vjerovatno da OLX-ov error body ikad nosi token, ali granica je namjerna.
+ */
+function pripremiErrorBody(body: unknown): string | undefined {
+  if (body === undefined || body === null) return undefined;
+  let tekst: string;
+  try {
+    tekst = typeof body === "string" ? body : JSON.stringify(body);
+  } catch {
+    return undefined;
+  }
+  if (!tekst) return undefined;
+  if (nadjiSumnjive(tekst).length > 0) return undefined;
+  return tekst.length > MAX_ERROR_BODY_LEN ? tekst.slice(0, MAX_ERROR_BODY_LEN) : tekst;
 }

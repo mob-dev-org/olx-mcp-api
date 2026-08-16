@@ -39,6 +39,13 @@ export interface AuditEntry {
   // Username naloga ako je poznat iz prethodnih poziva; nikad se ne dohvata samo zbog loga.
   account?: string;
   error?: string;
+  // Sirovo (skraceno, provjereno da ne izgleda kao tajna) tijelo odgovora API-ja na neuspjesnom
+  // pozivu. `error` je generacki opis ("Zahtjev nije uspio (422)"), ovo je stvarni razlog koji
+  // je API vratio (npr. koje polje nije validno). Bez toga se poslije, kad korisnik pita "zasto
+  // je ovo puklo", odgovor gubi zauvijek jer je postojao samo u zivom razgovoru u trenutku greske.
+  // Postoji samo na neuspjesnim pozivima (ok: false); polje je OPCIONALNO da stariji zapisi bez
+  // njega ostanu validni.
+  error_body?: string;
   // Koliko je kredita radnja kostala. Postoji samo na radnjama koje trose. Nije dio tijela
   // zahtjeva nego izracunat trosak, pa ne krsi pravilo o tijelu i query stringu. Bez njega se
   // dnevni plafon (OLX_MAX_SPEND_PER_DAY) ne bi mogao izracunati iz loga.
