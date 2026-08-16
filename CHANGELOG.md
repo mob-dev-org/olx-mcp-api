@@ -8,6 +8,29 @@ Kako se cita broj verzije: `bun dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
+## 0.16.0 — 2026-08-16
+
+**Zavrsen oglas se moze vratiti u prodaju.** Novi MCP alat `olx_reaktiviraj_oglas` i CLI komanda
+`olx listings reaktiviraj <id>` objave NOV oglas sa istim tekstom i ORIGINALNIM slikama zavrsenog
+oglasa. Platforma zavrsen oglas ne moze ozivjeti (za `hide` postoji `unhide`, za `finish` nema
+para, a opciju ponovne objave zavrsenih je ukinula), pa je ponovna objava jedini put i to je
+jedini izuzetak od pravila "na vrh se ide obnovom, ne ponovnom objavom" (`granice.md`). Preglede
+i pitanja stari oglas ne prenosi i to se korisniku kaze prije objave. Alat namjerno ODBIJA sve
+sto ima jeftiniji put: aktivan oglas salje na obnovu ili izdvajanje, istekao na obnovu, nacrt na
+`olx_publish_listing`, skriven na otkrivanje, a oglas sa nepoznatim ili praznim statusom
+zaustavlja umjesto da nagadja. Zavrsen oglas zna vratiti cijenu 0 ili "na upit", pa alat u tom
+slucaju stane i trazi cijenu; nula i "ne znam" nisu isto.
+
+**Tok objave iz arhive je sada jedan.** `OlxClient.objaviIzArhive` (create, slike, glavna slika,
+publish, prenos izuzeca, oznaka u arhivi, brana duple objave) dijele `olx_vrati_artikal`, nova
+reaktivacija i CLI, umjesto da svaki ima svoju kopiju. Brane troska ostaju gdje su i bile, u
+`createListing` i `publishListing`.
+
+- Da li POST `/listings/:id/publish` nad zavrsenim oglasom ista radi i dalje NIJE izmjereno.
+  Grana za to stoji u kodu i ugasena je; mjeri se sa `olx listings reaktiviraj <id> --mjeri-publish`,
+  ali samo na admin nalogu i samo nad namjenskim oglasom u besplatnoj kategoriji, jer trenutak
+  naplate (create ili publish) nije izmjeren pa se nepoznata cijena tretira kao naplatna.
+
 ## 0.15.0 — 2026-08-16
 
 **`--channels` u headless (launchd) rezimu vise ne pada na TTY provjeri, i telegram-most.mjs

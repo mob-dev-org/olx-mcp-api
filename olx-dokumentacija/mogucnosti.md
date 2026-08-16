@@ -4,9 +4,9 @@ Ovaj fajl je GENERISAN iz koda, pravi ga `bun scripts/popis-mogucnosti.mjs`. Ne 
 
 ## Sazetak
 
-- MCP alata: 60, od toga klijentu dostupno: 44
+- MCP alata: 61, od toga klijentu dostupno: 45
 - MCP resursa: 8
-- CLI komandi: 62
+- CLI komandi: 63
 - Zakazanih poslova: 12
 - Postavki: 29
 - Skillova: 11
@@ -54,6 +54,7 @@ Ovaj fajl je GENERISAN iz koda, pravi ga `bun scripts/popis-mogucnosti.mjs`. Ne 
 | olx_prijedlozi | Cita prijedloge koje je napravila sedmicna analiza. | oba | citanje |  |
 | olx_profile_stats | Pregled vlastitog naloga u jednom pozivu: paket i njegov istek (shop.ends_at), krediti, iskoristenost kvote obnova (bez roka reseta, za rok je olx_refresh_limits), oglasi po stanjima, cijene, udio sponzorisanih, neobnovljeni oglasi, te objava_limit: popunjenost limita broja oglasa po grupama kategorija (preostalo, procenat, status slobodno/blizu_limita/dostignut). | oba | citanje |  |
 | olx_publish_listing | Objavljuje DRAFT oglas (postaje aktivan i vidljiv) i vraca `link` na objavljeni oglas, koji obavezno posalji korisniku. | oba | upis | da |
+| olx_reaktiviraj_oglas | Vraca ZAVRSEN oglas u zivot objavom NOVOG oglasa sa istim podacima i originalnim slikama (API ne moze zavrsen oglas vratiti u aktivne; pregledi i pitanja se ne prenose). | oba | upis | da |
 | olx_refresh_bulk | Obnavlja aktivne oglase kojima je obnova dostupna, uz postivanje mjesecnog limita. | oba | upis | da |
 | olx_refresh_limits | Limiti besplatne obnove sa naloga (free_limit, free_count, listing_count). | oba | citanje |  |
 | olx_refresh_listing | Obnavlja oglas (svjez datum, dize rang u kategoriji). | oba | upis |  |
@@ -151,6 +152,11 @@ Uslovni alati (registruju se samo pod navedenim uslovom):
   - `--page <n>`: broj stranice
 - `listings publish <id>`: Objavljuje DRAFT oglas (1 opcija)
   - `--yes`: potvrda za naplatne kategorije (vozila, nekretnine, poslovi)
+- `listings reaktiviraj <id>`: Vraca zavrsen oglas u zivot objavom NOVOG oglasa sa istim podacima i slikama (pregledi se ne prenose) (4 opcija)
+  - `--cijena <n>`: cijena novog oglasa u KM (obavezna kad original nema citljivu cijenu)
+  - `--yes`: potvrda eventualne cijene objave u naplatnoj kategoriji
+  - `--potvrdi-robu`: potvrda da roba nije sporna, kad provjera pravila robe zaustavi objavu
+  - `--mjeri-publish`: MJERENJE (samo admin, samo besplatna kategorija): pozovi publish nad zavrsenim oglasom i ispisi sta API vrati
 - `listings rm <id>`: Brise oglas (nepovratno; radije koristi hide/finish) (1 opcija)
   - `--yes`: potvrda brisanja
 - `listings unhide <id>`: Vraca skriveni oglas
@@ -381,7 +387,7 @@ Nema takvih.
 | CLAUDE_PLUGIN_ROOT | daje okolina | 2 | scripts/claude-olx.sh, scripts/lib/sesija.mjs |  |
 | DEEPSEEK_ENV_FILE | konfiguracija klona | 1 | scripts/deepseek-proba.mjs | da |
 | OLX_AI_USAGE_FILE | konfiguracija klona | 5 | scripts/ai-cijene.mjs, src/core/ai-dnevnik.ts, src/core/backup-spisak.ts, src/core/slika.test.ts, src/core/vid.test.ts | da |
-| OLX_ARHIVA_DIR | konfiguracija klona | 2 | src/core/arhiva.test.ts, src/core/arhiva.ts | da |
+| OLX_ARHIVA_DIR | konfiguracija klona | 3 | src/core/arhiva.test.ts, src/core/arhiva.ts, src/core/client.test.ts | da |
 | OLX_AUDIT_FILE | konfiguracija klona | 6 | src/core/audit.test.ts, src/core/audit.ts, src/core/backup-spisak.test.ts, src/core/backup-spisak.ts, src/core/client.test.ts, src/core/config.ts | da |
 | OLX_AUDIT_READS | konfiguracija klona | 2 | src/core/client.test.ts, src/core/config.ts | da |
 | OLX_BACKUP_PRAG_DANA | konfiguracija klona | 1 | scripts/backup-nadzor.sh | da |

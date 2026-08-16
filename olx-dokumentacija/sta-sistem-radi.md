@@ -126,13 +126,17 @@ ne pamti se napamet, pa broj koji dobijes vazi.
 
 ## Pamcenje i arhiva
 
-<!-- pokriva: olx_zapamti, olx_zabiljezi_saznanje, olx_arhiva, olx_skini_artikal, olx_vrati_artikal, posao:saznanja -->
+<!-- pokriva: olx_zapamti, olx_zabiljezi_saznanje, olx_arhiva, olx_skini_artikal, olx_vrati_artikal, olx_reaktiviraj_oglas, posao:saznanja -->
 
 Sto jednom kazes ostaje zapamceno i poslije zatvaranja razgovora, pa ne moras svaki put ispocetka
 objasnjavati kako radis.
 
 Artikal koji skines cuva se u arhivi zajedno sa slikama, pa se isti oglas vrati kad roba dodje, bez
 ponovnog pisanja i slikanja.
+
+Oglas koji si zavrsio kao prodan moze se vratiti u prodaju kad se ista roba opet nadje na stanju:
+sistem napravi nov oglas sa istim tekstom i istim slikama. Platforma zavrsen oglas ne moze
+ozivjeti, pa nov oglas krece od nula pregleda i to se kaze unaprijed.
 
 ## Sta radi samo, dok niko ne gleda
 

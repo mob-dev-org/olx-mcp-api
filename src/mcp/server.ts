@@ -2461,6 +2461,9 @@ server.registerTool(
       return {
         ...ostalo,
         neuspjele_slike: zaObjavu.meta.neuspjele_slike.length > 0 ? zaObjavu.meta.neuspjele_slike : undefined,
+        // Kad su slike uzete iz ranije arhive, korisnik to mora znati: nov oglas tada nosi
+        // fotografije iz vremena kad je artikal skinut, a ne one koje su bile na zavrsenom oglasu.
+        slike_iz_ranije_arhive: zaObjavu.meta.slike_iz_ranije_arhive ? true : undefined,
         link: linkOglasa(r.novi_id, slug),
       };
     }),

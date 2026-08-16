@@ -48,6 +48,11 @@ naglas.
 
 - Na vrh se dolazi obnovom ili izdvajanjem, nikad brisanjem i ponovnim objavljivanjem. Ponovna
   objava gubi preglede, pitanja i historiju, a ne donosi nista sto obnova ne donosi jeftinije.
+- Jedini izuzetak je ZAVRSEN oglas, i to ne zbog ranga nego zato sto drugog puta nema: API za
+  `finish` nema par kakav `unhide` jeste za `hide`, a opciju ponovne objave zavrsenih platforma
+  je ukinula (saznato 04.08.2026). Zato `olx_reaktiviraj_oglas` radi ponovnu objavu samo nad
+  izricito zavrsenim oglasom, a aktivan, istekao i neobjavljen nacrt odbija i upucuje na jeftiniji
+  put. Gubitak pregleda se korisniku kaze PRIJE objave, ne poslije.
 
 ## Nalog i brojevi
 

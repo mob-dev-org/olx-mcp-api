@@ -417,14 +417,17 @@ listings
   .description("Vraca zavrsen oglas u zivot objavom NOVOG oglasa sa istim podacima i slikama (pregledi se ne prenose)")
   .option("--cijena <n>", "cijena novog oglasa u KM (obavezna kad original nema citljivu cijenu)")
   .option("--yes", "potvrda eventualne cijene objave u naplatnoj kategoriji", false)
-  .option("--probaj-publish", "MJERENJE: pozovi publish direktno nad zavrsenim oglasom i ispisi sta API vrati", false)
-  .action(async (id: string, opts: { cijena?: string; yes?: boolean; probajPublish?: boolean }) => {
+  .option("--potvrdi-robu", "potvrda da roba nije sporna, kad provjera pravila robe zaustavi objavu", false)
+  .option("--mjeri-publish", "MJERENJE (samo admin, samo besplatna kategorija): pozovi publish nad zavrsenim oglasom i ispisi sta API vrati", false)
+  .action(async (id: string, opts: { cijena?: string; yes?: boolean; potvrdiRobu?: boolean; mjeriPublish?: boolean }) => {
     try {
       const c = await withAuth();
-      if (opts.probajPublish) {
+      if (opts.mjeriPublish) {
         // Mjerenje za granu "publish" u planReaktivacije: sta POST /listings/{id}/publish radi
-        // nad zavrsenim oglasom. Nalaz zapisati kao saznanje iz prakse.
-        out(await c.publishListing(id, { confirm: Boolean(opts.yes) }));
+        // nad zavrsenim oglasom. Radi se SAMO na admin nalogu i SAMO nad namjenskim oglasom u
+        // besplatnoj kategoriji, jer trenutak naplate (create ili publish) nije izmjeren, pa se
+        // po granicama nepoznata cijena tretira kao naplatna. Nalaz zapisati kao saznanje iz prakse.
+        out(await c.publishListing(id, { confirm: Boolean(opts.yes), potvrdiRobu: Boolean(opts.potvrdiRobu) }));
         return;
       }
       const brojId = Number(id);
@@ -462,7 +465,7 @@ listings
         }
         zaObjavu = zapis;
       }
-      out(await c.objaviIzArhive(zaObjavu, { confirm: Boolean(opts.yes) }));
+      out(await c.objaviIzArhive(zaObjavu, { confirm: Boolean(opts.yes), potvrdiRobu: Boolean(opts.potvrdiRobu) }));
     } catch (e) {
       fail(e);
     }
