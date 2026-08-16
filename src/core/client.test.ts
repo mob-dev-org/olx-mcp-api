@@ -8,6 +8,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { OlxClient, OlxAuthError, OlxSpendError, OlxPravilaError, naknadaKategorije } from "./index.js";
+import type { ArhivskiZapis } from "./arhiva.js";
 import { loadConfig } from "./config.js";
 import { potrosenoNaDan, withAuditContext, type AuditEntry } from "./audit.js";
 import { VERZIJA } from "./verzija.js";
@@ -1282,5 +1283,224 @@ test("na 401 bez .env fajla se ponasa kao i prije", async () => {
     assert.equal(calls.length, 1);
   } finally {
     restore();
+  }
+});
+
+// ---- objaviIzArhive ----
+//
+// Arhivske slike se citaju sa diska (uploadImageFiles), pa svaki test priprema pravu privremenu
+// mapu i postavlja OLX_ARHIVA_DIR na nju (isti obrazac kao "preuzmiSlike" u arhiva.test.ts).
+// zauzmiKljuc i ucitajIzuzeca/upisiIzuzeca nemaju env parametar (put je fiksan, ".olx-pik/..."),
+// pa se test dodatno izoluje sa process.chdir u praznu privremenu mapu, da nista ne pise u
+// stvarni .olx-pik/ ovog repoa.
+
+function noviZapisTest(id: number, izmjene: Partial<ArhivskiZapis["meta"]> = {}): ArhivskiZapis {
+  return {
+    create: { title: `Arhivski artikal ${id}` },
+    meta: {
+      originalni_id: id,
+      naslov: `Arhivski artikal ${id}`,
+      arhivirano: "2026-08-01T00:00:00.000Z",
+      status_pri_arhiviranju: "finished",
+      url_slika: [],
+      fajlovi_slika: ["01.jpg"],
+      neuspjele_slike: [],
+      nerekreirljivo: {},
+      ponovo_objavljen: null,
+      ...izmjene,
+    },
+  };
+}
+
+// Priprema arhivsku mapu <arhivaDir>/<id>/01.jpg (pravi fajl, sadrzaj nije bitan) i praznu
+// privremenu radnu mapu za cwd. Oboje se cisti u finally testa preko vracenog cleanup-a.
+function pripremiArhivskuMapu(id: number): { arhivaDir: string; cwdDir: string } {
+  const arhivaDir = mkdtempSync(join(tmpdir(), "olx-arhiva-objava-"));
+  const mapaZapisa = join(arhivaDir, String(id));
+  mkdirSync(mapaZapisa, { recursive: true });
+  writeFileSync(join(mapaZapisa, "01.jpg"), Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
+  const cwdDir = mkdtempSync(join(tmpdir(), "olx-arhiva-cwd-"));
+  return { arhivaDir, cwdDir };
+}
+
+test("objaviIzArhive: sretan put kreira nacrt, salje sliku iz arhive pa tek onda objavljuje", async () => {
+  const staraEnv = process.env.OLX_ARHIVA_DIR;
+  const staraCwd = process.cwd();
+  const { arhivaDir, cwdDir } = pripremiArhivskuMapu(601);
+  process.env.OLX_ARHIVA_DIR = arhivaDir;
+  process.chdir(cwdDir);
+  const { calls, restore } = stubFetch([
+    { status: 200, body: { id: 701, title: "Arhivski artikal 601" } }, // createListing
+    { status: 200, body: [{ id: 9001, name: "01.jpg", main: true, order: 1 }] }, // uploadImageFiles
+    { status: 200, body: { success: true } }, // setMainImage
+    { status: 200, body: { id: 701, status: "active", visible: true } }, // getListing unutar publishListing
+    { status: 200, body: { message: "ok", status: "active" } }, // publishListing
+    { status: 200, body: { id: 701, slug: "arhivski-artikal-601" } }, // getListing za slug
+  ]);
+  try {
+    const client = new OlxClient(testConfig({ maxRetries: 0 }));
+    const zapis = noviZapisTest(601);
+    const rezultat = await client.objaviIzArhive(zapis, { confirm: true });
+
+    assert.equal(rezultat.radnja, "objavljen_iz_arhive");
+    if (rezultat.radnja !== "objavljen_iz_arhive") return;
+    assert.equal(rezultat.stari_id, 601);
+    assert.equal(rezultat.novi_id, 701);
+    assert.equal(rezultat.poslano_slika, 1);
+    assert.equal(rezultat.slug, "arhivski-artikal-601");
+
+    const createIndex = calls.findIndex((c) => c.method === "POST" && c.url.endsWith("/listings"));
+    const uploadIndex = calls.findIndex((c) => c.url.includes("/image-upload"));
+    const publishIndex = calls.findIndex((c) => c.url.includes("/publish"));
+    assert.ok(createIndex >= 0 && uploadIndex >= 0 && publishIndex >= 0, "sva tri poziva su se desila");
+    assert.ok(createIndex < uploadIndex && uploadIndex < publishIndex, "redoslijed je create, pa upload, pa publish");
+  } finally {
+    restore();
+    process.chdir(staraCwd);
+    if (staraEnv === undefined) delete process.env.OLX_ARHIVA_DIR;
+    else process.env.OLX_ARHIVA_DIR = staraEnv;
+    rmSync(arhivaDir, { recursive: true, force: true });
+    rmSync(cwdDir, { recursive: true, force: true });
+  }
+});
+
+test("objaviIzArhive: brana duple objave ne kreira nista dok je prethodno vraceni oglas aktivan", async () => {
+  const staraEnv = process.env.OLX_ARHIVA_DIR;
+  const staraCwd = process.cwd();
+  const { arhivaDir, cwdDir } = pripremiArhivskuMapu(602);
+  process.env.OLX_ARHIVA_DIR = arhivaDir;
+  process.chdir(cwdDir);
+  const { calls, restore } = stubFetch([{ status: 200, body: { id: 801, visible: true } }]);
+  try {
+    const client = new OlxClient(testConfig({ maxRetries: 0 }));
+    const zapis = noviZapisTest(602, { ponovo_objavljen: { novi_id: 801, kada: "2026-08-01T00:00:00.000Z" } });
+    const rezultat = await client.objaviIzArhive(zapis, { confirm: true });
+
+    assert.equal(rezultat.radnja, "nista");
+    assert.equal(calls.length, 1, "samo provjera starog oglasa, nista se ne kreira");
+    assert.equal(calls[0]?.method, "GET");
+    assert.equal(
+      calls.some((c) => c.method === "POST"),
+      false,
+      "createListing se NE poziva dok je prethodni oglas jos aktivan",
+    );
+  } finally {
+    restore();
+    process.chdir(staraCwd);
+    if (staraEnv === undefined) delete process.env.OLX_ARHIVA_DIR;
+    else process.env.OLX_ARHIVA_DIR = staraEnv;
+    rmSync(arhivaDir, { recursive: true, force: true });
+    rmSync(cwdDir, { recursive: true, force: true });
+  }
+});
+
+test("objaviIzArhive: ignorisiPrethodnu:true preskace branu i objavljuje novi primjerak", async () => {
+  const staraEnv = process.env.OLX_ARHIVA_DIR;
+  const staraCwd = process.cwd();
+  const { arhivaDir, cwdDir } = pripremiArhivskuMapu(603);
+  process.env.OLX_ARHIVA_DIR = arhivaDir;
+  process.chdir(cwdDir);
+  const { calls, restore } = stubFetch([
+    { status: 200, body: { id: 901, title: "Arhivski artikal 603" } }, // createListing
+    { status: 200, body: [{ id: 9002, name: "01.jpg", main: true, order: 1 }] }, // uploadImageFiles
+    { status: 200, body: { success: true } }, // setMainImage
+    { status: 200, body: { id: 901, status: "active" } }, // getListing unutar publishListing
+    { status: 200, body: { message: "ok", status: "active" } }, // publishListing
+    { status: 200, body: { id: 901, slug: "arhivski-artikal-603" } }, // getListing za slug
+  ]);
+  try {
+    const client = new OlxClient(testConfig({ maxRetries: 0 }));
+    const zapis = noviZapisTest(603, { ponovo_objavljen: { novi_id: 801, kada: "2026-08-01T00:00:00.000Z" } });
+    const rezultat = await client.objaviIzArhive(zapis, { confirm: true, ignorisiPrethodnu: true });
+
+    assert.equal(rezultat.radnja, "objavljen_iz_arhive");
+    // Brana je preskocena, pa prvi poziv mora biti create, ne provjera prethodnog oglasa (801).
+    assert.equal(calls[0]?.method, "POST");
+    assert.ok(calls[0]?.url.endsWith("/listings"));
+    assert.ok(
+      calls.every((c) => !c.url.includes("/listings/801")),
+      "prethodni oglas (801) se uopste ne provjerava kad je brana iskljucena",
+    );
+  } finally {
+    restore();
+    process.chdir(staraCwd);
+    if (staraEnv === undefined) delete process.env.OLX_ARHIVA_DIR;
+    else process.env.OLX_ARHIVA_DIR = staraEnv;
+    rmSync(arhivaDir, { recursive: true, force: true });
+    rmSync(cwdDir, { recursive: true, force: true });
+  }
+});
+
+test("objaviIzArhive: pad uploada slika prekida PRIJE objave, draft ostaje neobjavljen", async () => {
+  const staraEnv = process.env.OLX_ARHIVA_DIR;
+  const staraCwd = process.cwd();
+  const { arhivaDir, cwdDir } = pripremiArhivskuMapu(604);
+  process.env.OLX_ARHIVA_DIR = arhivaDir;
+  process.chdir(cwdDir);
+  const { calls, restore } = stubFetch([
+    { status: 200, body: { id: 1001, title: "Arhivski artikal 604" } }, // createListing
+    { status: 500, body: { message: "server error" } }, // uploadImageFiles pada
+  ]);
+  try {
+    const client = new OlxClient(testConfig({ maxRetries: 0 }));
+    const zapis = noviZapisTest(604);
+    const rezultat = await client.objaviIzArhive(zapis, { confirm: true });
+
+    assert.equal(rezultat.radnja, "prekinuto_prije_objave");
+    if (rezultat.radnja !== "prekinuto_prije_objave") return;
+    assert.equal(rezultat.draft_id, 1001);
+    assert.equal(calls.length, 2, "samo create i neuspjeli upload, publish se ne pokusava");
+    assert.equal(
+      calls.some((c) => c.url.includes("/publish")),
+      false,
+      "oglas bez slika se ne objavljuje",
+    );
+  } finally {
+    restore();
+    process.chdir(staraCwd);
+    if (staraEnv === undefined) delete process.env.OLX_ARHIVA_DIR;
+    else process.env.OLX_ARHIVA_DIR = staraEnv;
+    rmSync(arhivaDir, { recursive: true, force: true });
+    rmSync(cwdDir, { recursive: true, force: true });
+  }
+});
+
+test("objaviIzArhive: pad setMainImage se guta, objava svejedno prolazi", async () => {
+  const staraEnv = process.env.OLX_ARHIVA_DIR;
+  const staraCwd = process.cwd();
+  const { arhivaDir, cwdDir } = pripremiArhivskuMapu(605);
+  process.env.OLX_ARHIVA_DIR = arhivaDir;
+  process.chdir(cwdDir);
+  const { calls, restore } = stubFetch([
+    { status: 200, body: { id: 1101, title: "Arhivski artikal 605" } }, // createListing
+    { status: 200, body: [{ id: 9003, name: "01.jpg", main: true, order: 1 }] }, // uploadImageFiles
+    { status: 500, body: { message: "server error" } }, // setMainImage pada
+    { status: 200, body: { id: 1101, status: "active" } }, // getListing unutar publishListing
+    { status: 200, body: { message: "ok", status: "active" } }, // publishListing
+    { status: 200, body: { id: 1101, slug: "arhivski-artikal-605" } }, // getListing za slug
+  ]);
+  try {
+    const client = new OlxClient(testConfig({ maxRetries: 0 }));
+    const zapis = noviZapisTest(605);
+    const rezultat = await client.objaviIzArhive(zapis, { confirm: true });
+
+    assert.equal(rezultat.radnja, "objavljen_iz_arhive");
+    if (rezultat.radnja !== "objavljen_iz_arhive") return;
+    assert.equal(rezultat.novi_id, 1101);
+    assert.ok(
+      calls.some((c) => c.url.includes("/image-main")),
+      "setMainImage je pozvan iako je pao",
+    );
+    assert.ok(
+      calls.some((c) => c.url.includes("/publish")),
+      "objava se svejedno desila",
+    );
+  } finally {
+    restore();
+    process.chdir(staraCwd);
+    if (staraEnv === undefined) delete process.env.OLX_ARHIVA_DIR;
+    else process.env.OLX_ARHIVA_DIR = staraEnv;
+    rmSync(arhivaDir, { recursive: true, force: true });
+    rmSync(cwdDir, { recursive: true, force: true });
   }
 });

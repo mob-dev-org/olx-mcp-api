@@ -33,6 +33,8 @@ export interface ArhivskiZapis {
     /** Relativna imena fajlova u mapi zapisa, isti redoslijed (01.jpg...). */
     fajlovi_slika: string[];
     neuspjele_slike: NeuspjelaSlika[];
+    /** Slike su zadrzane iz ranijeg zapisa jer se sa zavrsenog oglasa nijedna nije mogla preuzeti. */
+    slike_iz_ranije_arhive?: boolean;
     /** Polja koja se kroz kreiranje ne mogu vratiti (quantity, shipping...), samo za covjeka. */
     nerekreirljivo: Record<string, unknown>;
     ponovo_objavljen: { novi_id: number; kada: string } | null;
@@ -162,6 +164,76 @@ export function planVracanja(
   return { radnja: "objavi" };
 }
 
+/**
+ * Odluka sta "reaktiviraj zavrsen oglas" radi. API nema endpoint koji finished oglas vraca u
+ * aktivne (za hide postoji unhide, za finish nista), pa je reaktivacija ponovna objava: iz
+ * zivog zavrsenog oglasa (slike sa CDN-a) ili iz ranije arhive. Cista funkcija, grane bez mreze.
+ *
+ * publishRadiNaFinished ostaje false dok se uzivo ne izmjeri sta POST /listings/{id}/publish
+ * radi nad zavrsenim oglasom; ako mjerenje prodje, grana "publish" vraca oglas SA pregledima.
+ */
+export function planReaktivacije(
+  oglas: Listing | null,
+  zapis: ArhivskiZapis | null,
+  opts: { zadataCijena?: number; publishRadiNaFinished?: boolean } = {},
+):
+  | { radnja: "publish" }
+  | { radnja: "otkrij" }
+  | { radnja: "objavi_iz_zivog"; cijena: number }
+  | { radnja: "objavi_iz_arhive" }
+  | { radnja: "stoj"; zasto: string } {
+  if (!oglas) {
+    if (zapis) return { radnja: "objavi_iz_arhive" };
+    return { radnja: "stoj", zasto: "oglas se ne moze procitati sa platforme, a lokalne arhive nema" };
+  }
+  // Skrivenost se gleda samo dok oglas NIJE zavrsen. Zavrsen oglas API zna vratiti i sa
+  // visible=false, pa bi provjera skrivenosti prije statusa poslala reaktivaciju na unhide,
+  // koji nad zavrsenim oglasom ne radi nista: alat bi tiho zavrsio bez ikakvog ucinka.
+  if (oglas.visible === false && oglas.status !== "finished") return { radnja: "otkrij" };
+  if (oglas.status === "active") {
+    return { radnja: "stoj", zasto: "oglas je vec aktivan; na vrh se dolazi obnovom ili izdvajanjem, ne ponovnom objavom" };
+  }
+  if (oglas.status === "expired") {
+    return { radnja: "stoj", zasto: "istekao oglas se vraca obnovom (olx_refresh_listing), ne ponovnom objavom" };
+  }
+  if (oglas.status === "inactive") {
+    return { radnja: "stoj", zasto: "oglas je neobjavljen nacrt; objavljuje se kroz olx_publish_listing" };
+  }
+  // Zavrsen oglas se prepoznaje IZRICITO, ne po odsustvu ostalih statusa: oglas sa praznim ili
+  // nepoznatim statusom bi inace zavrsio u ponovnoj objavi, a ponovna objava gubi preglede i
+  // historiju. Kad se ne zna sta je oglas, ispravno je stati.
+  if (oglas.status !== "finished") {
+    const kakav = oglas.status ? `"${oglas.status}"` : "prazan";
+    return { radnja: "stoj", zasto: `status oglasa je ${kakav}, a reaktivacija je samo za zavrsen (finished) oglas` };
+  }
+  // Publish direktno samo kad je izmjereno da radi (vidi komentar gore).
+  if (opts.publishRadiNaFinished) return { radnja: "publish" };
+  // Zavrseni oglasi na API-ju znaju izgubiti cijenu (vrate 0 / "na upit"), a nula i "ne znam"
+  // nisu isto: bez upotrebljive cijene se ne objavljuje, trazi se cijena od korisnika.
+  const izOglasa = Number(oglas.price);
+  const cijena = opts.zadataCijena ?? (Number.isFinite(izOglasa) && izOglasa > 0 ? izOglasa : undefined);
+  if (cijena === undefined) {
+    return { radnja: "stoj", zasto: "cijena se na zavrsenom oglasu ne vidi (ili je bila 'na upit'); zadaj cijenu pa pokusaj ponovo" };
+  }
+  const slika = Array.isArray(oglas.images) ? oglas.images.length : 0;
+  if (slika === 0) {
+    if (zapis && zapis.meta.fajlovi_slika.length > 0) return { radnja: "objavi_iz_arhive" };
+    return { radnja: "stoj", zasto: "zavrsen oglas nema citljivih slika a arhive nema; oglas bez slika se ne objavljuje" };
+  }
+  return { radnja: "objavi_iz_zivog", cijena };
+}
+
+/**
+ * Arhivski zapis iz zivog ZAVRSENOG oglasa: isti oblik kao noviZapis, uz cijenu koju je dao
+ * korisnik (zavrseni oglasi znaju vratiti 0 / "na upit") i oznaku porijekla za covjeka.
+ */
+export function zapisIzZavrsenog(l: Listing, kada: string, cijena?: number): ArhivskiZapis {
+  const z = noviZapis(l, kada);
+  if (cijena !== undefined) z.create.price = cijena;
+  z.meta.nerekreirljivo = { ...z.meta.nerekreirljivo, reaktivacija_iz_statusa: l.status ?? "nepoznat" };
+  return z;
+}
+
 /** Kompaktan spisak za prikaz, sortiran od najnovijeg arhiviranja. */
 export function kompaktSpisak(
   zapisi: ArhivskiZapis[],
@@ -277,4 +349,35 @@ export async function preuzmiSlike(
     }
   }
   return { fajlovi, neuspjele };
+}
+
+/**
+ * Napuni arhivu iz zivog (zavrsenog) oglasa: zapis + originalne slike sa CDN-a, uz cuvanje
+ * ranije oznake ponovne objave. Dijele ga MCP alat i CLI komanda reaktivacije.
+ *
+ * Odnos prema ranijem zapisu je SPAJANJE, ne prepis: tekst (naslov, opis, cijena, atributi) se
+ * uzima sa zivog oglasa jer je tamo mjerodavan i mozda mijenjan poslije arhiviranja, a spisak
+ * slika se zadrzava iz ranijeg zapisa kad se sa zavrsenog oglasa ne moze preuzeti nijedna.
+ * Razlog za tu asimetriju: tekst se uvijek moze prepisati, a arhivirane slike su jedini
+ * primjerak originala i prepis praznim spiskom bi ih izbacio iz zapisa, pa i iz backupa.
+ */
+export async function arhivirajIzZivog(
+  oglas: Listing,
+  opts: { cijena?: number; kada?: string; env?: NodeJS.ProcessEnv; fetchFn?: typeof fetch } = {},
+): Promise<ArhivskiZapis> {
+  const env = opts.env ?? process.env;
+  const zapis = zapisIzZavrsenog(oglas, opts.kada ?? new Date().toISOString(), opts.cijena);
+  const { fajlovi, neuspjele } = await preuzmiSlike(zapis.meta.url_slika, mapaZapisa(oglas.id, env), opts.fetchFn ?? fetch);
+  const stari = ucitajZapis(oglas.id, env);
+  if (fajlovi.length === 0 && stari && stari.meta.fajlovi_slika.length > 0) {
+    zapis.meta.fajlovi_slika = stari.meta.fajlovi_slika;
+    zapis.meta.slike_iz_ranije_arhive = true;
+    if (stari.meta.url_slika.length > 0) zapis.meta.url_slika = stari.meta.url_slika;
+  } else {
+    zapis.meta.fajlovi_slika = fajlovi;
+  }
+  zapis.meta.neuspjele_slike = neuspjele;
+  if (stari?.meta.ponovo_objavljen) zapis.meta.ponovo_objavljen = stari.meta.ponovo_objavljen;
+  upisiZapis(zapis, env);
+  return zapis;
 }

@@ -4,8 +4,11 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from "nod
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
+  arhivirajIzZivog,
   kompaktSpisak,
   mapirajZaKreiranje,
+  planReaktivacije,
+  zapisIzZavrsenog,
   MAX_BAJTA_SLIKE,
   nazivSlike,
   noviZapis,
@@ -139,6 +142,151 @@ test("preuzmiSlike: pad jedne ne rusi ostale, prevelika se odbija, redoslijed se
     assert.match(String(r.neuspjele[0]?.greska), /HTTP 404/);
     assert.match(String(r.neuspjele[1]?.greska), /granica/);
     assert.equal(readFileSync(join(dir, "01.jpg")).length, 3);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("planReaktivacije: aktivan, istekao i nacrt stoje sa uputom, skriven se otkriva", () => {
+  const aktivan = planReaktivacije({ ...primjer, status: "active" }, null);
+  assert.equal(aktivan.radnja, "stoj");
+  assert.match((aktivan as { zasto: string }).zasto, /obnovom ili izdvajanjem/);
+
+  const istekao = planReaktivacije({ ...primjer, status: "expired" }, null);
+  assert.equal(istekao.radnja, "stoj");
+  assert.match((istekao as { zasto: string }).zasto, /obnovom/);
+
+  const nacrt = planReaktivacije({ ...primjer, status: "inactive" }, null);
+  assert.equal(nacrt.radnja, "stoj");
+
+  const skriven = planReaktivacije({ ...primjer, visible: false, status: "active" }, null);
+  assert.equal(skriven.radnja, "otkrij");
+});
+
+test("planReaktivacije: zavrsen sa cijenom i slikama ide iz zivog, bez cijene stoji dok se ne zada", () => {
+  const zavrsen: Listing = { ...primjer, status: "finished" };
+  const izZivog = planReaktivacije(zavrsen, null);
+  assert.deepEqual(izZivog, { radnja: "objavi_iz_zivog", cijena: 250 });
+
+  // Zavrseni oglasi znaju vratiti cijenu 0 ("na upit"): nula i "ne znam" nisu isto.
+  const bezCijene = planReaktivacije({ ...zavrsen, price: 0 }, null);
+  assert.equal(bezCijene.radnja, "stoj");
+  assert.match((bezCijene as { zasto: string }).zasto, /zadaj cijenu/);
+
+  const saZadatom = planReaktivacije({ ...zavrsen, price: 0 }, null, { zadataCijena: 199 });
+  assert.deepEqual(saZadatom, { radnja: "objavi_iz_zivog", cijena: 199 });
+});
+
+test("planReaktivacije: bez slika ide iz arhive kad je ima, inace stoji; necitljiv oglas isto", () => {
+  const zavrsenBezSlika: Listing = { ...primjer, status: "finished", images: [] };
+  const bezicega = planReaktivacije(zavrsenBezSlika, null);
+  assert.equal(bezicega.radnja, "stoj");
+  assert.match((bezicega as { zasto: string }).zasto, /bez slika/);
+
+  const zapis = noviZapis(primjer, "2026-08-04T10:00:00.000Z");
+  zapis.meta.fajlovi_slika = ["01.jpg"];
+  assert.equal(planReaktivacije(zavrsenBezSlika, zapis).radnja, "objavi_iz_arhive");
+
+  // getListing pao (necitljiv zavrsen oglas): arhiva je jedini put, bez nje stoj.
+  assert.equal(planReaktivacije(null, zapis).radnja, "objavi_iz_arhive");
+  const nista = planReaktivacije(null, null);
+  assert.equal(nista.radnja, "stoj");
+  assert.match((nista as { zasto: string }).zasto, /arhive nema/);
+});
+
+test("planReaktivacije: publish grana se pali samo eksplicitnim flagom (dok mjerenje ne prodje)", () => {
+  const zavrsen: Listing = { ...primjer, status: "finished" };
+  assert.equal(planReaktivacije(zavrsen, null, { publishRadiNaFinished: true }).radnja, "publish");
+  assert.notEqual(planReaktivacije(zavrsen, null).radnja, "publish");
+});
+
+test("zapisIzZavrsenog: korisnikova cijena ulazi u create, porijeklo u nerekreirljivo", () => {
+  const zavrsen: Listing = { ...primjer, status: "finished", price: 0 };
+  const z = zapisIzZavrsenog(zavrsen, "2026-08-04T10:00:00.000Z", 199);
+  assert.equal(z.create.price, 199);
+  assert.equal(z.meta.nerekreirljivo.reaktivacija_iz_statusa, "finished");
+
+  const bezZadate = zapisIzZavrsenog({ ...primjer, status: "finished" }, "2026-08-04T10:00:00.000Z");
+  assert.equal(bezZadate.create.price, 250, "bez zadate cijene ostaje original");
+});
+
+test("planReaktivacije: zavrsen a skriven ne ide na otkrivanje, jer unhide nad zavrsenim ne radi nista", () => {
+  // Redoslijed provjera: status prije skrivenosti. Da je obrnuto, ovaj oglas bi zavrsio na
+  // unhide, alat bi javio uspjeh, a oglas bi ostao zavrsen.
+  const zavrsenSkriven: Listing = { ...primjer, status: "finished", visible: false };
+  assert.deepEqual(planReaktivacije(zavrsenSkriven, null), { radnja: "objavi_iz_zivog", cijena: 250 });
+
+  // Skriven a NIJE zavrsen i dalje ide na otkrivanje: to je besplatan put koji cuva preglede.
+  assert.equal(planReaktivacije({ ...primjer, status: "active", visible: false }, null).radnja, "otkrij");
+});
+
+test("planReaktivacije: nepoznat i prazan status stoje umjesto da se objave kao zavrseni", () => {
+  // Zavrsen se prepoznaje izricito. Prepoznavanje po odsustvu ostalih statusa bi svaki oglas
+  // sa nepoznatim statusom poslalo u ponovnu objavu, a ona gubi preglede i historiju.
+  const nepoznat = planReaktivacije({ ...primjer, status: "moderation" }, null);
+  assert.equal(nepoznat.radnja, "stoj");
+  assert.match((nepoznat as { zasto: string }).zasto, /"moderation"/);
+  assert.match((nepoznat as { zasto: string }).zasto, /finished/);
+
+  const bezStatusa = planReaktivacije({ ...primjer, status: undefined }, null);
+  assert.equal(bezStatusa.radnja, "stoj");
+  assert.match((bezStatusa as { zasto: string }).zasto, /prazan/);
+});
+
+test("arhivirajIzZivog: svjeze slike prepisuju spisak, cijena i porijeklo udju u zapis", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "arhiva-izzivog-"));
+  try {
+    const env = { OLX_ARHIVA_DIR: dir } as NodeJS.ProcessEnv;
+    const laznaFetch = (async () =>
+      new Response(new Uint8Array([1, 2, 3]), { status: 200, headers: { "content-type": "image/jpeg" } })) as typeof fetch;
+
+    const zavrsen: Listing = { ...primjer, status: "finished", price: 0 };
+    const z = await arhivirajIzZivog(zavrsen, { cijena: 199, kada: "2026-08-16T10:00:00.000Z", env, fetchFn: laznaFetch });
+
+    // Ekstenzija se cita iz URL-a oglasa (a.jpg, b.webp), ne iz content-type zaglavlja.
+    assert.deepEqual(z.meta.fajlovi_slika, ["01.jpg", "02.webp"]);
+    assert.equal(z.meta.slike_iz_ranije_arhive, undefined, "svjeze preuzete slike nisu iz ranije arhive");
+    assert.equal(z.create.price, 199);
+    assert.equal(z.meta.nerekreirljivo.reaktivacija_iz_statusa, "finished");
+    assert.deepEqual(ucitajZapis(42, env), z, "zapis je i upisan na disk, ne samo vracen");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("arhivirajIzZivog: kad nijedna slika ne prodje, spisak iz ranije arhive se cuva umjesto prepisa", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "arhiva-spajanje-"));
+  try {
+    const env = { OLX_ARHIVA_DIR: dir } as NodeJS.ProcessEnv;
+
+    // Ranija arhiva iz vremena kad je oglas bio zdrav: ona je jedini primjerak originalnih slika.
+    const stari = noviZapis(primjer, "2026-08-01T10:00:00.000Z");
+    stari.meta.fajlovi_slika = ["01.jpg", "02.webp"];
+    stari.meta.ponovo_objavljen = { novi_id: 777, kada: "2026-08-02T10:00:00.000Z" };
+    upisiZapis(stari, env);
+
+    const padne = (async () => new Response("nema", { status: 404 })) as typeof fetch;
+    const zavrsen: Listing = { ...primjer, status: "finished", title: "Friteza 8L, novi naslov" };
+    const z = await arhivirajIzZivog(zavrsen, { kada: "2026-08-16T10:00:00.000Z", env, fetchFn: padne });
+
+    assert.deepEqual(z.meta.fajlovi_slika, ["01.jpg", "02.webp"], "slike prezive pad preuzimanja");
+    assert.equal(z.meta.slike_iz_ranije_arhive, true);
+    assert.equal(z.meta.neuspjele_slike.length, 2, "neuspjeh se svejedno biljezi");
+    assert.equal(z.create.title, "Friteza 8L, novi naslov", "tekst se osvjezava sa zivog oglasa");
+    assert.deepEqual(z.meta.ponovo_objavljen, { novi_id: 777, kada: "2026-08-02T10:00:00.000Z" }, "ranija objava se pamti");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("arhivirajIzZivog: bez ranije arhive pad preuzimanja ostavlja prazan spisak, da se objava zaustavi", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "arhiva-prazno-"));
+  try {
+    const env = { OLX_ARHIVA_DIR: dir } as NodeJS.ProcessEnv;
+    const padne = (async () => new Response("nema", { status: 404 })) as typeof fetch;
+    const z = await arhivirajIzZivog({ ...primjer, status: "finished" }, { kada: "2026-08-16T10:00:00.000Z", env, fetchFn: padne });
+    assert.deepEqual(z.meta.fajlovi_slika, []);
+    assert.equal(z.meta.slike_iz_ranije_arhive, undefined);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
