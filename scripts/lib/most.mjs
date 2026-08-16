@@ -3,6 +3,52 @@
 // odlucuje ko smije pisati botu, pa mora imati testove kao svaka druga brana.
 
 export const ZABRANJENI_ALATI = ["Bash", "Write", "Edit", "NotebookEdit", "WebFetch", "WebSearch", "Task", "Agent", "Grep", "Glob", "Skill"];
+export const DOZVOLJENI_ALATI = ["mcp__olx-pik"];
+
+// Admin par (dozvoljeni/zabranjeni) je preslikan iz runtime/settings.admin-bot.json: allow ima
+// Read, Task, Agent, mcp__olx-pik, deny ima Bash, Write, Edit, NotebookEdit, WebFetch, WebSearch.
+// Grep, Glob i Skill NISU ni u allow ni u deny tog fajla (u interaktivnoj sesiji su bezopasni bez
+// izricite dozvole), ali u headless -p rezimu bi bili neupotrebljivi svakako: bez dozvole ne mogu
+// da se pozovu, a bez potvrde ne mogu da traze. Zabrana ih cini eksplicitnim umjesto tihim.
+export const ZABRANJENI_ALATI_ADMIN = ["Bash", "Write", "Edit", "NotebookEdit", "WebFetch", "WebSearch", "Grep", "Glob", "Skill"];
+export const DOZVOLJENI_ALATI_ADMIN = ["mcp__olx-pik", "Read", "Task", "Agent"];
+
+/**
+ * Sve sto se izmedju uloga mosta razlikuje, na jednom mjestu. Klijentske vrijednosti su TACNO
+ * one koje most koristio i prije uvodjenja admin uloge (isti fajlovi stanja, isti argv, isti
+ * tip u telemetriji), da postojeci klonovi ne izgube stanje pri prelasku na ovu funkciju.
+ */
+export function ulogaMosta(tip) {
+  if (tip === "klijent") {
+    return {
+      tip,
+      jeAdmin: false,
+      stanjeFajl: ".olx-pik/most-stanje.json",
+      pidFajl: "most.pid",
+      odbijenAlarm: "most-odbijen.alarm",
+      sesijaPid: "sesija-most.pid",
+      restartZahtjev: "restart-sesije",
+      telemetrijaTip: "most",
+      dozvoljeniAlati: DOZVOLJENI_ALATI,
+      zabranjeniAlati: ZABRANJENI_ALATI,
+    };
+  }
+  if (tip === "admin-bot") {
+    return {
+      tip,
+      jeAdmin: true,
+      stanjeFajl: ".olx-pik/most-admin-stanje.json",
+      pidFajl: "most-admin.pid",
+      odbijenAlarm: "most-admin-odbijen.alarm",
+      sesijaPid: "sesija-most-admin.pid",
+      restartZahtjev: "restart-admin-bota",
+      telemetrijaTip: "most-admin",
+      dozvoljeniAlati: DOZVOLJENI_ALATI_ADMIN,
+      zabranjeniAlati: ZABRANJENI_ALATI_ADMIN,
+    };
+  }
+  throw new Error(`Nepoznata uloga mosta "${tip}". Ocekivano "klijent" ili "admin-bot".`);
+}
 
 /** true kad poruka smije u sesiju. Sve ostalo se tiho ispusta, kao i kod kanala. */
 export function dozvoljena(poruka, pristup, botIme) {
@@ -61,7 +107,7 @@ export function tekstStavke(stavka) {
 // Argv za `claude` u -p (headless) rezimu koji most koristi. Parametrizovano nad
 // { id, nastavak, promptPutanja } jer poziv sada dolazi izvana: `id` racuna pozivalac
 // (stanje.sesija ?? randomUUID()), pa modul nista ne cita iz modul-level stanja.
-export function argviSesije({ id, nastavak, promptPutanja }) {
+export function argviSesije({ id, nastavak, promptPutanja, dozvoljeniAlati = DOZVOLJENI_ALATI, zabranjeniAlati = ZABRANJENI_ALATI }) {
   return [
     "-p",
     "--verbose",
@@ -81,9 +127,9 @@ export function argviSesije({ id, nastavak, promptPutanja }) {
     "acceptEdits",
     // Headless sesija nema koga da klikne potvrdu: bez ovoga bi visjela.
     "--allowedTools",
-    "mcp__olx-pik",
+    ...dozvoljeniAlati,
     "--disallowedTools",
-    ...ZABRANJENI_ALATI,
+    ...zabranjeniAlati,
     nastavak ? "--resume" : "--session-id",
     id,
   ];

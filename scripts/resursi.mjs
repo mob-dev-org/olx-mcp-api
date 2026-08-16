@@ -37,7 +37,9 @@ const KORIJEN = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // citati): SESIJA_PID_FAJL je pid ZIVE sesije (dijete cuvara), PID_FAJL je pid samog cuvara.
 // "most" je scripts/telegram-most.mjs, nadzorni proces analogan cuvaru ali bez straze (poll ide
 // stalno umjesto samo dok sesija spava); ispis nize naziva nadzorni proces po `nazivCuvara` da
-// se "most" ne prikaze kao "Cuvar".
+// se "most" ne prikaze kao "Cuvar". "most-admin" je ista skripta pokrenuta u admin ulozi
+// (`bun scripts/telegram-most.mjs admin-bot`), sa vlastitim parom PID fajlova (scripts/lib/most.mjs,
+// ulogaMosta), da klijentski i admin most na istom klonu ne mogu jedan drugom zauzeti pid brave.
 const TIPOVI_SESIJA = [
   { tip: "klijent", sesijaPid: "sesija-klijent.pid", cuvarPid: "cuvar-sesije.pid", nazivCuvara: "Cuvar" },
   {
@@ -47,6 +49,7 @@ const TIPOVI_SESIJA = [
     nazivCuvara: "Cuvar",
   },
   { tip: "most", sesijaPid: "sesija-most.pid", cuvarPid: "most.pid", nazivCuvara: "Most" },
+  { tip: "most-admin", sesijaPid: "sesija-most-admin.pid", cuvarPid: "most-admin.pid", nazivCuvara: "Most" },
 ];
 
 // ---- sitne formatirajuce funkcije ----

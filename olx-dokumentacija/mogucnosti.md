@@ -317,11 +317,11 @@ Uslovni alati (registruju se samo pod navedenim uslovom):
 | onboarding-puller | ADMIN | svakih 3 minuta | `bun scripts/onboarding-puller.mjs` | nema (namjerno) |
 | saznanja | ADMIN | svaki dan 08:00 | `scripts/saznanja-pokupi.sh` | nema (namjerno) |
 | spomenuti | ADMIN | svaki dan 08:15 | `bun scripts/spomenuti-pokupi.mjs` | nema (namjerno) |
-| admin-bot | KLIJENT | stalno, dize se pri prijavi | `bun scripts/cuvar-sesije.mjs admin-bot` | da |
+| admin-bot | KLIJENT | stalno, dize se pri prijavi | `bun scripts/telegram-most.mjs admin-bot` | da |
 | backup | KLIJENT | svaki dan 08:10 | `bun dist/cli/index.js posao backup` | da |
 | dnevno | KLIJENT | svaki dan 07:20 | `bun dist/cli/index.js posao dnevni` | da |
 | sedmicno | KLIJENT | ponedjeljkom 07:40 | `bun dist/cli/index.js posao sedmicni` | da |
-| sesija | KLIJENT | stalno, dize se pri prijavi | `bun scripts/cuvar-sesije.mjs` | da |
+| sesija | KLIJENT | stalno, dize se pri prijavi | `bun scripts/telegram-most.mjs` | da |
 | snapshot | KLIJENT | svaki dan 02:40 | `bun dist/cli/index.js stats snapshot` | da |
 
 ADMIN poslovi nemaju Windows blizanca namjerno: admin masina na Windowsu nije upotrebljiva, pa za te poslove blizanac ni ne postoji.
@@ -362,12 +362,13 @@ ADMIN poslovi nemaju Windows blizanca namjerno: admin masina na Windowsu nije up
 
 ## Varijable okruzenja u cijelom repou
 
-Ukupno 111 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 102 cini konfiguraciju klona.
+Ukupno 112 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 103 cini konfiguraciju klona.
 
 Ostale dolaze iz okoline (harness sesije, plugin loader, proxy) i u `.env.example` namjerno ne stoje: klijent ih ne postavlja rukom. Zato se prazna kolona kod njih ne racuna kao propust.
 
 Varijable koje kod cita a kojih nema u `.env.example` (moguc propust u primjeru, klijent ne vidi da postoje):
 
+- OLX_MOST_ADMIN_IDLE_MIN
 - OLX_PODSJETNIK_RESURSI_ROK_MS
 - OLX_SESIJA_
 - OLX_SNAPSHOT_U_TOKU_FILE
@@ -426,9 +427,10 @@ Nema takvih.
 | OLX_MAX_TRAJANJE_SNAPSHOT_PROLAZA_MS | konfiguracija klona | 2 | scripts/lib/stats-snapshot.test.mjs, src/core/config.ts | da |
 | OLX_MCP_PROFILE | konfiguracija klona | 6 | scripts/kontekst-izvjestaj.mjs, scripts/lib/mcp-profil.test.mjs, scripts/lib/popis-kod.mjs, scripts/lib/sesija.mjs, scripts/lib/sesija.test.mjs, scripts/pripremi-runtime.mjs | da |
 | OLX_MIN_REQUEST_INTERVAL_MS | konfiguracija klona | 3 | scripts/lib/pokreni-cli.mjs, src/core/client.test.ts, src/core/config.ts | da |
-| OLX_MOST_IDLE_MIN | konfiguracija klona | 1 | scripts/telegram-most.mjs | da |
+| OLX_MOST_ADMIN_IDLE_MIN | konfiguracija klona | 1 | scripts/telegram-most.mjs |  |
+| OLX_MOST_IDLE_MIN | konfiguracija klona | 2 | deploy/launchd/ba.codefactory.olx.KLIJENT.sesija.plist, scripts/telegram-most.mjs | da |
 | OLX_MOST_POTEZ_TIMEOUT_MS | konfiguracija klona | 1 | scripts/telegram-most.mjs | da |
-| OLX_MOST_RESTART_SAT | konfiguracija klona | 1 | scripts/telegram-most.mjs | da |
+| OLX_MOST_RESTART_SAT | konfiguracija klona | 2 | deploy/launchd/ba.codefactory.olx.KLIJENT.sesija.plist, scripts/telegram-most.mjs | da |
 | OLX_NADZOR_DIR | konfiguracija klona | 2 | deploy/launchd/ba.codefactory.olx.ADMIN.nadzor-flote.plist, scripts/nadzor-flote.mjs | da |
 | OLX_PAMCENJE_FILE | konfiguracija klona | 3 | src/core/backup-spisak.test.ts, src/core/backup-spisak.ts, src/core/pamcenje.ts | da |
 | OLX_PASSWORD | konfiguracija klona | 4 | scripts/provjeri-klon.mjs, scripts/provjeri-prompt.sh, src/core/config.ts, src/core/index.ts | da |
@@ -487,7 +489,7 @@ Nema takvih.
 | PIKGPT_PULL_SECRET | konfiguracija klona | 1 | scripts/lib/podesavanja.mjs | da |
 | PIKGPT_WORKER_BASE | konfiguracija klona | 2 | scripts/lib/podesavanja.mjs, scripts/onboarding-uzivo.mjs | da |
 | TELEGRAM_ADMIN_CHAT_ID | konfiguracija klona | 6 | deploy/windows/azuriraj.ps1, scripts/ai-runda.sh, scripts/azuriraj-sve.sh, scripts/backup-nadzor.sh, scripts/nadzor-flote.mjs, scripts/onboarding-puller.mjs | da |
-| TELEGRAM_BOT_TOKEN | konfiguracija klona | 6 | deploy/windows/azuriraj.ps1, scripts/ai-runda.sh, scripts/azuriraj-sve.sh, scripts/backup-nadzor.sh, scripts/cuvar-sesije.mjs, scripts/lib/pokreni-cli.mjs | da |
+| TELEGRAM_BOT_TOKEN | konfiguracija klona | 6 | deploy/windows/azuriraj.ps1, deploy/windows/instaliraj-zadatke.ps1, scripts/ai-runda.sh, scripts/azuriraj-sve.sh, scripts/backup-nadzor.sh, scripts/cuvar-sesije.mjs | da |
 | TELEGRAM_CHAT_ID | konfiguracija klona | 5 | scripts/onboarding-puller.mjs, scripts/provjeri-klon.mjs, src/cli/index.ts, src/core/telegram.test.ts, src/core/telegram.ts | da |
 | TELEGRAM_STATE_DIR | konfiguracija klona | 5 | scripts/lib/sesija.mjs, scripts/lib/sesija.test.mjs, scripts/lib/straza.mjs, scripts/pripremi-runtime.mjs, scripts/proba-kanala.mjs | da |
 

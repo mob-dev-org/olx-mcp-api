@@ -18,9 +18,16 @@
 //   najmanje jednom, sto je za ovaj posao ispravan izbor: dupli odgovor je neugodan, propusten
 //   je izgubljen klijent.
 //
+// Jedan kod, dvije uloge (isti obrazac kao cuvar-sesije.mjs):
+//
+//   bun scripts/telegram-most.mjs             klijentski bot (default)
+//   bun scripts/telegram-most.mjs admin-bot   vlasnikov admin bot
+//
 // Pokretanje:
-//   bun scripts/telegram-most.mjs            # pogon
-//   bun scripts/telegram-most.mjs --jednom   # obradi sto ceka pa izadji (za probu)
+//   bun scripts/telegram-most.mjs                 # klijent, pogon
+//   bun scripts/telegram-most.mjs admin-bot       # admin bot, pogon
+//   bun scripts/telegram-most.mjs --jednom        # klijent, obradi sto ceka pa izadji (za probu)
+//   bun scripts/telegram-most.mjs admin-bot --jednom
 //
 // Pogon (DeepSeek ili pretplata) bira se okruzenjem: ovaj proces samo prenosi svoje okruzenje.
 
@@ -50,6 +57,7 @@ import {
   lokalniDatum,
   trebaLiNocniRez,
   trebaLiUzorkovati,
+  ulogaMosta,
 } from "./lib/most.mjs";
 import {
   citajProcese,
@@ -69,23 +77,58 @@ import { cpuStabla } from "./lib/cpu.mjs";
 
 if (existsSync(".env")) ucitajEnvGlobalno(".env"); // .env sa neispravnim redom: provjeri-klon.mjs to prijavljuje jasnije
 
+// Argument uloge je prvi pozicioni argument koji NIJE zastavica (isti obrazac kao TIP u
+// cuvar-sesije.mjs, ali most argumente cita iz process.argv.slice(2) direktno jer i --jednom
+// zivi u istom nizu).
+const TIP = process.argv.slice(2).find((a) => !a.startsWith("--")) ?? "klijent";
+let ULOGA;
+try {
+  ULOGA = ulogaMosta(TIP);
+} catch (e) {
+  console.error(`${e.message} Upotreba: bun scripts/telegram-most.mjs [klijent|admin-bot] [--jednom]`);
+  process.exit(1);
+}
+
 const JEDNOM = process.argv.includes("--jednom");
-const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const KORIJEN = process.cwd(); // most se ionako pokrece iz korijena klona
-const staze = stazeSesije("klijent", KORIJEN);
+const staze = stazeSesije(TIP, KORIJEN);
 // RUNTIME vise NE dolazi iz process.env.CLAUDE_CONFIG_DIR: jedan klon, jedan klijent, a
 // naslijedjen CLAUDE_CONFIG_DIR sa masine bi mostu mogao podmetnuti tudji (npr. admin) runtime.
 const RUNTIME = staze.runtime;
 const INBOX = staze.inbox;
-const STANJE_FAJL = ".olx-pik/most-stanje.json";
+const STANJE_FAJL = ULOGA.stanjeFajl;
 const ALBUM_CEKANJE_MS = 2500;
 const POLL_TIMEOUT_S = 50;
 const POTEZ_TIMEOUT_MS = Number(process.env.OLX_MOST_POTEZ_TIMEOUT_MS) || 300000;
 const MAX_POKUSAJA = 3;
+
+/**
+ * Bot token za ovu ulogu. Klijent: `.env` klona, uz rezervu iz runtime `.env` kad klonski nije
+ * popunjen. Admin: ISKLJUCIVO iz runtime `.env` (`.claude-runtime-admin/channels/telegram/.env`),
+ * NIKAD iz `.env` klona: tamo stoji KLIJENTSKI bot, pa bi admin most na njemu krao klijentu
+ * poruke i pravio 409 Conflict protiv zivog klijentskog mosta (isto obrazlozenje kao u
+ * cuvar-sesije.mjs, komentar iznad funkcije uStrazu).
+ */
+function ucitajToken() {
+  if (!ULOGA.jeAdmin) {
+    return process.env.TELEGRAM_BOT_TOKEN || procitajEnv(join(staze.telegramDir, ".env")).TELEGRAM_BOT_TOKEN;
+  }
+  return procitajEnv(join(staze.telegramDir, ".env")).TELEGRAM_BOT_TOKEN;
+}
+const TOKEN = ucitajToken();
+
 // RAM po klijentu: ziva sesija drzi cijelo stablo procesa u memoriji i na floti od vise klijenata
 // to ne staje. `--resume` vraca kontekst kad stigne sljedeca poruka, pa gasenje nije gubitak.
 // `0` iskljucuje gasenje, sesija tada ostaje ziva dok god most zivi.
-const IDLE_MIN = Number(process.env.OLX_MOST_IDLE_MIN) || 30;
+//
+// Admin ima poseban override (OLX_MOST_ADMIN_IDLE_MIN, pada na OLX_MOST_IDLE_MIN, pada na 30):
+// cuvar-sesije.mjs je adminu davao kraci idle prag (30 min) nego klijentu, a most vec
+// podrazumijeva 30, pa je paritet zadrzan i bez posebne vrijednosti. Override postoji da se admin
+// moze podesiti nezavisno od klijenta. `broj()` (definisana nize, hoisted) tretira prazan string
+// kao "nije podeseno", isto sto i odsutna varijabla.
+const IDLE_MIN = ULOGA.jeAdmin
+  ? broj(process.env.OLX_MOST_ADMIN_IDLE_MIN, broj(process.env.OLX_MOST_IDLE_MIN, 30))
+  : Number(process.env.OLX_MOST_IDLE_MIN) || 30;
 
 // Kao broj() u cuvar-sesije.mjs, uz JEDNU namjernu razliku: PRAZNA vrijednost ovdje pada na
 // default, a kod cuvara ne. Number("") je 0, konacan i nenegativan, pa cuvar sa `OLX_SESIJA_
@@ -110,16 +153,22 @@ const INBOX_DANA = broj(process.env.OLX_SESIJA_INBOX_DANA, 7);
 
 // Marker kojim vanjski proces (onboarding-puller.mjs, oko reda 155) trazi da sesija preuzme svjez
 // .env (npr. nov OLX_TOKEN upisan u zivi klon). Prolazan je, brise se odmah po obradi u tikMinute.
-const RESTART_ZAHTJEV = join(KORIJEN, ".olx-pik", "restart-sesije");
+const RESTART_ZAHTJEV = join(KORIJEN, ".olx-pik", ULOGA.restartZahtjev);
 
 if (!TOKEN) {
-  console.error("TELEGRAM_BOT_TOKEN nije postavljen u .env. Most se ne moze pokrenuti.");
+  console.error(
+    ULOGA.jeAdmin
+      ? `TELEGRAM_BOT_TOKEN nije postavljen u ${join(staze.telegramDir, ".env")}. Pokreni prvo: ` +
+          "bun scripts/pripremi-admin-runtime.mjs <bot_token> <admin_telegram_id> [id_grupe]"
+      : "TELEGRAM_BOT_TOKEN nije postavljen u .env. Most se ne moze pokrenuti.",
+  );
   process.exit(2);
 }
 
 // Klon sa OLX_KLIJENT_AI=deepseek bez popunjenih OLX_DEEPSEEK_* varijabli NE SMIJE tiho preci
-// na Anthropic pretplatu i naplacivati na pogresnom mjestu.
-const ai = aiPogon(false, process.env);
+// na Anthropic pretplatu i naplacivati na pogresnom mjestu. Za admina aiPogon uvijek vraca
+// pretplatu i brise ANTHROPIC_* iz okruzenja djeteta (okruzenjeSesije to vec primjenjuje).
+const ai = aiPogon(ULOGA.jeAdmin, process.env);
 if (ai.ok === false) {
   console.error(ai.poruka);
   process.exit(2);
@@ -197,8 +246,8 @@ function sacuvaj() {
 // "wx"), pa dva mosta pokrenuta u istoj sekundi ne mogu oba proci. Zauzima se PRIJE prvog dodira
 // Telegrama (tg("getMe")), jer brava mora stajati prije ijednog poziva, ne poslije.
 
-const PID_FAJL = join(KORIJEN, ".olx-pik", "most.pid");
-const ODBIJEN_ALARM_FAJL = join(KORIJEN, ".olx-pik", "most-odbijen.alarm");
+const PID_FAJL = join(KORIJEN, ".olx-pik", ULOGA.pidFajl);
+const ODBIJEN_ALARM_FAJL = join(KORIJEN, ".olx-pik", ULOGA.odbijenAlarm);
 
 async function javiAdministratoru(tekst) {
   try {
@@ -225,7 +274,7 @@ async function odbijStart(razlog) {
     } catch {
       // bez markera ce alarm ici cesce, bolje i to nego nikako
     }
-    await javiAdministratoru(`Most (Telegram) u ${KORIJEN} odbija start: ${razlog}`);
+    await javiAdministratoru(`Most (${TIP}) u ${KORIJEN} odbija start: ${razlog}`);
   }
   process.exit(1);
 }
@@ -280,6 +329,10 @@ process.on("exit", () => {
 // ---- kontrola pristupa ----
 // Jedan izvor istine sa kanalom: cita se access.json koji pripremi skripte vec pisu, pa se
 // allowlist ne drzi na dva mjesta. Bez tog fajla most ne prima nista.
+//
+// `requireMention` za admin grupu je vrijednost UNUTAR ovog fajla (pripremi-admin-runtime.mjs ga
+// pise kao true): odatle dolazi razlika izmedju klijentskog i admin bota u grupi, nema grane po
+// ULOGA u ovom kodu.
 
 function citajPristup() {
   try {
@@ -348,7 +401,7 @@ function upisiDogadjaj(polja) {
     const red = redUzorka({
       ts: new Date().toISOString(),
       klon: KLON_IME,
-      tip: "most",
+      tip: ULOGA.telemetrijaTip,
       verzijaKoda: VERZIJA_KODA,
       sesijaZiva: !!sesija,
       // Most nema pravu strazu (poll ide stalno, ne samo dok sesija spava), ali ovo polje znaci
@@ -401,7 +454,7 @@ async function uzmiUzorak(extraPolja, pidZaStablo) {
         pragMs: PRAG_ALARM_MS,
       });
       if (odluka.posalji) {
-        void javiAdministratoru(`Pritisak na masinu (most) u ${KORIJEN}: ${pritisak.razlog}.`);
+        void javiAdministratoru(`Pritisak na masinu (most, ${TIP}) u ${KORIJEN}: ${pritisak.razlog}.`);
       }
     }
     upisiDogadjaj({
@@ -463,9 +516,9 @@ function zakaziIdle() {
 // onesposobilo. Uz to trebaPty rjesava problem interaktivnog --channels puta, a most je -p
 // rezim koji prompt prima kroz stdin i taj problem nema.
 function pokreniSesiju(nastavak) {
-  const promptPutanja = sastaviPrompt("klijent", KORIJEN, log);
+  const promptPutanja = sastaviPrompt(TIP, KORIJEN, log);
   const id = stanje.sesija ?? randomUUID();
-  const argv = argviSesije({ id, nastavak, promptPutanja });
+  const argv = argviSesije({ id, nastavak, promptPutanja, dozvoljeniAlati: ULOGA.dozvoljeniAlati, zabranjeniAlati: ULOGA.zabranjeniAlati });
   const dijete = spawn("claude", argv, {
     env: okruzenjeSesije({
       osnova: process.env,
@@ -489,12 +542,12 @@ function pokreniSesiju(nastavak) {
     budjenjeObjavljeno: false,
   };
 
-  // Pid zive sesije, za scripts/resursi.mjs (tip "most" cita .olx-pik/sesija-most.pid, analogon
-  // sesija-klijent.pid kod cuvara). Bez ovog zapisa telemetrija samo gubi pregled zive sesije, most
-  // radi dalje. NE cisti se sirocad po ovom pidu: most sesiju drzi kao svoje dijete i gasi je sam,
-  // a lazno prepoznavanje reciklirauog pida bi bilo opasnije nego korisno.
+  // Pid zive sesije, za scripts/resursi.mjs (tip "most"/"most-admin" cita .olx-pik/<sesijaPid>,
+  // analogon sesija-klijent.pid kod cuvara). Bez ovog zapisa telemetrija samo gubi pregled zive
+  // sesije, most radi dalje. NE cisti se sirocad po ovom pidu: most sesiju drzi kao svoje dijete i
+  // gasi je sam, a lazno prepoznavanje reciklirauog pida bi bilo opasnije nego korisno.
   try {
-    writeFileSync(join(KORIJEN, ".olx-pik", "sesija-most.pid"), `${dijete.pid ?? ""}\n`, "utf8");
+    writeFileSync(join(KORIJEN, ".olx-pik", ULOGA.sesijaPid), `${dijete.pid ?? ""}\n`, "utf8");
   } catch {
     // bez zapisa telemetrija samo gubi pregled zive sesije, most radi dalje
   }
@@ -531,7 +584,7 @@ function pokreniSesiju(nastavak) {
   });
   dijete.on("exit", (kod, signal) => {
     try {
-      unlinkSync(join(KORIJEN, ".olx-pik", "sesija-most.pid"));
+      unlinkSync(join(KORIJEN, ".olx-pik", ULOGA.sesijaPid));
     } catch {
       // vec obrisan ili nije ni upisan
     }
@@ -691,7 +744,11 @@ function osvjeziEnvIzFajla() {
   const iz = procitajEnv(join(KORIJEN, ".env"));
   for (const [kljuc, vrijednost] of Object.entries(iz)) {
     if (kljuc === "TELEGRAM_BOT_TOKEN") {
-      if (vrijednost !== TOKEN) {
+      // Prazna vrijednost NIJE razlika nego odsustvo: `.env.example` isporucuje ovaj kljuc prazan,
+      // a klon koji token drzi samo u runtime `.env` (tako ga pise pripremi-runtime.mjs) bi inace
+      // dobijao ovo upozorenje pri svakom preuzimanju svjezeg .env, bez ijednog stvarnog razloga.
+      // Admin ulogu ovo ne dira: njen token ionako ne dolazi iz `.env` klona.
+      if (vrijednost.trim() !== "" && vrijednost !== TOKEN) {
         log("TELEGRAM_BOT_TOKEN u .env se razlikuje od zivog: za promjenu bot tokena treba pravi restart mosta.");
       }
       continue;
@@ -722,6 +779,11 @@ function slikeNovijeOd(od) {
     return []; // mape nema dok se prva slika ne napravi
   }
 }
+
+// posaljiPoruku/posaljiSliku po defaultu koriste TELEGRAM_BOT_TOKEN iz okruzenja, dakle
+// klijentskog bota (src/core/telegram.ts, telegramConfig). Admin ulozi se TOKEN mora izricito
+// proslijediti, inace bi odgovori admin botu izasli iz klijentskog bota i zavrsili kod musterije.
+const OPCIJE_SLANJA = ULOGA.jeAdmin ? { botToken: TOKEN } : {};
 
 async function obradiRed() {
   if (radi) return;
@@ -756,14 +818,14 @@ async function obradiRed() {
 
       if (odgovor.ok && odgovor.tekst) {
         try {
-          await posaljiPoruku(odgovor.tekst, { chatId: String(stavka.chatId) });
+          await posaljiPoruku(odgovor.tekst, { chatId: String(stavka.chatId), ...OPCIJE_SLANJA });
           log(`odgovoreno u chat ${stavka.chatId} (${odgovor.tekst.length} znakova)`);
           // Slika koju je sesija napravila tokom ovog poteza ide odmah za tekstom. Ne trazi se
           // nikakva saradnja modela: dovoljno je da je fajl nastao, pa i slabiji model ne moze
           // zaboraviti da je posalje.
           for (const putanja of slikeNovijeOd(potezPoceo)) {
             try {
-              await posaljiSliku(putanja, { chatId: String(stavka.chatId) });
+              await posaljiSliku(putanja, { chatId: String(stavka.chatId), ...OPCIJE_SLANJA });
               log(`poslana slika ${putanja}`);
             } catch (e) {
               log(`slika nije poslana: ${e instanceof Error ? e.message : e}`);
@@ -783,6 +845,8 @@ async function obradiRed() {
         log(`stavka odustaje poslije ${stavka.pokusaja} pokusaja`);
         stanje = { ...stanje, red: stanje.red.slice(1) };
         sacuvaj();
+        // Namjerno bez OPCIJE_SLANJA: ovo je alarm vlasniku, isti podrazumijevani kanal kao
+        // javiAdministratoru, i za klijentski i za admin most.
         await javiAdminu(
           `Telegram most: poruka iz chata ${stavka.chatId} nije odgovorena poslije ${stavka.pokusaja} pokusaja.\n` +
             `Zadnja greska: ${odgovor.greska ?? "sesija je vratila prazan tekst"}`,
@@ -852,7 +916,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
   });
 }
 
-const preduslovi = provjeriPreduslove("klijent", KORIJEN, process.env);
+const preduslovi = provjeriPreduslove(TIP, KORIJEN, process.env);
 for (const g of preduslovi.greske) console.error(g);
 if (preduslovi.greske.length > 0) process.exit(2);
 for (const u of preduslovi.upozorenja) console.error(u);
@@ -861,7 +925,9 @@ const pristup = citajPristup();
 if (!pristup) {
   console.error(
     `Nema ${join(RUNTIME, "channels", "telegram", "access.json")}. Most bez allowlista ne prima nista.\n` +
-      "Pripremi runtime: bun scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>",
+      (ULOGA.jeAdmin
+        ? "Pripremi runtime: bun scripts/pripremi-admin-runtime.mjs <bot_token> <admin_telegram_id> [id_grupe]"
+        : "Pripremi runtime: bun scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>"),
   );
   process.exit(2);
 }
@@ -879,7 +945,7 @@ try {
   process.exit(1);
 }
 
-log(`most radi kao @${botIme}, pogon ${ai.pogon}, offset ${stanje.offset}, u redu ${stanje.red.length}, sesija ${stanje.sesija ?? "(nova)"}`);
+log(`most (${TIP}) radi kao @${botIme}, pogon ${ai.pogon}, offset ${stanje.offset}, u redu ${stanje.red.length}, sesija ${stanje.sesija ?? "(nova)"}`);
 // Ime dogadjaja se NAMJERNO ne mijenja iako most nije cuvar: znaci "nadzorni proces je startovao"
 // i tako ga cita analiza flote (scripts/resursi.mjs).
 upisiDogadjaj({ dogadjaj: "cuvar-start" });

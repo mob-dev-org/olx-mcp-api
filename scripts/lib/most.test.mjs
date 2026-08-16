@@ -5,7 +5,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  DOZVOLJENI_ALATI,
+  DOZVOLJENI_ALATI_ADMIN,
   ZABRANJENI_ALATI,
+  ZABRANJENI_ALATI_ADMIN,
   argviSesije,
   dozvoljena,
   idleRokMs,
@@ -15,6 +18,7 @@ import {
   trebaLiNocniRez,
   trebaLiUgasiti,
   trebaLiUzorkovati,
+  ulogaMosta,
 } from "./most.mjs";
 
 // ---- dozvoljena: privatna poruka ----
@@ -202,6 +206,56 @@ test("argviSesije: --disallowedTools nosi tacno ZABRANJENI_ALATI, tim redom", ()
   const i = argv.indexOf("--disallowedTools");
   assert.ok(i >= 0);
   assert.deepEqual(argv.slice(i + 1, i + 1 + ZABRANJENI_ALATI.length), ZABRANJENI_ALATI);
+});
+
+test("argviSesije: admin liste stavljaju Read/Task/Agent u allowedTools i Bash u disallowedTools", () => {
+  const argv = argviSesije({
+    id: "sid-6",
+    nastavak: false,
+    promptPutanja: "/tmp/prompt.md",
+    dozvoljeniAlati: DOZVOLJENI_ALATI_ADMIN,
+    zabranjeniAlati: ZABRANJENI_ALATI_ADMIN,
+  });
+  const iAllow = argv.indexOf("--allowedTools");
+  const dozvoljeni = argv.slice(iAllow + 1, iAllow + 1 + DOZVOLJENI_ALATI_ADMIN.length);
+  assert.ok(dozvoljeni.includes("Read"));
+  assert.ok(dozvoljeni.includes("Task"));
+  assert.ok(dozvoljeni.includes("Agent"));
+  const iDeny = argv.indexOf("--disallowedTools");
+  const zabranjeni = argv.slice(iDeny + 1, iDeny + 1 + ZABRANJENI_ALATI_ADMIN.length);
+  assert.ok(zabranjeni.includes("Bash"));
+});
+
+// ---- ulogaMosta ----
+
+test("ulogaMosta: klijent daje tacno danasnje putanje i alate", () => {
+  const u = ulogaMosta("klijent");
+  assert.equal(u.jeAdmin, false);
+  assert.equal(u.stanjeFajl, ".olx-pik/most-stanje.json");
+  assert.equal(u.pidFajl, "most.pid");
+  assert.equal(u.odbijenAlarm, "most-odbijen.alarm");
+  assert.equal(u.sesijaPid, "sesija-most.pid");
+  assert.equal(u.restartZahtjev, "restart-sesije");
+  assert.equal(u.telemetrijaTip, "most");
+  assert.equal(u.dozvoljeniAlati, DOZVOLJENI_ALATI);
+  assert.equal(u.zabranjeniAlati, ZABRANJENI_ALATI);
+});
+
+test("ulogaMosta: admin-bot daje odvojene putanje i siru listu alata", () => {
+  const u = ulogaMosta("admin-bot");
+  assert.equal(u.jeAdmin, true);
+  assert.equal(u.stanjeFajl, ".olx-pik/most-admin-stanje.json");
+  assert.equal(u.pidFajl, "most-admin.pid");
+  assert.equal(u.odbijenAlarm, "most-admin-odbijen.alarm");
+  assert.equal(u.sesijaPid, "sesija-most-admin.pid");
+  assert.equal(u.restartZahtjev, "restart-admin-bota");
+  assert.equal(u.telemetrijaTip, "most-admin");
+  assert.equal(u.dozvoljeniAlati, DOZVOLJENI_ALATI_ADMIN);
+  assert.equal(u.zabranjeniAlati, ZABRANJENI_ALATI_ADMIN);
+});
+
+test("ulogaMosta: nepoznat tip baca gresku", () => {
+  assert.throws(() => ulogaMosta("nesto-pogresno"));
 });
 
 // ---- idleRokMs / trebaLiUgasiti ----

@@ -3,9 +3,21 @@
   Sablon. Instalira ga scripts/instaliraj-cron.sh, ali SAMO ako u klonu postoji
   .claude-runtime-admin/ (admin bot je opcion po klonu).
 
-  Cuvar ADMIN bot sesije: vlasnikov privatni Telegram kanal za ovaj shop, na vlasnikovoj
-  pretplati. Ista mehanika kao klijentski cuvar (KeepAlive, nocni restart, idle restart sa
-  kracim pragom od 1h), samo drugi tip: cuvar-sesije.mjs admin-bot.
+  ADMIN bot most (scripts/telegram-most.mjs admin-bot): vlasnikov privatni Telegram kanal za
+  ovaj shop, na vlasnikovoj pretplati, uvijek na pretplati. Ista mehanika kao klijentski most
+  (idle gasenje, nocni rez konteksta, ciscenje inboxa i logova, telemetrija resursa), samo
+  druga uloga.
+
+  Label OSTAJE ba.codefactory.olx.KLIJENT.admin-bot, iz istog razloga kao klijentski: dva
+  launchd posla na istom bot tokenu daju 409 Conflict (Telegram dopusta samo jednog
+  getUpdates konzumera), pa bi novo ime pri nadogradnji zivog klona nakratko ostavilo dva
+  konzumera. Isti Label znaci da launchctl bootout starog posla i bootstrap novog rade nad
+  istim imenom.
+
+  KeepAlive na SuccessfulExit false ostaje ispravno i za most: idle gasenje i nocni restart
+  most radi INTERNO, ubija samo claude dijete, a sam proces mosta ostaje ziv, pa launchd tu
+  nema sta da restartuje. Restart ostaje samo za stvarni pad procesa mosta. Uredno gasenje
+  (launchctl bootout, SIGTERM) most zavrsi izlazom 0 i launchd ga tada ne dize.
 -->
 <plist version="1.0">
 <dict>
@@ -16,7 +28,7 @@
   <array>
     <string>/bin/bash</string>
     <string>-lc</string>
-    <string>cd KORIJEN &amp;&amp; bun scripts/cuvar-sesije.mjs admin-bot</string>
+    <string>cd KORIJEN &amp;&amp; bun scripts/telegram-most.mjs admin-bot</string>
   </array>
 
   <key>WorkingDirectory</key>

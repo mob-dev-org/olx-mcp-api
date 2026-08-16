@@ -92,19 +92,37 @@ while IFS= read -r -u 3 klon; do
     continue
   fi
 
-  # Tek sada, kad je sve proslo, restart DUGOZIVIH poslova (sesija, admin-bot): oni jedini
-  # drze stari kod u memoriji. Kalendarski poslovi (snapshot/dnevno/sedmicno) se NE diraju:
-  # kickstart -k bi ih IZVRSIO odmah, pa bi klijent dobio jutarnji izvjestaj usred dana i
-  # potrosila bi se dnevna runda obnova van reda. Oni novi kod ionako uzmu na sljedecem
-  # zakazanom terminu, jer su jednokratni bun procesi.
+  # Tek sada, kad je sve proslo, osvjezi i DEFINICIJU posla, ne samo kod: komanda u plist
+  # sablonu je presla sa cuvar-sesije.mjs na telegram-most.mjs, pa goli kickstart nad vec
+  # instaliranom definicijom i dalje pokrece STARU komandu. instaliraj-cron.sh radi bootout pa
+  # bootstrap za svaki posao iz sablona u repou, cime se definicija osvjezi, a sesija i
+  # admin-bot se tim istim potezom i podignu sa novom komandom, pa poseban kickstart za njih
+  # vise nije potreban. Kalendarski poslovi (snapshot/dnevno/sedmicno/backup) i ovim putem
+  # ostaju NEIZVRSENI: njihovi sabloni imaju RunAtLoad false, pa bootstrap samo registruje
+  # definiciju a ne pokrece je. kickstart -k bi ih (kad bi ih dirao) IZVRSIO odmah, pa bi
+  # klijent dobio jutarnji izvjestaj usred dana i potrosila bi se dnevna runda obnova van reda.
+  #
+  # Pad instalatera ne obara azuriranje ostalih klonova u floti: uhvati se kao i ostali koraci,
+  # pa se padne na STARO ponasanje (kickstart nad postojecom, neosvjezenom definicijom) kao
+  # rezervu, barem da novi kod ude u memoriju sesije.
   ime="$(basename "$klon")"
-  for posao in sesija admin-bot; do
-    oznaka="ba.codefactory.olx.$ime.$posao"
-    if launchctl list | grep -q "$oznaka"; then
-      launchctl kickstart -k "gui/$(id -u)/$oznaka" 2>/dev/null || true
-      echo "  restartovan posao: $posao"
-    fi
-  done
+  if (cd "$klon" && scripts/instaliraj-cron.sh "$ime"); then
+    echo "  definicija posla osvjezena (instaliraj-cron.sh), sesija/admin-bot podignuti"
+  else
+    greska="instalacija poslova"
+    echo "  PALO: definicija posla NIJE osvjezena. Rucno pokreni: (cd $klon && scripts/instaliraj-cron.sh $ime)"
+    echo "  rezerva: kickstart nad starom definicijom, da barem novi kod ude u memoriju"
+    for posao in sesija admin-bot; do
+      oznaka="ba.codefactory.olx.$ime.$posao"
+      if launchctl list | grep -q "$oznaka"; then
+        launchctl kickstart -k "gui/$(id -u)/$oznaka" 2>/dev/null || true
+        echo "  restartovan posao (stara definicija): $posao"
+      fi
+    done
+    # Kod je usao, ali definicija posla nije: ovo mora u isti izvjestaj admin dobija na Telegram,
+    # inace ga vidi samo ko gleda stdout skripte. Klon ostaje i u uspjeli (kod je azuriran).
+    pali+=("$klon: $greska, rucno pokreni instaliraj-cron.sh")
+  fi
 
   izdanje="$(izdanje_klona "$klon")"
   izdanja+=("$izdanje")

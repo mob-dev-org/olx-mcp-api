@@ -115,19 +115,38 @@ foreach ($linija in Get-Content $Popis) {
     continue
   }
 
-  # Tek sada, kad je sve proslo, restart DUGOZIVIH poslova (sesija, admin-bot): oni jedini drze
-  # stari kod i stari prompt u memoriji. Kalendarski zadaci (snapshot/dnevno/sedmicno) se NE
-  # diraju: Start-ScheduledTask bi ih IZVRSIO odmah, pa bi klijent dobio jutarnji izvjestaj
-  # usred dana i potrosila bi se dnevna runda obnova van reda. Oni novi kod ionako uzmu na
-  # sljedecem zakazanom terminu, jer su jednokratni bun procesi.
+  # Tek sada, kad je sve proslo, osvjezi i DEFINICIJU zadatka, ne samo kod: komanda u
+  # registrovanom zadatku je presla sa cuvar-sesije.mjs na telegram-most.mjs, pa goli
+  # Stop/Start-ScheduledTask nad vec registrovanim zadatkom i dalje pokrece STARU komandu.
+  # instaliraj-zadatke.ps1 radi Unregister pa Register za svaki zadatak iz definicije u repou,
+  # cime se komanda osvjezi, a sesija i admin-bot se tim istim potezom i podignu, pa poseban
+  # restart za njih vise nije potreban. Kalendarski zadaci (snapshot/dnevno/sedmicno/backup)
+  # ovim putem i dalje ostaju NEIZVRSENI: njihovi triggeri su vremenski (Daily/Weekly), a
+  # Register-ScheduledTask sam ne pokrece zadatak. Stop/Start bi ih (kad bi ih dirao) IZVRSIO
+  # odmah, pa bi klijent dobio jutarnji izvjestaj usred dana i potrosila bi se dnevna runda
+  # obnova van reda.
+  #
+  # Pad instalatera ne obara azuriranje ostalih klonova u floti: uhvati se kao i ostali koraci,
+  # pa se padne na STARO ponasanje (Stop/Start nad postojecom, neosvjezenom definicijom) kao
+  # rezervu, barem da novi kod ude u memoriju zadatka.
   $ime = Split-Path $klon -Leaf
-  foreach ($posao in @("sesija", "admin-bot")) {
-    $oznaka = "ba.codefactory.olx.$ime.$posao"
-    if (Get-ScheduledTask -TaskName $oznaka -ErrorAction SilentlyContinue) {
-      Stop-ScheduledTask -TaskName $oznaka -ErrorAction SilentlyContinue
-      Start-ScheduledTask -TaskName $oznaka -ErrorAction SilentlyContinue
-      Write-Host "  restartovan posao: $posao"
+  if (Pokreni $klon "powershell" @("-ExecutionPolicy", "Bypass", "-File", "deploy\windows\instaliraj-zadatke.ps1", $ime)) {
+    Write-Host "  definicija zadatka osvjezena (instaliraj-zadatke.ps1), sesija/admin-bot podignuti"
+  } else {
+    $greska = "instalacija zadataka"
+    Write-Host "  PALO: definicija zadatka NIJE osvjezena. Rucno pokreni: powershell -ExecutionPolicy Bypass -File deploy\windows\instaliraj-zadatke.ps1 $ime (u $klon)"
+    Write-Host "  rezerva: Stop/Start nad starom definicijom, da barem novi kod ude u memoriju"
+    foreach ($posao in @("sesija", "admin-bot")) {
+      $oznaka = "ba.codefactory.olx.$ime.$posao"
+      if (Get-ScheduledTask -TaskName $oznaka -ErrorAction SilentlyContinue) {
+        Stop-ScheduledTask -TaskName $oznaka -ErrorAction SilentlyContinue
+        Start-ScheduledTask -TaskName $oznaka -ErrorAction SilentlyContinue
+        Write-Host "  restartovan zadatak (stara definicija): $posao"
+      }
     }
+    # Kod je usao, ali definicija zadatka nije: ovo mora u isti izvjestaj admin dobija na
+    # Telegram, inace ga vidi samo ko gleda konzolu skripte. Klon ostaje i u uspjeli.
+    $pali += "${klon}: $greska, rucno pokreni instaliraj-zadatke.ps1"
   }
 
   $izdanje = IzdanjeKlona $klon

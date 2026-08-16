@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Instalira launchd poslove za ovaj klon: nocni snapshot, jutarnja poruka, sedmicni pregled i
-# cuvar klijentske sesije (KeepAlive, vidi scripts/cuvar-sesije.mjs).
+# posao sesija koji vozi klijentski Telegram most (scripts/telegram-most.mjs).
 # Windows ekvivalent svega ovoga: deploy/windows/instaliraj-zadatke.ps1 (Task Scheduler).
 #
 # Zasto launchd a ne crontab: crontab na macOS-u ne dobija korisnicki PATH ni pristup do keychaina
@@ -21,17 +21,36 @@ IME="${1:-$(basename "$KORIJEN")}"
 CILJ="$HOME/Library/LaunchAgents"
 POSLOVI=(snapshot dnevno sedmicno)
 
-# Sesijski poslovi se instaliraju SAMO kad je njihov runtime pripremljen: cuvar bez
-# .claude-runtime odmah izlazi, pa bi KeepAlive vrtio pad svakih 30 sekundi u nedogled.
-if [[ -d .claude-runtime ]]; then
+# Sesijski posao se instalira SAMO kad je runtime pripremljen I token dostupan: most bez
+# .claude-runtime (nema access.json) ili bez ijednog bot tokena odmah izlazi kodom 2, pa bi
+# KeepAlive vrtio pad svakih 30 sekundi u nedogled.
+#
+# Token se prihvata iz OBA izvora, tacno onim redom kojim ga most i trazi: prvo `.env` klona,
+# pa `.claude-runtime/channels/telegram/.env`. Samo `.env` ovdje NIJE dovoljan uslov, jer ga
+# pripremi-runtime.mjs uopste ne pise: on token upisuje samo u runtime. Klon koji zivi na
+# runtime tokenu bi sa provjerom nad samim `.env` tiho ostao bez posla `sesija`.
+TOKEN_RUNTIME=".claude-runtime/channels/telegram/.env"
+if [[ -d .claude-runtime ]] &&
+  { { [[ -f .env ]] && grep -qE '^TELEGRAM_BOT_TOKEN=.+' .env; } ||
+    { [[ -f "$TOKEN_RUNTIME" ]] && grep -qE '^TELEGRAM_BOT_TOKEN=.+' "$TOKEN_RUNTIME"; }; }; then
   POSLOVI+=(sesija)
 else
-  echo "PRESKACEM posao sesija: nema .claude-runtime (bun scripts/pripremi-runtime.mjs). Bez njega nema klijentskog bota." >&2
+  echo "PRESKACEM posao sesija: nema .claude-runtime ili TELEGRAM_BOT_TOKEN nije popunjen ni u .env ni u $TOKEN_RUNTIME. Popravka: bun scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>. Bez njega nema klijentskog bota." >&2
+  # Preskocen posao NE smije ostaviti staru definiciju bootstrap-ovanu: ona i dalje pokrece
+  # komandu iz vremena kad je instalirana (do 0.18 to je bio cuvar-sesije.mjs, koji vise ne
+  # postoji), pa bi klon vrtio pad u nedogled umjesto da tiho nema bota. Bootout je bez efekta
+  # kad posao nikad nije ni instaliran.
+  launchctl bootout "gui/$(id -u)/ba.codefactory.olx.$IME.sesija" 2>/dev/null || true
 fi
 
-# Admin bot je opcion po klonu (bun scripts/pripremi-admin-runtime.mjs).
+# Admin bot je opcion po klonu (bun scripts/pripremi-admin-runtime.mjs). Posao vozi most u
+# admin ulozi (scripts/telegram-most.mjs admin-bot). Admin token zivi u
+# .claude-runtime-admin/channels/telegram/.env, ne u .env, pa se ovdje ne provjerava .env.
 if [[ -d .claude-runtime-admin ]]; then
   POSLOVI+=(admin-bot)
+else
+  # Isti razlog kao kod posla sesija: preskakanje ne smije ostaviti staru definiciju ziva.
+  launchctl bootout "gui/$(id -u)/ba.codefactory.olx.$IME.admin-bot" 2>/dev/null || true
 fi
 
 # Backup stanja se instalira samo kad je repo stanja podesen. Bez toga bi posao svako jutro pao

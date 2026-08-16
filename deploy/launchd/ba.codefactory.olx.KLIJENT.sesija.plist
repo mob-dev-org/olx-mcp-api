@@ -2,14 +2,25 @@
 <!--
   Sablon. Instalira ga scripts/instaliraj-cron.sh.
 
-  Cuvar klijentske Telegram sesije. Launchd ovdje samo drzi cuvara zivim; sve pametno radi
-  scripts/cuvar-sesije.mjs (restart sesije na pad, nocni restart, restart na neaktivnost,
-  ciscenje inboxa), pa isti kod radi i na Windowsu preko Task Schedulera.
+  Klijentski Telegram most (scripts/telegram-most.mjs): headless claude -p sesija plus
+  direktan Telegram sendMessage, bez cuvara i bez plugina. Most sam radi idle gasenje sesije
+  (OLX_MOST_IDLE_MIN), nocni rez konteksta (OLX_MOST_RESTART_SAT), ciscenje inboxa i cron
+  logova, i telemetriju resursa. Launchd ovdje samo drzi most ziv.
+
+  Label OSTAJE ba.codefactory.olx.KLIJENT.sesija, iz ranijih cuvarskih dana, i ne mijenja se
+  ni ovim prelazom: dva launchd posla na istom bot tokenu daju 409 Conflict (Telegram dopusta
+  samo jednog getUpdates konzumera), pa bi novo ime pri nadogradnji zivog klona nakratko
+  ostavilo dva konzumera. Isti Label znaci da launchctl bootout starog posla i bootstrap
+  novog rade nad istim imenom, dakle nikad dva konzumera odjednom.
 
   bash -lc zbog PATH-a: claude i bun dolaze iz login profila, a launchd okruzenje ih nema.
 
-  KeepAlive na SuccessfulExit false: pad cuvara ga vraca, a uredno gasenje (bootout, SIGTERM)
-  se postuje. RunAtLoad true jer bot mora ziv cim se racunar digne.
+  KeepAlive na SuccessfulExit false ostaje ispravno i za most: idle gasenje i nocni restart
+  most radi INTERNO, ubija samo claude dijete, a sam proces mosta ostaje ziv i sam digne
+  sljedecu sesiju, pa launchd tu nema sta da restartuje. Restart ostaje samo za stvarni pad
+  procesa mosta (izlaz razlicit od 0). Uredno gasenje (launchctl bootout, SIGTERM) most
+  zavrsi izlazom 0 i launchd ga tada ne dize, sto je i dalje ono sto hocemo. RunAtLoad true
+  jer bot mora ziv cim se racunar digne.
 -->
 <plist version="1.0">
 <dict>
@@ -20,7 +31,7 @@
   <array>
     <string>/bin/bash</string>
     <string>-lc</string>
-    <string>cd KORIJEN &amp;&amp; bun scripts/cuvar-sesije.mjs</string>
+    <string>cd KORIJEN &amp;&amp; bun scripts/telegram-most.mjs</string>
   </array>
 
   <key>WorkingDirectory</key>

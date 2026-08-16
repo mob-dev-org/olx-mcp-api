@@ -144,37 +144,59 @@ console.log(`Klon je na ${novoIme}. Sta je uslo: CHANGELOG.md`);
 // bi ih IZVRSIO odmah, pa bi klijent dobio jutarnji izvjestaj usred dana i potrosila bi se dnevna
 // runda obnova van reda. Oni novi kod uzmu sami na sljedecem terminu, jer su jednokratni procesi.
 const poslovi = ["sesija", "admin-bot"];
+
+// Komanda instalatera po platformi: on osvjezava DEFINICIJU posla (plist / Task Scheduler
+// zadatak) iz sablona u repou, ne samo kod. Bez ovoga goli kickstart/schtasks pokrece STARU
+// komandu iz vec instalirane definicije, jer je ona presla sa cuvar-sesije.mjs na
+// telegram-most.mjs. Komanda se ispisuje i kad RESTART nije trazen, da je vlasnik klona kopira
+// direktno, i pokrece se kroz korak() kad RESTART jeste trazen.
+const komandaInstalatera = WIN
+  ? ["powershell", ["-ExecutionPolicy", "Bypass", "-File", "deploy\\windows\\instaliraj-zadatke.ps1", IME]]
+  : ["scripts/instaliraj-cron.sh", [IME]];
+const komandaInstalateraIspis = WIN
+  ? `  powershell -ExecutionPolicy Bypass -File deploy\\windows\\instaliraj-zadatke.ps1 ${IME}`
+  : `  scripts/instaliraj-cron.sh ${IME}`;
+
 if (!RESTART) {
   console.log("");
-  console.log("Sesije jos drze STARI kod u memoriji. Restartuj ih kad ti odgovara:");
-  for (const posao of poslovi) {
-    const oznaka = `ba.codefactory.olx.${IME}.${posao}`;
-    console.log(WIN
-      ? `  schtasks /end /tn "${oznaka}" & schtasks /run /tn "${oznaka}"`
-      : `  launchctl kickstart -k gui/$(id -u)/${oznaka}`);
-  }
-  console.log("Ili ponovo sa --restart. Iz zive sesije to ne pokrecu: ubila bi samu sebe.");
+  console.log("Sesije jos drze STARI kod u memoriji. Osvjezi im i definiciju posla, ne samo kod:");
+  console.log(komandaInstalateraIspis);
+  console.log("Sam kickstart/restart od ovog izdanja NIJE dovoljan: komanda u definiciji posla se");
+  console.log("promijenila (cuvar-sesije.mjs -> telegram-most.mjs), pa bi ponovo pokrenula STARU.");
+  console.log("Ili ponovo ovaj skript sa --restart. Iz zive sesije to ne pokrecu: ubila bi samu sebe.");
   process.exit(0);
 }
 
 console.log("");
-for (const posao of poslovi) {
-  const oznaka = `ba.codefactory.olx.${IME}.${posao}`;
-  korak(`restart ${posao}`, () => {
-    if (WIN) {
-      execFileSync("schtasks", ["/query", "/tn", oznaka], { stdio: "pipe" });
-      try {
-        execFileSync("schtasks", ["/end", "/tn", oznaka], { stdio: "pipe" });
-      } catch {
-        // posao nije bio pokrenut; /run nize je ono sto treba
+const [instalatorProgram, instalatorArgv] = komandaInstalatera;
+const instalatorProsao = korak("osvjezi definiciju posla (instalater)", () =>
+  execFileSync(instalatorProgram, instalatorArgv, { stdio: ["ignore", "pipe", "pipe"], shell: WIN }),
+);
+
+if (!instalatorProsao) {
+  // Rezerva: bar kod u memoriju, kad definicija ne moze da se osvjezi (npr. nema admin prava).
+  console.log(`  rezerva: kickstart nad postojecom (neosvjezenom) definicijom posla`);
+  console.log(`  rucno kasnije: ${komandaInstalateraIspis}`);
+  for (const posao of poslovi) {
+    const oznaka = `ba.codefactory.olx.${IME}.${posao}`;
+    korak(`restart ${posao}`, () => {
+      if (WIN) {
+        execFileSync("schtasks", ["/query", "/tn", oznaka], { stdio: "pipe" });
+        try {
+          execFileSync("schtasks", ["/end", "/tn", oznaka], { stdio: "pipe" });
+        } catch {
+          // posao nije bio pokrenut; /run nize je ono sto treba
+        }
+        execFileSync("schtasks", ["/run", "/tn", oznaka], { stdio: "pipe" });
+      } else {
+        const lista = execFileSync("launchctl", ["list"], { stdio: ["ignore", "pipe", "pipe"] }).toString();
+        if (!lista.includes(oznaka)) throw new Error("posao nije instaliran na ovoj masini");
+        execFileSync("launchctl", ["kickstart", "-k", `gui/${process.getuid?.() ?? 501}/${oznaka}`], {
+          stdio: "pipe",
+        });
       }
-      execFileSync("schtasks", ["/run", "/tn", oznaka], { stdio: "pipe" });
-    } else {
-      const lista = execFileSync("launchctl", ["list"], { stdio: ["ignore", "pipe", "pipe"] }).toString();
-      if (!lista.includes(oznaka)) throw new Error("posao nije instaliran na ovoj masini");
-      execFileSync("launchctl", ["kickstart", "-k", `gui/${process.getuid?.() ?? 501}/${oznaka}`], {
-        stdio: "pipe",
-      });
-    }
-  });
+    });
+  }
+} else {
+  console.log("  definicija posla osvjezena, sesija i admin-bot podignuti sa novom komandom");
 }
