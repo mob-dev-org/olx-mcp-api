@@ -88,3 +88,25 @@ export function argviSesije({ id, nastavak, promptPutanja }) {
     id,
   ];
 }
+
+/**
+ * Rok mirovanja u milisekundama, ili null kad je gasenje iskljuceno.
+ * `0` (i sve sto nije pozitivan broj) znaci iskljuceno: sesija tada ostaje ziva dok god most zivi,
+ * kako je bilo prije uvodjenja ovog roka.
+ */
+export function idleRokMs(idleMin) {
+  const n = Number(idleMin);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.round(n * 60000);
+}
+
+/**
+ * true kad je sesija mirovala dovoljno dugo da se smije ugasiti. Provjera se radi i kad tajmer
+ * opali, jer `setTimeout` ne garantuje da u medjuvremenu nije stigla poruka: bez ovoga bi se
+ * sesija mogla ugasiti tacno u trenutku dolaska poruke i platiti nepotreban `--resume`.
+ */
+export function trebaLiUgasiti(zadnjaAktivnost, sad, idleMin) {
+  const rok = idleRokMs(idleMin);
+  if (rok === null) return false;
+  return sad - zadnjaAktivnost >= rok;
+}

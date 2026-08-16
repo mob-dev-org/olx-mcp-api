@@ -4,7 +4,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ZABRANJENI_ALATI, argviSesije, dozvoljena, izvorSlike, tekstStavke } from "./most.mjs";
+import { ZABRANJENI_ALATI, argviSesije, dozvoljena, idleRokMs, izvorSlike, tekstStavke, trebaLiUgasiti } from "./most.mjs";
 
 // ---- dozvoljena: privatna poruka ----
 
@@ -191,4 +191,43 @@ test("argviSesije: --disallowedTools nosi tacno ZABRANJENI_ALATI, tim redom", ()
   const i = argv.indexOf("--disallowedTools");
   assert.ok(i >= 0);
   assert.deepEqual(argv.slice(i + 1, i + 1 + ZABRANJENI_ALATI.length), ZABRANJENI_ALATI);
+});
+
+// ---- idleRokMs / trebaLiUgasiti ----
+
+test("idleRokMs: 30 daje 1800000", () => {
+  assert.equal(idleRokMs(30), 1800000);
+});
+
+test("idleRokMs: 0 daje null (iskljuceno)", () => {
+  assert.equal(idleRokMs(0), null);
+});
+
+test("idleRokMs: negativna vrijednost daje null", () => {
+  assert.equal(idleRokMs(-5), null);
+});
+
+test("idleRokMs: nevaljan unos daje null", () => {
+  assert.equal(idleRokMs("abc"), null);
+  assert.equal(idleRokMs(undefined), null);
+});
+
+test("idleRokMs: decimalna vrijednost 0.05 daje 3000 (mala vrijednost za rucnu probu)", () => {
+  assert.equal(idleRokMs(0.05), 3000);
+});
+
+test("trebaLiUgasiti: sad tacno na roku daje true (granica je ukljucena)", () => {
+  const zadnja = 0;
+  const rok = idleRokMs(1); // 60000
+  assert.equal(trebaLiUgasiti(zadnja, zadnja + rok, 1), true);
+});
+
+test("trebaLiUgasiti: milisekundu prije roka daje false", () => {
+  const zadnja = 0;
+  const rok = idleRokMs(1);
+  assert.equal(trebaLiUgasiti(zadnja, zadnja + rok - 1, 1), false);
+});
+
+test("trebaLiUgasiti: idleMin 0 uvijek daje false, ma koliko vremena proslo", () => {
+  assert.equal(trebaLiUgasiti(0, Number.MAX_SAFE_INTEGER, 0), false);
 });

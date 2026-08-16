@@ -30,7 +30,7 @@ import { randomUUID } from "node:crypto";
 import { dirname, join, resolve } from "node:path";
 import { ucitajEnvGlobalno } from "./lib/envfajl.mjs";
 import { stazeSesije, provjeriPreduslove, aiPogon, sastaviPrompt, okruzenjeSesije } from "./lib/sesija.mjs";
-import { dozvoljena, izvorSlike, tekstStavke, argviSesije } from "./lib/most.mjs";
+import { dozvoljena, izvorSlike, tekstStavke, argviSesije, idleRokMs, trebaLiUgasiti } from "./lib/most.mjs";
 
 // ---- konfiguracija ----
 
@@ -49,6 +49,10 @@ const ALBUM_CEKANJE_MS = 2500;
 const POLL_TIMEOUT_S = 50;
 const POTEZ_TIMEOUT_MS = Number(process.env.OLX_MOST_POTEZ_TIMEOUT_MS) || 300000;
 const MAX_POKUSAJA = 3;
+// RAM po klijentu: ziva sesija drzi cijelo stablo procesa u memoriji i na floti od vise klijenata
+// to ne staje. `--resume` vraca kontekst kad stigne sljedeca poruka, pa gasenje nije gubitak.
+// `0` iskljucuje gasenje, sesija tada ostaje ziva dok god most zivi.
+const IDLE_MIN = Number(process.env.OLX_MOST_IDLE_MIN) || 30;
 
 if (!TOKEN) {
   console.error("TELEGRAM_BOT_TOKEN nije postavljen u .env. Most se ne moze pokrenuti.");
@@ -145,6 +149,33 @@ async function skiniFoto(poruka) {
 // ---- ziva sesija ----
 
 let sesija = null; // { dijete, cekaci: [], buf }
+let idleTajmer = null;
+let zadnjaAktivnost = Date.now();
+
+function otkaziIdle() {
+  if (idleTajmer) {
+    clearTimeout(idleTajmer);
+    idleTajmer = null;
+  }
+}
+
+/** Zakazuje gasenje mirne sesije. Zove se SAMO kad je red prazan i potez zavrsen. */
+function zakaziIdle() {
+  otkaziIdle();
+  const rok = idleRokMs(IDLE_MIN);
+  if (rok === null || !sesija || gasenje) return;
+  idleTajmer = setTimeout(() => {
+    idleTajmer = null;
+    if (!sesija || gasenje) return;
+    if (!trebaLiUgasiti(zadnjaAktivnost, Date.now(), IDLE_MIN)) return zakaziIdle();
+    const s = sesija;
+    s.namjerno = true; // da exit handler ne prijavi pad
+    log(`sesija je mirovala ${IDLE_MIN} min, gasim je (kontekst ostaje, budi se na prvu poruku)`);
+    sesija = null; // stanje.sesija se NE dira: to je kljuc za --resume
+    s.dijete.kill("SIGTERM");
+  }, rok);
+  idleTajmer.unref?.();
+}
 
 // Spawn ostaje vlastit, ne ide kroz pokreniClaude/claudeArgv iz sesija.mjs. Most sa sesijom
 // razgovara kroz stdin/stdout u stream-json obliku, pa mu treba stdio ["pipe","pipe","pipe"];
@@ -167,7 +198,7 @@ function pokreniSesiju(nastavak) {
     stdio: ["pipe", "pipe", "pipe"],
     shell: process.platform === "win32",
   });
-  const s = { dijete, id, buf: "", cekac: null, greske: "" };
+  const s = { dijete, id, buf: "", cekac: null, greske: "", namjerno: false };
 
   dijete.stdout.on("data", (d) => {
     s.buf += d.toString("utf8");
@@ -194,7 +225,8 @@ function pokreniSesiju(nastavak) {
     s.greske = `${s.greske}${d.toString("utf8")}`.slice(-2000);
   });
   dijete.on("exit", (kod) => {
-    log(`sesija izasla (kod ${kod})${s.greske.trim() ? `: ${s.greske.trim().slice(-300)}` : ""}`);
+    if (s.namjerno) log(`sesija ugasena zbog mirovanja (kod ${kod})`);
+    else log(`sesija izasla (kod ${kod})${s.greske.trim() ? `: ${s.greske.trim().slice(-300)}` : ""}`);
     if (sesija === s) sesija = null;
     if (s.cekac) {
       const cekac = s.cekac;
@@ -214,6 +246,8 @@ function pokreniSesiju(nastavak) {
 
 /** Posalje tekst zivoj sesiji i vrati sto je vratila. Pokrece sesiju ako je nema. */
 function posaljiSesiji(tekst) {
+  otkaziIdle();
+  zadnjaAktivnost = Date.now();
   if (!sesija) sesija = pokreniSesiju(Boolean(stanje.sesija));
   const s = sesija;
   if (s.cekac) return Promise.resolve({ ok: false, tekst: "", greska: "sesija je zauzeta" });
@@ -273,6 +307,7 @@ function slikeNovijeOd(od) {
 async function obradiRed() {
   if (radi) return;
   radi = true;
+  otkaziIdle();
   const { posaljiPoruku, posaljiSliku, javiAdminu } = await import("../dist/core/telegram.js");
   try {
     while (stanje.red.length > 0) {
@@ -340,6 +375,10 @@ async function obradiRed() {
     }
   } finally {
     radi = false;
+    zadnjaAktivnost = Date.now();
+    // Tajmer se postavlja tek kad je red ostao prazan i potez zavrsen: dok potez traje sesija se
+    // ne smije presjeci na pola.
+    if (!gasenje && stanje.red.length === 0) zakaziIdle();
   }
 }
 
@@ -381,6 +420,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, () => {
     if (gasenje) return; // launchd i shell umiju poslati oba signala
     gasenje = true;
+    otkaziIdle();
     log("gasim se, sto je u redu ostaje za sljedece pokretanje");
     sesija?.dijete.kill("SIGTERM");
     setTimeout(() => process.exit(0), 500);
@@ -447,6 +487,7 @@ while (!gasenje) {
 
   if (JEDNOM) {
     while (radi || stanje.red.length > 0 || albumi.size > 0) await new Promise((r) => setTimeout(r, 500));
+    otkaziIdle();
     sesija?.dijete.kill("SIGTERM");
     break;
   }
