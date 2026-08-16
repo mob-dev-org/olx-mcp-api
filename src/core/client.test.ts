@@ -150,6 +150,44 @@ test("sponsorListing zapisuje potroseno kredita u audit log", async () => {
   }
 });
 
+test("audit zapisuje error_body sa razlogom API-ja na 422", async () => {
+  const razlog = { errors: { days: ["mora biti izmedju 1 i 30"] } };
+  const { restore } = stubFetch([
+    { status: 200, body: PRICE_BODY },
+    { status: 422, body: razlog },
+  ]);
+  const zapisi: AuditEntry[] = [];
+  try {
+    const client = new OlxClient(testConfig(), { audit: (e) => zapisi.push(e) });
+    await assert.rejects(() => client.sponsorListing(123, { type: 2, days: 7 }, true));
+    const neuspjeh = zapisi.find((z) => z.path.endsWith("/sponsore") && z.method === "POST");
+    assert.equal(neuspjeh?.ok, false);
+    assert.equal(neuspjeh?.error_body, JSON.stringify(razlog), "sirovo tijelo greske ulazi u log");
+  } finally {
+    restore();
+  }
+});
+
+test("audit NE upisuje error_body kad tijelo izgleda kao token/tajna", async () => {
+  // GitHub token oblika ghp_... unutar poruke greske: princip "token nikad u odgovor ni u
+  // poruku" vazi i za audit log, isti obrasci kao backup-spisak.ts.
+  const sumnjivo = { message: `curl -H "Authorization: ghp_${"a".repeat(36)}"` };
+  const { restore } = stubFetch([
+    { status: 200, body: PRICE_BODY },
+    { status: 422, body: sumnjivo },
+  ]);
+  const zapisi: AuditEntry[] = [];
+  try {
+    const client = new OlxClient(testConfig(), { audit: (e) => zapisi.push(e) });
+    await assert.rejects(() => client.sponsorListing(123, { type: 2, days: 7 }, true));
+    const neuspjeh = zapisi.find((z) => z.path.endsWith("/sponsore") && z.method === "POST");
+    assert.equal(neuspjeh?.ok, false);
+    assert.equal(neuspjeh?.error_body, undefined, "tijelo koje izgleda kao tajna se ne upisuje");
+  } finally {
+    restore();
+  }
+});
+
 test("dnevni plafon zaustavlja izdvajanje prije nego zahtjev ode na mrezu", async () => {
   const { calls, restore } = stubFetch([{ status: 200, body: PRICE_BODY }]);
   const logFajl = join(tmpdir(), `olx-plafon-${process.pid}.jsonl`);
