@@ -360,7 +360,7 @@ ADMIN poslovi nemaju Windows blizanca namjerno: admin masina na Windowsu nije up
 
 ## Varijable okruzenja u cijelom repou
 
-Ukupno 108 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 99 cini konfiguraciju klona.
+Ukupno 109 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 100 cini konfiguraciju klona.
 
 Ostale dolaze iz okoline (harness sesije, plugin loader, proxy) i u `.env.example` namjerno ne stoje: klijent ih ne postavlja rukom. Zato se prazna kolona kod njih ne racuna kao propust.
 
@@ -369,6 +369,7 @@ Varijable koje kod cita a kojih nema u `.env.example` (moguc propust u primjeru,
 - OLX_PODSJETNIK_RESURSI_ROK_MS
 - OLX_SESIJA_
 - OLX_SNAPSHOT_U_TOKU_FILE
+- OLX_TEST_IMGLY
 
 Varijable koje su u `.env.example` a kod ih nigdje ne cita (moguc visak ili zastarjela varijabla):
 
@@ -453,7 +454,7 @@ Nema takvih.
 | OLX_SLIKA_DIR | konfiguracija klona | 4 | scripts/telegram-most.mjs, src/core/slika.ts, src/core/slike-ciscenje.test.ts, src/core/slike-ciscenje.ts | da |
 | OLX_SLIKA_LIMIT_FILE | konfiguracija klona | 2 | src/core/slika-limit.test.ts, src/core/slika-limit.ts | da |
 | OLX_SLIKA_MAX_DNEVNO | konfiguracija klona | 5 | src/core/slika-limit.test.ts, src/core/slika-limit.ts, src/core/slika.test.ts, src/core/slika.ts, src/mcp/server.ts | da |
-| OLX_SLIKA_MODEL | konfiguracija klona | 1 | src/core/slika.ts | da |
+| OLX_SLIKA_MODEL | konfiguracija klona | 2 | src/core/gemini.ts, src/core/slika.ts | da |
 | OLX_SLIKE_ODGODA_MIN | konfiguracija klona | 2 | src/core/slike-ciscenje.test.ts, src/core/slike-ciscenje.ts | da |
 | OLX_SLIKE_POTROSENE_FILE | konfiguracija klona | 2 | src/core/slike-ciscenje.test.ts, src/core/slike-ciscenje.ts | da |
 | OLX_SLIKE_TRAG_FILE | konfiguracija klona | 1 | src/core/slike-trag.ts | da |
@@ -470,12 +471,13 @@ Nema takvih.
 | OLX_TELEFON_MODEL | konfiguracija klona | 2 | src/core/telefon-ekstrakcija.test.ts, src/core/telefon-ekstrakcija.ts | da |
 | OLX_TELEGRAM_ACCESS_FILE | konfiguracija klona | 2 | src/core/telegram-grupe.test.ts, src/core/telegram-grupe.ts | da |
 | OLX_TELEGRAM_ACCESS_FILE_ADMIN | konfiguracija klona | 1 | src/core/telegram-grupe.ts | da |
+| OLX_TEST_IMGLY | konfiguracija klona | 1 | src/core/slaganje.test.ts |  |
 | OLX_TIMEOUT_MS | konfiguracija klona | 2 | src/core/client.test.ts, src/core/config.ts | da |
 | OLX_TOKEN | konfiguracija klona | 6 | deploy/windows/instaliraj-zadatke.ps1, scripts/ai-runda.sh, scripts/cuvar-sesije.mjs, scripts/lib/envfajl.mjs, scripts/lib/mcp-profil.test.mjs, scripts/lib/pokreni-cli.mjs | da |
 | OLX_USERNAME | konfiguracija klona | 3 | scripts/provjeri-klon.mjs, src/core/config.ts, src/core/index.ts | da |
 | OLX_VID_API_KEY | konfiguracija klona | 6 | scripts/lib/popis-kod.mjs, src/core/telefon-ekstrakcija.test.ts, src/core/telefon-ekstrakcija.ts, src/core/vid.test.ts, src/core/vid.ts, src/mcp/server.ts | da |
 | OLX_VID_MAX_DNEVNO | konfiguracija klona | 2 | src/core/vid.test.ts, src/core/vid.ts | da |
-| OLX_VID_MODEL | konfiguracija klona | 2 | src/core/vid.test.ts, src/core/vid.ts | da |
+| OLX_VID_MODEL | konfiguracija klona | 3 | src/core/gemini.ts, src/core/vid.test.ts, src/core/vid.ts | da |
 | PIKGPT_DIR | konfiguracija klona | 1 | scripts/lib/podesavanja.mjs | da |
 | PIKGPT_ONBOARDING_KEY | konfiguracija klona | 2 | scripts/lib/podesavanja.mjs, scripts/onboarding-kljuc.mjs | da |
 | PIKGPT_PULL_SECRET | konfiguracija klona | 1 | scripts/lib/podesavanja.mjs | da |

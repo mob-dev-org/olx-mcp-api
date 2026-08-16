@@ -47,10 +47,29 @@ export interface GeminiZahtjev {
 }
 
 /**
+ * Da li je model dozvoljen za pozivanje. "Pro" varijante su iskljucene BEZ izuzetka i bez
+ * allowliste: red velicine su skuplje, a u praksi se pro model zna izabrati i nenamjerno kroz
+ * env ili mapiranje imena (izmjereno 04.08.2026: 1.68 USD u jednom danu). Poredi se SEGMENT
+ * imena, ne podniz, da hipoteticko ime sa "pro" unutar rijeci (professional) ne padne.
+ */
+export function modelDozvoljen(model: string): { ok: true } | { ok: false; razlog: string } {
+  if (model.toLowerCase().split(/[-._/]/).includes("pro")) {
+    return {
+      ok: false,
+      razlog: `model "${model}" je odbijen: pro modeli su iskljuceni zbog troska; koristi flash varijantu (OLX_SLIKA_MODEL / OLX_VID_MODEL)`,
+    };
+  }
+  return { ok: true };
+}
+
+/**
  * Posalje jedan zahtjev Geminiju i vrati tekst i sliku iz odgovora.
  * Baca jasnu gresku sa objasnjenjem koje je Google vratio, jer je to jedini koristan trag.
  */
 export async function pozoviGemini(z: GeminiZahtjev): Promise<GeminiRezultat> {
+  // Mreza sigurnosti za svakog pozivaoca (slika, vid, buduci): pro model ne prolazi nikad.
+  const dozvola = modelDozvoljen(z.model);
+  if (!dozvola.ok) throw new Error(dozvola.razlog);
   const baza = z.baseUrl || process.env.OLX_GEMINI_BASE_URL || PODRAZUMIJEVANA_BAZA;
   const odgovor = await fetch(`${baza}/models/${encodeURIComponent(z.model)}:generateContent`, {
     method: "POST",

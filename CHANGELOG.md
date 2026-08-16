@@ -8,6 +8,34 @@ Kako se cita broj verzije: `bun dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
+## 0.17.0 — 2026-08-16
+
+**Artikal se vise ne crta na izmisljenu pozadinu, nego se IZREZUJE i lijepi na pravu.** Recept
+`pozadina-klijenta` do sada je pozadinu generisao iznova svaki put, pa je ispadala slicna a nikad
+ista, a tekst i logo na njoj iskrivljeni. Sada segmentacija (`@imgly/background-removal-node`)
+izrezuje artikal sa fotografije, a kompozicija ide u kodu (`sharp`) na PRAVU sliku klijentove
+pozadine: njeni pikseli, ukljucujuci logo, ostaju netaknuti. Format je uvijek 4:3. Poslije
+slaganja Gemini se opciono zove SAMO za doradu svjetla i kontaktne sjenke, i klijent dobije obje
+verzije da bira, jer dorada ne garantuje da ce logo ostati citljiv. Geometrija je cista i
+testirana odvojeno od piksela (`src/core/slaganje.ts`).
+
+**Deterministicko slaganje ne trosi dnevni plafon dorade.** `OLX_SLIKA_MAX_DNEVNO` se trosi samo
+kad se Gemini stvarno pozove. Kad je plafon dostignut, slaganje i dalje vrati slozenu sliku, a
+dorada se preskoci uz jasan razlog umjesto da cijela radnja padne.
+
+**Pro modeli Gemini-ja se odbijaju u kodu, bez izuzetka.** Nenamjeran pro model kostao je 1.68 USD
+u jednom danu (izmjereno 04.08.2026), pa se izbor modela vise ne oslanja na konfiguraciju: brana
+stoji u `src/core/gemini.ts` i vraca na flash default.
+
+- Zavisnosti pod Bunom: `sharp` i `@imgly/background-removal-node` su nove i teske (oko 355 MB u
+  `node_modules`). `bun install` je na njima padao, jer imgly pinuje `sharp@0.32` koji binarni dio
+  jos vuce install skriptom. Rjesenje su dvije stavke u `package.json`: `overrides.sharp` (imgly
+  koristi korijenski sharp 0.34 sa gotovim `@img/*` binarima, platformski neutralno) i prazan
+  `trustedDependencies` (nijedna postinstall skripta se ne pokrece). Postojece komande se ne
+  mijenjaju, `bun install --frozen-lockfile` na floti prolazi kao i prije.
+- `bun scripts/provjeri-klon.mjs` sada javlja kad te dvije zavisnosti fale. Stavka je PAZNJA, ne
+  FALI: klon bez njih radi sve osim recepta sa stalnom pozadinom.
+
 ## 0.16.0 — 2026-08-16
 
 **Zavrsen oglas se moze vratiti u prodaju.** Novi MCP alat `olx_reaktiviraj_oglas` i CLI komanda

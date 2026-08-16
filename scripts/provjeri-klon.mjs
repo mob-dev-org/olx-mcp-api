@@ -222,6 +222,26 @@ else paznja("KLIJENT-javno.md", "bot ne zna ton, footer ni granice klijenta", `$
   }
 }
 
+// 5a. Zavisnosti za slaganje slike na klijentovu pozadinu. Nisu uslov za rad klona (sve ostalo
+//     radi i bez njih), pa je ovo paznja a ne fali: bez njih otpada samo recept sa stalnom
+//     pozadinom, i to uz jasnu poruku iz slaganjeDostupno(). Provjerava se STVARNO ucitavanje,
+//     ne postojanje mape: sharp bez binarnog dijela postoji na disku a puca pri prvom pozivu.
+{
+  const nedostaje = [];
+  for (const paket of ["sharp", "@imgly/background-removal-node"]) {
+    try {
+      await import(paket);
+    } catch {
+      nedostaje.push(paket);
+    }
+  }
+  if (nedostaje.length) {
+    paznja("Slaganje slike na pozadinu", `nedostaje ${nedostaje.join(", ")}; recept sa stalnom pozadinom nece raditi`, "bun install");
+  } else {
+    ok("Slaganje slike na pozadinu (sharp + imgly)");
+  }
+}
+
 // 5b. Klijentski put STVARNO daje klijentski profil.
 //
 // Mjeri se ishod, ne cita vrijednost iz .env: `.env` od sada podrazumijevano kaze `admin` (da goli

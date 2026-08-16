@@ -46,7 +46,8 @@ import type { Listing, ListingSummary, SviOglasi } from "../core/types.js";
 import { INTERVAL_MAX, STRATEGIJE, intervalUzPrag, normalizujRitam, ritamZapisan, ucitajRitam, upisiRitam } from "../core/ritam-obnova.js";
 import { procitajOverride, upisiOverride } from "../core/slika-limit.js";
 import { POZADINA_OPIS_MAX, obrisiPozadinu, sacuvajPozadinu, sazetakPozadine, ucitajPozadinu } from "../core/pozadina.js";
-import { DOPUNA_MAX, ODNOSI, RECEPTI, RECEPT_POZADINA, ZADANI_ODNOS, generisiSliku, maxDnevno, provjeriDopunu, provjeriZahtjevSlike, slikaKonfigurisana, type Odnos } from "../core/slika.js";
+import { DOPUNA_MAX, ODNOSI, RECEPTI, RECEPT_POZADINA, ZADANI_ODNOS, dimenzijeSlike, generisiSliku, maxDnevno, provjeriDopunu, provjeriZahtjevSlike, slikaKonfigurisana, type Odnos } from "../core/slika.js";
+import { SLOT_MARGINA_MAX, SLOT_MARGINA_MIN, SLOT_SIRINA_MAX, SLOT_SIRINA_MIN, ZADANI_SLOT, izracunajIzrez4x3 } from "../core/slaganje.js";
 import { oznaciPotrosene, pocistiPotrosene } from "../core/slike-ciscenje.js";
 import { zapisiZahtjevSlike } from "../core/slike-trag.js";
 import { brojPozivaDanas } from "../core/ai-dnevnik.js";
@@ -1037,7 +1038,10 @@ if (slikaKonfigurisana()) {
         "Iz poslane fotografije ili slike sa objavljenog oglasa napravi novu sliku artikla: cist prostor i " +
         "ravno svjetlo. VAZNO: model sliku PRECRTAVA, ne retusira, pa na slozenoj fotografiji (vise " +
         "artikala, sitni natpisi, brendovi) izmislja detalje i takva slika laze kupca; koristi ga za JEDAN " +
-        "prepoznatljiv predmet i UVIJEK daj korisniku da uporedi staru i novu prije objave. Ne trosi OLX " +
+        "prepoznatljiv predmet i UVIJEK daj korisniku da uporedi staru i novu prije objave. Recept " +
+        "pozadina-klijenta sa postavljenom SLIKOM pozadine radi drugacije: artikal se izreze i slozi na " +
+        "pravu pozadinu u kodu (logo ostaje tacan), pa vrati DVIJE slike (slozena + doradjena; posalji " +
+        "korisniku obje da bira), uvijek 4:3, jedna fotografija artikla, i potraje do minute. Ne trosi OLX " +
         "kredite nego vanjski AI racun, pa bez confirm true samo vrati sta bi radio i stanje dnevnog " +
         "plafona. Vraca putanju nove slike, spremnu za olx_upload_images ili za slanje na odobrenje.",
       inputSchema: {
@@ -1069,6 +1073,7 @@ if (slikaKonfigurisana()) {
         dopuna: args.dopuna,
         ulaznihSlika: args.slike?.length ?? 0,
         profil: config.mcpProfil,
+        odnos: args.odnos,
       });
       if (!nalaz.ok) {
         // Trag pise ona brana koja je zahtjev zaustavila, pa je uvijek tacno jedan zapis po
@@ -1120,9 +1125,12 @@ if (slikaKonfigurisana()) {
       title: "Stalna pozadina za slike",
       description:
         "Pozadina koju recept pozadina-klijenta koristi umjesto bijelog studija, da svi oglasi imaju isti prostor. " +
-        "postavi = zapamti opis i/ili sliku pozadine (slika se kopira u klon, pa smije nestati iz inboxa); " +
-        "prikazi = sta je sada postavljeno; ukloni = vrati se na bijelu podlogu. VAZNO reci korisniku: pozadina se " +
-        "svaki put crta iznova, pa je SLICNA a nikad identicna, a tekst i logo na pozadini ce biti iskrivljeni.",
+        "postavi = zapamti opis i/ili sliku pozadine (slika se kopira u klon, pa smije nestati iz inboxa) i po " +
+        "zelji polozaj artikla (sirina_artikla_posto, margina_dna_posto; artikal stoji pri dnu u sredini); " +
+        "prikazi = sta je sada postavljeno; ukloni = vrati se na bijelu podlogu. Sa SLIKOM pozadine se artikal " +
+        "SLAZE na nju u kodu: slozena slika ima pozadinu i logo tacno kao original, a Gemini doradjena varijanta " +
+        "garanciju za logo nema, pa korisnik uvijek bira izmedju dvije. Pozadina zadana samo opisom se i dalje " +
+        "crta iznova (slicna, ne ista). Slika je uvijek 4:3.",
       inputSchema: {
         radnja: z.enum(["postavi", "prikazi", "ukloni"]),
         opis: z
@@ -1134,6 +1142,18 @@ if (slikaKonfigurisana()) {
               "sto je korisnik rekao; samo uz radnju postavi",
           ),
         slika: z.string().min(1).optional().describe("putanja fotografije pozadine koju je poslao korisnik"),
+        sirina_artikla_posto: z
+          .number()
+          .min(SLOT_SIRINA_MIN)
+          .max(SLOT_SIRINA_MAX)
+          .optional()
+          .describe(`koliki dio sirine kadra artikal zauzima, default ${ZADANI_SLOT.sirinaPosto}; samo uz radnju postavi`),
+        margina_dna_posto: z
+          .number()
+          .min(SLOT_MARGINA_MIN)
+          .max(SLOT_MARGINA_MAX)
+          .optional()
+          .describe(`odmak artikla od dna kadra u procentima visine, default ${ZADANI_SLOT.marginaDnaPosto}; samo uz radnju postavi`),
       },
       annotations: writeOp,
     },
@@ -1142,7 +1162,12 @@ if (slikaKonfigurisana()) {
         const pozadina = ucitajPozadinu();
         return ok(
           pozadina
-            ? { postavljena: true, ...pozadina, sazetak: sazetakPozadine(pozadina) }
+            ? {
+                postavljena: true,
+                ...pozadina,
+                slot: pozadina.slot ?? ZADANI_SLOT,
+                sazetak: sazetakPozadine(pozadina),
+              }
             : { postavljena: false, napomena: `Pozadina nije postavljena, pa recept ${RECEPT_POZADINA} nije dostupan.` },
         );
       }
@@ -1159,15 +1184,42 @@ if (slikaKonfigurisana()) {
         const nalaz = provjeriDopunu(args.opis, POZADINA_OPIS_MAX);
         if (!nalaz.ok) return errResult(`Opis pozadine se ne moze prihvatiti: ${nalaz.razlog}.`);
       }
-      const rezultat = sacuvajPozadinu({ opis: args.opis, izvorSlike: args.slika });
+      const slotUnos =
+        args.sirina_artikla_posto !== undefined || args.margina_dna_posto !== undefined
+          ? {
+              ...(args.sirina_artikla_posto !== undefined ? { sirinaPosto: args.sirina_artikla_posto } : {}),
+              ...(args.margina_dna_posto !== undefined ? { marginaDnaPosto: args.margina_dna_posto } : {}),
+            }
+          : undefined;
+      const rezultat = sacuvajPozadinu({ opis: args.opis, izvorSlike: args.slika, slot: slotUnos });
       if (!rezultat.ok) return errResult(`Pozadina nije sacuvana: ${rezultat.razlog}.`);
+
+      // Upozorenje na 4:3 isjecanje: platno slaganja je 4:3, pa portretna ili panoramska
+      // pozadina gubi dio kadra. Cita se zaglavlje fajla (bez piksel obrade), best effort.
+      let upozorenje: string | undefined;
+      if (rezultat.pozadina.slika) {
+        try {
+          const d = dimenzijeSlike(readFileSync(rezultat.pozadina.slika));
+          const izrez = d ? izracunajIzrez4x3(d.sirina, d.visina) : null;
+          if (izrez && izrez.odsjecenoPosto > 20) {
+            upozorenje = `Slika pozadine nije blizu 4:3, pa se pri slaganju sijece ${Math.round(izrez.odsjecenoPosto)}% kadra (uzima se sredina). Ako bitan dio scene ispada, posalji siru fotografiju pozadine.`;
+          } else if (d && d.sirina < 1200) {
+            upozorenje = `Slika pozadine je siroka samo ${d.sirina} px, pa se pri slaganju uvecava i moze ispasti mutna; bolja je fotografija od bar 1600 px sirine.`;
+          }
+        } catch {
+          // upozorenje je dodatak; necitljivo zaglavlje ga samo izostavi
+        }
+      }
+
       return ok({
         postavljena: true,
         ...rezultat.pozadina,
+        slot: rezultat.pozadina.slot ?? ZADANI_SLOT,
         sazetak: sazetakPozadine(rezultat.pozadina),
-        napomena:
-          `Od sada recept ${RECEPT_POZADINA} stavlja artikle na ovu pozadinu. Ona se svaki put crta iznova, ` +
-          "pa dva oglasa nece imati doslovno istu pozadinu.",
+        ...(upozorenje ? { upozorenje } : {}),
+        napomena: rezultat.pozadina.slika
+          ? `Od sada recept ${RECEPT_POZADINA} SLAZE artikal na ovu sliku pozadine: pozadina i logo na slozenoj slici ostaju tacno kao original, a uz nju se nudi i doradjena varijanta (ljepse uklopljena, logo bez garancije). Reci korisniku da uvijek bira izmedju te dvije.`
+          : `Od sada recept ${RECEPT_POZADINA} crta ovu scenu po opisu. Ona se svaki put crta iznova, pa dva oglasa nece imati doslovno istu pozadinu; za identicnu pozadinu treba poslati SLIKU pozadine.`,
       });
     },
   );

@@ -69,6 +69,19 @@ export function provjeriPreduslove(tip, korijen, env) {
 
 // AI pogon sesije. Vraca { ok, env, obrisi, pogon, poruka }. Cita iz parametra env (po pravilu
 // process.env poslije loadEnvFile), nista ne mijenja.
+/**
+ * Odbij "pro" model iz env-a: vrati undefined (pa pozivalac padne na flash default) i upozori
+ * na stderr. Segment imena, ne podniz, da hipoteticko "professional" ne padne. Izvoz radi testa.
+ */
+export function bezProModela(model, varijabla) {
+  if (!model) return model;
+  if (String(model).toLowerCase().split(/[-._/]/).includes("pro")) {
+    console.error(`${varijabla}="${model}" je odbijen: pro modeli su iskljuceni zbog troska, koristim flash default.`);
+    return undefined;
+  }
+  return model;
+}
+
 export function aiPogon(jeAdmin, env) {
   if (jeAdmin) {
     // Admin bot je vlasnikov kanal i ide iskljucivo na pretplatu. Sve ANTHROPIC_* se brise
@@ -92,10 +105,13 @@ export function aiPogon(jeAdmin, env) {
   const izlaz = { ANTHROPIC_BASE_URL: baseUrl, ANTHROPIC_AUTH_TOKEN: token };
   // Default modela je flash, uvijek (odluka vlasnika 04.08.2026, cijena). Bez fallbacka bi
   // sesija poslala Claude ime modela, a endpoint `claude-opus-5` mapira na pro, pa bi
-  // izostavljena varijabla tiho znacila skuplji model. Pro ostaje izbor po klijentu kroz
-  // OLX_DEEPSEEK_MODEL; sta se time gubi pise u deepseek-nalazi.md.
-  izlaz.ANTHROPIC_MODEL = env.OLX_DEEPSEEK_MODEL || "deepseek-v4-flash";
-  izlaz.ANTHROPIC_DEFAULT_HAIKU_MODEL = env.OLX_DEEPSEEK_HAIKU_MODEL || "deepseek-v4-flash";
+  // izostavljena varijabla tiho znacila skuplji model.
+  // Pro modeli su ISKLJUCENI potpuno (odluka vlasnika 04.08.2026: pro se u praksi izabrao
+  // nenamjerno i dan je kostao 1.68 USD): ime sa segmentom "pro" pada na flash uz upozorenje.
+  // Ista brana za Gemini put je u src/core/gemini.ts (modelDozvoljen); kopija ovdje jer
+  // skripte ne uvoze dist.
+  izlaz.ANTHROPIC_MODEL = bezProModela(env.OLX_DEEPSEEK_MODEL, "OLX_DEEPSEEK_MODEL") || "deepseek-v4-flash";
+  izlaz.ANTHROPIC_DEFAULT_HAIKU_MODEL = bezProModela(env.OLX_DEEPSEEK_HAIKU_MODEL, "OLX_DEEPSEEK_HAIKU_MODEL") || "deepseek-v4-flash";
   if (env.OLX_DEEPSEEK_TIMEOUT_MS) izlaz.API_TIMEOUT_MS = env.OLX_DEEPSEEK_TIMEOUT_MS;
   // API odbija zahtjev kad su AUTH_TOKEN i API_KEY postavljeni istovremeno.
   return { ok: true, env: izlaz, obrisi: ["ANTHROPIC_API_KEY"], pogon: "deepseek" };
