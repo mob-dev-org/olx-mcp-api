@@ -110,3 +110,37 @@ export function trebaLiUgasiti(zadnjaAktivnost, sad, idleMin) {
   if (rok === null) return false;
   return sad - zadnjaAktivnost >= rok;
 }
+
+/** Datum u LOKALNOM vremenu kao "YYYY-MM-DD", isto kao cuvar-sesije.mjs. */
+export function lokalniDatum(d) {
+  const godina = d.getFullYear();
+  const mjesec = String(d.getMonth() + 1).padStart(2, "0");
+  const dan = String(d.getDate()).padStart(2, "0");
+  return `${godina}-${mjesec}-${dan}`;
+}
+
+/**
+ * true tacno jednom po danu, u satu koji je odredjen kao rok za nocni rez konteksta.
+ * `restartSat` van opsega 0 do 23 (ukljucujuci NaN i undefined) znaci iskljuceno: pogresna
+ * vrijednost ne smije nasumicno rezati kontekst u nekom satu, pa vraca false umjesto da
+ * nagadja koji sat je bio mislen.
+ */
+export function trebaLiNocniRez({ sad, restartSat, zadnjiNocni, zauzet }) {
+  if (!Number.isFinite(restartSat) || restartSat < 0 || restartSat > 23) return false;
+  if (sad.getHours() !== restartSat) return false;
+  if (zadnjiNocni === lokalniDatum(sad)) return false;
+  if (zauzet === true) return false;
+  return true;
+}
+
+/**
+ * true kad je trenutna minuta prava za uzimanje uzorka telemetrije. Pomak razmjesta uzorke
+ * razlicitih klonova unutar istog intervala umjesto da svi udare na istu minutu.
+ * `intervalMin` koji nije konacan pozitivan broj gasi uzorkovanje u potpunosti.
+ */
+export function trebaLiUzorkovati({ minutaOdEpoha, intervalMin, pomak, zadnjaUzorkovanaMinuta }) {
+  if (!Number.isFinite(intervalMin) || intervalMin <= 0) return false;
+  if (minutaOdEpoha % intervalMin !== pomak % intervalMin) return false;
+  if (minutaOdEpoha === zadnjaUzorkovanaMinuta) return false;
+  return true;
+}

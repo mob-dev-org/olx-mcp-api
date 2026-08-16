@@ -582,7 +582,10 @@ export function vrijemeUStrazi(redoviHronoloski) {
   let otvorenoTs = null;
 
   for (const red of redoviHronoloski ?? []) {
-    if (red.dogadjaj === "gasenje-straze") {
+    // "gasenje-idle" je isti dogadjaj pod drugim imenom: pise ga most (scripts/telegram-most.mjs),
+    // koji nema pravu strazu (poll ide stalno, ne samo dok sesija spava), pa mu "straza" ne
+    // odgovara terminoloski, ali je mirni period identican i uparuje se sa istim "budjenje".
+    if (red.dogadjaj === "gasenje-straze" || red.dogadjaj === "gasenje-idle") {
       if (otvorenoTs === null) otvorenoTs = Date.parse(red.ts);
     } else if (red.dogadjaj === "budjenje") {
       if (otvorenoTs !== null) {

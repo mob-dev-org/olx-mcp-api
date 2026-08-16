@@ -4,7 +4,18 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ZABRANJENI_ALATI, argviSesije, dozvoljena, idleRokMs, izvorSlike, tekstStavke, trebaLiUgasiti } from "./most.mjs";
+import {
+  ZABRANJENI_ALATI,
+  argviSesije,
+  dozvoljena,
+  idleRokMs,
+  izvorSlike,
+  lokalniDatum,
+  tekstStavke,
+  trebaLiNocniRez,
+  trebaLiUgasiti,
+  trebaLiUzorkovati,
+} from "./most.mjs";
 
 // ---- dozvoljena: privatna poruka ----
 
@@ -230,4 +241,96 @@ test("trebaLiUgasiti: milisekundu prije roka daje false", () => {
 
 test("trebaLiUgasiti: idleMin 0 uvijek daje false, ma koliko vremena proslo", () => {
   assert.equal(trebaLiUgasiti(0, Number.MAX_SAFE_INTEGER, 0), false);
+});
+
+// ---- lokalniDatum ----
+
+test("lokalniDatum: jednocifreni mjesec i dan dobiju vodecu nulu", () => {
+  assert.equal(lokalniDatum(new Date(2026, 0, 5, 10, 0, 0)), "2026-01-05");
+});
+
+test("lokalniDatum: kraj godine ostaje u istoj godini", () => {
+  assert.equal(lokalniDatum(new Date(2026, 11, 31, 23, 59, 0)), "2026-12-31");
+});
+
+// ---- trebaLiNocniRez ----
+
+test("trebaLiNocniRez: pogodjen sat i nov dan daje true", () => {
+  const sad = new Date(2026, 7, 15, 4, 0, 0);
+  assert.equal(trebaLiNocniRez({ sad, restartSat: 4, zadnjiNocni: "2026-08-14", zauzet: false }), true);
+});
+
+test("trebaLiNocniRez: isti dan drugi put daje false (idempotencija u istom danu)", () => {
+  const sad = new Date(2026, 7, 15, 4, 30, 0);
+  assert.equal(trebaLiNocniRez({ sad, restartSat: 4, zadnjiNocni: "2026-08-15", zauzet: false }), false);
+});
+
+test("trebaLiNocniRez: pogresan sat daje false", () => {
+  const sad = new Date(2026, 7, 15, 5, 0, 0);
+  assert.equal(trebaLiNocniRez({ sad, restartSat: 4, zadnjiNocni: "2026-08-14", zauzet: false }), false);
+});
+
+test("trebaLiNocniRez: zauzet true daje false iako je sat pogodjen", () => {
+  const sad = new Date(2026, 7, 15, 4, 0, 0);
+  assert.equal(trebaLiNocniRez({ sad, restartSat: 4, zadnjiNocni: "2026-08-14", zauzet: true }), false);
+});
+
+test("trebaLiNocniRez: nevaljan restartSat daje false", () => {
+  const sad = new Date(2026, 7, 15, 4, 0, 0);
+  for (const restartSat of [-1, 24, NaN, undefined]) {
+    assert.equal(trebaLiNocniRez({ sad, restartSat, zadnjiNocni: "2026-08-14", zauzet: false }), false);
+  }
+});
+
+test("trebaLiNocniRez: nakon promjene datuma isti sat sljedeceg dana ponovo daje true", () => {
+  const danas = new Date(2026, 7, 15, 4, 0, 0);
+  const sutra = new Date(2026, 7, 16, 4, 0, 0);
+  assert.equal(trebaLiNocniRez({ sad: danas, restartSat: 4, zadnjiNocni: "2026-08-14", zauzet: false }), true);
+  assert.equal(trebaLiNocniRez({ sad: sutra, restartSat: 4, zadnjiNocni: "2026-08-15", zauzet: false }), true);
+});
+
+// ---- trebaLiUzorkovati ----
+
+test("trebaLiUzorkovati: pogodjena minuta daje true", () => {
+  assert.equal(
+    trebaLiUzorkovati({ minutaOdEpoha: 10, intervalMin: 5, pomak: 0, zadnjaUzorkovanaMinuta: -1 }),
+    true,
+  );
+});
+
+test("trebaLiUzorkovati: ista minuta drugi put daje false", () => {
+  assert.equal(
+    trebaLiUzorkovati({ minutaOdEpoha: 10, intervalMin: 5, pomak: 0, zadnjaUzorkovanaMinuta: 10 }),
+    false,
+  );
+});
+
+test("trebaLiUzorkovati: nepogodjena minuta daje false", () => {
+  assert.equal(
+    trebaLiUzorkovati({ minutaOdEpoha: 11, intervalMin: 5, pomak: 0, zadnjaUzorkovanaMinuta: -1 }),
+    false,
+  );
+});
+
+test("trebaLiUzorkovati: intervalMin 0 ili negativan daje false", () => {
+  assert.equal(
+    trebaLiUzorkovati({ minutaOdEpoha: 10, intervalMin: 0, pomak: 0, zadnjaUzorkovanaMinuta: -1 }),
+    false,
+  );
+  assert.equal(
+    trebaLiUzorkovati({ minutaOdEpoha: 10, intervalMin: -5, pomak: 0, zadnjaUzorkovanaMinuta: -1 }),
+    false,
+  );
+});
+
+test("trebaLiUzorkovati: pomak veci od intervala se ispravno modulira", () => {
+  // pomak 7 uz interval 5 je isto sto i pomak 2: pogadja minute ...2, 7, 12...
+  assert.equal(
+    trebaLiUzorkovati({ minutaOdEpoha: 12, intervalMin: 5, pomak: 7, zadnjaUzorkovanaMinuta: -1 }),
+    true,
+  );
+  assert.equal(
+    trebaLiUzorkovati({ minutaOdEpoha: 10, intervalMin: 5, pomak: 7, zadnjaUzorkovanaMinuta: -1 }),
+    false,
+  );
 });

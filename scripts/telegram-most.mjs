@@ -25,12 +25,45 @@
 // Pogon (DeepSeek ili pretplata) bira se okruzenjem: ovaj proces samo prenosi svoje okruzenje.
 
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { randomUUID } from "node:crypto";
-import { dirname, join, resolve } from "node:path";
-import { ucitajEnvGlobalno } from "./lib/envfajl.mjs";
+import { basename, dirname, join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { ucitajEnvGlobalno, procitajEnv } from "./lib/envfajl.mjs";
 import { stazeSesije, provjeriPreduslove, aiPogon, sastaviPrompt, okruzenjeSesije } from "./lib/sesija.mjs";
-import { dozvoljena, izvorSlike, tekstStavke, argviSesije, idleRokMs, trebaLiUgasiti } from "./lib/most.mjs";
+import {
+  dozvoljena,
+  izvorSlike,
+  tekstStavke,
+  argviSesije,
+  idleRokMs,
+  trebaLiUgasiti,
+  lokalniDatum,
+  trebaLiNocniRez,
+  trebaLiUzorkovati,
+} from "./lib/most.mjs";
+import {
+  citajProcese,
+  ocistiStareResurse,
+  pidoviStabla,
+  pomakKlona,
+  putanjaResursa,
+  redUzorka,
+  upisiRed,
+  uzorakMasine,
+  zbirStabla,
+} from "./lib/resursi.mjs";
+import { odluciAlarmMasine, provjeriPritisakMasine } from "./lib/pritisak-masine.mjs";
+import { cpuStabla } from "./lib/cpu.mjs";
 
 // ---- konfiguracija ----
 
@@ -54,6 +87,31 @@ const MAX_POKUSAJA = 3;
 // `0` iskljucuje gasenje, sesija tada ostaje ziva dok god most zivi.
 const IDLE_MIN = Number(process.env.OLX_MOST_IDLE_MIN) || 30;
 
+// Kao broj() u cuvar-sesije.mjs, uz JEDNU namjernu razliku: PRAZNA vrijednost ovdje pada na
+// default, a kod cuvara ne. Number("") je 0, konacan i nenegativan, pa cuvar sa `OLX_SESIJA_
+// RESTART_SAT=` iz .env.example dobije sat 0 (rez u ponoc, a komentar obecava 3h), a sa
+// `OLX_SESIJA_INBOX_DANA=` dobije prag 0 dana (svaki nocni ciklus obrise CIJELI inbox). Bun
+// ucita .env sam prije prve linije, pa prazan kljuc iz primjera stvarno stigne kao "". Most tu
+// gresku ne nasljedjuje: prazno znaci "nije podeseno", isto sto i odsutna varijabla.
+function broj(v, fallback) {
+  if (v === undefined || v === null || String(v).trim() === "") return fallback;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
+
+// Nocni rez konteksta (vidi tikMinute nize): u koji sat sesija gubi --resume i kontekst krece
+// od nule. Isti podrazumijevani sat kao cuvar-sesije.mjs, radi jednostavnosti pamcenja za
+// vlasnika koji podesava .env.
+const RESTART_SAT = broj(process.env.OLX_MOST_RESTART_SAT, 3);
+
+// Starost inbox fajlova koji se brisu u nocnom rezu: NAMJERNO ista varijabla kao
+// cuvar-sesije.mjs (OLX_SESIJA_INBOX_DANA), ne nova. Isti klon, isti inbox, jedan prekidac.
+const INBOX_DANA = broj(process.env.OLX_SESIJA_INBOX_DANA, 7);
+
+// Marker kojim vanjski proces (onboarding-puller.mjs, oko reda 155) trazi da sesija preuzme svjez
+// .env (npr. nov OLX_TOKEN upisan u zivi klon). Prolazan je, brise se odmah po obradi u tikMinute.
+const RESTART_ZAHTJEV = join(KORIJEN, ".olx-pik", "restart-sesije");
+
 if (!TOKEN) {
   console.error("TELEGRAM_BOT_TOKEN nije postavljen u .env. Most se ne moze pokrenuti.");
   process.exit(2);
@@ -66,6 +124,48 @@ if (ai.ok === false) {
   console.error(ai.poruka);
   process.exit(2);
 }
+
+// ---- telemetrija resursa (best effort, vidi scripts/lib/resursi.mjs) ----
+// Ista telemetrija kao cuvar-sesije.mjs, istim JSONL formatom i istim varijablama okruzenja, da
+// vlasnik flote i dalje vidi trosak RAM-a po klijentu kad klon predje sa cuvara na most. Dva
+// intervala jer aktivna sesija treba gusce uzorkovanje od mirne sesije: RSS mirne sesije je ravan,
+// cesce uzorkovanje tamo ne bi nista pokazalo. Prva vrijednost prazna ili 0 gasi telemetriju U
+// CJELINI; druga sama za sebe, ako je 0, iskljucuje SAMO uzorkovanje dok sesija ne postoji.
+const RESURSI_INTERVAL_MIN = broj(process.env.OLX_RESURSI_INTERVAL_MIN, 5);
+const RESURSI_INTERVAL_STRAZA_MIN = broj(process.env.OLX_RESURSI_INTERVAL_STRAZA_MIN, 30);
+const RESURSI_UKLJUCENO = RESURSI_INTERVAL_MIN > 0;
+const RESURSI_DIR = process.env.OLX_RESURSI_DIR || ".olx-pik/resursi";
+const RESURSI_CUVAJ_MJESECI = 12;
+// Prag za alarm van reda kad je masina pod pritiskom (vidi scripts/lib/pritisak-masine.mjs).
+const PRAG_SLOBODNO_BAJTA = broj(process.env.OLX_RESURSI_PRAG_SLOBODNO_MB, 2048) * 1024 * 1024;
+const PRAG_SWAP_OMJER = broj(process.env.OLX_RESURSI_PRAG_SWAP_OMJER, 0.85);
+const PRAG_ALARM_MS = broj(process.env.OLX_RESURSI_PRAG_ALARM_SATI, 6) * 60 * 60 * 1000;
+const KLON_IME = basename(KORIJEN);
+// Determinisan pomak po klonu (hash putanje, NE Math.random): kad vise klonova radi na istoj
+// masini, ne krenu svi u istoj sekundi u ps/powershell poziv. Stabilan kroz restarte mosta.
+const RESURSI_POMAK_AKTIVNO = pomakKlona(KORIJEN, Math.max(1, RESURSI_INTERVAL_MIN));
+const RESURSI_POMAK_STRAZA = pomakKlona(KORIJEN, Math.max(1, RESURSI_INTERVAL_STRAZA_MIN));
+
+// Verzija koda se cita JEDNOM na startu, keširano u konstanti da upisiDogadjaj ostane potpuno
+// sinhrona funkcija (bitno za SIGINT/SIGTERM handler, koji ne smije cekati na async). Kad je
+// telemetrija iskljucena, import se PRESKACE u potpunosti, da ponasanje ostane bajt za bajt isto
+// kao danas.
+async function ucitajVerzijuKoda() {
+  try {
+    const modul = await import(pathToFileURL(join(KORIJEN, "dist", "core", "verzija.js")).href);
+    return modul.VERZIJA ?? null;
+  } catch {
+    return null;
+  }
+}
+const VERZIJA_KODA = RESURSI_UKLJUCENO ? await ucitajVerzijuKoda() : null;
+
+// CPU bazna linija (kumulativno CPU vrijeme po pidu) izmedju tikova, u memoriji mosta (restart
+// mosta prirodno resetuje bazu). `uzorakUToku` sprjecava preklapanje uzoraka. `zadnjaUzorkovanaMinuta`
+// sprjecava dupli uzorak u istoj minuti kad se tikMinute i eksplicitni poziv poklope.
+let zadnjaUzorkovanaMinuta = -1;
+let uzorakUToku = false;
+let cpuStanjeKlona = null;
 
 const log = (sta) => console.log(`${new Date().toISOString()} ${sta}`);
 
@@ -90,6 +190,92 @@ function sacuvaj() {
   writeFileSync(tmp, `${JSON.stringify(stanje, null, 2)}\n`, "utf8");
   renameSync(tmp, STANJE_FAJL);
 }
+
+// ---- PID brava (zastita od dvostrukog pokretanja) ----
+// Dva mosta na istom klonu bi znacila dva getUpdates konzumera na istom bot tokenu i 409 Conflict
+// na Telegramu. Preslikano iz cuvar-sesije.mjs (odbijStart/zauzmiPidFajl): upis je atomican (flag
+// "wx"), pa dva mosta pokrenuta u istoj sekundi ne mogu oba proci. Zauzima se PRIJE prvog dodira
+// Telegrama (tg("getMe")), jer brava mora stajati prije ijednog poziva, ne poslije.
+
+const PID_FAJL = join(KORIJEN, ".olx-pik", "most.pid");
+const ODBIJEN_ALARM_FAJL = join(KORIJEN, ".olx-pik", "most-odbijen.alarm");
+
+async function javiAdministratoru(tekst) {
+  try {
+    const modul = await import(pathToFileURL(join(KORIJEN, "dist", "core", "telegram.js")).href);
+    await modul.javiAdminu(tekst);
+  } catch (e) {
+    console.error(`Admin poruka nije poslana (${String(e instanceof Error ? e.message : e)}): ${tekst}`);
+  }
+}
+
+async function odbijStart(razlog) {
+  console.error(razlog);
+  let zadnji = 0;
+  try {
+    zadnji = statSync(ODBIJEN_ALARM_FAJL).mtimeMs;
+  } catch {
+    // alarma jos nije bilo
+  }
+  // Prigusenje na jednom u 6 sati: launchd/Scheduler vrte novi pokusaj svakih 30s pa bi alarm
+  // bez prigusenja bio spam.
+  if (Date.now() - zadnji > 6 * 60 * 60 * 1000) {
+    try {
+      writeFileSync(ODBIJEN_ALARM_FAJL, `${new Date().toISOString()}\n`, "utf8");
+    } catch {
+      // bez markera ce alarm ici cesce, bolje i to nego nikako
+    }
+    await javiAdministratoru(`Most (Telegram) u ${KORIJEN} odbija start: ${razlog}`);
+  }
+  process.exit(1);
+}
+
+async function zauzmiPidFajl() {
+  mkdirSync(dirname(PID_FAJL), { recursive: true });
+  for (let pokusaj = 0; pokusaj < 2; pokusaj++) {
+    try {
+      writeFileSync(PID_FAJL, `${process.pid}\n`, { encoding: "utf8", flag: "wx" });
+      return;
+    } catch (e) {
+      if (e?.code !== "EEXIST") throw e;
+    }
+    let stariPid = 0;
+    try {
+      stariPid = Number(readFileSync(PID_FAJL, "utf8").trim());
+    } catch {
+      // fajl nestao izmedju pokusaja, sljedeca runda petlje ga pokusava upisati
+      continue;
+    }
+    let ziv = false;
+    if (Number.isFinite(stariPid) && stariPid > 0) {
+      try {
+        process.kill(stariPid, 0);
+        ziv = true;
+      } catch {
+        // proces ne postoji, pid fajl je ostatak od pada ili recikliran pid
+      }
+    }
+    if (ziv) {
+      await odbijStart(`vec radi most pid ${stariPid}. Ako to NIJE most (recikliran pid), obrisi ${PID_FAJL}.`);
+    }
+    try {
+      unlinkSync(PID_FAJL);
+    } catch {
+      // vec obrisan
+    }
+  }
+  await odbijStart(`ne mogu zauzeti ${PID_FAJL} ni iz drugog pokusaja.`);
+}
+
+process.on("exit", () => {
+  try {
+    // Brise se samo VLASTITI pid fajl: da izlazak odbijenog starta nikad ne obrise fajl mosta
+    // koji stvarno radi.
+    if (Number(readFileSync(PID_FAJL, "utf8").trim()) === process.pid) unlinkSync(PID_FAJL);
+  } catch {
+    // vec obrisan
+  }
+});
 
 // ---- kontrola pristupa ----
 // Jedan izvor istine sa kanalom: cita se access.json koji pripremi skripte vec pisu, pa se
@@ -152,6 +338,102 @@ let sesija = null; // { dijete, cekaci: [], buf }
 let idleTajmer = null;
 let zadnjaAktivnost = Date.now();
 
+// ---- telemetrija resursa: pomocne funkcije ----
+// upisiDogadjaj je NAMJERNO potpuno sinhrona (appendFileSync unutar upisiRed): sigurno je pozvati
+// je bilo gdje, ukljucujuci SIGINT/SIGTERM handler tik prije process.exit, bez brige da upis nece
+// stici. Kad je RESURSI_UKLJUCENO false, vraca se odmah bez ikakvog I/O.
+function upisiDogadjaj(polja) {
+  if (!RESURSI_UKLJUCENO) return;
+  try {
+    const red = redUzorka({
+      ts: new Date().toISOString(),
+      klon: KLON_IME,
+      tip: "most",
+      verzijaKoda: VERZIJA_KODA,
+      sesijaZiva: !!sesija,
+      // Most nema pravu strazu (poll ide stalno, ne samo dok sesija spava), ali ovo polje znaci
+      // "klon je u mirnom stanju, sesija ne postoji", pa vrijemeUStrazi u lib/resursi.mjs racuna
+      // isto kao za cuvara.
+      uStrazi: sesija === null,
+      cuvarRssBajta: process.memoryUsage().rss,
+      ...polja,
+    });
+    upisiRed(putanjaResursa(process.env), red);
+  } catch {
+    // telemetrija nikad ne smije srusiti mosta
+  }
+}
+
+// Async dio: sabira RSS stabla procesa (ako je dat pidZaStablo) i stanje masine, pa upise red
+// preko upisiDogadjaj. `uzorakUToku` sprjecava preklapanje ako prethodni uzorak jos traje. Uvijek
+// razrijesi svoj Promise (i kad je telemetrija iskljucena ili je uzorak vec u toku), da pozivalac
+// (npr. ugasiUzSnimak) moze sigurno vezati .finally() na nju.
+async function uzmiUzorak(extraPolja, pidZaStablo) {
+  if (!RESURSI_UKLJUCENO || uzorakUToku) return;
+  uzorakUToku = true;
+  try {
+    const [procesi, masina] = await Promise.all([
+      pidZaStablo ? citajProcese() : Promise.resolve(null),
+      uzorakMasine(),
+    ]);
+    const stablo = procesi ? zbirStabla(procesi, pidZaStablo) : null;
+    const pidovi = procesi ? pidoviStabla(procesi, pidZaStablo) : null;
+
+    let cpuKlonaPct = null;
+    if (pidovi) {
+      const cpuRezultat = await cpuStabla(pidovi, {
+        prethodnoStanje: cpuStanjeKlona,
+        sadaMs: Date.now(),
+      });
+      cpuStanjeKlona = cpuRezultat.stanjeZaSutra;
+      cpuKlonaPct = cpuRezultat.pct;
+    }
+    if (masina) {
+      const pritisak = provjeriPritisakMasine(masina, {
+        pragSlobodnoBajta: PRAG_SLOBODNO_BAJTA,
+        pragSwapOmjer: PRAG_SWAP_OMJER,
+      });
+      const odluka = odluciAlarmMasine({
+        pritisak,
+        sada: Date.now(),
+        korijenKlona: KORIJEN,
+        env: process.env,
+        pragMs: PRAG_ALARM_MS,
+      });
+      if (odluka.posalji) {
+        void javiAdministratoru(`Pritisak na masinu (most) u ${KORIJEN}: ${pritisak.razlog}.`);
+      }
+    }
+    upisiDogadjaj({
+      stabloRssBajta: stablo?.ukupnoBajta ?? null,
+      stabloBrojProcesa: stablo?.brojProcesa ?? null,
+      cpuKlonaPct,
+      masina,
+      ...extraPolja,
+    });
+  } catch {
+    // best effort
+  } finally {
+    uzorakUToku = false;
+  }
+}
+
+// Zajednicka pomocna funkcija za sva tri mjesta gdje most gasi zivu sesiju (idle tajmer, nocni rez
+// konteksta, svjez .env): uzme PUN uzorak (RSS stabla + masina) DOK je proces jos ziv, jer je to
+// jedini trenutak koji pokazuje koliko je klijent trosio pred spavanje, pa tek onda posalje signal.
+// `sesija = null` je SINHRONO, odmah; odgodjen je samo sam kill (uzmiUzorak UVIJEK razrijesi svoj
+// Promise, pa .finally() garantuje gasenje bez obzira na telemetriju). Ovo ostavlja kratak prozor
+// (par sekundi, koliko sonda traje) u kojem bi nova poruka mogla dici novu sesiju dok stara jos
+// umire - isti kompromis koji cuvar-sesije.mjs vec pravi (zatraziGasenje/uzmiUzorak).
+function ugasiUzSnimak(razlog) {
+  const s = sesija;
+  if (!s) return;
+  s.namjerno = true; // da exit handler ne prijavi pad
+  sesija = null;
+  const pidPrijeGasenja = s.dijete.pid;
+  uzmiUzorak({ dogadjaj: "gasenje-idle", razlog }, pidPrijeGasenja).finally(() => s.dijete.kill("SIGTERM"));
+}
+
 function otkaziIdle() {
   if (idleTajmer) {
     clearTimeout(idleTajmer);
@@ -168,11 +450,9 @@ function zakaziIdle() {
     idleTajmer = null;
     if (!sesija || gasenje) return;
     if (!trebaLiUgasiti(zadnjaAktivnost, Date.now(), IDLE_MIN)) return zakaziIdle();
-    const s = sesija;
-    s.namjerno = true; // da exit handler ne prijavi pad
     log(`sesija je mirovala ${IDLE_MIN} min, gasim je (kontekst ostaje, budi se na prvu poruku)`);
-    sesija = null; // stanje.sesija se NE dira: to je kljuc za --resume
-    s.dijete.kill("SIGTERM");
+    // stanje.sesija se NE dira: to je kljuc za --resume.
+    ugasiUzSnimak(`${IDLE_MIN} min mirovanja`);
   }, rok);
   idleTajmer.unref?.();
 }
@@ -198,7 +478,26 @@ function pokreniSesiju(nastavak) {
     stdio: ["pipe", "pipe", "pipe"],
     shell: process.platform === "win32",
   });
-  const s = { dijete, id, buf: "", cekac: null, greske: "", namjerno: false };
+  const s = {
+    dijete,
+    id,
+    buf: "",
+    cekac: null,
+    greske: "",
+    namjerno: false,
+    pocetakMs: Date.now(),
+    budjenjeObjavljeno: false,
+  };
+
+  // Pid zive sesije, za scripts/resursi.mjs (tip "most" cita .olx-pik/sesija-most.pid, analogon
+  // sesija-klijent.pid kod cuvara). Bez ovog zapisa telemetrija samo gubi pregled zive sesije, most
+  // radi dalje. NE cisti se sirocad po ovom pidu: most sesiju drzi kao svoje dijete i gasi je sam,
+  // a lazno prepoznavanje reciklirauog pida bi bilo opasnije nego korisno.
+  try {
+    writeFileSync(join(KORIJEN, ".olx-pik", "sesija-most.pid"), `${dijete.pid ?? ""}\n`, "utf8");
+  } catch {
+    // bez zapisa telemetrija samo gubi pregled zive sesije, most radi dalje
+  }
 
   dijete.stdout.on("data", (d) => {
     s.buf += d.toString("utf8");
@@ -213,6 +512,12 @@ function pokreniSesiju(nastavak) {
       } catch {
         continue;
       }
+      // Prva parsirana linija je prvi znak zivota sesije, precizniji analogon cuvarove
+      // mjeriHladniStartIObjavi (koja mjeri do prvog znaka zivota preko mtime transkripta).
+      if (!s.budjenjeObjavljeno) {
+        s.budjenjeObjavljeno = true;
+        upisiDogadjaj({ dogadjaj: "budjenje", hladniStartMs: Date.now() - s.pocetakMs });
+      }
       // `result` zatvara potez i nosi konacan tekst.
       if (j.type === "result" && s.cekac) {
         const cekac = s.cekac;
@@ -224,9 +529,20 @@ function pokreniSesiju(nastavak) {
   dijete.stderr.on("data", (d) => {
     s.greske = `${s.greske}${d.toString("utf8")}`.slice(-2000);
   });
-  dijete.on("exit", (kod) => {
-    if (s.namjerno) log(`sesija ugasena zbog mirovanja (kod ${kod})`);
-    else log(`sesija izasla (kod ${kod})${s.greske.trim() ? `: ${s.greske.trim().slice(-300)}` : ""}`);
+  dijete.on("exit", (kod, signal) => {
+    try {
+      unlinkSync(join(KORIJEN, ".olx-pik", "sesija-most.pid"));
+    } catch {
+      // vec obrisan ili nije ni upisan
+    }
+    if (s.namjerno) {
+      log(`sesija ugasena zbog mirovanja (kod ${kod})`);
+    } else {
+      log(`sesija izasla (kod ${kod})${s.greske.trim() ? `: ${s.greske.trim().slice(-300)}` : ""}`);
+      // "pad" ide SAMO kad gasenje nije namjerno: namjerno gasenje (idle, nocni rez, svjez .env)
+      // ima svoj "gasenje-idle" dogadjaj i nije pad.
+      upisiDogadjaj({ dogadjaj: "pad", exitCode: kod, exitSignal: signal ?? null, trajanjeSesijeMs: Date.now() - s.pocetakMs });
+    }
     if (sesija === s) sesija = null;
     if (s.cekac) {
       const cekac = s.cekac;
@@ -241,6 +557,7 @@ function pokreniSesiju(nastavak) {
     sacuvaj();
   }
   log(`sesija pokrenuta (pid ${dijete.pid ?? "?"}, ${nastavak ? "nastavak" : "nova"} ${s.id})`);
+  upisiDogadjaj({ dogadjaj: "start" });
   return s;
 }
 
@@ -279,6 +596,108 @@ function posaljiSesiji(tekst) {
       },
     );
   });
+}
+
+// ---- nocni rez konteksta, ciscenje inboxa i cron logova ----
+// Most je do sada budio sesiju sa --resume zauvijek: kontekst nikad nije padao na nulu, pa je
+// trosak po poruci rastao iz dana u dan. Cuvar-sesije.mjs to rjesava nocnim restartom; ovdje je
+// isti princip, samo umjesto restarta procesa gasimo internu sesiju i brisemo kljuc sesije, pa
+// sljedeca poruka krece OD NULE, bez --resume.
+
+// Cron logovi rastu bez granice (launchd/Scheduler samo apenduju). Isti obrazac i ista konstanta
+// kao cuvar-sesije.mjs: nocni ciklus ih skrati na zadnjih ~1 MB.
+const LOG_MAX_BAJTA = 1_000_000;
+
+function skratiLogove() {
+  const dir = join(KORIJEN, ".olx-pik");
+  let stavke;
+  try {
+    stavke = readdirSync(dir);
+  } catch {
+    return;
+  }
+  for (const ime of stavke) {
+    if (!ime.startsWith("cron-") || !ime.endsWith(".log")) continue;
+    const putanja = join(dir, ime);
+    try {
+      const st = statSync(putanja);
+      if (st.size <= LOG_MAX_BAJTA) continue;
+      const sadrzaj = readFileSync(putanja, "utf8");
+      const rep = sadrzaj.slice(-LOG_MAX_BAJTA);
+      const odReda = rep.indexOf("\n") + 1; // ne pocinji od presjecenog reda
+      writeFileSync(putanja, `[skraceno na zadnjih ~1MB]\n${rep.slice(odReda)}`, "utf8");
+      log(`log ${ime} skracen sa ${Math.round(st.size / 1024)} KB`);
+    } catch {
+      // log koji se ne da skratiti nije razlog za pad mosta
+    }
+  }
+}
+
+function ocistiInbox() {
+  if (!existsSync(INBOX)) return;
+  const prag = Date.now() - INBOX_DANA * 24 * 60 * 60 * 1000;
+  let obrisano = 0;
+  try {
+    for (const ime of readdirSync(INBOX)) {
+      const putanja = join(INBOX, ime);
+      try {
+        const st = statSync(putanja);
+        if (st.isFile() && st.mtimeMs < prag) {
+          unlinkSync(putanja);
+          obrisano += 1;
+        }
+      } catch {
+        // preskoci ono sto se ne da procitati ili obrisati
+      }
+    }
+  } catch {
+    return; // ciscenje inboxa nije razlog za pad mosta
+  }
+  if (obrisano > 0) log(`inbox ociscen: ${obrisano} fajlova starijih od ${INBOX_DANA} dana`);
+}
+
+/** Zadnji dan (lokalni, "YYYY-MM-DD") kad je odradjen nocni rez konteksta. */
+let zadnjiNocni = "";
+
+/** Gasi zivu internu sesiju (namjerno, da exit handler ne prijavi pad) i brise njen kljuc, pa
+ * sljedeca poruka krece bez --resume. Zove se i kad sesija NIJE ziva: kontekst se rezi svakako,
+ * jer bi ga inace sljedeca poruka nastavila kroz --resume. */
+function ugasiSesijuBezResuma(razlog) {
+  otkaziIdle();
+  ugasiUzSnimak(razlog);
+  stanje = { ...stanje, sesija: null };
+  sacuvaj();
+}
+
+function nocniRez() {
+  ugasiSesijuBezResuma("nocni rez konteksta");
+  ocistiInbox();
+  skratiLogove();
+  if (RESURSI_UKLJUCENO) ocistiStareResurse(RESURSI_DIR, { cuvajMjeseci: RESURSI_CUVAJ_MJESECI });
+  log(`nocni rez konteksta odradjen (sat ${RESTART_SAT}h): sljedeca poruka krece bez --resume`);
+}
+
+/**
+ * Prepisuje vrijednosti iz .env u process.env djeteta koje ce se sljedece pokrenuti. Prepisuje se
+ * NAMJERNO (obrnuto od process.loadEnvFile semantike, koja ne dira vec postavljeno): cijela svrha
+ * markera .olx-pik/restart-sesije je da NOVA vrijednost (npr. svjez OLX_TOKEN iz onboardinga)
+ * pobijedi staru koju je most drzao od pokretanja.
+ *
+ * Izuzetak je TELEGRAM_BOT_TOKEN: most je svoj TOKEN uzeo pri startu i vec uspostavio getUpdates
+ * na njemu, pa promjena u .env ovdje ne moze preusmjeriti most na drugi token bez pravog restarta
+ * procesa.
+ */
+function osvjeziEnvIzFajla() {
+  const iz = procitajEnv(join(KORIJEN, ".env"));
+  for (const [kljuc, vrijednost] of Object.entries(iz)) {
+    if (kljuc === "TELEGRAM_BOT_TOKEN") {
+      if (vrijednost !== TOKEN) {
+        log("TELEGRAM_BOT_TOKEN u .env se razlikuje od zivog: za promjenu bot tokena treba pravi restart mosta.");
+      }
+      continue;
+    }
+    process.env[kljuc] = vrijednost;
+  }
 }
 
 // ---- obrada reda ----
@@ -422,6 +841,12 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
     gasenje = true;
     otkaziIdle();
     log("gasim se, sto je u redu ostaje za sljedece pokretanje");
+    upisiDogadjaj({ dogadjaj: "cuvar-gasenje" });
+    try {
+      unlinkSync(PID_FAJL);
+    } catch {
+      // vec obrisan
+    }
     sesija?.dijete.kill("SIGTERM");
     setTimeout(() => process.exit(0), 500);
   });
@@ -441,6 +866,11 @@ if (!pristup) {
   process.exit(2);
 }
 
+// Brava se zauzima tek OVDJE: preduslovi i pristup su vec provjereni, a getMe nize je vec dodir
+// Telegrama, pa brava mora stajati prije njega. Vazi i u --jednom rezimu: probno pokretanje ne
+// smije udariti u zivi most.
+await zauzmiPidFajl();
+
 let botIme = null;
 try {
   botIme = (await tg("getMe")).username ?? null;
@@ -450,7 +880,62 @@ try {
 }
 
 log(`most radi kao @${botIme}, pogon ${ai.pogon}, offset ${stanje.offset}, u redu ${stanje.red.length}, sesija ${stanje.sesija ?? "(nova)"}`);
+// Ime dogadjaja se NAMJERNO ne mijenja iako most nije cuvar: znaci "nadzorni proces je startovao"
+// i tako ga cita analiza flote (scripts/resursi.mjs).
+upisiDogadjaj({ dogadjaj: "cuvar-start" });
 if (stanje.red.length > 0) void obradiRed(); // sto je ostalo od proslog pokretanja
+
+// ---- minutni tik: nocni rez konteksta i preuzimanje svjezeg .env ----
+// unref?.(): proces zivi od glavne petlje (i od zive sesije, dok postoji), tajmer ga ne smije
+// drzati u --jednom rezimu poslije zavrsetka posla.
+function tikMinute() {
+  if (gasenje) return;
+  const sad = new Date();
+  const zauzet = radi || stanje.red.length > 0 || albumi.size > 0;
+
+  // telemetrija resursa: gusce uzorkovanje dok je sesija ziva, rjedje dok je mirna (nema sesije).
+  if (RESURSI_UKLJUCENO) {
+    const mirno = sesija === null;
+    const trenutniInterval = mirno ? RESURSI_INTERVAL_STRAZA_MIN : RESURSI_INTERVAL_MIN;
+    const pomak = mirno ? RESURSI_POMAK_STRAZA : RESURSI_POMAK_AKTIVNO;
+    const minutaOdEpoha = Math.floor(Date.now() / 60_000);
+    if (trebaLiUzorkovati({ minutaOdEpoha, intervalMin: trenutniInterval, pomak, zadnjaUzorkovanaMinuta })) {
+      zadnjaUzorkovanaMinuta = minutaOdEpoha;
+      void uzmiUzorak({ intervalMin: trenutniInterval }, sesija ? sesija.dijete.pid : null);
+    }
+  }
+
+  // Vanjski zahtjev za svjez .env (npr. nov OLX_TOKEN iz onboardinga): za razliku od
+  // cuvar-sesije.mjs, ovdje NEMA restarta procesa koji bi ga sam dici nazad, pa most mora
+  // primijeniti novu vrijednost u vlastitom process.env i sam ugasiti sesiju koja je radila bez
+  // nje. Kad je most zauzet, zahtjev se NE dira: potez u toku se ne smije presjeci na pola,
+  // fajl ceka sljedecu minutu.
+  if (existsSync(RESTART_ZAHTJEV) && !zauzet) {
+    let razlog = "vanjski zahtjev";
+    try {
+      razlog = readFileSync(RESTART_ZAHTJEV, "utf8").trim() || razlog;
+    } catch {
+      // fajl je nestao ili je necitljiv: primjena ide dalje, razlog ostaje opsti
+    }
+    try {
+      unlinkSync(RESTART_ZAHTJEV);
+    } catch {
+      // ako se ne moze obrisati, zahtjev se ne vrti u krug: ignorise se dalje
+    }
+    osvjeziEnvIzFajla();
+    // Sesija koja je radila bez svjezeg tokena nema upotrebljiv kontekst za nastavak.
+    ugasiSesijuBezResuma(razlog);
+    log(`svjez .env primijenjen (${razlog}), sesija ugasena bez --resume`);
+  }
+
+  if (trebaLiNocniRez({ sad, restartSat: RESTART_SAT, zadnjiNocni, zauzet })) {
+    // Upisano PRVO, prije samog posla: sprjecava da se rez ponovi vise puta u istom danu ako
+    // vise provjera padne u isti sat.
+    zadnjiNocni = lokalniDatum(sad);
+    nocniRez();
+  }
+}
+setInterval(tikMinute, 60_000).unref?.();
 
 while (!gasenje) {
   let noviji;

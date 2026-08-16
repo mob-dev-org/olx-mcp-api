@@ -354,13 +354,14 @@ ADMIN poslovi nemaju Windows blizanca namjerno: admin masina na Windowsu nije up
 
 ## Varijable okruzenja u cijelom repou
 
-Ukupno 106 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 97 cini konfiguraciju klona.
+Ukupno 108 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 99 cini konfiguraciju klona.
 
 Ostale dolaze iz okoline (harness sesije, plugin loader, proxy) i u `.env.example` namjerno ne stoje: klijent ih ne postavlja rukom. Zato se prazna kolona kod njih ne racuna kao propust.
 
 Varijable koje kod cita a kojih nema u `.env.example` (moguc propust u primjeru, klijent ne vidi da postoje):
 
 - OLX_PODSJETNIK_RESURSI_ROK_MS
+- OLX_SESIJA_
 - OLX_SNAPSHOT_U_TOKU_FILE
 
 Varijable koje su u `.env.example` a kod ih nigdje ne cita (moguc visak ili zastarjela varijabla):
@@ -418,6 +419,7 @@ Nema takvih.
 | OLX_MIN_REQUEST_INTERVAL_MS | konfiguracija klona | 3 | scripts/lib/pokreni-cli.mjs, src/core/client.test.ts, src/core/config.ts | da |
 | OLX_MOST_IDLE_MIN | konfiguracija klona | 1 | scripts/telegram-most.mjs | da |
 | OLX_MOST_POTEZ_TIMEOUT_MS | konfiguracija klona | 1 | scripts/telegram-most.mjs | da |
+| OLX_MOST_RESTART_SAT | konfiguracija klona | 1 | scripts/telegram-most.mjs | da |
 | OLX_NADZOR_DIR | konfiguracija klona | 2 | deploy/launchd/ba.codefactory.olx.ADMIN.nadzor-flote.plist, scripts/nadzor-flote.mjs | da |
 | OLX_PAMCENJE_FILE | konfiguracija klona | 3 | src/core/backup-spisak.test.ts, src/core/backup-spisak.ts, src/core/pamcenje.ts | da |
 | OLX_PASSWORD | konfiguracija klona | 4 | scripts/provjeri-klon.mjs, scripts/provjeri-prompt.sh, src/core/config.ts, src/core/index.ts | da |
@@ -426,16 +428,17 @@ Nema takvih.
 | OLX_PRIJEDLOZI_DIR | konfiguracija klona | 2 | src/core/backup-spisak.ts, src/core/prijedlozi.ts | da |
 | OLX_PROVJERA_IZDANJA_ROK_MS | konfiguracija klona | 1 | scripts/provjeri-izdanje.mjs | da |
 | OLX_PUBLIC_URL | konfiguracija klona | 2 | src/core/link.test.ts, src/core/link.ts | da |
-| OLX_RESURSI_DIR | konfiguracija klona | 5 | scripts/cuvar-sesije.mjs, scripts/lib/resursi.mjs, scripts/lib/resursi.test.mjs, scripts/nadzor-flote.mjs, scripts/resursi.mjs | da |
-| OLX_RESURSI_INTERVAL_MIN | konfiguracija klona | 1 | scripts/cuvar-sesije.mjs | da |
-| OLX_RESURSI_INTERVAL_STRAZA_MIN | konfiguracija klona | 1 | scripts/cuvar-sesije.mjs | da |
-| OLX_RESURSI_PRAG_ALARM_SATI | konfiguracija klona | 1 | scripts/cuvar-sesije.mjs | da |
-| OLX_RESURSI_PRAG_SLOBODNO_MB | konfiguracija klona | 1 | scripts/cuvar-sesije.mjs | da |
-| OLX_RESURSI_PRAG_SWAP_OMJER | konfiguracija klona | 1 | scripts/cuvar-sesije.mjs | da |
+| OLX_RESURSI_DIR | konfiguracija klona | 6 | scripts/cuvar-sesije.mjs, scripts/lib/resursi.mjs, scripts/lib/resursi.test.mjs, scripts/nadzor-flote.mjs, scripts/resursi.mjs, scripts/telegram-most.mjs | da |
+| OLX_RESURSI_INTERVAL_MIN | konfiguracija klona | 2 | scripts/cuvar-sesije.mjs, scripts/telegram-most.mjs | da |
+| OLX_RESURSI_INTERVAL_STRAZA_MIN | konfiguracija klona | 2 | scripts/cuvar-sesije.mjs, scripts/telegram-most.mjs | da |
+| OLX_RESURSI_PRAG_ALARM_SATI | konfiguracija klona | 2 | scripts/cuvar-sesije.mjs, scripts/telegram-most.mjs | da |
+| OLX_RESURSI_PRAG_SLOBODNO_MB | konfiguracija klona | 2 | scripts/cuvar-sesije.mjs, scripts/telegram-most.mjs | da |
+| OLX_RESURSI_PRAG_SWAP_OMJER | konfiguracija klona | 2 | scripts/cuvar-sesije.mjs, scripts/telegram-most.mjs | da |
 | OLX_RITAM_FILE | konfiguracija klona | 1 | src/core/ritam-obnova.ts | da |
+| OLX_SESIJA_ | konfiguracija klona | 1 | scripts/telegram-most.mjs |  |
 | OLX_SESIJA_BEZ_PTY | konfiguracija klona | 1 | scripts/lib/sesija.mjs | da |
 | OLX_SESIJA_IDLE_SATI | konfiguracija klona | 2 | scripts/cuvar-sesije.mjs, scripts/lib/straza.mjs | da |
-| OLX_SESIJA_INBOX_DANA | konfiguracija klona | 2 | scripts/cuvar-sesije.mjs, src/core/slike-ciscenje.ts | da |
+| OLX_SESIJA_INBOX_DANA | konfiguracija klona | 3 | scripts/cuvar-sesije.mjs, scripts/telegram-most.mjs, src/core/slike-ciscenje.ts | da |
 | OLX_SESIJA_RESTART_SAT | konfiguracija klona | 1 | scripts/cuvar-sesije.mjs | da |
 | OLX_SESIJA_STRAZAR | konfiguracija klona | 6 | scripts/cuvar-sesije.mjs, scripts/lib/analiza-flote.mjs, scripts/lib/analiza-flote.test.mjs, scripts/lib/resursi.mjs, scripts/lib/resursi.test.mjs, scripts/lib/straza.mjs | da |
 | OLX_SESIJA_TIP | konfiguracija klona | 6 | scripts/kontekst-izvjestaj.mjs, scripts/lib/mcp-profil.test.mjs, scripts/lib/popis-kod.mjs, scripts/lib/popis-okruzenje.mjs, scripts/lib/sesija.mjs, scripts/lib/sesija.test.mjs |  |

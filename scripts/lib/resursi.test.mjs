@@ -699,6 +699,18 @@ test("vrijemeUStrazi: vise uzastopnih parova se sabiraju", () => {
   assert.equal(r.izvor, "dogadjaji");
 });
 
+test("vrijemeUStrazi: gasenje-idle (most) se broji identicno kao gasenje-straze", () => {
+  const redoviStraza = [
+    { ts: "2026-08-12T10:00:00.000Z", dogadjaj: "gasenje-straze" },
+    { ts: "2026-08-12T10:30:00.000Z", dogadjaj: "budjenje" },
+  ];
+  const redoviMost = [
+    { ts: "2026-08-12T10:00:00.000Z", dogadjaj: "gasenje-idle" },
+    { ts: "2026-08-12T10:30:00.000Z", dogadjaj: "budjenje" },
+  ];
+  assert.deepEqual(vrijemeUStrazi(redoviMost), vrijemeUStrazi(redoviStraza));
+});
+
 // ---- agregiraj ----
 
 test("agregiraj: prazan niz vraca sve null/0 bez pada", () => {

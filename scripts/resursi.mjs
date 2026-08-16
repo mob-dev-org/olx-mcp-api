@@ -35,9 +35,18 @@ const KORIJEN = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 // Imena PID fajlova, tacno kako ih pise scripts/cuvar-sesije.mjs (ne dirati taj fajl, samo
 // citati): SESIJA_PID_FAJL je pid ZIVE sesije (dijete cuvara), PID_FAJL je pid samog cuvara.
+// "most" je scripts/telegram-most.mjs, nadzorni proces analogan cuvaru ali bez straze (poll ide
+// stalno umjesto samo dok sesija spava); ispis nize naziva nadzorni proces po `nazivCuvara` da
+// se "most" ne prikaze kao "Cuvar".
 const TIPOVI_SESIJA = [
-  { tip: "klijent", sesijaPid: "sesija-klijent.pid", cuvarPid: "cuvar-sesije.pid" },
-  { tip: "admin-bota", sesijaPid: "sesija-admin-bota.pid", cuvarPid: "cuvar-admin-bota.pid" },
+  { tip: "klijent", sesijaPid: "sesija-klijent.pid", cuvarPid: "cuvar-sesije.pid", nazivCuvara: "Cuvar" },
+  {
+    tip: "admin-bota",
+    sesijaPid: "sesija-admin-bota.pid",
+    cuvarPid: "cuvar-admin-bota.pid",
+    nazivCuvara: "Cuvar",
+  },
+  { tip: "most", sesijaPid: "sesija-most.pid", cuvarPid: "most.pid", nazivCuvara: "Most" },
 ];
 
 // ---- sitne formatirajuce funkcije ----
@@ -115,6 +124,7 @@ async function stanjeKlona(korijenKlona) {
     const cuvarPidNum = citajPid(join(olxPikDir, t.cuvarPid));
     return {
       tip: t.tip,
+      nazivCuvara: t.nazivCuvara,
       sesijaPidNum,
       sesijaZiva: sesijaPidNum !== null && procesZiv(sesijaPidNum),
       cuvarPidNum,
@@ -182,9 +192,9 @@ async function pregledJedan() {
   }
   for (const s of stavke) {
     if (s.cuvarZiv) {
-      console.log(`Cuvar (${s.tip}): pid ${s.cuvarPidNum}, RSS ~${fmtBajta(s.cuvarRssBajta, "MB")}`);
+      console.log(`${s.nazivCuvara} (${s.tip}): pid ${s.cuvarPidNum}, RSS ~${fmtBajta(s.cuvarRssBajta, "MB")}`);
     } else {
-      console.log(`Cuvar (${s.tip}): ne radi`);
+      console.log(`${s.nazivCuvara} (${s.tip}): ne radi`);
     }
   }
   console.log(fmtMasina(masina));

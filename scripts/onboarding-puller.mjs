@@ -151,9 +151,13 @@ for (const s of sesije) {
   // je krenula prije ovog upisa nema nov token i radila bi bez njega do nocnog restarta u 03:00.
   // Fajl a ne signal, jer cuvar radi i na Windowsu gdje Node ne dostavlja SIGHUP.
   // Kad cuvar ne radi (novi klon, sesija se jos nije ni pokrenula), nema sta da se restartuje.
+  // Most (scripts/telegram-most.mjs) preuzima isti posao za klijentske botove pa nosi isti
+  // marker kao cuvar sesije; upis oba markera kad oboje postoje (rijedak prelazni slucaj) je
+  // bezopasan jer je sadrzaj isti.
   for (const [pid, marker] of [
     ["cuvar-sesije.pid", "restart-sesije"],
     ["cuvar-admin-bota.pid", "restart-admin-bota"],
+    ["most.pid", "restart-sesije"],
   ]) {
     if (!existsSync(resolve(klon, ".olx-pik", pid))) continue;
     try {
