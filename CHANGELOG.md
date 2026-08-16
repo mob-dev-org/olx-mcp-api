@@ -8,6 +8,16 @@ Kako se cita broj verzije: `bun dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
+## 0.17.2 — 2026-08-16
+
+**Prazan `OLX_SESIJA_RESTART_SAT` ili `OLX_SESIJA_INBOX_DANA` u `.env` je do sada tiho znacio 0,
+ne default.** `cuvar-sesije.mjs` je imao svoju kopiju `broj()` koja nije provjeravala prazan
+string (`Number("")` je `0`, ne `NaN`), pa je klon koji nikad nije popunio te dvije varijable
+(isporucene prazne u `.env.example`) dobijao PONOCNI restart umjesto 3h, i brisanje CIJELOG
+Telegram inboxa svake noci umjesto zadrzavanja 7 dana. `telegram-most.mjs` je vec imao ispravnu
+provjeru; sada su usaglasene. Nalaz je uocen 16.08.2026 kroz provjeru spremnosti za nove klijente,
+prije nego je ikoga stigao da pogodi.
+
 ## 0.17.0 — 2026-08-16
 
 **Artikal se vise ne crta na izmisljenu pozadinu, nego se IZREZUJE i lijepi na pravu.** Recept

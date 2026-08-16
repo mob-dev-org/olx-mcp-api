@@ -181,6 +181,12 @@ const PAUZA_POSLIJE_PADOVA_MS = 10 * 60_000;
 const PAUZA_BEZ_AI_KLJUCA_MS = 10 * 60_000;
 
 function broj(v, fallback) {
+  // Prazan string iz .env (varijabla postoji ali nije popunjena) NIJE 0: Number("") vraca 0,
+  // pa bi bez ove provjere RESTART_SAT=0 znacio ponocni restart i INBOX_DANA=0 brisanje CIJELOG
+  // inboxa svake noci, umjesto da se koristi fallback. Bug zivio u praksi jer je .env.example
+  // isporucivao ove varijable prazne (izmjereno, popravljeno 16.08.2026, ista provjera je vec
+  // postojala u telegram-most.mjs).
+  if (v === undefined || v === null || String(v).trim() === "") return fallback;
   const n = Number(v);
   return Number.isFinite(n) && n >= 0 ? n : fallback;
 }
