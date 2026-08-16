@@ -1,6 +1,9 @@
 import { readFile } from "node:fs/promises";
-import { basename } from "node:path";
+import { basename, resolve } from "node:path";
 import { loadConfig, procitajIzEnvFajla, type OlxConfig } from "./config.js";
+import { mapaZapisa, saOznakomObjave, upisiZapis, type ArhivskiZapis } from "./arhiva.js";
+import { preneseno, ucitajIzuzeca, upisiIzuzeca } from "./izuzeca.js";
+import { zauzmiKljuc } from "./plan-fajl.js";
 import {
   auditSinkFromPath,
   currentAuditContext,
@@ -740,6 +743,106 @@ export class OlxClient {
 
   unhideListing(id: number | string): Promise<unknown> {
     return this.request(`/listings/${id}/unhide`, { method: "POST" });
+  }
+
+  /**
+   * Objavi NOVI oglas iz arhivskog zapisa: create, slike iz arhive, glavna slika, publish,
+   * prenos izuzeca na novi id, oznaka objave u zapisu. Jedan izvor toka za olx_vrati_artikal,
+   * olx_reaktiviraj_oglas i CLI. Brane troska (confirm) su u createListing/publishListing;
+   * brana duple objave (vec vracen artikal ciji novi oglas jos zivi) je ovdje.
+   */
+  async objaviIzArhive(
+    zapis: ArhivskiZapis,
+    opcije: { confirm?: boolean; potvrdiRobu?: boolean; ignorisiPrethodnu?: boolean } = {},
+  ): Promise<
+    | { radnja: "nista"; zasto: string }
+    | { radnja: "prekinuto_prije_objave"; draft_id: number; zasto: string }
+    | {
+        radnja: "objavljen_iz_arhive";
+        stari_id: number;
+        novi_id: number;
+        poslano_slika: number;
+        izuzece_preneseno: boolean;
+        status: unknown;
+        slug: unknown;
+      }
+  > {
+    const stariId = zapis.meta.originalni_id;
+    const ranije = zapis.meta.ponovo_objavljen;
+    if (ranije && !opcije.ignorisiPrethodnu) {
+      let noviAktivan = false;
+      try {
+        noviAktivan = (await this.getListing(ranije.novi_id)).visible !== false;
+      } catch {
+        noviAktivan = false;
+      }
+      if (noviAktivan) {
+        return {
+          radnja: "nista",
+          zasto: `artikal je vec vracen kao oglas ${ranije.novi_id} i taj oglas je aktivan; za jos jedan primjerak pozovi sa ignorisi_prethodnu_objavu: true`,
+        };
+      }
+    }
+
+    // Kljuc brani paralelnu duplu objavu (dvije poruke u isto vrijeme).
+    const otpusti = zauzmiKljuc(".olx-pik/arhiva-objava");
+    try {
+      const create = { ...zapis.create };
+      if (create.city_id === undefined && this.config.defaultCityId !== undefined) create.city_id = this.config.defaultCityId;
+      if (create.country_id === undefined && this.config.defaultCountryId !== undefined) create.country_id = this.config.defaultCountryId;
+      const draft = await this.createListing(create, { confirm: opcije.confirm, potvrdiRobu: opcije.potvrdiRobu });
+      const kada = new Date().toISOString();
+
+      const mapa = mapaZapisa(stariId);
+      if (zapis.meta.fajlovi_slika.length > 0) {
+        let slike: UploadedImage[];
+        try {
+          slike = await this.uploadImageFiles(draft.id, zapis.meta.fajlovi_slika.map((f) => resolve(mapa, f)));
+        } catch (e) {
+          // STOP prije objave: oglas bez slika se ne objavljuje. Draft ostaje da se ne izgubi.
+          return {
+            radnja: "prekinuto_prije_objave",
+            draft_id: draft.id,
+            zasto: `slike nisu poslane (${String(e instanceof Error ? e.message : e)}); oglas NIJE objavljen, pokusaj ponovo ili posalji slike pa objavi`,
+          };
+        }
+        // Redoslijed uploada prati arhivu, pa je prva slika iz odgovora glavna. imageId
+        // postoji samo u odgovoru uploada, arhiva ga nema.
+        const glavna = slike[0]?.id;
+        if (glavna !== undefined) {
+          try {
+            await this.setMainImage(draft.id, glavna);
+          } catch {
+            // glavna ostaje po defaultu API-ja; nije razlog da objava padne
+          }
+        }
+      }
+
+      const objava = await this.publishListing(draft.id, { confirm: opcije.confirm, potvrdiRobu: opcije.potvrdiRobu });
+      // Odluka "ovaj ne diraj" prati ARTIKAL, ne broj oglasa: prenesi izuzece na novi id.
+      const izuzeca = ucitajIzuzeca();
+      const prenesenaIzuzeca = preneseno(izuzeca, stariId, draft.id, kada);
+      if (prenesenaIzuzeca !== izuzeca) upisiIzuzeca(prenesenaIzuzeca);
+      upisiZapis(saOznakomObjave(zapis, draft.id, kada));
+
+      let slug: unknown;
+      try {
+        slug = (await this.getListing(draft.id)).slug;
+      } catch {
+        slug = undefined;
+      }
+      return {
+        radnja: "objavljen_iz_arhive",
+        stari_id: stariId,
+        novi_id: draft.id,
+        poslano_slika: zapis.meta.fajlovi_slika.length,
+        izuzece_preneseno: prenesenaIzuzeca !== izuzeca,
+        status: (objava as { status?: unknown }).status ?? null,
+        slug,
+      };
+    } finally {
+      otpusti();
+    }
   }
 
   // ---- Users (enumeracija kataloga) ----

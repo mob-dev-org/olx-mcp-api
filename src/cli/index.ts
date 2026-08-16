@@ -48,7 +48,8 @@ import {
 import { razvrstaj } from "../core/backup-spisak.js";
 import { kopirajURadnu, popisiStanje, uporediSaKopijom, vratiIzRadne } from "../core/stanje-kopija.js";
 import { bootstrap, commitIPush, danaDoIsteka, masinaSePoklapa, postavkeStanja, zadnjiUpis } from "../core/git-stanje.js";
-import type { CreateListingInput, SponsorOptions, SponsorType, SponsorDays, RefreshEvery, CategoryNode, Country, City } from "../core/types.js";
+import type { CreateListingInput, Listing, SponsorOptions, SponsorType, SponsorDays, RefreshEvery, CategoryNode, Country, City } from "../core/types.js";
+import { arhivirajIzZivog, planReaktivacije, ucitajZapis, type ArhivskiZapis } from "../core/arhiva.js";
 
 // Ucitaj .env ako postoji (Node 20.12+/22). Bez vanjske zavisnosti. Prvo .env iz radnog
 // direktorija; ako ga tamo nema, iz korijena klona kojem pripada OVAJ build, da CLI radi
@@ -406,6 +407,62 @@ listings
   .action(async (id: string) => {
     try {
       out(await (await withAuth()).finishListing(id));
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+listings
+  .command("reaktiviraj <id>")
+  .description("Vraca zavrsen oglas u zivot objavom NOVOG oglasa sa istim podacima i slikama (pregledi se ne prenose)")
+  .option("--cijena <n>", "cijena novog oglasa u KM (obavezna kad original nema citljivu cijenu)")
+  .option("--yes", "potvrda eventualne cijene objave u naplatnoj kategoriji", false)
+  .option("--probaj-publish", "MJERENJE: pozovi publish direktno nad zavrsenim oglasom i ispisi sta API vrati", false)
+  .action(async (id: string, opts: { cijena?: string; yes?: boolean; probajPublish?: boolean }) => {
+    try {
+      const c = await withAuth();
+      if (opts.probajPublish) {
+        // Mjerenje za granu "publish" u planReaktivacije: sta POST /listings/{id}/publish radi
+        // nad zavrsenim oglasom. Nalaz zapisati kao saznanje iz prakse.
+        out(await c.publishListing(id, { confirm: Boolean(opts.yes) }));
+        return;
+      }
+      const brojId = Number(id);
+      if (!Number.isInteger(brojId) || brojId <= 0) throw new Error(`Neispravan id oglasa: ${id}`);
+      const cijena = opts.cijena !== undefined ? Number(opts.cijena) : undefined;
+      if (cijena !== undefined && (!Number.isFinite(cijena) || cijena <= 0)) throw new Error(`Neispravna cijena: ${opts.cijena}`);
+      let oglas: Listing | null = null;
+      try {
+        oglas = await c.getListing(brojId);
+      } catch {
+        oglas = null; // zavrsen oglas moze biti necitljiv: planReaktivacije odlucuje moze li iz arhive
+      }
+      const zapis = ucitajZapis(brojId);
+      const plan = planReaktivacije(oglas, zapis, { zadataCijena: cijena });
+      if (plan.radnja === "stoj") {
+        out({ radnja: "nista", zasto: plan.zasto });
+        return;
+      }
+      if (plan.radnja === "otkrij") {
+        await c.unhideListing(brojId);
+        out({ radnja: "otkriven", id: brojId });
+        return;
+      }
+      let zaObjavu: ArhivskiZapis;
+      if (plan.radnja === "objavi_iz_zivog" && oglas) {
+        zaObjavu = await arhivirajIzZivog(oglas, { cijena: plan.cijena });
+        if (zaObjavu.meta.fajlovi_slika.length === 0) {
+          out({ radnja: "nista", zasto: "nijedna slika sa zavrsenog oglasa se nije mogla preuzeti; oglas bez slika se ne objavljuje", neuspjele_slike: zaObjavu.meta.neuspjele_slike });
+          return;
+        }
+      } else {
+        if (!zapis) {
+          out({ radnja: "nista", zasto: "nema arhive" }); // planReaktivacije ovo vec brani
+          return;
+        }
+        zaObjavu = zapis;
+      }
+      out(await c.objaviIzArhive(zaObjavu, { confirm: Boolean(opts.yes) }));
     } catch (e) {
       fail(e);
     }
