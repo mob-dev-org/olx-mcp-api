@@ -8,6 +8,31 @@ Kako se cita broj verzije: `bun dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
+## 0.18.0 — 2026-08-17
+
+**Telegram most je od sada JEDINI pogon botova, a `cuvar-sesije.mjs` je obrisan.** Novi klijenti su
+do sada dobijali cuvara (interaktivna sesija plus `--channels` plugin), dakle bas onaj put koji je
+imao neriseno "Not logged in" pod launchd-om, dok je most sa svim popravkama stajao neupotrijebljen.
+Sada `telegram-most.mjs` vozi OBJE uloge: `bun scripts/telegram-most.mjs` za klijenta i
+`bun scripts/telegram-most.mjs admin-bot` za vlasnikov admin bot. Admin uloga uzima bot token
+ISKLJUCIVO iz `.claude-runtime-admin/channels/telegram/.env` i kroz njega salje odgovore, pa admin
+razgovor ne moze izaci iz klijentskog bota. Telegram plugin pogonu vise ne treba.
+
+**Zivi klon se ne migrira sam pukim povlacenjem koda.** Instalirana definicija posla (launchd plist,
+Task Scheduler zadatak) drzi komandu iz vremena instalacije, a azuriranje je do sada radilo samo
+restart te definicije. Od sada `azuriraj-sve.sh`, `azuriraj-ovaj-klon.mjs --restart` i
+`deploy/windows/azuriraj.ps1` prvo ponovo pokrenu instalater poslova, pa tek onda restartuju. Na
+masini koja zaostane, rucna komanda je `scripts/instaliraj-cron.sh <ime_klona>` (Windows:
+`deploy\windows\instaliraj-zadatke.ps1 <ime_klona>`). Imena poslova su namjerno ostala ista, jer bi
+dva posla na istom bot tokenu dala 409 Conflict.
+
+**Preflight i `.env` prate novo stanje.** `provjeri-klon.mjs` provjerava most (`most.pid`, a
+`most-admin.pid` samo kad klon ima admin runtime) i bot token iz oba izvora; Telegram plugin je
+spusten sa FALI na PAZNJA jer ga treba jos samo rucna proba `pokreni-klijenta.mjs`. Iz `.env.example`
+su izbacene `OLX_SESIJA_STRAZAR`, `OLX_SESIJA_IDLE_SATI` i `OLX_SESIJA_RESTART_SAT` (niko ih vise ne
+cita), a dodana je `OLX_MOST_ADMIN_IDLE_MIN`. Postojeci klonovi ne moraju nista rucno mijenjati u
+`.env`: obrisane varijable se od sada prosto ignorisu.
+
 ## 0.17.2 — 2026-08-16
 
 **Prazan `OLX_SESIJA_RESTART_SAT` ili `OLX_SESIJA_INBOX_DANA` u `.env` je do sada tiho znacio 0,
