@@ -319,6 +319,31 @@ sto je za ovaj posao ispravan izbor: dupli odgovor je neugodan, propusten je izg
 
 Allowlist se ne duplira: most cita isti `access.json` koji pripremi skripte vec pisu.
 
+### --channels kroz pseudoterminal javlja Not logged in. Izmjereno 16.08.2026.
+
+Cilj je bio da `--channels` sesija prezivi headless, pod launchd-om, bez terminala. `claude` bez
+TTY-a na STDOUT-u odmah pada sa "Input must be provided either through stdin or as a prompt
+argument when using --print", pa je u `scripts/lib/sesija.mjs` dodat omotac `script -q /dev/null
+claude ...` (funkcije `trebaPty` i `pokreniClaude`).
+
+Kad se `--channels` pokrene KROZ taj pty omotac, dakle tacno produkcijskim putem cuvara, CLI
+LOKALNO zakljuci da korisnik nije ulogovan i vrati "Not logged in, Please run /login". Bez ijednog
+pravog API poziva: model je prijavljen kao `<synthetic>`, potroseno nula tokena.
+
+Login je pri tom potvrdjeno ispravan i citljiv. Isti `.claude-runtime` radi u sva tri druga
+slucaja: `claude -p` direktno, pozadinski spawn sa `detached: true`, i `claude -p` kroz isti
+`script` pty omotac. Sve to vraca uredan odgovor. Kvar je dakle vezan iskljucivo za kombinaciju
+`--channels` plus pty, nije kredencijal, nije detached izvrsavanje, nije pty sam po sebi.
+
+Dalje reverzno inzenjerstvo te kombinacije je namjerno prekinuto: znacilo bi kopanje po
+unutrasnjoj auth provjeri kompajliranog CLI-ja radi zaobilazenja vendorske provjere, sto je van
+granica ovog rada.
+
+Posljedica po pogon: `--channels` prestaje biti produkcijski put za headless klijentskog bota.
+Primarni put postaje `scripts/telegram-most.mjs`. `scripts/cuvar-sesije.mjs` sa `--channels`
+ostaje u kodu kao dokumentovan ali nepreporucen put; odluka o njegovom potpunom gasenju jos nije
+donesena.
+
 ### append-system-prompt-file NIJE aditivan. Izmjereno 30.07.2026.
 
 Sa dva `--append-system-prompt-file` sesija vidi samo ZADNJI fajl. Provjereno markerima: prvi

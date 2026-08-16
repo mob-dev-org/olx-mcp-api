@@ -297,6 +297,49 @@ function imeProcesa(pid) {
   }
 }
 
+// Gasenje po STABLU procesa (POSIX). Kad sesija ide kroz pty omotac (`script -q /dev/null claude
+// ...`, vidi trebaPty u lib/sesija.mjs), pracen pid je pid `script`-a, a `claude` je njegovo dijete
+// u vlastitoj procesnoj grupi i sesiji (forkpty radi setsid, izmjereno 16.08.2026). Zato ni
+// process.kill(pid) ni process.kill(-pid) ne dohvate sesiju: prvi ubije samo omotac, drugi samo
+// njegovu grupu. Bez ovoga bi `claude` ostajao ziv kao siroce na istom bot tokenu (dvije sesije,
+// 409 na Telegramu).
+//
+// Stablo se cita sinhrono (`ps -Ao pid=,ppid=`), jer se ista funkcija zove i iz ocistiSiroce (prije
+// event petlje) i iz SIGINT/SIGTERM handlera, gdje se na async ne smije cekati.
+function stabloPidova(korijen) {
+  const pidovi = [korijen];
+  let veze = [];
+  try {
+    const r = spawnSync("ps", ["-Ao", "pid=,ppid="], { encoding: "utf8", timeout: 10_000 });
+    veze = (r.stdout ?? "")
+      .split("\n")
+      .map((red) => red.trim().split(/\s+/).map(Number))
+      .filter(([pid, ppid]) => Number.isFinite(pid) && Number.isFinite(ppid));
+  } catch {
+    return pidovi; // bez spiska procesa ostaje bar korijen
+  }
+  for (let i = 0; i < pidovi.length; i++) {
+    for (const [pid, ppid] of veze) {
+      if (ppid === pidovi[i] && !pidovi.includes(pid)) pidovi.push(pid);
+    }
+  }
+  return pidovi;
+}
+
+function ubijPosix(pid, signal, stablo = false) {
+  if (!Number.isFinite(pid) || pid <= 0) return;
+  // Djeca prvo, korijen zadnji: obrnut redoslijed sprjecava da omotac umre i pusti pty prije nego
+  // se dohvati sesija ispod njega.
+  const meta = stablo ? stabloPidova(pid).reverse() : [pid];
+  for (const p of meta) {
+    try {
+      process.kill(p, signal);
+    } catch {
+      // vec mrtav ili nije nas
+    }
+  }
+}
+
 function ocistiSiroce() {
   let pid = 0;
   try {
@@ -316,7 +359,9 @@ function ocistiSiroce() {
     return; // proces vise ne postoji
   }
   const ime = imeProcesa(pid);
-  if (!/claude|node|cmd/.test(ime)) {
+  // `script` je pty omotac iz lib/sesija.mjs: pod launchd-om je pracen pid upravo njegov, pa bez
+  // njega u ovom spisku cuvar ne bi prepoznao vlastito siroce i ostavio bi drugu sesiju na botu.
+  if (!/claude|node|cmd|script/.test(ime)) {
     log(`Stari zapis sesije pokazuje na pid ${pid} (${ime || "nepoznat"}), nije nasa sesija, ne diram.`);
     return;
   }
@@ -324,11 +369,8 @@ function ocistiSiroce() {
   if (process.platform === "win32") {
     spawnSync("taskkill", ["/pid", String(pid), "/T", "/F"], { stdio: "ignore", timeout: 15_000 });
   } else {
-    try {
-      process.kill(pid, "SIGKILL");
-    } catch {
-      // vec mrtav
-    }
+    // Stablo, jer siroce moze biti i pty omotac sa `claude` ispod sebe.
+    ubijPosix(pid, "SIGKILL", true);
   }
 }
 
@@ -582,6 +624,15 @@ function ugasiDijete() {
     } catch (e) {
       console.error(`taskkill nije uspio: ${String(e)}`);
     }
+  } else if (d.olxPty) {
+    // Pty omotac: signal ide cijelom stablu (`script` + `claude` ispod njega), vidi ubijPosix.
+    ubijPosix(d.pid, "SIGTERM", true);
+    setTimeout(() => {
+      if (d.exitCode === null) {
+        log("Sesija ignorise SIGTERM 30s, saljem SIGKILL stablu.");
+        ubijPosix(d.pid, "SIGKILL", true);
+      }
+    }, 30_000).unref();
   } else {
     d.kill();
     setTimeout(() => {

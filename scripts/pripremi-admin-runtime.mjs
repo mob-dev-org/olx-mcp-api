@@ -43,7 +43,29 @@ mkdirSync(join(TELEGRAM_DIR, "inbox"), { recursive: true });
 mkdirSync(join(TELEGRAM_DIR, "approved"), { recursive: true });
 
 // Prazan .claude.json: nijedan globalni MCP server. Servere donosi projektni .mcp.json.
-writeFileSync(join(RUNTIME, ".claude.json"), '{\n  "mcpServers": {}\n}\n', "utf8");
+//
+// Uz to se gase uvodni ekrani (izbor teme, dijalog povjerenja, pitanje o novom MCP serveru).
+// Isti razlog kao u pripremi-runtime.mjs: bot sesija nema koga da pritisne enter, pa bi stala
+// na prvom pitanju wizarda i ostala ziva ali gluha, sto mehanika brzih padova ne vidi.
+writeFileSync(
+  join(RUNTIME, ".claude.json"),
+  `${JSON.stringify(
+    {
+      mcpServers: {},
+      hasCompletedOnboarding: true,
+      projects: {
+        [KORIJEN]: {
+          hasTrustDialogAccepted: true,
+          hasCompletedProjectOnboarding: true,
+          enabledMcpjsonServers: ["olx-pik"],
+        },
+      },
+    },
+    null,
+    2,
+  )}\n`,
+  "utf8",
+);
 
 copyFileSync(join(KORIJEN, "runtime", "settings.admin-bot.json"), join(RUNTIME, "settings.json"));
 

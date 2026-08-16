@@ -44,7 +44,34 @@ mkdirSync(join(TELEGRAM_DIR, "inbox"), { recursive: true });
 mkdirSync(join(TELEGRAM_DIR, "approved"), { recursive: true });
 
 // Prazan .claude.json: nijedan globalni MCP server. Servere donosi projektni .mcp.json.
-writeFileSync(join(RUNTIME, ".claude.json"), '{\n  "mcpServers": {}\n}\n', "utf8");
+//
+// Uz to se ODMAH gase svi uvodni ekrani (izbor teme, dijalog povjerenja u folder, uvod u
+// projekat). Bez toga bot sesija u pogonu stane na prvom pitanju wizarda i tu ostane zauvijek:
+// nema TTY-a, nema koga da pritisne enter, a proces je ziv pa ga ni mehanika brzih padova ne
+// vidi. Do 16.08.2026 se to nije primjecivalo jer je sesija bez pty-a padala jos ranije, na
+// "Input must be provided ... when using --print"; kad je pty omotac to rijesio (trebaPty u
+// lib/sesija.mjs), wizard je ostao kao drugi zid.
+writeFileSync(
+  join(RUNTIME, ".claude.json"),
+  `${JSON.stringify(
+    {
+      mcpServers: {},
+      hasCompletedOnboarding: true,
+      projects: {
+        [KORIJEN]: {
+          hasTrustDialogAccepted: true,
+          hasCompletedProjectOnboarding: true,
+          // Bez ovoga sesija stane na pitanju "New MCP server found in this project: olx-pik".
+          // Alate to ne prosiruje: klijentski profil suzava listu na samom serveru.
+          enabledMcpjsonServers: ["olx-pik"],
+        },
+      },
+    },
+    null,
+    2,
+  )}\n`,
+  "utf8",
+);
 
 copyFileSync(join(KORIJEN, "runtime", "settings.klijent.json"), join(RUNTIME, "settings.json"));
 

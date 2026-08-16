@@ -35,6 +35,10 @@
   },
 
   "//4": "Nijedan plugin osim Telegram kanala. Popis se drzi u koraku sa runtime/settings.klijent.json.",
+  "//m": "Projektni MCP serveri iz .mcp.json se odobravaju unaprijed: bot sesija nema koga da",
+  "//m1": "pritisne enter na pitanju 'New MCP server found in this project'. Isto kao u",
+  "//m2": "settings.klijent.json.",
+  "enableAllProjectMcpServers": true,
   "enabledPlugins": {
     "telegram@claude-plugins-official": true,
 

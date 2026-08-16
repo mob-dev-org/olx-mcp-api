@@ -165,8 +165,47 @@ export function zaCmd(a) {
   return /[\s"^&|<>()]/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a;
 }
 
+// Da li sesiju treba omotati u pseudoterminal. Uslov je STDOUT, ne stdin: `claude` bez TTY-a na
+// izlazu odmah pada sa "Input must be provided either through stdin or as a prompt argument when
+// using --print" i kodom 1 (izmjereno 15.08.2026 na golom spawnu cuvara, pet padova zaredom,
+// nezavisno od AI pogona). Pod launchd-om i Task Schedulerom stdout je fajl, pa je to bio
+// univerzalan slom `--channels` puta, a ne rubni slucaj.
+//
+// Prekidac OLX_SESIJA_BEZ_PTY=1 vraca staro, golo ponasanje (brz rollback ako omotac negdje
+// zakaze). Kad stdout JESTE TTY (rucni `pokreni-klijenta.mjs` iz terminala), nista se ne mijenja.
+export function trebaPty(env = process.env, platforma = process.platform, imaTty = process.stdout.isTTY) {
+  if (platforma === "win32") return false;
+  if ((env.OLX_SESIJA_BEZ_PTY ?? "").trim() !== "") return false;
+  return imaTty !== true;
+}
+
 export function pokreniClaude({ argv, env, cwd }) {
   const win = process.platform === "win32";
+  if (trebaPty(env)) {
+    // BSD `script` (macOS): `-q` bez zaglavlja, `/dev/null` kao typescript fajl, pa komanda i
+    // njeni argumenti direktno (bez shella, pa razmaci u putanjama ne trebaju quoting).
+    //
+    // stdout/stderr idu na "ignore" jer TUI kroz pty izbacuje ANSI kontrolne sekvence: sa
+    // "inherit" bi to zagusilo .olx-pik/cron-sesija.log. Sve sto cuvar treba zna i bez toga
+    // (izlazni kod, pid, transkripti u runtime-u). stdin ostaje "ignore" kao i danas: pty
+    // dodjeljuje `script`, ne nasljedjivanje pravog terminala.
+    //
+    // detached: `script` dobija vlastitu procesnu grupu, da Ctrl+C ili signal grupi cuvara ne
+    // presijece sesiju usred posla.
+    const dijete = spawn("script", ["-q", "/dev/null", "claude", ...argv], {
+      cwd,
+      env,
+      stdio: ["ignore", "ignore", "ignore"],
+      detached: true,
+    });
+    // Oznaka za pozivaoca: pracen pid je pid `script`-a, a `claude` je njegovo dijete i to u
+    // VLASTITOJ procesnoj grupi i sesiji (forkpty radi setsid; izmjereno 16.08.2026: script pgid
+    // 58465, claude pgid 58466). Zato ni grupni kill po pidu `script`-a ne dohvata sesiju: gasenje
+    // mora ici po STABLU procesa, inace `claude` prezivi kao siroce na istom bot tokenu (dvije
+    // sesije, 409 na Telegramu).
+    dijete.olxPty = true;
+    return dijete;
+  }
   return spawn("claude", win ? argv.map(zaCmd) : argv, {
     cwd,
     env,

@@ -3,7 +3,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ANTHROPIC_VARIJABLE, aiPogon, claudeArgv, stazeSesije, zaCmd } from "./sesija.mjs";
+import { ANTHROPIC_VARIJABLE, aiPogon, claudeArgv, okruzenjeSesije, stazeSesije, zaCmd } from "./sesija.mjs";
 
 test("aiPogon: pretplata je default i ne dira nista", () => {
   const r = aiPogon(false, {});
@@ -92,4 +92,83 @@ test("zaCmd: obican argument ostaje netaknut, razmak i navodnik se quotuju", () 
   assert.equal(zaCmd("C:\\Klon Sa Razmakom\\prompt.md"), '"C:\\Klon Sa Razmakom\\prompt.md"');
   assert.equal(zaCmd('a"b'), '"a\\"b"');
   assert.equal(zaCmd("a&b"), '"a&b"');
+});
+
+// ---- okruzenjeSesije ----
+
+test("okruzenjeSesije: mcpProfil klijent postavlja OLX_SESIJA_TIP na klijent", () => {
+  const r = okruzenjeSesije({
+    osnova: {},
+    aiEnv: {},
+    obrisi: [],
+    runtime: "/klon/.claude-runtime",
+    telegramDir: "/klon/.claude-runtime/channels/telegram",
+    mcpProfil: "klijent",
+  });
+  assert.equal(r.OLX_SESIJA_TIP, "klijent");
+});
+
+test("okruzenjeSesije: mcpProfil admin postavlja OLX_SESIJA_TIP na admin-bot", () => {
+  const r = okruzenjeSesije({
+    osnova: {},
+    aiEnv: {},
+    obrisi: [],
+    runtime: "/klon/.claude-runtime-admin",
+    telegramDir: "/klon/.claude-runtime-admin/channels/telegram",
+    mcpProfil: "admin",
+  });
+  assert.equal(r.OLX_SESIJA_TIP, "admin-bot");
+});
+
+test("okruzenjeSesije: postavlja CLAUDE_CONFIG_DIR, TELEGRAM_STATE_DIR i OLX_MCP_PROFILE iz argumenata", () => {
+  const r = okruzenjeSesije({
+    osnova: {},
+    aiEnv: {},
+    obrisi: [],
+    runtime: "/klon/.claude-runtime",
+    telegramDir: "/klon/.claude-runtime/channels/telegram",
+    mcpProfil: "klijent",
+  });
+  assert.equal(r.CLAUDE_CONFIG_DIR, "/klon/.claude-runtime");
+  assert.equal(r.TELEGRAM_STATE_DIR, "/klon/.claude-runtime/channels/telegram");
+  assert.equal(r.OLX_MCP_PROFILE, "klijent");
+});
+
+test("okruzenjeSesije: obrisi uklanja kljuceve iz osnove", () => {
+  const r = okruzenjeSesije({
+    osnova: { ANTHROPIC_API_KEY: "tajna", DRUGO: "ostaje" },
+    aiEnv: {},
+    obrisi: ["ANTHROPIC_API_KEY"],
+    runtime: "/klon/.claude-runtime",
+    telegramDir: "/klon/.claude-runtime/channels/telegram",
+    mcpProfil: "klijent",
+  });
+  assert.equal("ANTHROPIC_API_KEY" in r, false);
+  assert.equal(r.DRUGO, "ostaje");
+});
+
+test("okruzenjeSesije: aiEnv nadjacava istoimeni kljuc iz osnove", () => {
+  const r = okruzenjeSesije({
+    osnova: { ANTHROPIC_MODEL: "staro" },
+    aiEnv: { ANTHROPIC_MODEL: "novo" },
+    obrisi: [],
+    runtime: "/klon/.claude-runtime",
+    telegramDir: "/klon/.claude-runtime/channels/telegram",
+    mcpProfil: "klijent",
+  });
+  assert.equal(r.ANTHROPIC_MODEL, "novo");
+});
+
+test("okruzenjeSesije: ne mijenja proslijedjeni osnova objekat", () => {
+  const osnova = { ANTHROPIC_API_KEY: "tajna", NESTO: "1" };
+  const kopija = { ...osnova };
+  okruzenjeSesije({
+    osnova,
+    aiEnv: { ANTHROPIC_MODEL: "novo" },
+    obrisi: ["ANTHROPIC_API_KEY"],
+    runtime: "/klon/.claude-runtime",
+    telegramDir: "/klon/.claude-runtime/channels/telegram",
+    mcpProfil: "klijent",
+  });
+  assert.deepEqual(osnova, kopija);
 });

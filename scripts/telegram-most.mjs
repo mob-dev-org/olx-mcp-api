@@ -29,6 +29,8 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync,
 import { randomUUID } from "node:crypto";
 import { dirname, join, resolve } from "node:path";
 import { ucitajEnvGlobalno } from "./lib/envfajl.mjs";
+import { stazeSesije, provjeriPreduslove, aiPogon, sastaviPrompt, okruzenjeSesije } from "./lib/sesija.mjs";
+import { dozvoljena, izvorSlike, tekstStavke, argviSesije } from "./lib/most.mjs";
 
 // ---- konfiguracija ----
 
@@ -36,10 +38,13 @@ if (existsSync(".env")) ucitajEnvGlobalno(".env"); // .env sa neispravnim redom:
 
 const JEDNOM = process.argv.includes("--jednom");
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const RUNTIME = process.env.CLAUDE_CONFIG_DIR || ".claude-runtime";
-const INBOX = join(RUNTIME, "channels", "telegram", "inbox");
+const KORIJEN = process.cwd(); // most se ionako pokrece iz korijena klona
+const staze = stazeSesije("klijent", KORIJEN);
+// RUNTIME vise NE dolazi iz process.env.CLAUDE_CONFIG_DIR: jedan klon, jedan klijent, a
+// naslijedjen CLAUDE_CONFIG_DIR sa masine bi mostu mogao podmetnuti tudji (npr. admin) runtime.
+const RUNTIME = staze.runtime;
+const INBOX = staze.inbox;
 const STANJE_FAJL = ".olx-pik/most-stanje.json";
-const PROMPT_FAJL = "runtime/SISTEM-klijent.md";
 const ALBUM_CEKANJE_MS = 2500;
 const POLL_TIMEOUT_S = 50;
 const POTEZ_TIMEOUT_MS = Number(process.env.OLX_MOST_POTEZ_TIMEOUT_MS) || 300000;
@@ -47,6 +52,14 @@ const MAX_POKUSAJA = 3;
 
 if (!TOKEN) {
   console.error("TELEGRAM_BOT_TOKEN nije postavljen u .env. Most se ne moze pokrenuti.");
+  process.exit(2);
+}
+
+// Klon sa OLX_KLIJENT_AI=deepseek bez popunjenih OLX_DEEPSEEK_* varijabli NE SMIJE tiho preci
+// na Anthropic pretplatu i naplacivati na pogresnom mjestu.
+const ai = aiPogon(false, process.env);
+if (ai.ok === false) {
+  console.error(ai.poruka);
   process.exit(2);
 }
 
@@ -91,29 +104,6 @@ function citajPristup() {
   }
 }
 
-/** true kad poruka smije u sesiju. Sve ostalo se tiho ispusta, kao i kod kanala. */
-function dozvoljena(poruka, pristup, botIme) {
-  const posiljalac = String(poruka.from?.id ?? "");
-  if (!posiljalac) return false;
-  const tip = poruka.chat?.type;
-
-  if (tip === "private") {
-    return pristup.dmPolicy !== "disabled" && pristup.allowFrom.includes(posiljalac);
-  }
-  if (tip === "group" || tip === "supergroup") {
-    const politika = pristup.groups[String(poruka.chat.id)];
-    if (!politika) return false;
-    const dozvoljeni = (politika.allowFrom ?? []).map(String);
-    if (dozvoljeni.length > 0 && !dozvoljeni.includes(posiljalac)) return false;
-    if (politika.requireMention ?? true) {
-      const tekst = poruka.text ?? poruka.caption ?? "";
-      if (!botIme || !tekst.includes(`@${botIme}`)) return false;
-    }
-    return true;
-  }
-  return false;
-}
-
 // ---- Telegram ----
 
 async function tg(metoda, tijelo) {
@@ -125,28 +115,6 @@ async function tg(metoda, tijelo) {
   const j = await res.json().catch(() => ({}));
   if (!j.ok) throw new Error(`Telegram ${metoda}: ${j.description ?? res.status}`);
   return j.result;
-}
-
-/**
- * Bira izvor slike iz poruke. Redoslijed je namjeran: `document` ide PRIJE `photo`.
- *
- * Telegram za `photo` uvijek rekompresuje u JPEG i skalira (u praksi oko 1280 px duza strana),
- * pa je najveca velicina iz tog niza i dalje kopija sa gubitkom. Ista poruka poslana kao fajl
- * ("posalji bez kompresije") stize kao `document` sa netaknutim originalom. Kad su prisutna oba,
- * Telegram salje samo jedno, ali provjera stoji ovim redom da original nikad ne izgubi.
- *
- * Ranije se `document` uopste nije citao, pa je fotografija poslana kao fajl tiho nestajala.
- */
-function izvorSlike(poruka) {
-  const dok = poruka.document;
-  // Bez mime provjere bi ovdje prosao PDF, ZIP i sve ostalo sto covjek prevuce u razgovor.
-  if (dok?.file_id && typeof dok.mime_type === "string" && dok.mime_type.startsWith("image/")) {
-    return { fileId: dok.file_id, kljuc: dok.file_unique_id, velicina: dok.file_size };
-  }
-  const velicine = poruka.photo;
-  if (!Array.isArray(velicine) || velicine.length === 0) return null;
-  const najveca = velicine[velicine.length - 1]; // Telegram salje rastuce, zadnja je najveca
-  return { fileId: najveca.file_id, kljuc: najveca.file_unique_id, velicina: najveca.file_size };
 }
 
 /** Skine fotografiju u inbox koji klijentska sesija smije citati. Vraca putanju ili null. */
@@ -176,46 +144,26 @@ async function skiniFoto(poruka) {
 
 // ---- ziva sesija ----
 
-const ZABRANJENI_ALATI = ["Bash", "Write", "Edit", "NotebookEdit", "WebFetch", "WebSearch", "Task", "Agent", "Grep", "Glob", "Skill"];
-
 let sesija = null; // { dijete, cekaci: [], buf }
 
-function argviSesije(nastavak) {
-  const id = stanje.sesija ?? randomUUID();
-  return {
-    id,
-    argv: [
-      "-p",
-      "--verbose",
-      "--input-format",
-      "stream-json",
-      "--output-format",
-      "stream-json",
-      // Telegram MCP plugin ovdje NE treba: poruke saljemo sami, pa strict izolacija smije.
-      "--strict-mcp-config",
-      "--mcp-config",
-      ".mcp.json",
-      "--append-system-prompt-file",
-      PROMPT_FAJL,
-      "--setting-sources",
-      "user,project",
-      "--permission-mode",
-      "acceptEdits",
-      // Headless sesija nema koga da klikne potvrdu: bez ovoga bi visjela.
-      "--allowedTools",
-      "mcp__olx-pik",
-      "--disallowedTools",
-      ...ZABRANJENI_ALATI,
-      nastavak ? "--resume" : "--session-id",
-      id,
-    ],
-  };
-}
-
+// Spawn ostaje vlastit, ne ide kroz pokreniClaude/claudeArgv iz sesija.mjs. Most sa sesijom
+// razgovara kroz stdin/stdout u stream-json obliku, pa mu treba stdio ["pipe","pipe","pipe"];
+// pokreniClaude u pty grani gasi sav stdio na "ignore" i omotava u `script`, sto bi most
+// onesposobilo. Uz to trebaPty rjesava problem interaktivnog --channels puta, a most je -p
+// rezim koji prompt prima kroz stdin i taj problem nema.
 function pokreniSesiju(nastavak) {
-  const { id, argv } = argviSesije(nastavak);
+  const promptPutanja = sastaviPrompt("klijent", KORIJEN, log);
+  const id = stanje.sesija ?? randomUUID();
+  const argv = argviSesije({ id, nastavak, promptPutanja });
   const dijete = spawn("claude", argv, {
-    env: { ...process.env, CLAUDE_CONFIG_DIR: RUNTIME },
+    env: okruzenjeSesije({
+      osnova: process.env,
+      aiEnv: ai.env,
+      obrisi: ai.obrisi,
+      runtime: staze.runtime,
+      telegramDir: staze.telegramDir,
+      mcpProfil: staze.mcpProfil,
+    }),
     stdio: ["pipe", "pipe", "pipe"],
     shell: process.platform === "win32",
   });
@@ -302,15 +250,6 @@ function posaljiSesiji(tekst) {
 // ---- obrada reda ----
 
 let radi = false;
-
-function tekstStavke(stavka) {
-  const dijelovi = [stavka.tekst || "(bez teksta)"];
-  if (stavka.slike?.length) {
-    const opis = stavka.slike.length === 1 ? "Poslana je fotografija" : `Poslano je ${stavka.slike.length} fotografija`;
-    dijelovi.push(`\n[${opis}, na disku: ${stavka.slike.join(", ")}]`);
-  }
-  return dijelovi.join("");
-}
 
 /** Slike koje su nastale tokom poteza. Sesija ih pravi kroz olx_generiraj_sliku. */
 function slikeNovijeOd(od) {
@@ -448,6 +387,11 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
   });
 }
 
+const preduslovi = provjeriPreduslove("klijent", KORIJEN, process.env);
+for (const g of preduslovi.greske) console.error(g);
+if (preduslovi.greske.length > 0) process.exit(2);
+for (const u of preduslovi.upozorenja) console.error(u);
+
 const pristup = citajPristup();
 if (!pristup) {
   console.error(
@@ -465,7 +409,7 @@ try {
   process.exit(1);
 }
 
-log(`most radi kao @${botIme}, offset ${stanje.offset}, u redu ${stanje.red.length}, sesija ${stanje.sesija ?? "(nova)"}`);
+log(`most radi kao @${botIme}, pogon ${ai.pogon}, offset ${stanje.offset}, u redu ${stanje.red.length}, sesija ${stanje.sesija ?? "(nova)"}`);
 if (stanje.red.length > 0) void obradiRed(); // sto je ostalo od proslog pokretanja
 
 while (!gasenje) {

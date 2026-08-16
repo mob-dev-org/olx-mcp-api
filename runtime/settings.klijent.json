@@ -56,6 +56,11 @@
   },
 
   "//11": "Nijedan plugin osim Telegram kanala. Popis se drzi u koraku sa .claude/settings.json.",
+  "//12": "Projektni MCP serveri iz .mcp.json se odobravaju unaprijed. Bez ovoga bot sesija stane",
+  "//12a": "na pitanju 'New MCP server found in this project: olx-pik' i tu ostane zauvijek: nema",
+  "//12b": "koga da pritisne enter, a proces je ziv pa ga ni mehanika brzih padova ne vidi. Alate",
+  "//12c": "ovo ne prosiruje, klijentski profil suzava listu na samom serveru.",
+  "enableAllProjectMcpServers": true,
   "enabledPlugins": {
     "telegram@claude-plugins-official": true,
 
