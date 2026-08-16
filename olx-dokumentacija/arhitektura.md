@@ -24,8 +24,8 @@ flowchart LR
         disk[("Disk klona<br/>.olx-pik: audit, snapshoti, prijedlozi<br/>.claude-runtime i .claude-runtime-admin")]
     end
 
-    cuvar["Cuvar sesija<br/>cuvar-sesije.mjs klijent i admin-bot"] -.->|"drzi zive, nocni restart 03h,<br/>idle restart: klijent 2h/admin 1h bez straze,<br/>klijent 1h/admin 30min sa strazom<br/>OLX_SESIJA_STRAZAR: idle/nocni GASE,<br/>cuvar strazari i budi na poruku"| sesija
-    cuvar -.-> asesija
+    most["Telegram most<br/>telegram-most.mjs, isti fajl vozi klijent i admin-bot<br/>jedan dugoziv proces, drzi getUpdates i red na disku"] -.->|"digne na prvu poruku, gasi na<br/>idle prag OLX_MOST_IDLE_MIN (default 30min,<br/>admin OLX_MOST_ADMIN_IDLE_MIN) ili<br/>nocni rez OLX_MOST_RESTART_SAT (default 3h)"| sesija
+    most -.-> asesija
 
     tg <--> sesija
     atg <--> asesija
@@ -102,7 +102,7 @@ Nista od ovoga ne poziva model osim AI runde. Termini su razmaknuti namjerno.
 flowchart TB
     subgraph dan["Svaki dan"]
         s1["02:40 snapshot<br/>snimi preglede svih oglasa u fajl<br/>bez ovoga nema trendova"]
-        s2["03:00 nocni restart sesije<br/>kontekst na nulu, ciscenje inboxa<br/>radi cuvar-sesije.mjs<br/>uz strazar rezim: gasenje, budi se na poruku"]
+        s2["03:00 nocni rez konteksta<br/>gasi zivu sesiju i BRISE kljuc, ciscenje inboxa<br/>radi telegram-most.mjs (OLX_MOST_RESTART_SAT)<br/>sljedeca poruka digne sesiju bez --resume"]
         s3["07:20 dnevni posao<br/>obnove unutar besplatne kvote<br/>TEK kad klijent izabere ritam<br/>pa jutarnja poruka u SVE grupe"]
         s8["08:10 backup stanja<br/>pamcenje, izuzeca, audit, snapshoti<br/>na privatnu granu klijenta"]
     end
@@ -115,8 +115,8 @@ flowchart TB
         s5["nedjelja 21:00 AI runda<br/>analiza + prijedlozi po klijentu<br/>admin pretplata, read-only"]
     end
     subgraph stalno["Stalno"]
-        s6["cuvar klijentske sesije<br/>pao bot: digni ga<br/>5 brzih padova: javi adminu<br/>1h mirovanja: ocisti kontekst<br/>strazar rezim (opt in): idle/nocni GASE<br/>uzorak resursa svakih 5 min"]
-        s7["cuvar admin bot sesije (opcion)<br/>ista mehanika, idle prag 30min<br/>jer se kontekst cisti cesce<br/>strazar rezim (opt in): idle/nocni GASE"]
+        s6["Telegram most, klijent<br/>jedan proces, drzi getUpdates i red na disku<br/>digne sesiju na poruku, gasi na idle 30min<br/>(OLX_MOST_IDLE_MIN) ili nocni rez 03h<br/>uzorak resursa svakih 5min aktivno / 30min mirno"]
+        s7["Telegram most, admin-bot (opcion)<br/>ista mehanika, isti fajl, druga uloga<br/>OLX_MOST_ADMIN_IDLE_MIN override po potrebi"]
     end
 
     s1 --> s3
@@ -187,12 +187,12 @@ dobiju polovicne analize.
 | dnevne obnove i jutarnja poruka | onboarding novog klijenta (lista ispod) |
 | nocni snapshot pregleda | `azuriraj-sve.sh` / `deploy\windows\azuriraj.ps1` kad izadje nova verzija |
 | sedmicni pregled ponedjeljkom | `ai-runda.sh` dok se ne instalira plist |
-| cuvari obje sesije: padovi, restarti, inbox | `provjeri-prompt.sh` poslije izmjene promptova |
+| most drzi obje sesije: dizanje, idle/nocni rez, red na disku | `provjeri-prompt.sh` poslije izmjene promptova |
 | AI runda kad se plist instalira | serijski poslovi po zelji (SEO prolaz, ciscenje) |
 | audit log svake izmjene i troska (nosi i verziju) | pravo brisanje oglasa (`listings rm`) |
 | prijava da klon zaostaje za izdanjem (hook pri startu sesije) | izdanje i pustanje u flotu (`izdanje.mjs`, skill `olx-izdanje`) |
 | admin bot: nadzor i rad preko Telegrama | priprema admin runtime-a (jednom po klonu) |
-| cuvar drzi sesiju zivom (pad, nocni i idle restart; strazar rezim opt in po klonu, prvo admin bot) | rucna proba sesije u prvom planu: `bun scripts/pokreni-klijenta.mjs` (prije nje ugasiti cuvara) |
+| most drzi sesiju zivom (digne na poruku, idle i nocni rez konteksta) | rucna proba sesije u prvom planu: `bun scripts/pokreni-klijenta.mjs` (prije nje ugasiti posao `sesija`, dva konzumera na istom bot tokenu daju 409) |
 | biljezenje tokena u transkriptima sesija | `bun run tokeni -- --upisi` sedmicno (trajni dnevnik) |
 
 ## 6. Onboarding novog klijenta (rucni koraci, redom)
@@ -225,11 +225,12 @@ stavka FALI, sa klijentom se ne pocinje.
    DeepSeeku ne treba, na macOS-u je pretplata u Keychainu).
 6. Prva proba sesije: `bun scripts/pokreni-klijenta.mjs` u istom terminalu, na obje platforme.
    Greska (login, plugin, bun, token) se vidi odmah u prvom planu. Ugasi sa Ctrl+C prije
-   sljedeceg koraka: cuvar odmah digne svoju sesiju, a dvije sesije na istom bot tokenu se
-   sudaraju na Telegramu.
+   sljedeceg koraka: posao `sesija` (telegram-most.mjs) odmah digne svoju sesiju, a dvije sesije
+   na istom bot tokenu se sudaraju na Telegramu.
 7. `scripts/instaliraj-cron.sh` (macOS) ili
    `powershell -ExecutionPolicy Bypass -File deploy/windows/instaliraj-zadatke.ps1` (Windows):
-   instalira poslove, ukljucujuci cuvara koji odmah digne sesiju, i backup kad je podesen.
+   instalira poslove, ukljucujuci most (`telegram-most.mjs`) koji odmah digne sesiju, i backup
+   kad je podesen.
 8. Dodaj putanju klona u `~/.olx-klijenti.txt` NA MASINI GDJE KLON ZIVI (azuriranja i AI runda).
 9. Test iz grupe: pitanje, objava sa slikom, i jedan trosak da se vidi tok potvrde.
 10. Opcion, admin bot: novi bot u BotFatheru (privacy NE dirati, ostaje ukljucen), pa
@@ -368,193 +369,157 @@ ili nesreca, a backup koji prati nesrecu nije backup.
 Oporavak na novoj masini: `.claude/skills/olx-novi-klijent/references/oporavak.md`. Vazno je da
 backup vraca PODATKE, ne radni klon: tokeni se unose rucno, i to je namjerno.
 
-## 9. Otisak resursa: stalna sesija naspram strazara
+## 9. Otisak resursa: most i njegova sesija
 
-Ovo je jedina razlika u arhitekturi koju nosi grana `arhitektura-manji-resursi`. Sve ostalo iz
+Pogon Telegram botova vozi `scripts/telegram-most.mjs`: jedan dugoziv proces koji sam radi
+`getUpdates` i sam salje `sendMessage`, bez Telegram plugina. Isti fajl vozi obje uloge
+(`bun scripts/telegram-most.mjs` za klijenta, `bun scripts/telegram-most.mjs admin-bot` za
+vlasnika), razlike su parametrizovane kroz `ulogaMosta` u `scripts/lib/most.mjs`. Sve ostalo iz
 sekcija 1 do 8 ostaje netaknuto: isti klon po klijentu, isti MCP, isti cron poslovi, isti backup.
 
-Iscrtana verzija ovih dijagrama, sa trakovima potrosnje i vremenskom trakom dana:
-<https://claude.ai/code/artifact/741fa916-9b97-4308-956d-eb5309bdf112>. Izvor stranice je u repou
-(`olx-dokumentacija/radne-biljeske/strazar-telemetrija-stranica.html`), pa se moze ponovo objaviti
-ako link istekne.
+Iscrtana verzija starijih dijagrama ovog otiska (cuvar i strazar rezim), sa trakovima potrosnje i
+vremenskom trakom dana: <https://claude.ai/code/artifact/741fa916-9b97-4308-956d-eb5309bdf112>.
+Ta stranica je HISTORIJSKA (prikazuje penzionisani pogon, vidi pasus na kraju ove sekcije), izvor
+joj je u repou (`olx-dokumentacija/radne-biljeske/strazar-telemetrija-stranica.html`) i moze se
+ponovo objaviti ako link istekne, ali za vazece stanje vrijede dijagrami ispod.
 
-### 9.1 Danasnje stanje (default, i dalje vazi bez prekidaca)
+### 9.1 Otisak u mirovanju i u radu
 
-Sesija je STALNO dignuta. Cuvar je samo cuva: pao bot digne ga, na nocni termin i na prag mirovanja
-je restartuje da ocisti kontekst. Memorija se drzi cijeli dan, bez obzira da li klijent pise.
+Most je jedini proces koji zivi cijeli dan. Sesija (`claude -p`, stream-json) i MCP server postoje
+SAMO dok se aktivno radi: most ih digne na prvu poruku i gasi na idle prag ili nocni rez. Bun
+poller koji je Telegram plugin ranije drzao za `getUpdates` VISE NE POSTOJI, jer poll radi most
+sam.
 
-Crveno trosi memoriju stalno, zeleno je jeftino i samo ceka na mrezi.
+Crveno trosi memoriju samo dok se radi, zeleno (most) je jeftino i zivi stalno.
 
 ```mermaid
 flowchart LR
-    tg["Telegram grupa"] <-->|"poruke"| plugin
+    tg["Telegram grupa"] <-->|"poruke i slike"| most
 
-    subgraph klon["Klon klijenta, 24 sata na 24"]
-        cuvar["<b>Cuvar sesije</b><br/><b>3 do 10 MB</b>"]
-        plugin["<b>bun poller</b><br/><b>42 MB</b><br/>drzi getUpdates"]
-        sesija["<b>Claude sesija</b><br/><b>130 do 416 MB</b>"]
-        mcp["<b>MCP server</b><br/><b>3 do 30 MB</b>"]
+    subgraph klon["Klon klijenta"]
+        most["<b>Telegram most</b><br/>jedan dugoziv proces<br/>drzi getUpdates i red na disku<br/>bun poller iz plugina VISE NE POSTOJI"]
+        subgraph rad["Postoje SAMO dok se radi"]
+            sesija["<b>Claude sesija (-p, stream-json)</b><br/><b>130 do 416 MB</b>"]
+            mcp["<b>MCP server</b><br/><b>3 do 30 MB</b>"]
+        end
     end
 
-    cuvar -.->|"health check svakih 60 s<br/>nocni restart 03h<br/>idle restart 1h / 30min<br/>kontekst se cisti, memorija ostaje"| sesija
-    sesija --> plugin
+    most -.->|"digne na prvu poruku (nova ili --resume)<br/>gasi na idle prag ili nocni rez"| sesija
     sesija --> mcp
     mcp --> olx["OLX / PIK API"]
+    most -->|"sendMessage"| tg
 
-    zbir["<b>Zbir po klonu: 200 do 500 MB</b><br/>isto i kad klijent ne pise nista"]
+    zbir["Otisak dok se radi: most + sesija + MCP<br/>otisak u mirovanju: samo most<br/>tacan broj mjeri telemetrija (bun scripts/resursi.mjs pregled)"]
 
     classDef skupo fill:#f6cfc2,stroke:#a33c19,stroke-width:2px,color:#3b1305
     classDef jeftino fill:#c9e6da,stroke:#1f6b52,stroke-width:2px,color:#0b2b20
     classDef vanjsko fill:#eceada,stroke:#6b675c,stroke-width:1px,color:#26241d
-    class sesija,mcp,plugin,zbir skupo
-    class cuvar jeftino
+    class sesija,mcp,zbir skupo
+    class most jeftino
     class tg,olx vanjsko
 ```
 
-Posljedica za flotu: deset klijenata na jednoj masini znaci deset takvih zbirova stalno, jer
-mirovanje ne mijenja nista.
+Posljedica za flotu: deset klijenata na jednoj masini znaci deset mirnih mostova stalno, a sesija
+i MCP se dizu samo za klijenta koji trenutno pise.
 
-### 9.2 Strazar rezim, ova grana (iza `OLX_SESIJA_STRAZAR`, opt in po klonu)
+### 9.2 Zasto poruka ne moze propasti
 
-Na isti prag mirovanja i isti nocni termin cuvar sesiju GASI umjesto da je restartuje, pa sam
-preuzme Telegram strazu. Kad poruka stigne, digne sesiju i pusti plugin da poruku obradi.
-
-```mermaid
-flowchart TB
-    tg["Telegram grupa"]
-    cuvar["<b>Cuvar sesije</b><br/>jedan proces, zivi uvijek<br/><b>3 do 10 MB</b>"]
-
-    subgraph mirno["FAZA A: mirovanje, ukupno 10 do 20 MB"]
-        straza["<b>Straza nad bot tokenom</b><br/>getUpdates long poll BEZ offseta<br/>uzorak resursa svakih 30 min"]
-    end
-
-    subgraph budno["FAZA B: rad, ukupno 200 do 500 MB"]
-        sesija["<b>Claude sesija</b>"]
-        plugin["<b>bun poller</b>, drzi getUpdates"]
-        mcp["<b>MCP server</b>"]
-    end
-
-    cuvar --> straza
-    tg -->|"prva poruka poslije mirovanja"| straza
-    straza -->|"typing odmah, pa dizanje sesije<br/><b>hladni start 5 do 15 s</b><br/>straza staje PRIJE nego sesija ustane"| sesija
-    sesija -->|"<b>prag mirovanja</b> 1h / 30min ili nocni termin 03h<br/>pun uzorak resursa, pa gasenje"| straza
-    sesija --> plugin
-    sesija --> mcp
-    plugin -->|"isti update povuce ponovo i obradi"| tg
-    mcp --> olx2["OLX / PIK API"]
-    cron["Cron poslovi i jutarnja poruka 07:20"] -->|"idu mimo sesije, ne bude je"| tg
-
-    classDef skupo fill:#f6cfc2,stroke:#a33c19,stroke-width:2px,color:#3b1305
-    classDef jeftino fill:#c9e6da,stroke:#1f6b52,stroke-width:2px,color:#0b2b20
-    classDef vanjsko fill:#eceada,stroke:#6b675c,stroke-width:1px,color:#26241d
-    class sesija,mcp,plugin skupo
-    class cuvar,straza jeftino
-    class tg,olx2,cron vanjsko
-```
-
-Zasto poruka ne moze propasti dok sesija ustaje:
+Nijedna poruka se ne gubi, i to nosi red na disku, ne transport: offset se pomjera SAMO nakon sto
+je poruka zapisana u red, a stavka izlazi iz reda SAMO nakon sto je odgovor poslan na Telegram.
+Pad izmedju ta dva trenutka ostavlja poruku u redu, pa se obradi ponovo. Isporuka je dakle
+NAJMANJE JEDNOM: dupli odgovor je neugodan, propusten je izgubljen klijent, pa je taj izbor
+namjeran.
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant K as Klijent
     participant T as Telegram
-    box rgb(201,230,218) jeftino, zivi uvijek
-    participant C as Cuvar u strazi
-    end
-    box rgb(246,207,194) skupo, dize se na poruku
-    participant S as Sesija plus MCP
-    end
+    participant M as Most
+    participant D as Red na disku
+    participant S as Sesija (dize se po potrebi)
 
     K->>T: poruka
-    C->>T: getUpdates BEZ offseta
-    T-->>C: update vidjen, NIJE potvrdjen
-    C->>T: typing, da klijent ne gleda u tisinu
-    C->>C: straza staje
-    C->>S: dizanje sesije
-    Note over C,S: hladni start 5 do 15 s, mjeri se i zapisuje
-    S->>T: getUpdates SA offsetom
-    T-->>S: ISTA poruka, jos neobradjena
-    S-->>K: odgovor
+    M->>T: getUpdates (offset stari)
+    T-->>M: novi update
+    M->>D: upisi stavku u red (fsync/rename)
+    M->>T: pomjeri offset (potvrda)
+    Note over M,D: pad ovdje: poruka je vec u redu, obradi se ponovo
+    M->>S: digni sesiju ako je nema (nova ili --resume)
+    S-->>M: odgovor
+    M->>T: sendMessage
+    M->>D: izbaci stavku iz reda
+    Note over M,D: pad ovdje: odgovor je vec poslan, ponovni pokusaj bi dupliro
 ```
 
-Zivotni ciklus sesije, isti crtez kao stanje u kodu:
+Zivotni ciklus sesije koju most drzi, isti crtez kao stanje u kodu:
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Aktivna: cuvar pokrenut
-    Aktivna --> Aktivna: poruka resetuje sat mirovanja
-    Aktivna --> Straza: prag mirovanja (1h klijent / 30min admin)<br/>ili nocni termin 03h
-    Straza --> Aktivna: prvi update vidjen<br/>mjeri se hladni start
-    Aktivna --> Aktivna: pad sesije, cuvar je digne
-    Straza --> [*]: SIGINT / SIGTERM
-    Aktivna --> [*]: SIGINT / SIGTERM
-
-    note right of Straza
-        Samo cuvar zivi, 10 do 20 MB.
-        Straza nikad ne salje offset
-        ni allowed_updates.
-        Uzorak resursa svakih 30 min.
-    end note
-    note right of Aktivna
-        Sesija, MCP i bun poller, 200 do 500 MB.
-        Uzorak resursa svakih 5 min.
-    end note
+    [*] --> NemaSesije: most pokrenut
+    NemaSesije --> ZivaSesija: prva poruka<br/>nova ili --resume ako kljuc postoji
+    ZivaSesija --> ZivaSesija: poruka resetuje sat mirovanja
+    ZivaSesija --> NemaSesije: idle prag OLX_MOST_IDLE_MIN<br/>gasi, kontekst OSTAJE (kljuc sesije se cuva)
+    ZivaSesija --> NemaSesije: nocni rez OLX_MOST_RESTART_SAT<br/>gasi I BRISE kljuc, sljedeca poruka BEZ --resume
+    NemaSesije --> [*]: SIGINT / SIGTERM
+    ZivaSesija --> [*]: SIGINT / SIGTERM
 
     classDef budno fill:#f6cfc2,stroke:#a33c19,stroke-width:3px,color:#3b1305
     classDef mirno fill:#c9e6da,stroke:#1f6b52,stroke-width:3px,color:#0b2b20
-    class Aktivna budno
-    class Straza mirno
+    class ZivaSesija budno
+    class NemaSesije mirno
 ```
 
-Zasto strazu drzi cuvar a ne novi Bun proces: offset je potvrda, a potvrdjena poruka je pojedena
-poruka. Straza smije samo GLEDATI. Uz to, dva `getUpdates` konzumera na istom tokenu daju 409, pa
-straza mora prestati prije nego sesija ustane; oboje je lakse garantovati u procesu koji sesiju i
-gasi i dize.
+Idle prag (`OLX_MOST_IDLE_MIN`, default 30 min, admin override `OLX_MOST_ADMIN_IDLE_MIN`) i nocni
+rez (`OLX_MOST_RESTART_SAT`, default 3h) rade RAZLICITE stvari: idle CUVA kontekst (sljedeca
+poruka nastavlja kroz `--resume`), nocni rez ga BRISE (sljedeca poruka krece od nule). Nocni rez
+usput cisti i inbox slika (`OLX_SESIJA_INBOX_DANA`, default 7 dana) i skracuje cron logove.
 
-### 9.3 Telemetrija resursa (ista grana)
+### 9.3 Telemetrija resursa
 
-Mjeri isti cuvar, jer se ionako budi svakih 60 s i jedini zna PID sesije koju je sam pokrenuo.
-Nema novog zakazanog posla ni novog deploy fajla.
+Mjeri MOST, jer se ionako budi svakih 60 s preko minutnog tika i jedini zna PID sesije koju je
+sam pokrenuo. Nema novog zakazanog posla ni novog deploy fajla. Uzorkovanje je gusce dok sesija
+zivi, rjedje dok je ne postoji, jer mirno stanje ne mijenja gotovo nista izmedju uzoraka.
 
 ```mermaid
 flowchart TB
-    cuvar["Cuvar sesije<br/>uzorak: 5 min aktivno, 30 min u strazi<br/>pomak po klonu iz hasha putanje"]
+    most["Telegram most<br/>uzorak: OLX_RESURSI_INTERVAL_MIN dok sesija zivi (default 5 min)<br/>OLX_RESURSI_INTERVAL_STRAZA_MIN dok sesije nema (default 30 min)<br/>pomak po klonu iz hasha putanje"]
     ps["Jedan poziv po uzorku:<br/>ps na macOS i Linux,<br/>Get-CimInstance na Windows"]
-    stablo["Zbir RSS-a stabla:<br/>sesija + MCP + bun poller"]
+    stablo["Zbir RSS-a stabla:<br/>sesija + MCP server"]
     masina["Stanje masine:<br/>MemAvailable / vm_stat / freemem,<br/>swap, load"]
     jsonl[(".olx-pik/resursi/resursi-YYYY-MM.jsonl<br/>fajl po mjesecu, cuva se 12 mjeseci<br/>CRNI spisak backupa")]
     cli["bun scripts/resursi.mjs<br/>pregled | izvjestaj | dijagnostika"]
     covjek["Vlasnik flote"]
 
-    cuvar --> ps --> stablo --> jsonl
-    cuvar --> masina --> jsonl
-    cuvar -->|"dogadjaji: start, pad,<br/>gasenje-straze (pun uzorak),<br/>budjenje sa hladnim startom"| jsonl
+    most --> ps --> stablo --> jsonl
+    most --> masina --> jsonl
+    most -->|"dogadjaji: cuvar-start, cuvar-gasenje (ime ostalo isto namjerno, flotna analiza ga vec cita),<br/>start, pad,<br/>budjenje (hladni start),<br/>gasenje-idle (pun uzorak PRIJE gasenja sesije)"| jsonl
     jsonl --> cli --> covjek
 ```
 
 Dvije stvari koje se pri citanju brojeva lako promase:
 
-- **Vrijeme u strazi se racuna iz parova `gasenje-straze` i `budjenje`**, ne iz udjela uzoraka. Kad
-  interval nije konstantan (5 min aktivno, 30 min u strazi), udio uzoraka daje sistematski pogresan
-  broj, a to je bas broj zbog kojeg se telemetrija i gleda. Udio uzoraka ostaje samo rezerva kad par
-  nije zatvoren.
+- **Vrijeme u mirovanju (bez zive sesije) se racuna iz parova dogadjaja `gasenje-idle` i
+  `budjenje`**, ne iz udjela uzoraka. Kad interval nije konstantan (5 min dok sesija zivi, 30 min
+  dok je ne postoji), udio uzoraka daje sistematski pogresan broj, a to je bas broj zbog kojeg se
+  telemetrija i gleda. Udio uzoraka ostaje samo rezerva kad par nije zatvoren.
 - **Zbir RSS-a je gornja granica**, jer duplo broji dijeljene biblioteke. Da li je masini tesko kazu
   slobodna memorija i swap, pa savjeti u izvjestaju ne prijavljuju curenje na osnovu samog rasta
   RSS-a.
 
-Detalji odluka i stanje rada: `olx-dokumentacija/radne-biljeske/telemetrija-resursa.md` i
+Detalji odluka i stanje rada (HISTORIJSKI, pisani dok je pogon bio cuvar/strazar):
+`olx-dokumentacija/radne-biljeske/telemetrija-resursa.md` i
 `olx-dokumentacija/radne-biljeske/strazar-rezim-razrada.md`.
 
-### 9.4 CPU po klonu i flotni nadzor (ista grana)
+### 9.4 CPU po klonu i flotni nadzor
 
 `SHEMA_VERZIJA 2` u `scripts/lib/resursi.mjs` dodaje `cpu_klona_pct`: CPU% stabla procesa jednog
-klona (sesija + MCP + bun poller), racunat preko `scripts/lib/cpu.mjs`. Isto obrazlozenje kao za
-9.2: racuna se iz DELTE kumulativnog CPU vremena izmedju dva mjerenja, nikad iz trenutnog `%cpu`
-iz `ps`, jer bi sesija koja satima miruje pa naglo pocne raditi sa trenutnim `%cpu` i dalje
-pokazivala nisko zauzece satima poslije budjenja (razvuceno na sve satove mirovanja) umjesto
-odgovora na pitanje "ko jede procesor UPRAVO SADA". Stariji redovi (sema 1) nemaju ovo polje;
-tretira se kao `null` ("klon jos nije nadogradjen"), nikad kao `0`.
+klona (sesija + MCP), racunat preko `scripts/lib/cpu.mjs`. Isto obrazlozenje kao za 9.3: racuna se
+iz DELTE kumulativnog CPU vremena izmedju dva mjerenja, nikad iz trenutnog `%cpu` iz `ps`, jer bi
+sesija koja satima miruje pa naglo pocne raditi sa trenutnim `%cpu` i dalje pokazivala nisko
+zauzece satima poslije budjenja (razvuceno na sve satove mirovanja) umjesto odgovora na pitanje
+"ko jede procesor UPRAVO SADA". Stariji redovi (sema 1) nemaju ovo polje; tretira se kao `null`
+("klon jos nije nadogradjen"), nikad kao `0`.
 
 Flotni posao `scripts/nadzor-flote.mjs` (deploy sablon
 `deploy/launchd/ba.codefactory.olx.ADMIN.nadzor-flote.plist`, instalira se rucno jednom kao AI
@@ -575,10 +540,16 @@ runda i nadzor backupa, vidi sekciju 3) obilazi sve klonove svaki dan:
 
 Pragovi u `PRAGOVI_DEFAULT` (`scripts/lib/analiza-flote.mjs`) su pocetna procjena, ne izvedena iz
 stvarne serije mjerenja: cekaju par sedmica stvarnih podataka prije podesavanja. Pragovi telemetrije
-resursa iz 9.1 (`OLX_RESURSI_PRAG_SLOBODNO_MB`, `OLX_RESURSI_PRAG_SWAP_OMJER`,
+resursa iz 9.3 (`OLX_RESURSI_PRAG_SLOBODNO_MB`, `OLX_RESURSI_PRAG_SWAP_OMJER`,
 `OLX_RESURSI_PRAG_ALARM_SATI`) su odvojen mehanizam, po klonu, dokumentovani u `.env.example`.
 
 Detalji odluka: `olx-dokumentacija/radne-biljeske/nadzor-flote-cpu.md`.
+
+**Sta je bilo prije:** do izdanja 0.18 pogon Telegram botova bio je `cuvar-sesije.mjs`, koji je
+drzao INTERAKTIVNU sesiju sa Telegram pluginom (vlastiti `bun` poller proces za `getUpdates`), uz
+opcion strazar rezim (`OLX_SESIJA_STRAZAR`) u kojem je cuvar sam preuzimao strazu nad Telegram
+tokenom kad sesija spava. Sve to je zamijenio `telegram-most.mjs`. Pomen ostaje jer se stariji
+klonovi i stara telemetrija jos mogu sresti.
 
 ## 10. Citanje kataloga: osigurac naspram budzeta vremena
 

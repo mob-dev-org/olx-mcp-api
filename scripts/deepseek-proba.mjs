@@ -14,7 +14,7 @@ import { ucitajEnvGlobalno } from "./lib/envfajl.mjs";
 const MALI_SKUP = ["olx_whoami", "olx_refresh_limits", "olx_sponsor_price"];
 
 // Konfiguracija se cita iz .env OVOG klona, isto odakle je cita i pogon sesije
-// (cuvar-sesije.mjs mapira OLX_DEEPSEEK_* u ANTHROPIC_* za taj proces). Prije je proba citala
+// (telegram-most.mjs mapira OLX_DEEPSEEK_* u ANTHROPIC_* za taj proces). Prije je proba citala
 // kljuc iz ~/.claude/deepseek.env, dakle sa mjesta koje pogon nikad ne vidi: proba je mogla
 // proci a sesija ne raditi, i obrnuto. Globalna putanja ostaje samo kao ispomoc kad .env nema
 // kljuc, jer je pravilo repoa da nista ne zivi globalno po masini.

@@ -147,17 +147,15 @@ for (const s of sesije) {
 
   // 4b. ako sesija tog klona VEC radi, zatrazi joj restart.
   //
-  // Zasto: `.env` se cita jednom, pri startu procesa (cuvar-sesije.mjs i MCP server). Sesija koja
-  // je krenula prije ovog upisa nema nov token i radila bi bez njega do nocnog restarta u 03:00.
-  // Fajl a ne signal, jer cuvar radi i na Windowsu gdje Node ne dostavlja SIGHUP.
-  // Kad cuvar ne radi (novi klon, sesija se jos nije ni pokrenula), nema sta da se restartuje.
-  // Most (scripts/telegram-most.mjs) preuzima isti posao za klijentske botove pa nosi isti
-  // marker kao cuvar sesije; upis oba markera kad oboje postoje (rijedak prelazni slucaj) je
-  // bezopasan jer je sadrzaj isti.
+  // Zasto: `.env` se cita jednom, pri startu procesa (telegram-most.mjs i MCP server). Sesija
+  // koja je krenula prije ovog upisa nema nov token i radila bi bez njega do nocnog restarta.
+  // Most na ovaj marker preuzme svjez `.env` i ugasi sesiju bez `--resume`. Fajl a ne signal, jer
+  // pogon radi i na Windowsu gdje Node ne dostavlja SIGHUP. Kad most ne radi (novi klon, sesija
+  // se jos nije ni pokrenula), nema sta da se restartuje.
+  // Imena PID fajlova i markera su iz scripts/lib/most.mjs (ulogaMosta), jedan izvor istine.
   for (const [pid, marker] of [
-    ["cuvar-sesije.pid", "restart-sesije"],
-    ["cuvar-admin-bota.pid", "restart-admin-bota"],
     ["most.pid", "restart-sesije"],
+    ["most-admin.pid", "restart-admin-bota"],
   ]) {
     if (!existsSync(resolve(klon, ".olx-pik", pid))) continue;
     try {

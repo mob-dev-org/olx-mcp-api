@@ -1,5 +1,8 @@
 # Telemetrija resursa pogona (radna biljeska, 12.08.2026)
 
+*Historijski zapis. Strazar rezim je penzionisan zajedno sa `cuvar-sesije.mjs`; vazece stanje
+otiska resursa je u `olx-dokumentacija/arhitektura.md`, sekcija 9.*
+
 Zasto postoji: vise klonova (jedan klon = jedan klijent) zivi na istoj masini, danas macOS laptop, u
 planu Linux, moguce i Windows. Vlasnik flote treba znati koliko mu koji klijent trosi i sta se moze
 poboljsati, a da za to ne pamti razlicite sistemske komande po platformi.

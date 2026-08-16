@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// CLI za telemetriju resursa (RSS memorije sesija/cuvara, stanje masine) koju uzorkuje
-// scripts/cuvar-sesije.mjs preko scripts/lib/resursi.mjs. Ovaj fajl NISTA ne uzorkuje sam:
+// CLI za telemetriju resursa (RSS memorije sesija/pogona, stanje masine) koju uzorkuje
+// scripts/telegram-most.mjs preko scripts/lib/resursi.mjs. Ovaj fajl NISTA ne uzorkuje sam:
 // samo cita zivo stanje (PID fajlovi + platformske sonde) i JSONL istoriju, pa formatira
 // citljiv sazetak. Sva racunica (agregacija, RSS stabla, sonde) zivi u lib/resursi.mjs.
 //
@@ -13,8 +13,9 @@
 // obradjuje SVAKI direktorij u `root-dir` koji ima podfolder `.olx-pik` (znak da je to klon).
 //
 // PID fajlove NIKAD ne izmisljamo: imena i format (goli broj + "\n") su potvrdjeni citanjem
-// scripts/cuvar-sesije.mjs (SESIJA_PID_FAJL, PID_FAJL konstante). Bez PID fajla ili sa mrtvim
-// procesom ovaj CLI kaze "ne radi" i ne pokusava nista drugo (ne trazi proces po cwd ni imenu).
+// scripts/lib/most.mjs (ulogaMosta), jedinog izvora istine za imena PID fajlova pogona. Bez
+// PID fajla ili sa mrtvim procesom ovaj CLI kaze "ne radi" i ne pokusava nista drugo (ne trazi
+// proces po cwd ni imenu).
 
 import { readFileSync, readdirSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
@@ -33,13 +34,18 @@ import {
 
 const KORIJEN = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-// Imena PID fajlova, tacno kako ih pise scripts/cuvar-sesije.mjs (ne dirati taj fajl, samo
-// citati): SESIJA_PID_FAJL je pid ZIVE sesije (dijete cuvara), PID_FAJL je pid samog cuvara.
-// "most" je scripts/telegram-most.mjs, nadzorni proces analogan cuvaru ali bez straze (poll ide
-// stalno umjesto samo dok sesija spava); ispis nize naziva nadzorni proces po `nazivCuvara` da
-// se "most" ne prikaze kao "Cuvar". "most-admin" je ista skripta pokrenuta u admin ulozi
-// (`bun scripts/telegram-most.mjs admin-bot`), sa vlastitim parom PID fajlova (scripts/lib/most.mjs,
-// ulogaMosta), da klijentski i admin most na istom klonu ne mogu jedan drugom zauzeti pid brave.
+// Imena PID fajlova, tacno kako ih pise scripts/telegram-most.mjs (scripts/lib/most.mjs,
+// ulogaMosta je jedan izvor istine, ne dirati ga, samo citati): SESIJA_PID_FAJL je pid ZIVE
+// sesije, PID_FAJL je pid samog pogona (mosta). "most" je klijentska uloga, "most-admin" ista
+// skripta pokrenuta u admin ulozi (`bun scripts/telegram-most.mjs admin-bot`), sa vlastitim
+// parom PID fajlova, da klijentski i admin most na istom klonu ne mogu jedan drugom zauzeti pid
+// bravu. Ispis nize naziva pogon po `nazivCuvara` ("Most").
+//
+// "klijent" i "admin-bota" su ZAOSTALI tipovi iz cuvarskih dana (scripts/cuvar-sesije.mjs, ukinut):
+// klon koji jos nije azuriran na telegram-most.mjs moze imati stare JSONL redove i stare PID
+// fajlove (cuvar-sesije.pid, sesija-klijent.pid, cuvar-admin-bota.pid, sesija-admin-bota.pid), pa
+// ih pregled i dalje mora umjeti procitati. Brisanje ovih stavki bi ucinilo staru telemetriju
+// necitljivom.
 const TIPOVI_SESIJA = [
   { tip: "klijent", sesijaPid: "sesija-klijent.pid", cuvarPid: "cuvar-sesije.pid", nazivCuvara: "Cuvar" },
   {
@@ -263,7 +269,7 @@ function mjeseciURasponu(od, doDatuma) {
 }
 
 // putanjaResursa moze vratiti APSOLUTNU putanju (OLX_RESURSI_DIR postavljen na apsolutnu
-// vrijednost, isto kao sto cuvar-sesije.mjs to dozvoljava pri pisanju). path.join na apsolutnu
+// vrijednost, isto kao sto telegram-most.mjs to dozvoljava pri pisanju). path.join na apsolutnu
 // drugu komponentu je NE tretira kao korijen vec je ugnijezdi ispod prve, pa se ovdje eksplicitno
 // preskace join kad je putanja vec apsolutna.
 function putanjaResursaZaKlon(korijenKlona, env, datum) {

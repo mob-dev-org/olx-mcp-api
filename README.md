@@ -144,14 +144,18 @@ Puna mapa sa dijagramima je u `olx-dokumentacija/arhitektura.md` — nju procita
   `bun scripts/pripremi-admin-runtime.mjs <bot_token> <tvoj_telegram_id> [id_admin_grupe]`.
   BotFather privacy za admin bota OSTAJE ukljucen (u grupi prima samo mention i reply);
   za klijentskog bota se privacy GASI.
-- **Cuvar sesija** `scripts/cuvar-sesije.mjs [klijent|admin-bot]`: drzi sesiju zivom, nocni
-  restart u 03h uz ciscenje inboxa, restart poslije mirovanja (klijent 2h, admin 1h) da
-  kontekst i trosak ne rastu kroz dan.
+- **Telegram most** `scripts/telegram-most.mjs [klijent|admin-bot]`: jedan dugoziv proces koji
+  sam radi `getUpdates` i sam salje `sendMessage` (bez Telegram plugina), drzi sesiju zivom dok
+  se radi. Gasi zivu sesiju (kontekst OSTAJE, `--resume` je nastavlja) poslije mirovanja
+  (`OLX_MOST_IDLE_MIN`, default 30 min; admin override `OLX_MOST_ADMIN_IDLE_MIN`), i gasi je uz
+  BRISANJE konteksta u nocnom rezu (`OLX_MOST_RESTART_SAT`, default 3h). Nijedna poruka se ne
+  gubi: Telegram offset se pomjera tek kad je poruka upisana u red na disku, a stavka izlazi iz
+  reda tek kad je odgovor poslan.
 - **Rucna proba sesije** `bun scripts/pokreni-klijenta.mjs`: ista klijentska sesija u ISTOM
   terminalu, na obje platforme (Windows PowerShell ukljucen); greska se vidi odmah, umjesto po
-  logu cuvara. Prije probe ugasi cuvara ako radi, da dvije sesije ne dijele isti bot token.
-  Telegram plugin zivi u `.claude-runtime/plugins/` (po klonu, ne globalno) i instaliraju ga
-  pripremi skripte same.
+  logu mosta. Prije probe ugasi posao `sesija` (telegram-most.mjs) ako radi, jer dva konzumera
+  na istom bot tokenu daju 409. Telegram plugin zivi u `.claude-runtime/plugins/` (po klonu, ne
+  globalno) i instaliraju ga pripremi skripte same.
 - **Cron poslovi bez modela** (nula tokena): snapshot pregleda 02:40, dnevne obnove i jutarnja
   poruka 07:20, backup stanja 08:10, sedmicni pregled ponedjeljkom 07:40. Vrti ih CLI
   (`posao dnevni`, `posao sedmicni`, `posao backup`, `stats snapshot`).

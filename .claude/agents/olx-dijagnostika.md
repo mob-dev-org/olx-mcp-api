@@ -12,7 +12,7 @@ mogao provjeriti.
 ## Checklista, redom
 
 0. **Preflight**: `bun scripts/provjeri-klon.mjs` — jedan potez pokrije verziju, konfiguraciju,
-   build, runtime, zakazane poslove, cuvara i snapshot. Cesto je cijela dijagnoza vec tu;
+   build, runtime, zakazane poslove, most i snapshot. Cesto je cijela dijagnoza vec tu;
    dalje korake radi za ono sto preflight ne vidi (zivi procesi u kvaru, logovi, audit).
 0b. **Koje izdanje klon vozi**: `bun scripts/provjeri-izdanje.mjs`. Vrijedi rano, jer mijenja
    citanje svega ostalog: simptom koji je nastao "od jucer" na klonu koji zaostaje za izdanjem
@@ -20,10 +20,11 @@ mogao provjeriti.
    `.olx-pik/audit.jsonl` (polje `version`), pa se iz loga vidi na kojem je kodu radnja izvrsena.
    Sta je uslo izmedju dva izdanja: `CHANGELOG.md`. Popravka je
    `bun scripts/azuriraj-ovaj-klon.mjs`, i to je komanda za admina, ne za tebe.
-1. **Procesi**: zive li cuvar i sesija?
-   - macOS/Linux: `pgrep -fl "cuvar-sesije|claude"`; Windows: `tasklist | findstr /i "node claude"`
-   - PID fajlovi: `.olx-pik/cuvar-sesije.pid`, `.olx-pik/cuvar-admin-bota.pid`,
-     `.olx-pik/sesija-klijent.pid` (poredi sa stvarnim procesima; mrtav pid u fajlu je nalaz)
+1. **Procesi**: zive li most i sesija?
+   - macOS/Linux: `pgrep -fl "telegram-most|claude"`; Windows: `tasklist | findstr /i "node claude"`
+   - PID fajlovi: `.olx-pik/most.pid`, `.olx-pik/most-admin.pid`,
+     `.olx-pik/sesija-most.pid`, `.olx-pik/sesija-most-admin.pid` (poredi sa stvarnim procesima;
+     mrtav pid u fajlu je nalaz)
 2. **Logovi**: rep svakog `.olx-pik/cron-*.log` (zadnjih ~30 redova); trazi ponovljene padove,
    "Sesija NIJE pokrenuta", "Limit", "AUTH", "TROSAK".
 3. **Zakazani poslovi**: macOS `launchctl list | grep ba.codefactory.olx`;

@@ -1,8 +1,9 @@
-// Uzorkovanje resursa (RSS memorije, stanje masine) za flotu klonova. Cuvar sesije (koji se vec
-// budi svakih 60s) zove ove funkcije da upise red u JSONL i kasnije napravi agregirani izvjestaj.
+// Uzorkovanje resursa (RSS memorije, stanje masine) za flotu klonova. Pogon sesije
+// (scripts/telegram-most.mjs, koji se vec budi periodicno) zove ove funkcije da upise red u
+// JSONL i kasnije napravi agregirani izvjestaj.
 //
-// Ovaj modul NE zna nista o cuvaru: prima pid sesije, stanje itd kao argumente, isti princip kao
-// straza.mjs. Sve zavisnosti (exec, platform, fs funkcije, sada/Date.now) idu kao argumenti
+// Ovaj modul NE zna nista o pogonu: prima pid sesije, stanje itd kao argumente, isti princip kao
+// scripts/lib/most.mjs. Sve zavisnosti (exec, platform, fs funkcije, sada/Date.now) idu kao argumenti
 // default parametara ka pravim implementacijama, modul sam ne cita process.env ni
 // process.platform (osim kao default vrijednost parametra). Nijedna javna funkcija ne baca
 // izuzetak napolje: sve je best effort, `null`/`false`/prazan niz na neuspjeh.
@@ -710,7 +711,8 @@ export function agregiraj(redovi) {
   const periodDana = periodMs / 86_400_000;
   if (periodDana >= 3 && straza.ms === 0) {
     savjeti.push(
-      "Sesija u ovom periodu nikad nije bila u strazi; provjeri OLX_SESIJA_STRAZAR i idle prag.",
+      "Sesija u ovom periodu nikad nije bila u strazi; provjeri OLX_MOST_IDLE_MIN (ili " +
+        "OLX_MOST_ADMIN_IDLE_MIN za admin ulogu) i da pogon (telegram-most.mjs) uopce radi.",
     );
   }
 

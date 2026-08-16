@@ -14,7 +14,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { ucitajEnvGlobalno } from "./lib/envfajl.mjs";
+import { ucitajEnvGlobalno, procitajEnv } from "./lib/envfajl.mjs";
 
 const KORIJEN = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(KORIJEN);
@@ -158,7 +158,7 @@ if (!existsSync(".env")) {
 
   if ((process.env.OLX_KLIJENT_AI ?? "pretplata").trim().toLowerCase() === "deepseek") {
     if (process.env.OLX_DEEPSEEK_BASE_URL && process.env.OLX_DEEPSEEK_AUTH_TOKEN) ok("DeepSeek pogon konfigurisan");
-    else fali("DeepSeek pogon", "OLX_KLIJENT_AI=deepseek a OLX_DEEPSEEK_* nije popunjen: cuvar odbija start", "popuni OLX_DEEPSEEK_BASE_URL i OLX_DEEPSEEK_AUTH_TOKEN u .env");
+    else fali("DeepSeek pogon", "OLX_KLIJENT_AI=deepseek a OLX_DEEPSEEK_* nije popunjen: sesija odbija start", "popuni OLX_DEEPSEEK_BASE_URL i OLX_DEEPSEEK_AUTH_TOKEN u .env");
   }
 
   // Kanal je eksperimentalna funkcija Claude Code-a i registruje se samo ako smije provjeriti
@@ -292,12 +292,28 @@ else paznja("KLIJENT-javno.md", "bot ne zna ton, footer ni granice klijenta", `$
   } else {
     const grupe = grupeIzAccessa(rt);
     ok("Telegram runtime pripremljen", `${grupe.length} ${grupe.length === 1 ? "grupa" : "grupa"} u access.json`);
+
+    // Token za most (isti OR redoslijed kao ucitajToken() u telegram-most.mjs): glavni .env je vec
+    // ucitan u process.env, a pripremi-runtime.mjs pise TELEGRAM_BOT_TOKEN SAMO u runtime .env.
+    // Postojanje fajla (provjereno gore) ne znaci da kljuc unutra ima vrijednost, pa se sadrzaj
+    // cita eksplicitno umjesto da se pretpostavi.
+    const tokenGlavni = (process.env.TELEGRAM_BOT_TOKEN ?? "").trim();
+    const tokenRuntime = (procitajEnv(join(tg, ".env")).TELEGRAM_BOT_TOKEN ?? "").trim();
+    if (tokenGlavni || tokenRuntime) {
+      ok("Telegram bot token (most)", tokenRuntime ? `u ${tg}/.env` : ".env");
+    } else {
+      fali(
+        "Telegram bot token (most)",
+        `nema TELEGRAM_BOT_TOKEN ni u .env ni u ${tg}/.env, most se ne moze pokrenuti`,
+        `upisi TELEGRAM_BOT_TOKEN u .env, ili ponovo bun scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>`,
+      );
+    }
   }
 
-  // Telegram plugin i njegov pogon. Ovo je do sada bila rupa: klon je prolazio preflight kao
-  // ispravan, a bot nije odgovarao. Jutarnje poruke to ne otkrivaju, jer njih salje cron kroz
-  // cist fetch (src/core/telegram.ts), potpuno mimo plugina i sesije. Kvar se vidi tek kad
-  // covjek pise botu i ne dobije odgovor.
+  // Telegram plugin. Pogon (scripts/telegram-most.mjs) ga NE koristi: most govori sa Telegramom
+  // direktno preko fetch/sendMessage, mimo `--channels` i mimo plugina. Plugin je potreban jos
+  // samo rucnoj probi zive sesije u prvom planu (scripts/pokreni-klijenta.mjs), pa njegovo
+  // odsustvo vise ne blokira klon, samo se javlja kao paznja.
   if (existsSync(rt)) {
     // Plugin cache ide PO config diru, ne globalno: klijentska sesija radi sa
     // CLAUDE_CONFIG_DIR=.claude-runtime, pa joj instalacija u ~/.claude ne znaci nista
@@ -314,22 +330,23 @@ else paznja("KLIJENT-javno.md", "bot ne zna ton, footer ni granice klijenta", `$
       // Instalaciju sada rade pripremi skripte same; kad plugin fali, njihova instalacija je
       // pala (najcesce: nema GitHub SSH kljuca za kloniranje marketplacea, ili nema mreze).
       // Komanda za popravku po platformi: prefiks dodjela i && ne postoje u PowerShellu 5.1.
-      fali(
+      paznja(
         "Telegram plugin",
-        `nije instaliran u ${rt}, pa sesija ne prima poruke (cron izvjestaji svejedno rade, zato se kvar previdi); auto instalaciju radi pripremi skripta, pad je najcesce SSH kljuc ili mreza`,
+        `nije instaliran u ${rt}; pogon (most) radi bez njega, treba jos samo rucnoj probi bun scripts/pokreni-klijenta.mjs; auto instalaciju radi pripremi skripta, pad je najcesce SSH kljuc ili mreza`,
         WIN
           ? `$env:CLAUDE_CONFIG_DIR="${rt}"; claude plugin marketplace add anthropics/claude-plugins-official; claude plugin install telegram@claude-plugins-official`
           : `CLAUDE_CONFIG_DIR=${rt} claude plugin marketplace add anthropics/claude-plugins-official && CLAUDE_CONFIG_DIR=${rt} claude plugin install telegram@claude-plugins-official`,
       );
     }
 
-    // Plugin dize svoj MCP server sa `bun run` (vidi njegov .mcp.json). Bez buna server ne krene,
-    // a greska se ne vidi nigdje osim u logu sesije.
-    if (komandaPostoji("bun")) ok("bun u PATH-u", "pogon Telegram plugina");
+    // Pogon (scripts/telegram-most.mjs) se pokrece Bunom direktno iz launchd/Task Scheduler
+    // posla (nema plugina ni interaktivne sesije izmedju): bez Buna u PATH-u posao ne krene
+    // uopste, a greska se ne vidi nigdje osim u logu cron posla.
+    if (komandaPostoji("bun")) ok("bun u PATH-u", "pogon (telegram-most.mjs)");
     else
       fali(
         "bun u PATH-u",
-        "Telegram plugin dize MCP server sa `bun run`, bez njega bot tiho ne odgovara",
+        "scripts/telegram-most.mjs se pokrece Bunom iz zakazanog posla, bez njega bot tiho ne odgovara",
         WIN ? 'powershell -c "irm bun.sh/install.ps1 | iex"' : "instaliraj bun: https://bun.sh",
       );
 
@@ -383,7 +400,7 @@ else paznja("KLIJENT-javno.md", "bot ne zna ton, footer ni granice klijenta", `$
     else
       fali(
         "Zakazani poslovi",
-        "nista nije registrovano: nema snapshota, jutarnje poruke ni cuvara",
+        "nista nije registrovano: nema snapshota, jutarnje poruke ni mosta",
         "powershell -ExecutionPolicy Bypass -File deploy/windows/instaliraj-zadatke.ps1",
       );
   } else {
@@ -400,13 +417,16 @@ else paznja("KLIJENT-javno.md", "bot ne zna ton, footer ni granice klijenta", `$
     const imena = ocekivano === 5 ? "snapshot, dnevno, sedmicno, sesija, backup" : "snapshot, dnevno, sedmicno, sesija";
     if (nasi.length >= ocekivano) ok("Zakazani poslovi (launchd)", `${nasi.length} poslova`);
     else if (nasi.length > 0) paznja("Zakazani poslovi", `samo ${nasi.length} od ocekivanih ${ocekivano}+ (${imena})`, "scripts/instaliraj-cron.sh");
-    else fali("Zakazani poslovi", "nista nije instalirano: nema snapshota, jutarnje poruke ni cuvara", "scripts/instaliraj-cron.sh");
+    else fali("Zakazani poslovi", "nista nije instalirano: nema snapshota, jutarnje poruke ni mosta", "scripts/instaliraj-cron.sh");
   }
 }
 
-// 8. Cuvar sesije radi
-{
-  const pidFajl = join(".olx-pik", "cuvar-sesije.pid");
+// 8. Most radi (scripts/telegram-most.mjs, PID brava po ulozi)
+//    Pogon: bun scripts/telegram-most.mjs (klijentski) i bun scripts/telegram-most.mjs admin-bot
+//    (admin). Instalira ih korak zakazanih poslova (sekcija 7), pa je PAZNJA ovdje normalna na
+//    svjeze podignutoj masini ili prije prve instalacije, ne blokira klon.
+function provjeriMost(naziv, pidIme) {
+  const pidFajl = join(".olx-pik", pidIme);
   let radi = false;
   try {
     const pid = Number(readFileSync(pidFajl, "utf8").trim());
@@ -415,8 +435,18 @@ else paznja("KLIJENT-javno.md", "bot ne zna ton, footer ni granice klijenta", `$
   } catch {
     // nema fajla ili proces mrtav
   }
-  if (radi) ok("Cuvar sesije radi");
-  else paznja("Cuvar sesije", "ne radi (normalno ako poslovi jos nisu instalirani ili je masina svjeze podignuta)", "instalira ga korak zakazanih poslova; rucna proba u prvom planu: bun scripts/pokreni-klijenta.mjs, a pogon: bun scripts/cuvar-sesije.mjs");
+  const uputa =
+    "pogon je scripts/instaliraj-cron.sh (macOS) odnosno deploy\\windows\\instaliraj-zadatke.ps1 (Windows); " +
+    "rucna proba u prvom planu (obradi sto ceka pa izadje): bun scripts/telegram-most.mjs --jednom";
+  if (radi) ok(naziv);
+  else paznja(naziv, "ne radi (normalno ako poslovi jos nisu instalirani ili je masina svjeze podignuta)", uputa);
+}
+provjeriMost("Most radi", "most.pid");
+// Admin most je opcion po klonu (isto uslovljavanje kao u scripts/instaliraj-cron.sh): stavka se
+// prikazuje samo kad ovaj klon uopste ima admin runtime, inace bi svaki klijentski klon bez admin
+// bota trajno prikazivao paznju za nesto sto tom klonu i ne treba.
+if (existsSync(".claude-runtime-admin")) {
+  provjeriMost("Admin most radi", "most-admin.pid");
 }
 
 // 9. Snapshot svjezina (temelj mjerenja pregleda)

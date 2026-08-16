@@ -46,7 +46,7 @@ test("veliko i prolazno se ne kopira", () => {
       ".olx-pik/test-audit.jsonl",
       ".olx-pik/cron-dnevno.log",
       ".olx-pik/pamcenje.json.tmp",
-      ".olx-pik/cuvar-sesije.pid",
+      ".olx-pik/most.pid",
       ".olx-pik/bulk-price.lock",
       ".olx-pik/prompt-klijent.md",
       ".olx-pik/most-stanje.json",

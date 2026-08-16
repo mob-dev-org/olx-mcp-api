@@ -116,7 +116,7 @@ bun scripts/pripremi-admin-runtime.mjs <admin_bot_token> <admin_telegram_id> [id
 
 - Prva komanda pravi `.claude-runtime/` (klijentska sesija), druga `.claude-runtime-admin/`
   (adminova sesija). Token svakog bota zivi u SVOM runtime folderu i sesije se ne mogu
-  pomijesati: cuvar svakoj kaze njen folder kroz CLAUDE_CONFIG_DIR.
+  pomijesati: most (`telegram-most.mjs`) svakoj kaze njen folder kroz CLAUDE_CONFIG_DIR.
 - Windows: kredencijali pretplate zive u config diru, pa jednom po runtime-u u PowerShellu
   `claude login`, i to PRIJE instalacije poslova (korak 5), jer instalater sesije startuje
   odmah. Prvo obavezni klijentski runtime AKO sesija ide na pretplatu
@@ -162,10 +162,10 @@ bun scripts/pokreni-klijenta.mjs
 ```
 
 Radi na obje platforme i greska se vidi ODMAH u prvom planu (pogresan login, plugin, bun,
-token), umjesto da se trazi po logu cuvara. Kad bot odgovori na "zdravo" u grupi, ugasi
-sesiju sa Ctrl+C pa tek onda instaliraj poslove. Redoslijed je bitan: cuvar iz koraka 5
-odmah digne svoju sesiju, a dvije sesije na istom bot tokenu se sudaraju na Telegramu
-(dupli odgovori, 409).
+token), umjesto da se trazi po logu mosta. Kad bot odgovori na "zdravo" u grupi, ugasi
+sesiju sa Ctrl+C pa tek onda instaliraj poslove. Redoslijed je bitan: posao `sesija`
+(telegram-most.mjs) iz koraka 5 odmah digne svoju sesiju, a dvije sesije na istom bot tokenu
+se sudaraju na Telegramu (dupli odgovori, 409).
 
 ## 5. Zakazani poslovi (snapshot, jutarnja poruka, sedmicni pregled, obje sesije)
 

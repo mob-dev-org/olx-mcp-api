@@ -1,7 +1,7 @@
 // Alarm van reda kad je masina pod pritiskom (malo slobodne memorije ili visok swap). Isti
-// princip kao straza.mjs (vidi TIHO_ALARM_MS/alarmPoslan): debounce da se isti alarm ne salje u
-// nedogled, ali sa dvoslojnom logikom jer je "masina" dijeljena izmedju vise klonova na istoj
-// fizickoj masini.
+// princip debouncea kao kod ostalih alarma u pogonu (vidi TIHO_ALARM_MS/alarmPoslan): da se isti
+// alarm ne salje u nedogled, ali sa dvoslojnom logikom jer je "masina" dijeljena izmedju vise
+// klonova na istoj fizickoj masini.
 //
 // Sve zavisnosti (fs funkcije, homedir) idu kao injektovani parametri default vrijednosti na
 // prave implementacije, isti princip kao resursi.mjs i klonovi.mjs: modul sam ne cita process.env

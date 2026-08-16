@@ -5,7 +5,7 @@
 // foldera i uzima one sa .olx-pik podfolderom (opcija --svi <root>). Ovaj modul objedinjuje obje
 // putanje iza jedne orkestracije (nadjiKlonove) sa preciznim prioritetom izvora.
 //
-// Isti princip kao resursi.mjs i straza.mjs: sve zavisnosti (fs funkcije, process.env,
+// Isti princip kao resursi.mjs i most.mjs: sve zavisnosti (fs funkcije, process.env,
 // os.homedir) idu kao injektovani parametri sa default vrijednostima na prave implementacije,
 // modul sam ne cita process.env ni os.homedir osim kao default vrijednost parametra. Nijedna
 // javna funkcija ne baca izuzetak napolje: sve je best effort.

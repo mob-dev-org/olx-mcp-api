@@ -800,7 +800,7 @@ test("agregiraj: savjet o strazi se pojavljuje kad sesija nikad nije bila u stra
     );
   }
   const r = agregiraj(redovi);
-  assert.ok(r.savjeti.some((s) => /strazi/i.test(s) && /OLX_SESIJA_STRAZAR/.test(s)));
+  assert.ok(r.savjeti.some((s) => /strazi/i.test(s) && /OLX_MOST_IDLE_MIN/.test(s)));
 });
 
 test("agregiraj: savjet o strazi se NE pojavljuje kad je perioda kratak ili je straza bila aktivna", () => {
@@ -809,7 +809,7 @@ test("agregiraj: savjet o strazi se NE pojavljuje kad je perioda kratak ili je s
     redUzorka({ ts: "2026-08-12T08:05:00.000Z", intervalMin: 5 }),
   ];
   const r = agregiraj(redovi);
-  assert.ok(!r.savjeti.some((s) => /OLX_SESIJA_STRAZAR/.test(s)));
+  assert.ok(!r.savjeti.some((s) => /OLX_MOST_IDLE_MIN/.test(s)));
 });
 
 test("agregiraj: NIKAD ne prijavljuje moguce curenje SAMO na osnovu rasta RSS-a (masina u redu)", () => {

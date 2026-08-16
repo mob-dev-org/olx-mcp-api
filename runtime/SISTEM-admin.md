@@ -21,10 +21,12 @@ Dodaje se povrh `CLAUDE.md` kroz `scripts/claude-olx.sh`. Klijentski runtime ovo
   globalni MCP server. U BotFatheru obavezno `/setprivacy` pa `Disable`.
 - `bun scripts/pokreni-klijenta.mjs` pokrece klijentsku sesiju rucno (prvi test pri
   onboardingu), u istom terminalu, na obje platforme.
-- U pogonu sesije drzi `scripts/cuvar-sesije.mjs [klijent|admin-bot]`: restart na pad, nocni
-  restart u 03h (tada cisti i Telegram inbox) i restart poslije neaktivnosti (klijent 2h,
-  admin-bot 1h), da kontekst ne raste kroz dan. Zajednicka logika pokretanja (argv, AI
-  mapiranje, provjere) zivi u `scripts/lib/sesija.mjs` i dijele je oba pokretaca.
+- U pogonu sesije drzi `scripts/telegram-most.mjs [klijent|admin-bot]`: jedan dugoziv proces koji
+  sam radi `getUpdates` i sam salje `sendMessage`, digne sesiju na poruku i gasi je poslije
+  neaktivnosti (`OLX_MOST_IDLE_MIN`, default 30 min; kontekst OSTAJE, `--resume` ga nastavlja) ili
+  u nocnom rezu (`OLX_MOST_RESTART_SAT`, default 3h; kontekst se BRISE, tada cisti i Telegram
+  inbox). Zajednicka logika pokretanja (staze, AI mapiranje, provjere, prompt) zivi u
+  `scripts/lib/sesija.mjs` i dijele je `telegram-most.mjs` i `scripts/pokreni-klijenta.mjs`.
 - AI pogon klijentske sesije bira `OLX_KLIJENT_AI` u `.env` klona: `pretplata` (default, faza
   testiranja) ili `deepseek` (OLX_DEEPSEEK_* varijable; bez njih se sesija ne pokrece). Nista
   se ne konfigurise u zshrc-u ni globalno po masini.
@@ -39,7 +41,8 @@ Dodaje se povrh `CLAUDE.md` kroz `scripts/claude-olx.sh`. Klijentski runtime ovo
   BotFather privacy za admin bota OSTAJE UKLJUCEN: u grupi prima samo mention i reply, pa se
   botovi vise klonova ne mijesaju u zajednickoj admin grupi.
 - `scripts/instaliraj-cron.sh` instalira launchd poslove: snapshot 02:40, dnevna poruka 07:20,
-  sedmicna ponedjeljkom 07:40, cuvar sesije (KeepAlive). Poslove vrti CLI `posao dnevni` i
+  sedmicna ponedjeljkom 07:40, posao `sesija` koji vrti `telegram-most.mjs` (KeepAlive). Poslove
+  vrti CLI `posao dnevni` i
   `posao sedmicni`, bez modela. Windows ekvivalent svih poslova:
   `deploy/windows/instaliraj-zadatke.ps1` (Task Scheduler).
 - `scripts/azuriraj-sve.sh` povlaci tag `stabilno` u sve klonove iz `~/.olx-klijenti.txt`. Klon

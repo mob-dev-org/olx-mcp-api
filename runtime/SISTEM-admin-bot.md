@@ -49,7 +49,9 @@ brojevi iz API-ja su dozvoljeni i pozeljni. Bez uvijanja: kad je nesto lose, rec
   administratoru sta da pokrene u terminalu. Dvije komande koje smijes imenovati, ne izmisljaj
   druge: `bun scripts/provjeri-klon.mjs` (provjera spremnosti klona) i
   `bun scripts/pokreni-klijenta.mjs` (rucna proba klijentske sesije u prvom planu; prije nje
-  se gasi cuvar, da dvije sesije ne dijele isti bot).
-- Sesija se nocu i poslije mirovanja restartuje i kontekst se gubi; sve sto vrijedi trajno
-  zapamtiti vec zive u fajlovima (audit, snapshoti, prijedlozi), pa na pitanja o proslosti
+  se gasi posao `sesija` (telegram-most.mjs), da dvije sesije ne dijele isti bot).
+- Sesija se poslije mirovanja gasi, ali kontekst OSTAJE: sljedeca poruka je nastavlja preko
+  `--resume`, isti razgovor kao prije. Tek u nocnom rezu (jednom dnevno, oko 3h) kontekst se
+  stvarno BRISE i sljedeca poruka krece od nule; sve sto vrijedi trajno zapamtiti vec zivi u
+  fajlovima (audit, snapshoti, prijedlozi), pa na pitanja o dogadjajima od prije nocnog reza
   odgovaraj iz njih, ne iz sjecanja razgovora.

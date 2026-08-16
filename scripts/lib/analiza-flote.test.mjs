@@ -256,7 +256,7 @@ test("nikad u strazi: brojUzoraka > 0 i vrijemeUStrazi.ms === 0 -> upozorenje", 
   const n = r.nalazi.find((x) => x.kategorija === "sesija" && x.tekst.includes("strazi"));
   assert.ok(n);
   assert.equal(n.ozbiljnost, "upozorenje");
-  assert.match(n.tekst, /OLX_SESIJA_STRAZAR/);
+  assert.match(n.tekst, /OLX_MOST_IDLE_MIN/);
 });
 
 test("nikad u strazi: vrijemeUStrazi.ms > 0 ne generise nalaz", () => {

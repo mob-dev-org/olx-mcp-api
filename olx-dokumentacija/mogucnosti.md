@@ -362,13 +362,12 @@ ADMIN poslovi nemaju Windows blizanca namjerno: admin masina na Windowsu nije up
 
 ## Varijable okruzenja u cijelom repou
 
-Ukupno 112 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 103 cini konfiguraciju klona.
+Ukupno 109 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 100 cini konfiguraciju klona.
 
 Ostale dolaze iz okoline (harness sesije, plugin loader, proxy) i u `.env.example` namjerno ne stoje: klijent ih ne postavlja rukom. Zato se prazna kolona kod njih ne racuna kao propust.
 
 Varijable koje kod cita a kojih nema u `.env.example` (moguc propust u primjeru, klijent ne vidi da postoje):
 
-- OLX_MOST_ADMIN_IDLE_MIN
 - OLX_PODSJETNIK_RESURSI_ROK_MS
 - OLX_SESIJA_
 - OLX_SNAPSHOT_U_TOKU_FILE
@@ -416,7 +415,7 @@ Nema takvih.
 | OLX_KLIJENT | konfiguracija klona | 3 | scripts/provjeri-klon.mjs, src/core/git-stanje.test.ts, src/core/git-stanje.ts | da |
 | OLX_KLIJENTI_POPIS | konfiguracija klona | 6 | deploy/launchd/ba.codefactory.olx.ADMIN.nadzor-flote.plist, deploy/windows/azuriraj.ps1, scripts/ai-runda.sh, scripts/azuriraj-sve.sh, scripts/backup-nadzor.sh, scripts/lib/klonovi.mjs | da |
 | OLX_KLIJENTI_ROOT | konfiguracija klona | 4 | deploy/launchd/ba.codefactory.olx.ADMIN.nadzor-flote.plist, scripts/lib/klonovi.mjs, scripts/lib/klonovi.test.mjs, scripts/nadzor-flote.mjs | da |
-| OLX_KLIJENT_AI | konfiguracija klona | 6 | deploy/windows/instaliraj-zadatke.ps1, scripts/ai-runda.sh, scripts/cuvar-sesije.mjs, scripts/lib/sesija.mjs, scripts/lib/sesija.test.mjs, scripts/lib/straza.mjs | da |
+| OLX_KLIJENT_AI | konfiguracija klona | 6 | deploy/windows/instaliraj-zadatke.ps1, scripts/ai-runda.sh, scripts/lib/sesija.mjs, scripts/lib/sesija.test.mjs, scripts/pokreni-klijenta.mjs, scripts/pripremi-runtime.mjs | da |
 | OLX_KVOTA_DNEVNIK_FILE | konfiguracija klona | 1 | src/core/kvota-dnevnik.ts | da |
 | OLX_MASINA_ALARM_FAJL | konfiguracija klona | 2 | scripts/lib/pritisak-masine.mjs, scripts/lib/pritisak-masine.test.mjs | da |
 | OLX_MAX_OGLASA_U_ODGOVORU | konfiguracija klona | 1 | src/core/config.ts | da |
@@ -427,8 +426,8 @@ Nema takvih.
 | OLX_MAX_TRAJANJE_SNAPSHOT_PROLAZA_MS | konfiguracija klona | 2 | scripts/lib/stats-snapshot.test.mjs, src/core/config.ts | da |
 | OLX_MCP_PROFILE | konfiguracija klona | 6 | scripts/kontekst-izvjestaj.mjs, scripts/lib/mcp-profil.test.mjs, scripts/lib/popis-kod.mjs, scripts/lib/sesija.mjs, scripts/lib/sesija.test.mjs, scripts/pripremi-runtime.mjs | da |
 | OLX_MIN_REQUEST_INTERVAL_MS | konfiguracija klona | 3 | scripts/lib/pokreni-cli.mjs, src/core/client.test.ts, src/core/config.ts | da |
-| OLX_MOST_ADMIN_IDLE_MIN | konfiguracija klona | 1 | scripts/telegram-most.mjs |  |
-| OLX_MOST_IDLE_MIN | konfiguracija klona | 2 | deploy/launchd/ba.codefactory.olx.KLIJENT.sesija.plist, scripts/telegram-most.mjs | da |
+| OLX_MOST_ADMIN_IDLE_MIN | konfiguracija klona | 2 | scripts/lib/resursi.mjs, scripts/telegram-most.mjs | da |
+| OLX_MOST_IDLE_MIN | konfiguracija klona | 6 | deploy/launchd/ba.codefactory.olx.KLIJENT.sesija.plist, scripts/lib/analiza-flote.mjs, scripts/lib/analiza-flote.test.mjs, scripts/lib/resursi.mjs, scripts/lib/resursi.test.mjs, scripts/telegram-most.mjs | da |
 | OLX_MOST_POTEZ_TIMEOUT_MS | konfiguracija klona | 1 | scripts/telegram-most.mjs | da |
 | OLX_MOST_RESTART_SAT | konfiguracija klona | 2 | deploy/launchd/ba.codefactory.olx.KLIJENT.sesija.plist, scripts/telegram-most.mjs | da |
 | OLX_NADZOR_DIR | konfiguracija klona | 2 | deploy/launchd/ba.codefactory.olx.ADMIN.nadzor-flote.plist, scripts/nadzor-flote.mjs | da |
@@ -439,19 +438,16 @@ Nema takvih.
 | OLX_PRIJEDLOZI_DIR | konfiguracija klona | 2 | src/core/backup-spisak.ts, src/core/prijedlozi.ts | da |
 | OLX_PROVJERA_IZDANJA_ROK_MS | konfiguracija klona | 1 | scripts/provjeri-izdanje.mjs | da |
 | OLX_PUBLIC_URL | konfiguracija klona | 2 | src/core/link.test.ts, src/core/link.ts | da |
-| OLX_RESURSI_DIR | konfiguracija klona | 6 | scripts/cuvar-sesije.mjs, scripts/lib/resursi.mjs, scripts/lib/resursi.test.mjs, scripts/nadzor-flote.mjs, scripts/resursi.mjs, scripts/telegram-most.mjs | da |
-| OLX_RESURSI_INTERVAL_MIN | konfiguracija klona | 2 | scripts/cuvar-sesije.mjs, scripts/telegram-most.mjs | da |
-| OLX_RESURSI_INTERVAL_STRAZA_MIN | konfiguracija klona | 2 | scripts/cuvar-sesije.mjs, scripts/telegram-most.mjs | da |
-| OLX_RESURSI_PRAG_ALARM_SATI | konfiguracija klona | 2 | scripts/cuvar-sesije.mjs, scripts/telegram-most.mjs | da |
-| OLX_RESURSI_PRAG_SLOBODNO_MB | konfiguracija klona | 2 | scripts/cuvar-sesije.mjs, scripts/telegram-most.mjs | da |
-| OLX_RESURSI_PRAG_SWAP_OMJER | konfiguracija klona | 2 | scripts/cuvar-sesije.mjs, scripts/telegram-most.mjs | da |
+| OLX_RESURSI_DIR | konfiguracija klona | 5 | scripts/lib/resursi.mjs, scripts/lib/resursi.test.mjs, scripts/nadzor-flote.mjs, scripts/resursi.mjs, scripts/telegram-most.mjs | da |
+| OLX_RESURSI_INTERVAL_MIN | konfiguracija klona | 1 | scripts/telegram-most.mjs | da |
+| OLX_RESURSI_INTERVAL_STRAZA_MIN | konfiguracija klona | 1 | scripts/telegram-most.mjs | da |
+| OLX_RESURSI_PRAG_ALARM_SATI | konfiguracija klona | 1 | scripts/telegram-most.mjs | da |
+| OLX_RESURSI_PRAG_SLOBODNO_MB | konfiguracija klona | 1 | scripts/telegram-most.mjs | da |
+| OLX_RESURSI_PRAG_SWAP_OMJER | konfiguracija klona | 1 | scripts/telegram-most.mjs | da |
 | OLX_RITAM_FILE | konfiguracija klona | 1 | src/core/ritam-obnova.ts | da |
 | OLX_SESIJA_ | konfiguracija klona | 1 | scripts/telegram-most.mjs |  |
 | OLX_SESIJA_BEZ_PTY | konfiguracija klona | 1 | scripts/lib/sesija.mjs | da |
-| OLX_SESIJA_IDLE_SATI | konfiguracija klona | 2 | scripts/cuvar-sesije.mjs, scripts/lib/straza.mjs | da |
-| OLX_SESIJA_INBOX_DANA | konfiguracija klona | 3 | scripts/cuvar-sesije.mjs, scripts/telegram-most.mjs, src/core/slike-ciscenje.ts | da |
-| OLX_SESIJA_RESTART_SAT | konfiguracija klona | 1 | scripts/cuvar-sesije.mjs | da |
-| OLX_SESIJA_STRAZAR | konfiguracija klona | 6 | scripts/cuvar-sesije.mjs, scripts/lib/analiza-flote.mjs, scripts/lib/analiza-flote.test.mjs, scripts/lib/resursi.mjs, scripts/lib/resursi.test.mjs, scripts/lib/straza.mjs | da |
+| OLX_SESIJA_INBOX_DANA | konfiguracija klona | 2 | scripts/telegram-most.mjs, src/core/slike-ciscenje.ts | da |
 | OLX_SESIJA_TIP | konfiguracija klona | 6 | scripts/kontekst-izvjestaj.mjs, scripts/lib/mcp-profil.test.mjs, scripts/lib/popis-kod.mjs, scripts/lib/popis-okruzenje.mjs, scripts/lib/sesija.mjs, scripts/lib/sesija.test.mjs |  |
 | OLX_SLIKA_API_KEY | konfiguracija klona | 6 | scripts/lib/popis-kod.mjs, src/core/slika.test.ts, src/core/slika.ts, src/core/vid.test.ts, src/core/vid.ts, src/mcp/server.ts | da |
 | OLX_SLIKA_BASE_URL | konfiguracija klona | 1 | src/core/slika.ts | da |
@@ -479,7 +475,7 @@ Nema takvih.
 | OLX_TELEGRAM_ACCESS_FILE_ADMIN | konfiguracija klona | 1 | src/core/telegram-grupe.ts | da |
 | OLX_TEST_IMGLY | konfiguracija klona | 1 | src/core/slaganje.test.ts |  |
 | OLX_TIMEOUT_MS | konfiguracija klona | 2 | src/core/client.test.ts, src/core/config.ts | da |
-| OLX_TOKEN | konfiguracija klona | 6 | deploy/windows/instaliraj-zadatke.ps1, scripts/ai-runda.sh, scripts/cuvar-sesije.mjs, scripts/lib/envfajl.mjs, scripts/lib/mcp-profil.test.mjs, scripts/lib/pokreni-cli.mjs | da |
+| OLX_TOKEN | konfiguracija klona | 6 | deploy/windows/instaliraj-zadatke.ps1, scripts/ai-runda.sh, scripts/lib/envfajl.mjs, scripts/lib/mcp-profil.test.mjs, scripts/lib/pokreni-cli.mjs, scripts/lib/sesija.mjs | da |
 | OLX_USERNAME | konfiguracija klona | 3 | scripts/provjeri-klon.mjs, src/core/config.ts, src/core/index.ts | da |
 | OLX_VID_API_KEY | konfiguracija klona | 6 | scripts/lib/popis-kod.mjs, src/core/telefon-ekstrakcija.test.ts, src/core/telefon-ekstrakcija.ts, src/core/vid.test.ts, src/core/vid.ts, src/mcp/server.ts | da |
 | OLX_VID_MAX_DNEVNO | konfiguracija klona | 2 | src/core/vid.test.ts, src/core/vid.ts | da |
@@ -489,9 +485,9 @@ Nema takvih.
 | PIKGPT_PULL_SECRET | konfiguracija klona | 1 | scripts/lib/podesavanja.mjs | da |
 | PIKGPT_WORKER_BASE | konfiguracija klona | 2 | scripts/lib/podesavanja.mjs, scripts/onboarding-uzivo.mjs | da |
 | TELEGRAM_ADMIN_CHAT_ID | konfiguracija klona | 6 | deploy/windows/azuriraj.ps1, scripts/ai-runda.sh, scripts/azuriraj-sve.sh, scripts/backup-nadzor.sh, scripts/nadzor-flote.mjs, scripts/onboarding-puller.mjs | da |
-| TELEGRAM_BOT_TOKEN | konfiguracija klona | 6 | deploy/windows/azuriraj.ps1, deploy/windows/instaliraj-zadatke.ps1, scripts/ai-runda.sh, scripts/azuriraj-sve.sh, scripts/backup-nadzor.sh, scripts/cuvar-sesije.mjs | da |
+| TELEGRAM_BOT_TOKEN | konfiguracija klona | 6 | deploy/windows/azuriraj.ps1, deploy/windows/instaliraj-zadatke.ps1, scripts/ai-runda.sh, scripts/azuriraj-sve.sh, scripts/backup-nadzor.sh, scripts/instaliraj-cron.sh | da |
 | TELEGRAM_CHAT_ID | konfiguracija klona | 5 | scripts/onboarding-puller.mjs, scripts/provjeri-klon.mjs, src/cli/index.ts, src/core/telegram.test.ts, src/core/telegram.ts | da |
-| TELEGRAM_STATE_DIR | konfiguracija klona | 5 | scripts/lib/sesija.mjs, scripts/lib/sesija.test.mjs, scripts/lib/straza.mjs, scripts/pripremi-runtime.mjs, scripts/proba-kanala.mjs | da |
+| TELEGRAM_STATE_DIR | konfiguracija klona | 4 | scripts/lib/sesija.mjs, scripts/lib/sesija.test.mjs, scripts/pripremi-runtime.mjs, scripts/proba-kanala.mjs | da |
 
 ## Skillovi
 

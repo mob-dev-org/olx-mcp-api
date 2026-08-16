@@ -125,6 +125,6 @@ if (process.platform === "win32") {
   stavka("Instaliraj poslove: powershell -File deploy\\windows\\instaliraj-zadatke.ps1");
 } else {
   stavka("macOS: login ne treba (pretplata je u Keychainu, zajednicka za sve sesije).");
-  stavka("Instaliraj poslove ponovo da se doda cuvar admin bota: scripts/instaliraj-cron.sh");
+  stavka("Instaliraj poslove ponovo da se doda pogon admin bota: scripts/instaliraj-cron.sh");
 }
-stavka("Rucni test: bun scripts/cuvar-sesije.mjs admin-bot");
+stavka("Rucni test: bun scripts/telegram-most.mjs admin-bot --jednom");

@@ -27,9 +27,14 @@ Ucitava se samo kad se diraju skripte ili deploy. Mapa cijelog pogona:
 
 ## Ugovori koji se lako zaborave
 
-- Argv, AI mapiranje, provjere i sastavljanje prompta sesije zive SAMO u
-  `scripts/lib/sesija.mjs`; `scripts/cuvar-sesije.mjs` i `scripts/pokreni-klijenta.mjs` ih
-  importuju i ne smiju dodavati vlastite claude argumente mimo `claudeArgv`.
+- Staze, provjere, AI mapiranje i sastavljanje prompta sesije zive SAMO u
+  `scripts/lib/sesija.mjs` (`stazeSesije`, `provjeriPreduslove`, `aiPogon`, `sastaviPrompt`,
+  `okruzenjeSesije`); `scripts/pokreni-klijenta.mjs` i `scripts/telegram-most.mjs` ih importuju.
+  Argv je razlika: `pokreni-klijenta.mjs` ide preko `claudeArgv` (interaktivni `--channels` put),
+  a `telegram-most.mjs` sastavlja svoj headless `-p`/`stream-json` argv u `scripts/lib/most.mjs`
+  (`argviSesije`), jer most sa sesijom razgovara kroz stdin/stdout i treba drugaciji spawn
+  (stdio pipe, ne pty). Oba pokretaca ipak dijele isti `sesija.mjs` za sve sto NIJE argv, pa se
+  ne mogu raziici u tome kako biraju runtime, AI pogon ili prompt.
 - Sistemski prompt sesije se SASTAVLJA (`scripts/sastavi-prompt.mjs`), ne predaje se direktno:
   `--append-system-prompt-file` nije aditivan, sa dva fajla vazi samo zadnji (izmjereno
   30.07.2026). Ko doda novi dio prompta, dodaje ga u sastavljac.
@@ -84,16 +89,21 @@ Ucitava se samo kad se diraju skripte ili deploy. Mapa cijelog pogona:
 - Otkrivanje grupa preko `getUpdates` se NE pokusava. Zivu sesiju drzi Telegram plugin i on je
   jedini konzumer pollinga; drugi bi joj krao poruke. Zato ni `my_chat_member` nije dostupan i
   id nove grupe se ocita rucno.
-- **Izuzetak: strazar rezim.** Zabrana iznad vazi dok sesija ZIVI: dva `getUpdates` konzumera na
-  istom tokenu daju 409 Conflict. Cuvar u strazar rezimu (`OLX_SESIJA_STRAZAR`) smije pollovati,
-  ali SAMO dok je sesija ugasena, i mora prestati prije nego je digne.
-- Straza nikad ne salje `offset`. Offsetom se update POTVRDJUJE, a potvrdjena poruka je pojedena
-  poruka: obradjuje je plugin kad sesija ustane, ne cuvar.
-- Straza nikad ne salje `allowed_updates`. Telegram PAMTI zadnju poslanu postavku (izostavljen
-  parametar znaci "koristi prethodnu"), pa bi straza koja ga posalje suzila set tipova update-a i
-  sebi i pluginu, sve do sljedeceg starta plugina.
-- Straza zove samo `getUpdates` i `sendChatAction`, nikad `deleteWebhook`, `setWebhook` ni
-  `setMyCommands`.
+- **Telegram most (`scripts/telegram-most.mjs`) je legitimni direktni konzument Telegram API-ja,
+  ne izuzetak od zabrane iznad.** Zabrana "ne pokusavati otkrivanje preko `getUpdates`" vazi za
+  DODATNE konzumere pored zive sesije (npr. rucna proba `pokreni-klijenta.mjs` dok most radi);
+  most je JEDINI konzument u produkciji, jer plugina i njegovog pollera vise nema. Zato se most i
+  rucna proba ne smiju voditi istovremeno na istom bot tokenu: dva `getUpdates` konzumera daju 409
+  Conflict, pa se posao `sesija` (most) gasi PRIJE `pokreni-klijenta.mjs`, ne obrnuto.
+- Most zove `getUpdates`, `sendChatAction`, `sendMessage`, `sendPhoto` i `getFile`; nikad
+  `deleteWebhook`, `setWebhook` ni `setMyCommands`.
+- Most pomjera `offset` SAMO nakon sto je poruka upisana u red na disku (fsync kroz rename), ne
+  ranije: to je i jedini nacin da nijedna poruka ne bude potvrdjena a nikad obradjena. Isto pravilo
+  vazi na izlazu iz reda: stavka se brise SAMO nakon sto je odgovor poslan na Telegram. Pad izmedju
+  ta dva trenutka znaci ponovnu obradu (isporuka najmanje jednom), nikad gubljenje poruke.
+- Most salje `allowed_updates: ["message"]` eksplicitno pri svakom `getUpdates` pozivu (za razliku
+  od stare straze, koja ga NIJE smjela slati dok je pored nje postojao plugin sa svojom
+  postavkom): most je danas jedini konzument, pa nema tudju postavku koju bi mogao pregaziti.
 - Prelazak grupe u supergrupu MIJENJA `chat_id`. Zato `telegram grupe provjeri` mrtvu grupu samo
   javi adminu i nikad je ne uklanja sam: isti unos je i dozvola za dolazne poruke, pa bi ga jedna
   HTTP greska utisala u oba smjera.

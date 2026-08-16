@@ -301,7 +301,7 @@ function analizirajStrazu(klon, memorijaAgregat) {
     return nalaz(
       "sesija",
       klon,
-      `${klon}: nije bio u strazi nijednom u periodu, provjeri OLX_SESIJA_STRAZAR.`,
+      `${klon}: nije bio u strazi nijednom u periodu, provjeri OLX_MOST_IDLE_MIN i da pogon radi.`,
       "upozorenje",
     );
   }

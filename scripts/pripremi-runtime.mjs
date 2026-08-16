@@ -126,5 +126,7 @@ if (process.platform === "win32") {
   stavka("Rucni test sesije (u istom terminalu): bun scripts/pokreni-klijenta.mjs");
 } else {
   stavka("Instaliraj poslove: scripts/instaliraj-cron.sh");
-  stavka("Rucni test sesije: bun scripts/pokreni-klijenta.mjs ili bun scripts/cuvar-sesije.mjs");
+  stavka(
+    "Rucni test sesije: bun scripts/pokreni-klijenta.mjs ili bun scripts/telegram-most.mjs --jednom",
+  );
 }

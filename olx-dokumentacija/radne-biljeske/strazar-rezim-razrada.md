@@ -1,5 +1,8 @@
 # Strazar rezim cuvara: razrada prije implementacije
 
+*Historijski zapis. Strazar rezim je penzionisan zajedno sa `cuvar-sesije.mjs`; vazece stanje
+otiska resursa je u `olx-dokumentacija/arhitektura.md`, sekcija 9.*
+
 Datum: 12.08.2026. Grana: `arhitektura-manji-resursi`. Nastavak na
 `analiza-manji-resursi.md` (tacka o hipotezi 3). Ovo je specifikacija namjere; plan
 implementacije radi tehnicki vodja i vraca ga na pregled prije izvrsenja.

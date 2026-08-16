@@ -1,5 +1,8 @@
 # Analiza: manji otisak resursa pogona
 
+*Historijski zapis. Strazar rezim je penzionisan zajedno sa `cuvar-sesije.mjs`; vazece stanje
+otiska resursa je u `olx-dokumentacija/arhitektura.md`, sekcija 9.*
+
 Datum: 12.08.2026. Grana: `arhitektura-manji-resursi`. Nalazi iz tri nezavisna pregleda:
 mjerenje procesa na admin masini, mapa pogona u produkciji, i mjerenje sprege modula kroz
 import graf i istoriju commita.

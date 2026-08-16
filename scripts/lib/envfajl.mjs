@@ -6,7 +6,7 @@
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 
-// Ulazne skripte (cuvar-sesije, pokreni-klijenta, ...) i dalje zele globalni process.env, isti
+// Ulazne skripte (telegram-most, pokreni-klijenta, ...) i dalje zele globalni process.env, isti
 // obrazac kao process.loadEnvFile. Bun tu funkciju NEMA (izmjereno 15.08.2026: TypeError, "is not
 // a function"), ali to je bezopasno: Bun SAM, prije nego ijedna linija skripte krene, ucita .env
 // iz tekuceg direktorija u process.env (nativna Bun osobina, bez ikakvog poziva). Zato je pod

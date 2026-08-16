@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // Podsjetnik pri pokretanju sesije: kratak pregled potrosnje resursa OVOG klona (RSS sesije,
-// cuvara, stanje masine), da se telemetrija koju cuvar-sesije.mjs vec skuplja i stvarno pogleda,
+// pogona, stanje masine), da se telemetrija koju telegram-most.mjs vec skuplja i stvarno pogleda,
 // ne samo lezi u .olx-pik/resursi/*.jsonl neprocitana.
 //
 // Tih je u KLIJENTSKOJ bot sesiji, isti razlog i ista provjera kao provjeri-izdanje.mjs: izlaz

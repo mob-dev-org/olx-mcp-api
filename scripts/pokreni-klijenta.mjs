@@ -6,7 +6,7 @@
 //
 // Bun umjesto basha namjerno (pravilo pogona): .sh na Windowsu ili ne postoji ili ga sistem
 // otvara kroz Git Bash u novom prozoru. Sva logika (provjere, AI pogon, argv, spawn) zivi u
-// scripts/lib/sesija.mjs i dijeli se sa cuvarem (scripts/cuvar-sesije.mjs), pa se rucna sesija
+// scripts/lib/sesija.mjs i dijeli se sa pogonom (scripts/telegram-most.mjs), pa se rucna sesija
 // i pogon ne mogu raziici.
 //
 // Razlika naspram scripts/claude-olx.sh (koji je za razvojni rad) i scripts/claude-ds.mjs

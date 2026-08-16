@@ -1,6 +1,6 @@
 // Zajednicka logika pokretanja Claude sesije (klijent i admin-bot): staze, provjere, AI
 // mapiranje, sastavljanje prompta, argv i spawn. Jedno mjesto istine koje koriste
-// scripts/cuvar-sesije.mjs (pogon na obje platforme) i scripts/pokreni-klijenta.mjs (rucni
+// scripts/telegram-most.mjs (pogon na obje platforme) i scripts/pokreni-klijenta.mjs (rucni
 // launcher), pa se pokretaci ne mogu raziici. Ranije je isti kod zivio u dvije kopije, uz
 // ugovor "kad se mijenja jedno, mijenja se i drugo", i vec se jednom razisao (bash je citao
 // .env grepom bez toLowerCase, pa je OLX_KLIJENT_AI=DeepSeek tiho padao na pretplatu).

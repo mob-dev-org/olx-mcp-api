@@ -4,7 +4,7 @@
 // Zasto postoji: isto je radila zsh funkcija `claude-ds` iz ~/.zshrc, ali to je konfiguracija
 // globalna po masini, sto CLAUDE.md zabranjuje ("sva konfiguracija zivi u repou i .env"). Zato je
 // na Windowsu i nije bilo. Ova skripta radi isto na obje platforme i cita kljuc sa istog mjesta
-// odakle ga cita pogon klijentske sesije (cuvar-sesije.mjs), pa se ne moze dogoditi da rucna
+// odakle ga cita pogon klijentske sesije (telegram-most.mjs), pa se ne moze dogoditi da rucna
 // sesija radi a bot ne, ili obrnuto.
 //
 // Varijable vaze SAMO unutar procesa koji ova skripta pokrene. Nista se ne exportuje u shell.
