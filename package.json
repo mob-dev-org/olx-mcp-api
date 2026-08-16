@@ -1,6 +1,6 @@
 {
   "name": "olx-pik-toolkit",
-  "version": "0.17.2",
+  "version": "0.18.0",
   "description": "Interni CLI i MCP server za upravljanje OLX.ba / PIK.ba shopovima",
   "type": "module",
   "bin": {
