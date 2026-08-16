@@ -61,6 +61,11 @@ stoji u `src/core/gemini.ts` i vraca na flash default.
   koristi korijenski sharp 0.34 sa gotovim `@img/*` binarima, platformski neutralno) i prazan
   `trustedDependencies` (nijedna postinstall skripta se ne pokrece). Postojece komande se ne
   mijenjaju, `bun install --frozen-lockfile` na floti prolazi kao i prije.
+- **`bun install` ce pri tom ispisati `install script from "sharp" exited with 1`. To NIJE greska
+  i nista se ne prekida** (izlazni kod ostaje 0, provjereno na svjezem klonu): to je sharp koji
+  pokusa build from source, a binarni dio mu ionako dolazi gotov kroz `@img/*` pakete. Poslije
+  toga i sharp i imgly rade. Ako se ta poruka ikad pretvori u stvaran pad, prvo pogledaj jesu li
+  `overrides.sharp` i `trustedDependencies` jos u `package.json`.
 - `bun scripts/provjeri-klon.mjs` sada javlja kad te dvije zavisnosti fale. Stavka je PAZNJA, ne
   FALI: klon bez njih radi sve osim recepta sa stalnom pozadinom.
 
