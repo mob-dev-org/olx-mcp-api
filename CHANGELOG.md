@@ -68,12 +68,16 @@ stoji u `src/core/gemini.ts` i vraca na flash default.
   `overrides.sharp` i `trustedDependencies` jos u `package.json`.
 - `bun scripts/provjeri-klon.mjs` sada javlja kad te dvije zavisnosti fale. Stavka je PAZNJA, ne
   FALI: klon bez njih radi sve osim recepta sa stalnom pozadinom.
-- **Audit log sad pamti i sirovi razlog greske, ne samo status.** Na neuspjesnom pozivu (4xx/5xx)
-  `AuditEntry` dobija opciono polje `error_body` sa tijelom odgovora API-ja (npr. koje polje na
-  422 nije validno), skraceno na 2000 znakova. Do sada je taj odgovor postojao samo u zivom
-  razgovoru u trenutku greske i gubio se poslije restarta sesije, pa "zasto je ovo puklo" nije
-  imalo trag. Prije upisa se tijelo provjerava istim obrascima kao u `backup-spisak.ts` (Telegram
-  token, `sk-`, JWT i slicno); ako izgleda kao tajna, `error_body` se izostavlja.
+
+## 0.17.1 — 2026-08-16
+
+**Audit log sad pamti i sirovi razlog greske, ne samo status.** Na neuspjesnom pozivu (4xx/5xx)
+`AuditEntry` dobija opciono polje `error_body` sa tijelom odgovora API-ja (npr. koje polje na
+422 nije validno), skraceno na 2000 znakova. Do sada je taj odgovor postojao samo u zivom
+razgovoru u trenutku greske i gubio se poslije restarta sesije, pa "zasto je ovo puklo" nije
+imalo trag (uzrok zasto se izgubio nalaz o 422 na reaktivaciji zavrsenog oglasa, 16.08.2026).
+Prije upisa se tijelo provjerava istim obrascima kao u `backup-spisak.ts` (Telegram token, `sk-`,
+JWT i slicno); ako izgleda kao tajna, `error_body` se izostavlja.
 
 ## 0.16.0 — 2026-08-16
 
