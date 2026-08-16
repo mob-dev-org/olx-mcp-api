@@ -8,7 +8,23 @@ Kako se cita broj verzije: `bun dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
-## Nije izdano
+## 0.15.0 — 2026-08-16
+
+**`--channels` u headless (launchd) rezimu vise ne pada na TTY provjeri, i telegram-most.mjs
+postaje ispravan pogon za klijentske botove.** Interaktivni rezim zahtijeva `process.stdout.isTTY`;
+bez njega je odmah padao na startu ispod launchd-a. Popravljeno omotacem preko `script -q /dev/null`
+(`trebaPty`/`pokreniClaude` u `scripts/lib/sesija.mjs`, rollback prekidac `OLX_SESIJA_BEZ_PTY`).
+Usput otkriveno i zabiljezeno (`deepseek-nalazi.md`): ta ista kombinacija (`--channels` kroz
+`script` omotac) odbija ispravnu, potvrdjenu prijavu ("Not logged in", bez stvarnog API poziva),
+samo u toj kombinaciji; uzrok nije dalje istrazivan. Zbog toga se `telegram-most.mjs` (headless
+most bez plugina, direktan Telegram `sendMessage`) potvrdjuje kao ispravan put za klijentske
+botove umjesto `--channels`, i u ovom izdanju dobija pun paritet sa starim cuvarom: mapiranje
+AI pogona (DeepSeek/pretplata) koje mu je dosad potpuno nedostajalo, gasenje zive sesije poslije
+mirovanja uz `--resume` (potvrdjeno rucnom probom da kontekst prezivi SIGTERM, `OLX_MOST_IDLE_MIN`,
+default 30 min), nocni rez konteksta (`OLX_MOST_RESTART_SAT`, default 3h), PID brava
+(`.olx-pik/most.pid`), telemetrija resursa, ciscenje inboxa i logova, i preuzimanje markera za
+osvjezavanje `.env` poslije novog OLX tokena. Stari `cuvar-sesije.mjs` (`--channels`) ostaje za
+sada dostupan dok se migracija ne potvrdi na prvom klonu u praksi.
 
 **Pogon prelazi sa Node-a na Bun.** CLI, MCP server, cuvar sesije, Telegram most i sve pomocne
 skripte sad se pokrecu preko `bun`, ne preko `node`: `package.json` skripte, shebang linije,
