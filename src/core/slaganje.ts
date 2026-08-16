@@ -128,6 +128,166 @@ export function izracunajPolozaj(platno: Dimenzije, artikal: Dimenzije, slot: Sl
   };
 }
 
+export interface Komponenta {
+  lijevo: number;
+  gore: number;
+  sirina: number;
+  visina: number;
+  piksela: number;
+}
+
+/**
+ * Razdvaja jednu alpha masku na pojedinacne artikle (connected components, 4-susjedstvo).
+ *
+ * Zasto postoji: `@imgly/background-removal-node` NE radi instance segmentaciju. Jedan poziv
+ * `removeBackground` vraca JEDNU masku u kojoj su SVI objekti na fotografiji zadrzani zajedno.
+ * Kad klijent posalje jednu fotografiju sa vise artikala, ta maska mora da se razdvoji u kodu da
+ * bi se svaki artikal izrezao i slozio zasebno; segmentacija ostaje JEDAN poziv po fotografiji.
+ *
+ * Poznato ogranicenje, i ne moze se popraviti u kodu: artikli koji se na fotografiji DODIRUJU
+ * (dijele bar jedan piksel maske) padaju u istu komponentu i bice izrezani kao jedan blok.
+ * Klijentu se zato kaze da artikle za ovaj recept slika odvojeno, ne zbijeno.
+ *
+ * Iterativan obilazak sa eksplicitnim stekom (ne rekurzija): slika od nekoliko miliona piksela
+ * bi rekurzijom srusila stek pozivaoca.
+ */
+export function nadjiKomponente(
+  alfa: Uint8Array | number[],
+  sirina: number,
+  visina: number,
+  opcije?: { pragPiksela?: number; prozirnost?: number },
+): Komponenta[] {
+  if (!Number.isFinite(sirina) || !Number.isFinite(visina) || sirina <= 0 || visina <= 0) return [];
+  if (alfa.length !== sirina * visina) return [];
+
+  const prozirnost = opcije?.prozirnost ?? 128;
+  const pragPiksela = opcije?.pragPiksela ?? Math.max(1, Math.round(sirina * visina * 0.002));
+
+  const posjecen = new Uint8Array(sirina * visina);
+  const rezultat: Komponenta[] = [];
+  const stek: number[] = [];
+
+  for (let start = 0; start < sirina * visina; start++) {
+    if (posjecen[start] || (alfa[start] ?? 0) <= prozirnost) continue;
+
+    let minX = sirina;
+    let maxX = -1;
+    let minY = visina;
+    let maxY = -1;
+    let piksela = 0;
+
+    posjecen[start] = 1;
+    stek.push(start);
+    while (stek.length > 0) {
+      const i = stek.pop() as number;
+      const x = i % sirina;
+      const y = Math.floor(i / sirina);
+      piksela++;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+
+      // 4-susjedstvo: gore, dolje, lijevo, desno (bez dijagonala)
+      if (x > 0) {
+        const s = i - 1;
+        if (!posjecen[s] && (alfa[s] ?? 0) > prozirnost) {
+          posjecen[s] = 1;
+          stek.push(s);
+        }
+      }
+      if (x < sirina - 1) {
+        const s = i + 1;
+        if (!posjecen[s] && (alfa[s] ?? 0) > prozirnost) {
+          posjecen[s] = 1;
+          stek.push(s);
+        }
+      }
+      if (y > 0) {
+        const s = i - sirina;
+        if (!posjecen[s] && (alfa[s] ?? 0) > prozirnost) {
+          posjecen[s] = 1;
+          stek.push(s);
+        }
+      }
+      if (y < visina - 1) {
+        const s = i + sirina;
+        if (!posjecen[s] && (alfa[s] ?? 0) > prozirnost) {
+          posjecen[s] = 1;
+          stek.push(s);
+        }
+      }
+    }
+
+    if (piksela >= pragPiksela) {
+      rezultat.push({ lijevo: minX, gore: minY, sirina: maxX - minX + 1, visina: maxY - minY + 1, piksela });
+    }
+  }
+
+  return rezultat.sort((a, b) => b.piksela - a.piksela);
+}
+
+export const MAX_ELEMENATA = 4;
+
+/**
+ * Raspored VISE artikala u JEDAN red pri dnu platna (izlog), ne grid (katalog).
+ *
+ * Zasto red i ne grid: artikli poredani u red na podiju izgledaju kao izlog robe, dok grid
+ * (dva reda, matrica) lici na katalog i lomi perspektivu podija koju pozadina vec daje.
+ *
+ * Za jedan artikal rezultat je identican `izracunajPolozaj`, jer je to isti zatecen slucaj koji
+ * postojeca funkcija vec rjesava; ovdje se samo siri na vise artikala u istom redu.
+ */
+export function rasporediRed(platno: Dimenzije, artikli: Dimenzije[], slot: Slot): Polozaj[] {
+  if (artikli.length === 0) return [];
+  if (artikli.length > MAX_ELEMENATA) {
+    throw new Error(`Trazeno je slaganje ${artikli.length} artikala, a granica je ${MAX_ELEMENATA}.`);
+  }
+  if (artikli.length === 1) {
+    return [izracunajPolozaj(platno, artikli[0] as Dimenzije, slot)];
+  }
+
+  const n = artikli.length;
+  const marginaDna = Math.round((platno.visina * slot.marginaDnaPosto) / 100);
+  const gornjaMargina = Math.round((platno.visina * GORNJA_MARGINA_POSTO) / 100);
+  const maxVisina = platno.visina - marginaDna - gornjaMargina;
+  const donjaIvica = platno.visina - marginaDna;
+
+  // Ukupna sirina reda raste sa brojem artikala (korijen N), jedan artikal ostaje na zatecenoj
+  // sirini slota; razmak izmedju susjeda je fiksnih 3% sirine platna.
+  const ukupnaSirinaPosto = Math.min(92, slot.sirinaPosto * Math.sqrt(n));
+  const ukupnaSirina = Math.round((platno.sirina * ukupnaSirinaPosto) / 100);
+  const razmak = Math.round(platno.sirina * 0.03);
+  const sirinaZaArtikle = ukupnaSirina - razmak * (n - 1);
+
+  // Podjela raspolozive sirine proporcionalno korijenu povrsine (ne ravnomjerno): veci artikal
+  // dobija vise prostora, ali linearna podjela po povrsini bi mali artikal svela na tacku.
+  const tezine = artikli.map((a) => Math.sqrt(a.sirina * a.visina));
+  const ukupnaTezina = tezine.reduce((s, t) => s + t, 0);
+
+  const polozaji: Polozaj[] = artikli.map((artikal, idx) => {
+    const udio = ukupnaTezina > 0 ? (tezine[idx] as number) / ukupnaTezina : 1 / n;
+    let sirina = Math.max(1, Math.round(sirinaZaArtikle * udio));
+    let visina = Math.round((artikal.visina * sirina) / artikal.sirina);
+    if (visina > maxVisina) {
+      visina = maxVisina;
+      sirina = Math.max(1, Math.round((artikal.sirina * visina) / artikal.visina));
+    }
+    return { lijevo: 0, gore: donjaIvica - visina, sirina, visina };
+  });
+
+  // Horizontalno centriranje cijelog reda: postavi lijeve ivice redom, pa red kao cjelinu
+  // centriraj na platnu.
+  const stvarnaUkupnaSirina = polozaji.reduce((s, p) => s + p.sirina, 0) + razmak * (n - 1);
+  let x = Math.round((platno.sirina - stvarnaUkupnaSirina) / 2);
+  for (const p of polozaji) {
+    p.lijevo = x;
+    x += p.sirina + razmak;
+  }
+
+  return polozaji;
+}
+
 // ---- I/O omotaci: jedina mjesta koja diraju sharp i imgly ----
 
 async function ucitajSharp(): Promise<typeof import("sharp")> {
@@ -188,13 +348,70 @@ export async function normalizujPozadinu(putanjaIliBajtovi: string | Buffer): Pr
  * vec 4:3, artikal vec izrezan sa alpha kanalom), izlaz PNG platna sa artiklom.
  */
 export async function slozi(pozadina4x3: Buffer, izrezanArtikal: Buffer, slot: Slot): Promise<Buffer> {
+  return slozeVise(pozadina4x3, [izrezanArtikal], slot);
+}
+
+/**
+ * Izreze SVE artikle sa jedne fotografije: jedan poziv `removeBackground` (imgly ne pravi vise
+ * maski), pa razdvajanje na pojedinacne elemente preko `nadjiKomponente` nad alpha kanalom.
+ * Vraca najvise `maks` izrezanih PNG-ova (sa alpha kanalom, trimovanih), sortiranih po povrsini
+ * opadajuce, jer su takve i ulazne komponente.
+ */
+export async function izreziElemente(bajtovi: Buffer, maks = MAX_ELEMENATA): Promise<Buffer[]> {
+  const { removeBackground } = await import("@imgly/background-removal-node");
   const sharp = await ucitajSharp();
-  const meta = await sharp(izrezanArtikal).metadata();
-  if (!meta.width || !meta.height) throw new Error("Izrezan artikal nema citljive dimenzije.");
-  const polozaj = izracunajPolozaj(PLATNO_4_3, { sirina: meta.width, visina: meta.height }, slot);
-  const skaliran = await sharp(izrezanArtikal).resize(polozaj.sirina, polozaj.visina).png().toBuffer();
-  return sharp(pozadina4x3)
-    .composite([{ input: skaliran, left: polozaj.lijevo, top: polozaj.gore }])
-    .png()
-    .toBuffer();
+  const blob = await removeBackground(new Blob([new Uint8Array(bajtovi)], { type: "image/png" }));
+  const izrez = Buffer.from(await blob.arrayBuffer());
+
+  const { data, info } = await sharp(izrez).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const alfa = new Uint8Array(info.width * info.height);
+  for (let i = 0; i < alfa.length; i++) {
+    alfa[i] = data[i * info.channels + (info.channels - 1)] ?? 0;
+  }
+
+  const komponente = nadjiKomponente(alfa, info.width, info.height).slice(0, maks);
+  if (komponente.length === 0) {
+    throw new Error("Na fotografiji se ne raspoznaje nijedan artikal.");
+  }
+
+  const izrezi: Buffer[] = [];
+  for (const k of komponente) {
+    izrezi.push(
+      await sharp(izrez)
+        .extract({ left: k.lijevo, top: k.gore, width: k.sirina, height: k.visina })
+        .trim()
+        .png()
+        .toBuffer(),
+    );
+  }
+  return izrezi;
+}
+
+/**
+ * Slozi VISE izrezanih artikala u jedan red na normalizovano platno pozadine. Kao `slozi`, ali
+ * za vise elemenata odjednom: cita dimenzije svih izrezanih, trazi raspored (`rasporediRed`),
+ * skalira svaki i radi JEDAN `composite` sa svim slojevima. Redoslijed slaganja prati redoslijed
+ * iz `rasporediRed`.
+ */
+export async function slozeVise(pozadina4x3: Buffer, izrezani: Buffer[], slot: Slot): Promise<Buffer> {
+  const sharp = await ucitajSharp();
+  const dimenzije: Dimenzije[] = [];
+  for (const izrezan of izrezani) {
+    const meta = await sharp(izrezan).metadata();
+    if (!meta.width || !meta.height) throw new Error("Izrezan artikal nema citljive dimenzije.");
+    dimenzije.push({ sirina: meta.width, visina: meta.height });
+  }
+
+  const polozaji = rasporediRed(PLATNO_4_3, dimenzije, slot);
+  const slojevi = [];
+  for (let i = 0; i < izrezani.length; i++) {
+    const polozaj = polozaji[i] as Polozaj;
+    const skaliran = await sharp(izrezani[i] as Buffer)
+      .resize(polozaj.sirina, polozaj.visina)
+      .png()
+      .toBuffer();
+    slojevi.push({ input: skaliran, left: polozaj.lijevo, top: polozaj.gore });
+  }
+
+  return sharp(pozadina4x3).composite(slojevi).png().toBuffer();
 }

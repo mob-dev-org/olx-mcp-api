@@ -37,7 +37,7 @@ import { modelDozvoljen, pozoviGemini, type GeminiDioZahtjeva } from "./gemini.j
 import { opisZaRecept, ucitajPozadinu } from "./pozadina.js";
 import { efektivniLimit, envLimit, procitajOverride } from "./slika-limit.js";
 import { zapisiZahtjevSlike } from "./slike-trag.js";
-import { izreziArtikal, normalizujPozadinu, slaganjeDostupno, slozi, ZADANI_SLOT, type Slot } from "./slaganje.js";
+import { izreziElemente, normalizujPozadinu, slaganjeDostupno, slozeVise, ZADANI_SLOT, type Slot } from "./slaganje.js";
 import { normalizujTekst, tokeni } from "./tekst.js";
 import { medijskiTip } from "./vid.js";
 
@@ -366,6 +366,8 @@ export interface GenerisanaSlika {
   dorada?: { ok: boolean; greska?: string };
   /** Tekst za covjeka: sta koja slika garantuje. */
   napomena?: string;
+  /** Tok slaganja: koliko je artikala prepoznato na jednoj fotografiji i slozeno na pozadinu. */
+  elemenata?: number;
 }
 
 /**
@@ -691,9 +693,10 @@ async function slozIDoradi(p: {
     throw new Error(`Slaganje na pozadinu nije dostupno: ${dostupno.razlog}.`);
   }
 
-  const izrez = await izreziArtikal(readFileSync(p.artikalPutanja));
+  const izrezi = await izreziElemente(readFileSync(p.artikalPutanja));
   const platno = await normalizujPozadinu(p.slikaPozadine);
-  const slozenaBajtovi = await slozi(platno, izrez, p.slot);
+  const slozenaBajtovi = await slozeVise(platno, izrezi, p.slot);
+  const elemenata = izrezi.length;
 
   const dir = process.env.OLX_SLIKA_DIR || ".olx-pik/slike";
   mkdirSync(dir, { recursive: true });
@@ -733,8 +736,13 @@ async function slozIDoradi(p: {
     plafon: p.plafon,
     slozena: { putanja: putanjaSlozene, bajtova: slozenaBajtovi.length },
     dorada: { ok: doradjena !== null, ...(doradaGreska ? { greska: doradaGreska } : {}) },
-    napomena: doradjena
-      ? "Dvije slike: slozena ima pozadinu i logo tacno kao original, doradjena je ljepse uklopljena ali logo na pozadini nije garantovan. Posalji korisniku obje da izabere."
-      : `Napravljena je samo slozena slika (pozadina i logo tacno kao original); ${doradaGreska ?? "dorada nije prosla"}.`,
+    elemenata,
+    napomena:
+      (elemenata > 1
+        ? `Prepoznato je ${elemenata} artikala na fotografiji i svi su slozeni na pozadinu (artikli koji se na fotografiji dodiruju prepoznaju se kao jedan). `
+        : "") +
+      (doradjena
+        ? "Dvije slike: slozena ima pozadinu i logo tacno kao original, doradjena je ljepse uklopljena ali logo na pozadini nije garantovan. Posalji korisniku obje da izabere."
+        : `Napravljena je samo slozena slika (pozadina i logo tacno kao original); ${doradaGreska ?? "dorada nije prosla"}.`),
   };
 }

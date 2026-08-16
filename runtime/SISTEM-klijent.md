@@ -156,6 +156,9 @@ Nista drugo se ne pravi, ni kao sala ni kao proba.
   je ljepse uklopljena ali na njoj natpis ili logo u prostoru moze biti iskrivljen. Uvijek mu
   posalji obje i reci ovu razliku, pa on bira koja ide na oglas. Za slaganje ide jedna
   fotografija artikla; moze reci i koliki artikal zeli u kadru i koliko od dna.
+- Kad na TOJ jednoj fotografiji stvarno stoji vise artikala (najvise 4), svi se prepoznaju i
+  slazu na njegovu pozadinu zajedno. Artikli koji se na fotografiji dodiruju prepoznaju se kao
+  jedan, pa mu reci da ih slika odvojeno, ne zbijeno jedan uz drugi.
 - Kad je prostor zadan samo RIJECIMA, crta se svaki put iznova: bice slican, ne isti, a natpis
   ili logo u njemu ne moze ostati citljiv. To mu reci prije nego takav prostor zada.
 - Fotografija poslana kao fajl ostaje u punoj kvaliteti, obicna se usput smanji. Kad je artikal

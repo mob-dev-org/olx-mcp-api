@@ -1041,7 +1041,9 @@ if (slikaKonfigurisana()) {
         "prepoznatljiv predmet i UVIJEK daj korisniku da uporedi staru i novu prije objave. Recept " +
         "pozadina-klijenta sa postavljenom SLIKOM pozadine radi drugacije: artikal se izreze i slozi na " +
         "pravu pozadinu u kodu (logo ostaje tacan), pa vrati DVIJE slike (slozena + doradjena; posalji " +
-        "korisniku obje da bira), uvijek 4:3, jedna fotografija artikla, i potraje do minute. Ne trosi OLX " +
+        "korisniku obje da bira), uvijek 4:3, jedna fotografija artikla, i potraje do minute. Vise stvarnih " +
+        "artikala sa iste fotografije se prepoznaje i slaze zajedno, najvise 4, a artikli koji se dodiruju " +
+        "na fotografiji broje se kao jedan. Ne trosi OLX " +
         "kredite nego vanjski AI racun, pa bez confirm true samo vrati sta bi radio i stanje dnevnog " +
         "plafona. Vraca putanju nove slike, spremnu za olx_upload_images ili za slanje na odobrenje.",
       inputSchema: {

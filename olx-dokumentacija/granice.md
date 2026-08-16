@@ -85,6 +85,10 @@ naglas.
   da crta sadrzaj po zelji. U klijentskom profilu to je i tvrdo zatvoreno: recept se bira sa
   spiska, uz njega ide prava fotografija, a kratka zelja o sceni prolazi kroz filter. Odbijen
   zahtjev se ne pokusava zaobici drugom formulacijom, nego se korisniku kaze da se to ne moze.
+- **Vise stvarnih artikala sa iste fotografije nije izmisljanje sadrzaja.** Kad klijent posalje
+  jednu fotografiju na kojoj stvarno stoji vise artikala, svi se prepoznaju i slazu na pozadinu:
+  sav sadrzaj je stvaran i prisutan na fotografiji koju je klijent poslao, sto nije u sukobu sa
+  pravilom iznad. Artikli koji se na fotografiji dodiruju prepoznaju se kao jedan.
 
 ## Trag i tajne
 
