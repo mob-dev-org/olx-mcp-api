@@ -13,7 +13,14 @@
   ostavilo dva konzumera. Isti Label znaci da launchctl bootout starog posla i bootstrap
   novog rade nad istim imenom, dakle nikad dva konzumera odjednom.
 
-  bash -lc zbog PATH-a: claude i bun dolaze iz login profila, a launchd okruzenje ih nema.
+  bash -lc zbog PATH-a: claude i bun dolaze iz login profila, a launchd okruzenje ih nema. To
+  samo po sebi NIJE dovoljno pouzdano: izmjereno 17.08.2026. na klijentu nabavi-ba da bash -lc
+  povremeno ipak ne nadje "claude" (Executable not found in $PATH), iako isti "bash -lc" u
+  interaktivnom terminalu radi ispravno. Simptom je opasan jer se sam ne vidi: DM proba (rucno
+  pokrenuta sesija) prolazi, a most u produkciji tiho ne odgovara u grupi dok se korisnik ne
+  pozali. Zato EnvironmentVariables/PATH ispod NIJE opciono vec dio sablona: eksplicitan PATH ne
+  zavisi od login-shell tajminga i path_helper-a. Prilagodi ako je bun/claude instaliran drugdje
+  (npr. drugi macOS korisnik ili verzija Homebrewa).
 
   KeepAlive na SuccessfulExit false ostaje ispravno i za most: idle gasenje i nocni restart
   most radi INTERNO, ubija samo claude dijete, a sam proces mosta ostaje ziv i sam digne
@@ -36,6 +43,13 @@
 
   <key>WorkingDirectory</key>
   <string>KORIJEN</string>
+
+  <!-- Vidi napomenu iznad: bash -lc sam po sebi nije dovoljno pouzdan izvor PATH-a za "claude". -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/usr/local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:DOMACI_HOME/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
 
   <key>RunAtLoad</key>
   <true/>

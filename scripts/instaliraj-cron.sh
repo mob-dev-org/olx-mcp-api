@@ -94,8 +94,10 @@ for posao in "${POSLOVI[@]}"; do
   oznaka="ba.codefactory.olx.$IME.$posao"
   odrediste="$CILJ/$oznaka.plist"
 
-  # sed sa | kao razdjelnikom, jer KORIJEN sadrzi kose crte.
-  sed -e "s|KORIJEN|$KORIJEN|g" -e "s|KLIJENT|$IME|g" "$sablon" > "$odrediste"
+  # sed sa | kao razdjelnikom, jer KORIJEN sadrzi kose crte. DOMACI_HOME ide u
+  # EnvironmentVariables/PATH sablona sesija.plist (vidi napomenu tamo): bash -lc sam po sebi
+  # nije dovoljno pouzdan izvor PATH-a za "claude".
+  sed -e "s|KORIJEN|$KORIJEN|g" -e "s|KLIJENT|$IME|g" -e "s|DOMACI_HOME|$HOME|g" "$sablon" > "$odrediste"
 
   # bootout prije bootstrap: ponovna instalacija ne smije pasti na "Load failed: Already loaded".
   launchctl bootout "gui/$(id -u)/$oznaka" 2>/dev/null || true
