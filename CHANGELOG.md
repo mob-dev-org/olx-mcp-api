@@ -8,6 +8,28 @@ Kako se cita broj verzije: `bun dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
+## 0.20.0 — 2026-08-17
+
+**Klijentski bot vise sam ne pregovara o budzetu, cijenama ni dobu poruka.** Primjer u
+`KLIJENT-javno.primjer.md` je nudio "mjesecni budzet kredita za izdvajanje, da li se cijene smiju
+mijenjati bez pitanja, u koje vrijeme se ne salju poruke" kao stavke "Dogovorenih granica", a bot
+je taj primjer uzimao doslovno i sam ispitivao novog klijenta pri prvom kontaktu. Nijedna od te tri
+stavke nema tehnicki efekat: mjesecni broj se nigdje ne parsira, `confirm` prije trosenja kredita
+je uvijek obavezan bez izuzetka po klijentu, a doba dana se nigdje ne provjerava. Primjer je
+uklonjen, i `SISTEM-klijent.md` sada eksplicitno kaze da bot ovo ne pregovara s klijentom niti trazi
+da popuni praznu sekciju. Potvrda cijene i `confirm: true` prije svakog trosenja kredita ostaju
+netaknuti, to je odvojena, tvrda granica.
+
+**Klijentski Telegram most vise ne zavisi tiho od login-shell PATH-a.** Na klijentu nabavi-ba je
+17.08.2026. zabiljezeno da `bash -lc` u launchd poslu (`sesija`) povremeno ne nadje `claude`
+(`Executable not found in $PATH`), iako identicna komanda u interaktivnom terminalu radi ispravno
+— simptom je opasan jer je tih: rucna proba radi, a most u grupi jednostavno ne odgovara dok se
+korisnik ne pozali. Posao sada nosi eksplicitan `PATH` (Homebrew, `~/.local/bin` za `claude`,
+`~/.bun/bin` za bun kad je instaliran zvanicnim instalerom preko `.zshrc`, koji `bash -lc` inace ne
+cita), a `instaliraj-cron.sh` popunjava kucni direktorij u sablonu pri instalaciji. Preostaju dva
+druga launchd posla (`ADMIN.ai-runda`, `ADMIN.onboarding-puller`) sa istom klasom rizika, nisu
+pokriveni ovim izdanjem.
+
 ## 0.19.0 — 2026-08-17
 
 **Jedan Telegram bot po klonu od sada moze voziti i klijenta i vlasnika.** Do sada je klon trazio
