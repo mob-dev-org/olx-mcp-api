@@ -30,6 +30,11 @@
 //   bun scripts/telegram-most.mjs admin-bot --jednom
 //
 // Pogon (DeepSeek ili pretplata) bira se okruzenjem: ovaj proces samo prenosi svoje okruzenje.
+//
+// Stanje se drzi po ULOZI, ne kao modul-level singleton: mapa `uloge` moze u buducnosti nositi
+// vise od jednog unosa (jednobotni rezim, jedan proces, dvije zive sesije). Ova faza mapu jos
+// puni tacno jednim unosom (`glavna`, uloga iz argv), pa je ponasanje bajt za bajt isto kao
+// prije, ali sve funkcije koje diraju zivo stanje sesije vec primaju unos uloge kao argument.
 
 import { spawn } from "node:child_process";
 import {
@@ -48,7 +53,7 @@ import { pathToFileURL } from "node:url";
 import { ucitajEnvGlobalno, procitajEnv } from "./lib/envfajl.mjs";
 import { stazeSesije, provjeriPreduslove, aiPogon, sastaviPrompt, okruzenjeSesije } from "./lib/sesija.mjs";
 import {
-  dozvoljena,
+  odlukaPoruke,
   izvorSlike,
   tekstStavke,
   argviSesije,
@@ -58,6 +63,10 @@ import {
   trebaLiNocniRez,
   trebaLiUzorkovati,
   ulogaMosta,
+  stanjeUloge,
+  adminTgIdIzEnva,
+  jednobotniRezim,
+  validanAdminTgId,
 } from "./lib/most.mjs";
 import {
   citajProcese,
@@ -81,9 +90,8 @@ if (existsSync(".env")) ucitajEnvGlobalno(".env"); // .env sa neispravnim redom:
 // cuvar-sesije.mjs, ali most argumente cita iz process.argv.slice(2) direktno jer i --jednom
 // zivi u istom nizu).
 const TIP = process.argv.slice(2).find((a) => !a.startsWith("--")) ?? "klijent";
-let ULOGA;
 try {
-  ULOGA = ulogaMosta(TIP);
+  ulogaMosta(TIP); // samo provjera: nevalidan TIP mora pasti ODMAH, prije bilo kakve postavke
 } catch (e) {
   console.error(`${e.message} Upotreba: bun scripts/telegram-most.mjs [klijent|admin-bot] [--jednom]`);
   process.exit(1);
@@ -91,44 +99,26 @@ try {
 
 const JEDNOM = process.argv.includes("--jednom");
 const KORIJEN = process.cwd(); // most se ionako pokrece iz korijena klona
-const staze = stazeSesije(TIP, KORIJEN);
-// RUNTIME vise NE dolazi iz process.env.CLAUDE_CONFIG_DIR: jedan klon, jedan klijent, a
-// naslijedjen CLAUDE_CONFIG_DIR sa masine bi mostu mogao podmetnuti tudji (npr. admin) runtime.
-const RUNTIME = staze.runtime;
-const INBOX = staze.inbox;
-const STANJE_FAJL = ULOGA.stanjeFajl;
-const ALBUM_CEKANJE_MS = 2500;
-const POLL_TIMEOUT_S = 50;
-const POTEZ_TIMEOUT_MS = Number(process.env.OLX_MOST_POTEZ_TIMEOUT_MS) || 300000;
-const MAX_POKUSAJA = 3;
 
-/**
- * Bot token za ovu ulogu. Klijent: `.env` klona, uz rezervu iz runtime `.env` kad klonski nije
- * popunjen. Admin: ISKLJUCIVO iz runtime `.env` (`.claude-runtime-admin/channels/telegram/.env`),
- * NIKAD iz `.env` klona: tamo stoji KLIJENTSKI bot, pa bi admin most na njemu krao klijentu
- * poruke i pravio 409 Conflict protiv zivog klijentskog mosta (isto obrazlozenje kao u
- * cuvar-sesije.mjs, komentar iznad funkcije uStrazu).
- */
-function ucitajToken() {
-  if (!ULOGA.jeAdmin) {
-    return process.env.TELEGRAM_BOT_TOKEN || procitajEnv(join(staze.telegramDir, ".env")).TELEGRAM_BOT_TOKEN;
-  }
-  return procitajEnv(join(staze.telegramDir, ".env")).TELEGRAM_BOT_TOKEN;
+// Jednobotni rezim (faza C): jedan bot token, dvije zive sesije u istom procesu, rutiranje po
+// posiljacu. Ukljucuje se ISKLJUCIVO preko OLX_MOST_ADMIN_TG_ID, dokumentovano u .env.example.
+const ADMIN_TG_ID = adminTgIdIzEnva(process.env);
+const JEDNOBOTNI = jednobotniRezim(process.env);
+
+// Neispravna, NEPRAZNA vrijednost (npr. negativan grupni ID, slova) znaci da je vlasnik
+// POKUSAO ukljuciti jednobotni rezim i pogrijesio unos. Ovo mora biti glasna, odmah vidljiva
+// greska: tiho gasenje admin grane bi vlasnika ostavilo da ceka odgovor na privatnu poruku koji
+// nikad ne stize (poruka bi tiho pala na "klijent" rutu), a tiho otvaranje admin grane na
+// pogresnoj vrijednosti bi bilo jos gore (pogresan ID bi dobio admin ovlasti ili niko ne bi).
+// Zato se ovo provjerava PRIJE bilo kakvog drugog posla, cak i prije provjere preduslova.
+if (JEDNOBOTNI && !validanAdminTgId(ADMIN_TG_ID)) {
+  console.error(
+    `OLX_MOST_ADMIN_TG_ID="${ADMIN_TG_ID}" nije ispravan. Vrijednost mora biti pozitivan brojcani ` +
+      "Telegram ID COVJEKA (vlasnika), ne grupe: negativan broj izgleda kao ID grupe, ne kao licni " +
+      "ID. Popravi OLX_MOST_ADMIN_TG_ID u .env ili ga isprazni da se ugasi jednobotni rezim.",
+  );
+  process.exit(2);
 }
-const TOKEN = ucitajToken();
-
-// RAM po klijentu: ziva sesija drzi cijelo stablo procesa u memoriji i na floti od vise klijenata
-// to ne staje. `--resume` vraca kontekst kad stigne sljedeca poruka, pa gasenje nije gubitak.
-// `0` iskljucuje gasenje, sesija tada ostaje ziva dok god most zivi.
-//
-// Admin ima poseban override (OLX_MOST_ADMIN_IDLE_MIN, pada na OLX_MOST_IDLE_MIN, pada na 30):
-// cuvar-sesije.mjs je adminu davao kraci idle prag (30 min) nego klijentu, a most vec
-// podrazumijeva 30, pa je paritet zadrzan i bez posebne vrijednosti. Override postoji da se admin
-// moze podesiti nezavisno od klijenta. `broj()` (definisana nize, hoisted) tretira prazan string
-// kao "nije podeseno", isto sto i odsutna varijabla.
-const IDLE_MIN = ULOGA.jeAdmin
-  ? broj(process.env.OLX_MOST_ADMIN_IDLE_MIN, broj(process.env.OLX_MOST_IDLE_MIN, 30))
-  : Number(process.env.OLX_MOST_IDLE_MIN) || 30;
 
 // Kao broj() u cuvar-sesije.mjs, uz JEDNU namjernu razliku: PRAZNA vrijednost ovdje pada na
 // default, a kod cuvara ne. Number("") je 0, konacan i nenegativan, pa cuvar sa `OLX_SESIJA_
@@ -142,6 +132,81 @@ function broj(v, fallback) {
   return Number.isFinite(n) && n >= 0 ? n : fallback;
 }
 
+// Zajednicka mapa svih zivih uloga mosta. Danas ima TACNO JEDAN unos (uloga iz argv); jednobotni
+// rezim (faza C) ce ovamo lijeno dodati drugi, bez dodira ove funkcije.
+const uloge = new Map();
+
+/**
+ * Vrati potpuno opremljen unos stanja za ulogu `tip`. `stanjeUloge` (lib/most.mjs) pravi lijeno
+ * osnovni objekat identiteta; ova funkcija ga dopunjuje poljima koja su ranije zivjela kao
+ * modul-level konstante izvedene iz ULOGA/TIP, i jednom ucita stanje sa diska.
+ *
+ * Idempotentna: drugi poziv sa istim `tip`-om vraca ISTI, vec popunjeni objekat i ne dira nijedno
+ * polje ni stanje sa diska ponovo. Prepoznaje vec pripremljen unos po `u.staze`, polju koje
+ * `stanjeUloge` sama nikad ne postavlja.
+ */
+function pripremiUlogu(tip) {
+  const u = stanjeUloge(uloge, tip);
+  if (u.staze) return u;
+  u.staze = stazeSesije(tip, KORIJEN);
+  u.inbox = u.staze.inbox;
+  u.ai = aiPogon(u.uloga.jeAdmin, process.env);
+  // Admin ima poseban override (OLX_MOST_ADMIN_IDLE_MIN, pada na OLX_MOST_IDLE_MIN, pada na 30):
+  // cuvar-sesije.mjs je adminu davao kraci idle prag (30 min) nego klijentu, a most vec
+  // podrazumijeva 30, pa je paritet zadrzan i bez posebne vrijednosti.
+  u.idleMin = u.uloga.jeAdmin
+    ? broj(process.env.OLX_MOST_ADMIN_IDLE_MIN, broj(process.env.OLX_MOST_IDLE_MIN, 30))
+    : Number(process.env.OLX_MOST_IDLE_MIN) || 30;
+  // Marker kojim vanjski proces (onboarding-puller.mjs) trazi da sesija preuzme svjez .env
+  // (npr. nov OLX_TOKEN upisan u zivi klon). Prolazan je, brise se odmah po obradi u tikMinute.
+  u.restartZahtjev = join(KORIJEN, ".olx-pik", u.uloga.restartZahtjev);
+  u.radi = false;
+  u.zadnjaUzorkovanaMinuta = -1;
+  u.uzorakUToku = false;
+  u.zadnjaAktivnost = Date.now();
+  u.stanje = citajStanje(u);
+  return u;
+}
+
+// `glavna` je uloga OVOG procesa: vlasnik bot tokena, vlasnik Telegram `offset`-a i vlasnik pid
+// fajla. U jednobotnom rezimu (faza C) je `glavna` UVIJEK klijentska uloga (mutual-exclusion
+// brana nize garantuje da TIP admin-bot u tom rezimu nikad ne dodje dovde), a admin unos u mapi
+// (`adminUnos`, pripremljen iznad) dijeli njen token i offset, ne dobija svoj.
+const glavna = pripremiUlogu(TIP);
+// RUNTIME vise NE dolazi iz process.env.CLAUDE_CONFIG_DIR: jedan klon, jedan klijent, a
+// naslijedjen CLAUDE_CONFIG_DIR sa masine bi mostu mogao podmetnuti tudji (npr. admin) runtime.
+//
+// U jednobotnom rezimu RUNTIME i dalje ostaje KLIJENTSKI (glavna.staze.runtime), namjerno:
+// dolaznu pristupnu kontrolu (nize, citajPristup) odlucuje access.json OVOG runtime-a, jer je
+// bot token klijentski. Posljedica: vlasnikov Telegram ID mora biti u allowFrom klijentskog
+// access.json, inace njegova privatna poruka ne prodje dozvoljena() i on dobija tisinu, a admin
+// grana (efektivnaUloga/odlukaPoruke) se nikad ne pozove. Admin unos (adminUnos) koristi
+// .claude-runtime-admin SAMO za okruzenje zive sesije (CLAUDE_CONFIG_DIR, settings.admin-bot.json,
+// prompt, OLX_MCP_PROFILE=admin), nikad za Telegram token ni za pristupnu kontrolu.
+const RUNTIME = glavna.staze.runtime;
+const ALBUM_CEKANJE_MS = 2500;
+const POLL_TIMEOUT_S = 50;
+const POTEZ_TIMEOUT_MS = Number(process.env.OLX_MOST_POTEZ_TIMEOUT_MS) || 300000;
+const MAX_POKUSAJA = 3;
+
+/**
+ * Bot token za ovu ulogu. Klijent: `.env` klona, uz rezervu iz runtime `.env` kad klonski nije
+ * popunjen. Admin: ISKLJUCIVO iz runtime `.env` (`.claude-runtime-admin/channels/telegram/.env`),
+ * NIKAD iz `.env` klona: tamo stoji KLIJENTSKI bot, pa bi admin most na njemu krao klijentu
+ * poruke i pravio 409 Conflict protiv zivog klijentskog mosta (isto obrazlozenje kao u
+ * cuvar-sesije.mjs, komentar iznad funkcije uStrazu).
+ */
+function ucitajToken() {
+  if (!glavna.uloga.jeAdmin) {
+    return process.env.TELEGRAM_BOT_TOKEN || procitajEnv(join(glavna.staze.telegramDir, ".env")).TELEGRAM_BOT_TOKEN;
+  }
+  return procitajEnv(join(glavna.staze.telegramDir, ".env")).TELEGRAM_BOT_TOKEN;
+}
+// Bot token je JEDAN, klijentski, procesna konstanta. U jednobotnom rezimu admin unos ga NIKAD
+// ne cita sam: `getUpdates` na dva tokena bi bilo dva tokena, a most ima samo jedan, pa admin
+// grana koristi ovaj isti TOKEN (vidi OPCIJE_SLANJA nize).
+const TOKEN = ucitajToken();
+
 // Nocni rez konteksta (vidi tikMinute nize): u koji sat sesija gubi --resume i kontekst krece
 // od nule. Isti podrazumijevani sat kao cuvar-sesije.mjs, radi jednostavnosti pamcenja za
 // vlasnika koji podesava .env.
@@ -151,14 +216,10 @@ const RESTART_SAT = broj(process.env.OLX_MOST_RESTART_SAT, 3);
 // cuvar-sesije.mjs (OLX_SESIJA_INBOX_DANA), ne nova. Isti klon, isti inbox, jedan prekidac.
 const INBOX_DANA = broj(process.env.OLX_SESIJA_INBOX_DANA, 7);
 
-// Marker kojim vanjski proces (onboarding-puller.mjs, oko reda 155) trazi da sesija preuzme svjez
-// .env (npr. nov OLX_TOKEN upisan u zivi klon). Prolazan je, brise se odmah po obradi u tikMinute.
-const RESTART_ZAHTJEV = join(KORIJEN, ".olx-pik", ULOGA.restartZahtjev);
-
 if (!TOKEN) {
   console.error(
-    ULOGA.jeAdmin
-      ? `TELEGRAM_BOT_TOKEN nije postavljen u ${join(staze.telegramDir, ".env")}. Pokreni prvo: ` +
+    glavna.uloga.jeAdmin
+      ? `TELEGRAM_BOT_TOKEN nije postavljen u ${join(glavna.staze.telegramDir, ".env")}. Pokreni prvo: ` +
           "bun scripts/pripremi-admin-runtime.mjs <bot_token> <admin_telegram_id> [id_grupe]"
       : "TELEGRAM_BOT_TOKEN nije postavljen u .env. Most se ne moze pokrenuti.",
   );
@@ -168,9 +229,8 @@ if (!TOKEN) {
 // Klon sa OLX_KLIJENT_AI=deepseek bez popunjenih OLX_DEEPSEEK_* varijabli NE SMIJE tiho preci
 // na Anthropic pretplatu i naplacivati na pogresnom mjestu. Za admina aiPogon uvijek vraca
 // pretplatu i brise ANTHROPIC_* iz okruzenja djeteta (okruzenjeSesije to vec primjenjuje).
-const ai = aiPogon(ULOGA.jeAdmin, process.env);
-if (ai.ok === false) {
-  console.error(ai.poruka);
+if (glavna.ai.ok === false) {
+  console.error(glavna.ai.poruka);
   process.exit(2);
 }
 
@@ -192,6 +252,7 @@ const PRAG_ALARM_MS = broj(process.env.OLX_RESURSI_PRAG_ALARM_SATI, 6) * 60 * 60
 const KLON_IME = basename(KORIJEN);
 // Determinisan pomak po klonu (hash putanje, NE Math.random): kad vise klonova radi na istoj
 // masini, ne krenu svi u istoj sekundi u ps/powershell poziv. Stabilan kroz restarte mosta.
+// Zajednicko za sve uloge (isti klon, ista masina): ostaje modul-level, ne po ulozi.
 const RESURSI_POMAK_AKTIVNO = pomakKlona(KORIJEN, Math.max(1, RESURSI_INTERVAL_MIN));
 const RESURSI_POMAK_STRAZA = pomakKlona(KORIJEN, Math.max(1, RESURSI_INTERVAL_STRAZA_MIN));
 
@@ -209,35 +270,26 @@ async function ucitajVerzijuKoda() {
 }
 const VERZIJA_KODA = RESURSI_UKLJUCENO ? await ucitajVerzijuKoda() : null;
 
-// CPU bazna linija (kumulativno CPU vrijeme po pidu) izmedju tikova, u memoriji mosta (restart
-// mosta prirodno resetuje bazu). `uzorakUToku` sprjecava preklapanje uzoraka. `zadnjaUzorkovanaMinuta`
-// sprjecava dupli uzorak u istoj minuti kad se tikMinute i eksplicitni poziv poklope.
-let zadnjaUzorkovanaMinuta = -1;
-let uzorakUToku = false;
-let cpuStanjeKlona = null;
-
 const log = (sta) => console.log(`${new Date().toISOString()} ${sta}`);
 
 // ---- stanje i red, oboje na disku ----
-// Jedan fajl: offset, ID sesije i red stavki. Upis je atomican (tmp + rename), pa pad u
+// Jedan fajl PO ULOZI: offset, ID sesije i red stavki. Upis je atomican (tmp + rename), pa pad u
 // sredini upisa ne moze ostaviti pokvaren fajl.
 
-function citajStanje() {
+function citajStanje(u) {
   try {
-    const s = JSON.parse(readFileSync(STANJE_FAJL, "utf8"));
+    const s = JSON.parse(readFileSync(u.uloga.stanjeFajl, "utf8"));
     return { offset: s.offset ?? 0, sesija: s.sesija ?? null, red: Array.isArray(s.red) ? s.red : [] };
   } catch {
     return { offset: 0, sesija: null, red: [] };
   }
 }
 
-let stanje = citajStanje();
-
-function sacuvaj() {
-  mkdirSync(dirname(STANJE_FAJL), { recursive: true });
-  const tmp = `${STANJE_FAJL}.tmp`;
-  writeFileSync(tmp, `${JSON.stringify(stanje, null, 2)}\n`, "utf8");
-  renameSync(tmp, STANJE_FAJL);
+function sacuvaj(u) {
+  mkdirSync(dirname(u.uloga.stanjeFajl), { recursive: true });
+  const tmp = `${u.uloga.stanjeFajl}.tmp`;
+  writeFileSync(tmp, `${JSON.stringify(u.stanje, null, 2)}\n`, "utf8");
+  renameSync(tmp, u.uloga.stanjeFajl);
 }
 
 // ---- PID brava (zastita od dvostrukog pokretanja) ----
@@ -245,9 +297,11 @@ function sacuvaj() {
 // na Telegramu. Preslikano iz cuvar-sesije.mjs (odbijStart/zauzmiPidFajl): upis je atomican (flag
 // "wx"), pa dva mosta pokrenuta u istoj sekundi ne mogu oba proci. Zauzima se PRIJE prvog dodira
 // Telegrama (tg("getMe")), jer brava mora stajati prije ijednog poziva, ne poslije.
+//
+// Pid fajl je jedan po PROCESU (vlasnik je glavna uloga), ne po ulozi u mapi.
 
-const PID_FAJL = join(KORIJEN, ".olx-pik", ULOGA.pidFajl);
-const ODBIJEN_ALARM_FAJL = join(KORIJEN, ".olx-pik", ULOGA.odbijenAlarm);
+const PID_FAJL = join(KORIJEN, ".olx-pik", glavna.uloga.pidFajl);
+const ODBIJEN_ALARM_FAJL = join(KORIJEN, ".olx-pik", glavna.uloga.odbijenAlarm);
 
 async function javiAdministratoru(tekst) {
   try {
@@ -332,7 +386,7 @@ process.on("exit", () => {
 //
 // `requireMention` za admin grupu je vrijednost UNUTAR ovog fajla (pripremi-admin-runtime.mjs ga
 // pise kao true): odatle dolazi razlika izmedju klijentskog i admin bota u grupi, nema grane po
-// ULOGA u ovom kodu.
+// ulozi u ovom kodu.
 
 function citajPristup() {
   try {
@@ -360,8 +414,14 @@ async function tg(metoda, tijelo) {
   return j.result;
 }
 
-/** Skine fotografiju u inbox koji klijentska sesija smije citati. Vraca putanju ili null. */
-async function skiniFoto(poruka) {
+/**
+ * Skine fotografiju u inbox uloge `u`. Vraca putanju ili null.
+ *
+ * Inbox mora biti ciljne uloge, ne uvijek `glavna`: klijentski i admin runtime imaju razlicite
+ * settings.json i razlicite dozvole citanja, pa fotografija iz admin razgovora mora ici u admin
+ * inbox da je admin sesija smije citati.
+ */
+async function skiniFoto(u, poruka) {
   const izvor = izvorSlike(poruka);
   if (!izvor) return null;
   // getFile ne radi preko 20 MB, to je limit Bot API-ja. Bez ove provjere poziv padne bez
@@ -375,8 +435,8 @@ async function skiniFoto(poruka) {
     const res = await fetch(`https://api.telegram.org/file/bot${TOKEN}/${info.file_path}`);
     if (!res.ok) throw new Error(`preuzimanje fajla: ${res.status}`);
     const ext = (info.file_path.match(/\.[a-z0-9]+$/i) ?? [".jpg"])[0].toLowerCase();
-    mkdirSync(INBOX, { recursive: true });
-    const putanja = resolve(INBOX, `${Date.now()}-${izvor.kljuc}${ext}`);
+    mkdirSync(u.inbox, { recursive: true });
+    const putanja = resolve(u.inbox, `${Date.now()}-${izvor.kljuc}${ext}`);
     writeFileSync(putanja, Buffer.from(await res.arrayBuffer()));
     return putanja;
   } catch (e) {
@@ -387,27 +447,23 @@ async function skiniFoto(poruka) {
 
 // ---- ziva sesija ----
 
-let sesija = null; // { dijete, cekaci: [], buf }
-let idleTajmer = null;
-let zadnjaAktivnost = Date.now();
-
 // ---- telemetrija resursa: pomocne funkcije ----
 // upisiDogadjaj je NAMJERNO potpuno sinhrona (appendFileSync unutar upisiRed): sigurno je pozvati
 // je bilo gdje, ukljucujuci SIGINT/SIGTERM handler tik prije process.exit, bez brige da upis nece
 // stici. Kad je RESURSI_UKLJUCENO false, vraca se odmah bez ikakvog I/O.
-function upisiDogadjaj(polja) {
+function upisiDogadjaj(u, polja) {
   if (!RESURSI_UKLJUCENO) return;
   try {
     const red = redUzorka({
       ts: new Date().toISOString(),
       klon: KLON_IME,
-      tip: ULOGA.telemetrijaTip,
+      tip: u.uloga.telemetrijaTip,
       verzijaKoda: VERZIJA_KODA,
-      sesijaZiva: !!sesija,
+      sesijaZiva: !!u.sesija,
       // Most nema pravu strazu (poll ide stalno, ne samo dok sesija spava), ali ovo polje znaci
       // "klon je u mirnom stanju, sesija ne postoji", pa vrijemeUStrazi u lib/resursi.mjs racuna
       // isto kao za cuvara.
-      uStrazi: sesija === null,
+      uStrazi: u.sesija === null,
       cuvarRssBajta: process.memoryUsage().rss,
       ...polja,
     });
@@ -418,12 +474,12 @@ function upisiDogadjaj(polja) {
 }
 
 // Async dio: sabira RSS stabla procesa (ako je dat pidZaStablo) i stanje masine, pa upise red
-// preko upisiDogadjaj. `uzorakUToku` sprjecava preklapanje ako prethodni uzorak jos traje. Uvijek
-// razrijesi svoj Promise (i kad je telemetrija iskljucena ili je uzorak vec u toku), da pozivalac
-// (npr. ugasiUzSnimak) moze sigurno vezati .finally() na nju.
-async function uzmiUzorak(extraPolja, pidZaStablo) {
-  if (!RESURSI_UKLJUCENO || uzorakUToku) return;
-  uzorakUToku = true;
+// preko upisiDogadjaj. `u.uzorakUToku` sprjecava preklapanje ako prethodni uzorak jos traje.
+// Uvijek razrijesi svoj Promise (i kad je telemetrija iskljucena ili je uzorak vec u toku), da
+// pozivalac (npr. ugasiUzSnimak) moze sigurno vezati .finally() na nju.
+async function uzmiUzorak(u, extraPolja, pidZaStablo) {
+  if (!RESURSI_UKLJUCENO || u.uzorakUToku) return;
+  u.uzorakUToku = true;
   try {
     const [procesi, masina] = await Promise.all([
       pidZaStablo ? citajProcese() : Promise.resolve(null),
@@ -435,10 +491,10 @@ async function uzmiUzorak(extraPolja, pidZaStablo) {
     let cpuKlonaPct = null;
     if (pidovi) {
       const cpuRezultat = await cpuStabla(pidovi, {
-        prethodnoStanje: cpuStanjeKlona,
+        prethodnoStanje: u.cpuStanje,
         sadaMs: Date.now(),
       });
-      cpuStanjeKlona = cpuRezultat.stanjeZaSutra;
+      u.cpuStanje = cpuRezultat.stanjeZaSutra;
       cpuKlonaPct = cpuRezultat.pct;
     }
     if (masina) {
@@ -454,10 +510,10 @@ async function uzmiUzorak(extraPolja, pidZaStablo) {
         pragMs: PRAG_ALARM_MS,
       });
       if (odluka.posalji) {
-        void javiAdministratoru(`Pritisak na masinu (most, ${TIP}) u ${KORIJEN}: ${pritisak.razlog}.`);
+        void javiAdministratoru(`Pritisak na masinu (most, ${u.tip}) u ${KORIJEN}: ${pritisak.razlog}.`);
       }
     }
-    upisiDogadjaj({
+    upisiDogadjaj(u, {
       stabloRssBajta: stablo?.ukupnoBajta ?? null,
       stabloBrojProcesa: stablo?.brojProcesa ?? null,
       cpuKlonaPct,
@@ -467,47 +523,47 @@ async function uzmiUzorak(extraPolja, pidZaStablo) {
   } catch {
     // best effort
   } finally {
-    uzorakUToku = false;
+    u.uzorakUToku = false;
   }
 }
 
 // Zajednicka pomocna funkcija za sva tri mjesta gdje most gasi zivu sesiju (idle tajmer, nocni rez
 // konteksta, svjez .env): uzme PUN uzorak (RSS stabla + masina) DOK je proces jos ziv, jer je to
 // jedini trenutak koji pokazuje koliko je klijent trosio pred spavanje, pa tek onda posalje signal.
-// `sesija = null` je SINHRONO, odmah; odgodjen je samo sam kill (uzmiUzorak UVIJEK razrijesi svoj
+// `u.sesija = null` je SINHRONO, odmah; odgodjen je samo sam kill (uzmiUzorak UVIJEK razrijesi svoj
 // Promise, pa .finally() garantuje gasenje bez obzira na telemetriju). Ovo ostavlja kratak prozor
 // (par sekundi, koliko sonda traje) u kojem bi nova poruka mogla dici novu sesiju dok stara jos
-// umire - isti kompromis koji cuvar-sesije.mjs vec pravi (zatraziGasenje/uzmiUzorak).
-function ugasiUzSnimak(razlog) {
-  const s = sesija;
+// umire, isti kompromis koji cuvar-sesije.mjs vec pravi (zatraziGasenje/uzmiUzorak).
+function ugasiUzSnimak(u, razlog) {
+  const s = u.sesija;
   if (!s) return;
   s.namjerno = true; // da exit handler ne prijavi pad
-  sesija = null;
+  u.sesija = null;
   const pidPrijeGasenja = s.dijete.pid;
-  uzmiUzorak({ dogadjaj: "gasenje-idle", razlog }, pidPrijeGasenja).finally(() => s.dijete.kill("SIGTERM"));
+  uzmiUzorak(u, { dogadjaj: "gasenje-idle", razlog }, pidPrijeGasenja).finally(() => s.dijete.kill("SIGTERM"));
 }
 
-function otkaziIdle() {
-  if (idleTajmer) {
-    clearTimeout(idleTajmer);
-    idleTajmer = null;
+function otkaziIdle(u) {
+  if (u.idleTajmer) {
+    clearTimeout(u.idleTajmer);
+    u.idleTajmer = null;
   }
 }
 
 /** Zakazuje gasenje mirne sesije. Zove se SAMO kad je red prazan i potez zavrsen. */
-function zakaziIdle() {
-  otkaziIdle();
-  const rok = idleRokMs(IDLE_MIN);
-  if (rok === null || !sesija || gasenje) return;
-  idleTajmer = setTimeout(() => {
-    idleTajmer = null;
-    if (!sesija || gasenje) return;
-    if (!trebaLiUgasiti(zadnjaAktivnost, Date.now(), IDLE_MIN)) return zakaziIdle();
-    log(`sesija je mirovala ${IDLE_MIN} min, gasim je (kontekst ostaje, budi se na prvu poruku)`);
-    // stanje.sesija se NE dira: to je kljuc za --resume.
-    ugasiUzSnimak(`${IDLE_MIN} min mirovanja`);
+function zakaziIdle(u) {
+  otkaziIdle(u);
+  const rok = idleRokMs(u.idleMin);
+  if (rok === null || !u.sesija || gasenje) return;
+  u.idleTajmer = setTimeout(() => {
+    u.idleTajmer = null;
+    if (!u.sesija || gasenje) return;
+    if (!trebaLiUgasiti(u.zadnjaAktivnost, Date.now(), u.idleMin)) return zakaziIdle(u);
+    log(`sesija je mirovala ${u.idleMin} min, gasim je (kontekst ostaje, budi se na prvu poruku)`);
+    // u.stanje.sesija se NE dira: to je kljuc za --resume.
+    ugasiUzSnimak(u, `${u.idleMin} min mirovanja`);
   }, rok);
-  idleTajmer.unref?.();
+  u.idleTajmer.unref?.();
 }
 
 // Spawn ostaje vlastit, ne ide kroz pokreniClaude/claudeArgv iz sesija.mjs. Most sa sesijom
@@ -515,18 +571,18 @@ function zakaziIdle() {
 // pokreniClaude u pty grani gasi sav stdio na "ignore" i omotava u `script`, sto bi most
 // onesposobilo. Uz to trebaPty rjesava problem interaktivnog --channels puta, a most je -p
 // rezim koji prompt prima kroz stdin i taj problem nema.
-function pokreniSesiju(nastavak) {
-  const promptPutanja = sastaviPrompt(TIP, KORIJEN, log);
-  const id = stanje.sesija ?? randomUUID();
-  const argv = argviSesije({ id, nastavak, promptPutanja, dozvoljeniAlati: ULOGA.dozvoljeniAlati, zabranjeniAlati: ULOGA.zabranjeniAlati });
+function pokreniSesiju(u, nastavak) {
+  const promptPutanja = sastaviPrompt(u.tip, KORIJEN, log);
+  const id = u.stanje.sesija ?? randomUUID();
+  const argv = argviSesije({ id, nastavak, promptPutanja, dozvoljeniAlati: u.uloga.dozvoljeniAlati, zabranjeniAlati: u.uloga.zabranjeniAlati });
   const dijete = spawn("claude", argv, {
     env: okruzenjeSesije({
       osnova: process.env,
-      aiEnv: ai.env,
-      obrisi: ai.obrisi,
-      runtime: staze.runtime,
-      telegramDir: staze.telegramDir,
-      mcpProfil: staze.mcpProfil,
+      aiEnv: u.ai.env,
+      obrisi: u.ai.obrisi,
+      runtime: u.staze.runtime,
+      telegramDir: u.staze.telegramDir,
+      mcpProfil: u.staze.mcpProfil,
     }),
     stdio: ["pipe", "pipe", "pipe"],
     shell: process.platform === "win32",
@@ -547,7 +603,7 @@ function pokreniSesiju(nastavak) {
   // sesije, most radi dalje. NE cisti se sirocad po ovom pidu: most sesiju drzi kao svoje dijete i
   // gasi je sam, a lazno prepoznavanje reciklirauog pida bi bilo opasnije nego korisno.
   try {
-    writeFileSync(join(KORIJEN, ".olx-pik", ULOGA.sesijaPid), `${dijete.pid ?? ""}\n`, "utf8");
+    writeFileSync(join(KORIJEN, ".olx-pik", u.uloga.sesijaPid), `${dijete.pid ?? ""}\n`, "utf8");
   } catch {
     // bez zapisa telemetrija samo gubi pregled zive sesije, most radi dalje
   }
@@ -569,7 +625,7 @@ function pokreniSesiju(nastavak) {
       // mjeriHladniStartIObjavi (koja mjeri do prvog znaka zivota preko mtime transkripta).
       if (!s.budjenjeObjavljeno) {
         s.budjenjeObjavljeno = true;
-        upisiDogadjaj({ dogadjaj: "budjenje", hladniStartMs: Date.now() - s.pocetakMs });
+        upisiDogadjaj(u, { dogadjaj: "budjenje", hladniStartMs: Date.now() - s.pocetakMs });
       }
       // `result` zatvara potez i nosi konacan tekst.
       if (j.type === "result" && s.cekac) {
@@ -584,7 +640,7 @@ function pokreniSesiju(nastavak) {
   });
   dijete.on("exit", (kod, signal) => {
     try {
-      unlinkSync(join(KORIJEN, ".olx-pik", ULOGA.sesijaPid));
+      unlinkSync(join(KORIJEN, ".olx-pik", u.uloga.sesijaPid));
     } catch {
       // vec obrisan ili nije ni upisan
     }
@@ -594,9 +650,9 @@ function pokreniSesiju(nastavak) {
       log(`sesija izasla (kod ${kod})${s.greske.trim() ? `: ${s.greske.trim().slice(-300)}` : ""}`);
       // "pad" ide SAMO kad gasenje nije namjerno: namjerno gasenje (idle, nocni rez, svjez .env)
       // ima svoj "gasenje-idle" dogadjaj i nije pad.
-      upisiDogadjaj({ dogadjaj: "pad", exitCode: kod, exitSignal: signal ?? null, trajanjeSesijeMs: Date.now() - s.pocetakMs });
+      upisiDogadjaj(u, { dogadjaj: "pad", exitCode: kod, exitSignal: signal ?? null, trajanjeSesijeMs: Date.now() - s.pocetakMs });
     }
-    if (sesija === s) sesija = null;
+    if (u.sesija === s) u.sesija = null;
     if (s.cekac) {
       const cekac = s.cekac;
       s.cekac = null;
@@ -605,21 +661,21 @@ function pokreniSesiju(nastavak) {
   });
   dijete.on("error", (e) => log(`sesija se nije pokrenula: ${e.message}. Da li je claude u PATH-u?`));
 
-  if (s.id !== stanje.sesija) {
-    stanje = { ...stanje, sesija: s.id };
-    sacuvaj();
+  if (s.id !== u.stanje.sesija) {
+    u.stanje = { ...u.stanje, sesija: s.id };
+    sacuvaj(u);
   }
   log(`sesija pokrenuta (pid ${dijete.pid ?? "?"}, ${nastavak ? "nastavak" : "nova"} ${s.id})`);
-  upisiDogadjaj({ dogadjaj: "start" });
+  upisiDogadjaj(u, { dogadjaj: "start" });
   return s;
 }
 
 /** Posalje tekst zivoj sesiji i vrati sto je vratila. Pokrece sesiju ako je nema. */
-function posaljiSesiji(tekst) {
-  otkaziIdle();
-  zadnjaAktivnost = Date.now();
-  if (!sesija) sesija = pokreniSesiju(Boolean(stanje.sesija));
-  const s = sesija;
+function posaljiSesiji(u, tekst) {
+  otkaziIdle(u);
+  u.zadnjaAktivnost = Date.now();
+  if (!u.sesija) u.sesija = pokreniSesiju(u, Boolean(u.stanje.sesija));
+  const s = u.sesija;
   if (s.cekac) return Promise.resolve({ ok: false, tekst: "", greska: "sesija je zauzeta" });
 
   return new Promise((zavrsi) => {
@@ -658,7 +714,8 @@ function posaljiSesiji(tekst) {
 // sljedeca poruka krece OD NULE, bez --resume.
 
 // Cron logovi rastu bez granice (launchd/Scheduler samo apenduju). Isti obrazac i ista konstanta
-// kao cuvar-sesije.mjs: nocni ciklus ih skrati na zadnjih ~1 MB.
+// kao cuvar-sesije.mjs: nocni ciklus ih skrati na zadnjih ~1 MB. Fajlovi su procesni (dijeljeni
+// za sve uloge klona), pa funkcija ostaje bez argumenta uloge.
 const LOG_MAX_BAJTA = 1_000_000;
 
 function skratiLogove() {
@@ -686,13 +743,13 @@ function skratiLogove() {
   }
 }
 
-function ocistiInbox() {
-  if (!existsSync(INBOX)) return;
+function ocistiInbox(u) {
+  if (!existsSync(u.inbox)) return;
   const prag = Date.now() - INBOX_DANA * 24 * 60 * 60 * 1000;
   let obrisano = 0;
   try {
-    for (const ime of readdirSync(INBOX)) {
-      const putanja = join(INBOX, ime);
+    for (const ime of readdirSync(u.inbox)) {
+      const putanja = join(u.inbox, ime);
       try {
         const st = statSync(putanja);
         if (st.isFile() && st.mtimeMs < prag) {
@@ -709,22 +766,23 @@ function ocistiInbox() {
   if (obrisano > 0) log(`inbox ociscen: ${obrisano} fajlova starijih od ${INBOX_DANA} dana`);
 }
 
-/** Zadnji dan (lokalni, "YYYY-MM-DD") kad je odradjen nocni rez konteksta. */
-let zadnjiNocni = "";
-
 /** Gasi zivu internu sesiju (namjerno, da exit handler ne prijavi pad) i brise njen kljuc, pa
  * sljedeca poruka krece bez --resume. Zove se i kad sesija NIJE ziva: kontekst se rezi svakako,
  * jer bi ga inace sljedeca poruka nastavila kroz --resume. */
-function ugasiSesijuBezResuma(razlog) {
-  otkaziIdle();
-  ugasiUzSnimak(razlog);
-  stanje = { ...stanje, sesija: null };
-  sacuvaj();
+function ugasiSesijuBezResuma(u, razlog) {
+  otkaziIdle(u);
+  ugasiUzSnimak(u, razlog);
+  u.stanje = { ...u.stanje, sesija: null };
+  sacuvaj(u);
 }
 
-function nocniRez() {
-  ugasiSesijuBezResuma("nocni rez konteksta");
-  ocistiInbox();
+function nocniRez(u) {
+  ugasiSesijuBezResuma(u, "nocni rez konteksta");
+  ocistiInbox(u);
+  // skratiLogove i ocistiStareResurse su PROCESNI (dijeljeni fajlovi klona), ne po ulozi.
+  // Namjerno: ako u fazi C dvije uloge udare isti sat rezenja, oba pozivaju ove dvije funkcije,
+  // ali su obje idempotentne (drugi poziv u istoj minuti nema sta da skrati ili obrise), pa je
+  // dupli poziv bezopasan.
   skratiLogove();
   if (RESURSI_UKLJUCENO) ocistiStareResurse(RESURSI_DIR, { cuvajMjeseci: RESURSI_CUVAJ_MJESECI });
   log(`nocni rez konteksta odradjen (sat ${RESTART_SAT}h): sljedeca poruka krece bez --resume`);
@@ -759,8 +817,6 @@ function osvjeziEnvIzFajla() {
 
 // ---- obrada reda ----
 
-let radi = false;
-
 /** Slike koje su nastale tokom poteza. Sesija ih pravi kroz olx_generiraj_sliku. */
 function slikeNovijeOd(od) {
   const dir = process.env.OLX_SLIKA_DIR || ".olx-pik/slike";
@@ -780,106 +836,154 @@ function slikeNovijeOd(od) {
   }
 }
 
-// posaljiPoruku/posaljiSliku po defaultu koriste TELEGRAM_BOT_TOKEN iz okruzenja, dakle
-// klijentskog bota (src/core/telegram.ts, telegramConfig). Admin ulozi se TOKEN mora izricito
-// proslijediti, inace bi odgovori admin botu izasli iz klijentskog bota i zavrsili kod musterije.
-const OPCIJE_SLANJA = ULOGA.jeAdmin ? { botToken: TOKEN } : {};
+// TOKEN se salje UVIJEK, bez grane po ulozi: token je procesni i jedan (vidi komentar iznad
+// definicije TOKEN), pa izricito prosljedjivanje ovdje uklanja granu i tacnije je od pouzdanja u
+// TELEGRAM_BOT_TOKEN iz okruzenja djeteta. posaljiPoruku/posaljiSliku (src/core/telegram.ts,
+// telegramConfig) bi bez botToken parametra pale na TELEGRAM_BOT_TOKEN iz process.env, a klon koji
+// token drzi SAMO u runtime .env (tako ga pise pripremi-runtime.mjs, ne u .env klona) ne bi imao
+// tu varijablu postavljenu, pa bi poziv pao ili otisao na pogresan bot.
+const OPCIJE_SLANJA = { botToken: TOKEN };
 
-async function obradiRed() {
-  if (radi) return;
-  radi = true;
-  otkaziIdle();
-  const { posaljiPoruku, posaljiSliku, javiAdminu } = await import("../dist/core/telegram.js");
+// posaljiPoruku/posaljiSliku/javiAdminu se ucitavaju dinamicki JEDNOM, u radnik() prije petlje
+// (ne staticnim importom na vrhu fajla): modul zivi u dist/, koji ne postoji prije prvog builda,
+// pa bi staticni import pao na svjezem klonu jos prije nego most stigne do preduslova.
+let telegramFns = null;
+
+/**
+ * Obradi TACNO JEDNU stavku sa glave reda uloge `u` i vrati se. Logika je NEDIRNUTA u odnosu na
+ * staru petlju: sendChatAction kucanje i njegov clearInterval, posaljiSesiji, provjera gasenja,
+ * retry sa novom sesijom, slanje odgovora, slanje slika iz slikeNovijeOd(potezPoceo), vadjenje
+ * stavke iz reda TEK poslije uspjesnog slanja, stavka.pokusaja, MAX_POKUSAJA, javiAdminu, pauza
+ * od 3000 ms. Izdvojena je na jedan potez da globalni radnik() moze naizmjenice opsluzivati sve
+ * uloge, potez po potez, umjesto da jedna uloga isprazni cijeli svoj red prije nego druga dodje
+ * na red.
+ */
+async function obradiStavku(u) {
+  const { posaljiPoruku, posaljiSliku, javiAdminu } = telegramFns;
+  const stavka = u.stanje.red[0];
+  const kucaj = setInterval(() => {
+    void tg("sendChatAction", { chat_id: stavka.chatId, action: "typing" }).catch(() => {});
+  }, 4000);
+  void tg("sendChatAction", { chat_id: stavka.chatId, action: "typing" }).catch(() => {});
+
+  const potezPoceo = Date.now();
+  let odgovor;
   try {
-    while (stanje.red.length > 0) {
-      const stavka = stanje.red[0];
-      const kucaj = setInterval(() => {
-        void tg("sendChatAction", { chat_id: stavka.chatId, action: "typing" }).catch(() => {});
-      }, 4000);
-      void tg("sendChatAction", { chat_id: stavka.chatId, action: "typing" }).catch(() => {});
-
-      const potezPoceo = Date.now();
-      let odgovor;
-      try {
-        odgovor = await posaljiSesiji(tekstStavke(stavka));
-        // Gasenje nije neuspjeh stavke: ostavljamo je u redu netaknutu, bez pokusaja.
-        if (gasenje) return;
-        // Nastavak moze pasti ako je historija sesije nestala: krecemo od nove, jednom.
-        if (!odgovor.ok && stanje.sesija && !stavka.novaSesijaProbana) {
-          log(`potez pao (${odgovor.greska ?? "bez objasnjenja"}), krecem novu sesiju`);
-          stavka.novaSesijaProbana = true;
-          stanje = { ...stanje, sesija: null };
-          sacuvaj();
-          odgovor = await posaljiSesiji(tekstStavke(stavka));
-        }
-      } finally {
-        clearInterval(kucaj);
-      }
-
-      if (odgovor.ok && odgovor.tekst) {
-        try {
-          await posaljiPoruku(odgovor.tekst, { chatId: String(stavka.chatId), ...OPCIJE_SLANJA });
-          log(`odgovoreno u chat ${stavka.chatId} (${odgovor.tekst.length} znakova)`);
-          // Slika koju je sesija napravila tokom ovog poteza ide odmah za tekstom. Ne trazi se
-          // nikakva saradnja modela: dovoljno je da je fajl nastao, pa i slabiji model ne moze
-          // zaboraviti da je posalje.
-          for (const putanja of slikeNovijeOd(potezPoceo)) {
-            try {
-              await posaljiSliku(putanja, { chatId: String(stavka.chatId), ...OPCIJE_SLANJA });
-              log(`poslana slika ${putanja}`);
-            } catch (e) {
-              log(`slika nije poslana: ${e instanceof Error ? e.message : e}`);
-            }
-          }
-          // Tek sada stavka izlazi iz reda: prije ovoga pad znaci ponovnu obradu, ne gubitak.
-          stanje = { ...stanje, red: stanje.red.slice(1) };
-          sacuvaj();
-          continue;
-        } catch (e) {
-          log(`slanje na Telegram palo: ${e instanceof Error ? e.message : e}`);
-        }
-      }
-
-      stavka.pokusaja = (stavka.pokusaja ?? 0) + 1;
-      if (stavka.pokusaja >= MAX_POKUSAJA) {
-        log(`stavka odustaje poslije ${stavka.pokusaja} pokusaja`);
-        stanje = { ...stanje, red: stanje.red.slice(1) };
-        sacuvaj();
-        // Namjerno bez OPCIJE_SLANJA: ovo je alarm vlasniku, isti podrazumijevani kanal kao
-        // javiAdministratoru, i za klijentski i za admin most.
-        await javiAdminu(
-          `Telegram most: poruka iz chata ${stavka.chatId} nije odgovorena poslije ${stavka.pokusaja} pokusaja.\n` +
-            `Zadnja greska: ${odgovor.greska ?? "sesija je vratila prazan tekst"}`,
-        ).catch(() => {});
-      } else {
-        sacuvaj();
-        await new Promise((r) => setTimeout(r, 3000));
-      }
+    odgovor = await posaljiSesiji(u, tekstStavke(stavka));
+    // Gasenje nije neuspjeh stavke: ostavljamo je u redu netaknutu, bez pokusaja.
+    if (gasenje) return;
+    // Nastavak moze pasti ako je historija sesije nestala: krecemo od nove, jednom.
+    if (!odgovor.ok && u.stanje.sesija && !stavka.novaSesijaProbana) {
+      log(`potez pao (${odgovor.greska ?? "bez objasnjenja"}), krecem novu sesiju`);
+      stavka.novaSesijaProbana = true;
+      u.stanje = { ...u.stanje, sesija: null };
+      sacuvaj(u);
+      odgovor = await posaljiSesiji(u, tekstStavke(stavka));
     }
   } finally {
-    radi = false;
-    zadnjaAktivnost = Date.now();
-    // Tajmer se postavlja tek kad je red ostao prazan i potez zavrsen: dok potez traje sesija se
-    // ne smije presjeci na pola.
-    if (!gasenje && stanje.red.length === 0) zakaziIdle();
+    clearInterval(kucaj);
+  }
+
+  if (odgovor.ok && odgovor.tekst) {
+    try {
+      await posaljiPoruku(odgovor.tekst, { chatId: String(stavka.chatId), ...OPCIJE_SLANJA });
+      log(`odgovoreno u chat ${stavka.chatId} (${odgovor.tekst.length} znakova)`);
+      // Slika koju je sesija napravila tokom ovog poteza ide odmah za tekstom. Ne trazi se
+      // nikakva saradnja modela: dovoljno je da je fajl nastao, pa i slabiji model ne moze
+      // zaboraviti da je posalje.
+      for (const putanja of slikeNovijeOd(potezPoceo)) {
+        try {
+          await posaljiSliku(putanja, { chatId: String(stavka.chatId), ...OPCIJE_SLANJA });
+          log(`poslana slika ${putanja}`);
+        } catch (e) {
+          log(`slika nije poslana: ${e instanceof Error ? e.message : e}`);
+        }
+      }
+      // Tek sada stavka izlazi iz reda: prije ovoga pad znaci ponovnu obradu, ne gubitak.
+      u.stanje = { ...u.stanje, red: u.stanje.red.slice(1) };
+      sacuvaj(u);
+      return;
+    } catch (e) {
+      log(`slanje na Telegram palo: ${e instanceof Error ? e.message : e}`);
+    }
+  }
+
+  stavka.pokusaja = (stavka.pokusaja ?? 0) + 1;
+  if (stavka.pokusaja >= MAX_POKUSAJA) {
+    log(`stavka odustaje poslije ${stavka.pokusaja} pokusaja`);
+    u.stanje = { ...u.stanje, red: u.stanje.red.slice(1) };
+    sacuvaj(u);
+    // Namjerno bez OPCIJE_SLANJA: ovo je alarm vlasniku, isti podrazumijevani kanal kao
+    // javiAdministratoru, i za klijentski i za admin most.
+    await javiAdminu(
+      `Telegram most: poruka iz chata ${stavka.chatId} nije odgovorena poslije ${stavka.pokusaja} pokusaja.\n` +
+        `Zadnja greska: ${odgovor.greska ?? "sesija je vratila prazan tekst"}`,
+    ).catch(() => {});
+  } else {
+    sacuvaj(u);
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+}
+
+let radnikAktivan = false;
+
+/**
+ * Globalni katanac poteza: JEDAN radnik za SVE uloge u mapi, umjesto po ulozi (obradiRed prije
+ * ove faze). Round robin je po JEDNOJ stavci, ne po cijelom redu uloge: tako admin ceka najvise
+ * jedan klijentski potez da zavrsi, a ne cijeli klijentski red.
+ *
+ * Katanac postoji zbog slika: slikeNovijeOd(potezPoceo) vezuje slike za odgovor po VREMENU
+ * nastanka, iz JEDNE dijeljene mape (OLX_SLIKA_DIR). Dva paralelna poteza (klijent i admin u isto
+ * vrijeme) bi znacila da slika iz klijentske sesije moze otici u vlasnikov privatni razgovor, ili
+ * slika iz admin poteza u KLIJENTSKU GRUPU. Razdvajanje mape slika je odlozeno za kasnije, pa ovaj
+ * katanac (nikad dva poteza istovremeno) mora sprijeciti to preklapanje.
+ */
+async function radnik() {
+  if (radnikAktivan) return;
+  radnikAktivan = true;
+  try {
+    if (!telegramFns) telegramFns = await import("../dist/core/telegram.js");
+    while (!gasenje) {
+      let radio = false;
+      for (const u of uloge.values()) {
+        if (u.stanje.red.length === 0) continue;
+        radio = true;
+        u.radi = true;
+        otkaziIdle(u);
+        try {
+          await obradiStavku(u);
+        } finally {
+          u.radi = false;
+          u.zadnjaAktivnost = Date.now();
+        }
+        if (gasenje) break;
+      }
+      if (!radio) break;
+    }
+  } finally {
+    radnikAktivan = false;
+    for (const u of uloge.values()) {
+      if (!gasenje && u.stanje.red.length === 0) zakaziIdle(u);
+    }
   }
 }
 
 // ---- album bafer ----
 // Telegram album stize kao vise odvojenih poruka sa istim media_group_id i bez signala da je
-// zadnja. Kratko cekanje ih spaja u jednu stavku, pa korisnik ne mora pisati "gotovo".
+// zadnja. Kratko cekanje ih spaja u jednu stavku, pa korisnik ne mora pisati "gotovo". Zajednicki
+// za sve uloge (isti proces, isti Telegram poll), zato ostaje modul-level.
 
 const albumi = new Map();
 
-function uRed(stavka) {
-  stanje = { ...stanje, red: [...stanje.red, stavka] };
-  sacuvaj();
-  void obradiRed();
+function uRed(u, stavka) {
+  u.stanje = { ...u.stanje, red: [...u.stanje.red, stavka] };
+  sacuvaj(u);
+  void radnik();
 }
 
-function ubaci(chatId, tekst, slike, albumId) {
+function ubaci(u, chatId, tekst, slike, albumId) {
   if (!albumId) {
-    uRed({ chatId, tekst, slike });
+    uRed(u, { chatId, tekst, slike });
     return;
   }
   const postojeci = albumi.get(albumId);
@@ -888,10 +992,14 @@ function ubaci(chatId, tekst, slike, albumId) {
     if (tekst && !postojeci.tekst) postojeci.tekst = tekst;
     clearTimeout(postojeci.tajmer);
   }
-  const stavka = postojeci ?? { chatId, tekst, slike: [...slike] };
+  // Stavka nosi vlastiti `tip`, jer album moze primiti poruke iz vise poziva ubaci() rasprostrte
+  // kroz vrijeme: kad tajmer istekne, unos uloge se trazi ponovo preko stanjeUloge, ne zatvara se
+  // preko `u` iz prvog poziva.
+  const stavka = postojeci ?? { chatId, tekst, slike: [...slike], tip: u.tip };
   stavka.tajmer = setTimeout(() => {
     albumi.delete(albumId);
-    uRed({ chatId: stavka.chatId, tekst: stavka.tekst, slike: stavka.slike });
+    const ciljnaUloga = stanjeUloge(uloge, stavka.tip);
+    uRed(ciljnaUloga, { chatId: stavka.chatId, tekst: stavka.tekst, slike: stavka.slike });
   }, ALBUM_CEKANJE_MS);
   albumi.set(albumId, stavka);
 }
@@ -903,15 +1011,17 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, () => {
     if (gasenje) return; // launchd i shell umiju poslati oba signala
     gasenje = true;
-    otkaziIdle();
     log("gasim se, sto je u redu ostaje za sljedece pokretanje");
-    upisiDogadjaj({ dogadjaj: "cuvar-gasenje" });
+    for (const u of uloge.values()) {
+      otkaziIdle(u);
+      upisiDogadjaj(u, { dogadjaj: "cuvar-gasenje" });
+      u.sesija?.dijete.kill("SIGTERM");
+    }
     try {
       unlinkSync(PID_FAJL);
     } catch {
       // vec obrisan
     }
-    sesija?.dijete.kill("SIGTERM");
     setTimeout(() => process.exit(0), 500);
   });
 }
@@ -919,17 +1029,74 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 const preduslovi = provjeriPreduslove(TIP, KORIJEN, process.env);
 for (const g of preduslovi.greske) console.error(g);
 if (preduslovi.greske.length > 0) process.exit(2);
-for (const u of preduslovi.upozorenja) console.error(u);
+for (const g of preduslovi.upozorenja) console.error(g);
+
+// Jednobotni rezim: klijentska uloga (TIP klijent, `glavna`) u ovom procesu vozi i admin granu,
+// pa treba i admin runtime (.claude-runtime-admin, prompt admin-bota) da bi admin poteze mogla
+// pokrenuti, iako je argv rekao "klijent".
+let adminUnos = null;
+if (JEDNOBOTNI) {
+  const preduslociAdmin = provjeriPreduslove("admin-bot", KORIJEN, process.env);
+  for (const g of preduslociAdmin.greske) console.error(g);
+  if (preduslociAdmin.greske.length > 0) {
+    // Poruka iz sesija.mjs (iznad) predlaze STARU komandu, sa bot tokenom: tacno za dvobotni
+    // rezim, ne za ovaj. U jednobotnom rezimu admin runtime nema svoj bot, pa ide bez njega.
+    console.error(
+      "U jednobotnom rezimu admin runtime se pravi sa: bun scripts/pripremi-admin-runtime.mjs " +
+        "--bez-bota <admin_telegram_id>",
+    );
+    process.exit(2);
+  }
+  for (const g of preduslociAdmin.upozorenja) console.error(g);
+  adminUnos = pripremiUlogu("admin-bot");
+}
 
 const pristup = citajPristup();
 if (!pristup) {
   console.error(
     `Nema ${join(RUNTIME, "channels", "telegram", "access.json")}. Most bez allowlista ne prima nista.\n` +
-      (ULOGA.jeAdmin
+      (glavna.uloga.jeAdmin
         ? "Pripremi runtime: bun scripts/pripremi-admin-runtime.mjs <bot_token> <admin_telegram_id> [id_grupe]"
         : "Pripremi runtime: bun scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>"),
   );
   process.exit(2);
+}
+
+// ---- jednobotni rezim: brane medjusobne iskljucivosti ----
+// Dva getUpdates konzumera na istom bot tokenu daju 409 Conflict Telegramu, a dva procesa koja
+// radi --resume na istom sesijskom kljucu bi pokvarila transkript. U jednobotnom rezimu jedan
+// proces (klijentska uloga) vozi oba smjera, pa odvojen admin-bot proces vise ne smije raditi
+// paralelno s njim, u ni jednom smjeru.
+if (JEDNOBOTNI && TIP === "admin-bot") {
+  await odbijStart(
+    "jednobotni rezim je ukljucen (OLX_MOST_ADMIN_TG_ID je postavljen): u tom rezimu admin poruke " +
+      "vozi klijentski most u istom procesu, pa odvojena admin uloga ne smije raditi. Skloni posao admin-bot.",
+  );
+}
+if (JEDNOBOTNI && TIP === "klijent") {
+  const adminPidFajl = join(KORIJEN, ".olx-pik", "most-admin.pid");
+  let stariAdminPid = 0;
+  try {
+    stariAdminPid = Number(readFileSync(adminPidFajl, "utf8").trim());
+  } catch {
+    // fajla nema, nikad nije postojao ili je uredno ociscen
+  }
+  if (Number.isFinite(stariAdminPid) && stariAdminPid > 0) {
+    let ziv = false;
+    try {
+      process.kill(stariAdminPid, 0);
+      ziv = true;
+    } catch {
+      // proces ne postoji: mrtav pid fajl je ostatak od pada, NE blokira start i ne dira se
+      // (nije ovog procesa fajl da ga brise).
+    }
+    if (ziv) {
+      await odbijStart(
+        `stari admin most (pid ${stariAdminPid}) jos radi na drugom tokenu. Skloni posao admin-bot ` +
+          "da se jednobotni rezim ne sudari sa njim na istom Telegram tokenu.",
+      );
+    }
+  }
 }
 
 // Brava se zauzima tek OVDJE: preduslovi i pristup su vec provjereni, a getMe nize je vec dodir
@@ -945,11 +1112,14 @@ try {
   process.exit(1);
 }
 
-log(`most (${TIP}) radi kao @${botIme}, pogon ${ai.pogon}, offset ${stanje.offset}, u redu ${stanje.red.length}, sesija ${stanje.sesija ?? "(nova)"}`);
+log(
+  `most (${TIP}) radi kao @${botIme}, pogon ${glavna.ai.pogon}, offset ${glavna.stanje.offset}, u redu ${glavna.stanje.red.length}, sesija ${glavna.stanje.sesija ?? "(nova)"}` +
+    (JEDNOBOTNI ? `, jednobotni rezim: isti bot vozi klijenta i admina (OLX_MOST_ADMIN_TG_ID=${ADMIN_TG_ID})` : ""),
+);
 // Ime dogadjaja se NAMJERNO ne mijenja iako most nije cuvar: znaci "nadzorni proces je startovao"
 // i tako ga cita analiza flote (scripts/resursi.mjs).
-upisiDogadjaj({ dogadjaj: "cuvar-start" });
-if (stanje.red.length > 0) void obradiRed(); // sto je ostalo od proslog pokretanja
+upisiDogadjaj(glavna, { dogadjaj: "cuvar-start" });
+if ([...uloge.values()].some((u) => u.stanje.red.length > 0)) void radnik(); // sto je ostalo od proslog pokretanja
 
 // ---- minutni tik: nocni rez konteksta i preuzimanje svjezeg .env ----
 // unref?.(): proces zivi od glavne petlje (i od zive sesije, dok postoji), tajmer ga ne smije
@@ -957,48 +1127,54 @@ if (stanje.red.length > 0) void obradiRed(); // sto je ostalo od proslog pokreta
 function tikMinute() {
   if (gasenje) return;
   const sad = new Date();
-  const zauzet = radi || stanje.red.length > 0 || albumi.size > 0;
 
-  // telemetrija resursa: gusce uzorkovanje dok je sesija ziva, rjedje dok je mirna (nema sesije).
-  if (RESURSI_UKLJUCENO) {
-    const mirno = sesija === null;
-    const trenutniInterval = mirno ? RESURSI_INTERVAL_STRAZA_MIN : RESURSI_INTERVAL_MIN;
-    const pomak = mirno ? RESURSI_POMAK_STRAZA : RESURSI_POMAK_AKTIVNO;
-    const minutaOdEpoha = Math.floor(Date.now() / 60_000);
-    if (trebaLiUzorkovati({ minutaOdEpoha, intervalMin: trenutniInterval, pomak, zadnjaUzorkovanaMinuta })) {
-      zadnjaUzorkovanaMinuta = minutaOdEpoha;
-      void uzmiUzorak({ intervalMin: trenutniInterval }, sesija ? sesija.dijete.pid : null);
-    }
-  }
+  for (const u of uloge.values()) {
+    // `radnikAktivan` se NAMJERNO ne dodaje ovdje: sjecenje sesije JEDNE uloge (nocni rez, idle,
+    // svjez .env) dok DRUGA uloga vodi potez preko globalnog radnik() je bezopasno, jer su to dva
+    // razlicita procesa djeteta. `u.radi` vec kaze da je OVA konkretna uloga u potezu.
+    const zauzet = u.radi || u.stanje.red.length > 0 || albumi.size > 0;
 
-  // Vanjski zahtjev za svjez .env (npr. nov OLX_TOKEN iz onboardinga): za razliku od
-  // cuvar-sesije.mjs, ovdje NEMA restarta procesa koji bi ga sam dici nazad, pa most mora
-  // primijeniti novu vrijednost u vlastitom process.env i sam ugasiti sesiju koja je radila bez
-  // nje. Kad je most zauzet, zahtjev se NE dira: potez u toku se ne smije presjeci na pola,
-  // fajl ceka sljedecu minutu.
-  if (existsSync(RESTART_ZAHTJEV) && !zauzet) {
-    let razlog = "vanjski zahtjev";
-    try {
-      razlog = readFileSync(RESTART_ZAHTJEV, "utf8").trim() || razlog;
-    } catch {
-      // fajl je nestao ili je necitljiv: primjena ide dalje, razlog ostaje opsti
+    // telemetrija resursa: gusce uzorkovanje dok je sesija ziva, rjedje dok je mirna (nema sesije).
+    if (RESURSI_UKLJUCENO) {
+      const mirno = u.sesija === null;
+      const trenutniInterval = mirno ? RESURSI_INTERVAL_STRAZA_MIN : RESURSI_INTERVAL_MIN;
+      const pomak = mirno ? RESURSI_POMAK_STRAZA : RESURSI_POMAK_AKTIVNO;
+      const minutaOdEpoha = Math.floor(Date.now() / 60_000);
+      if (trebaLiUzorkovati({ minutaOdEpoha, intervalMin: trenutniInterval, pomak, zadnjaUzorkovanaMinuta: u.zadnjaUzorkovanaMinuta })) {
+        u.zadnjaUzorkovanaMinuta = minutaOdEpoha;
+        void uzmiUzorak(u, { intervalMin: trenutniInterval }, u.sesija ? u.sesija.dijete.pid : null);
+      }
     }
-    try {
-      unlinkSync(RESTART_ZAHTJEV);
-    } catch {
-      // ako se ne moze obrisati, zahtjev se ne vrti u krug: ignorise se dalje
-    }
-    osvjeziEnvIzFajla();
-    // Sesija koja je radila bez svjezeg tokena nema upotrebljiv kontekst za nastavak.
-    ugasiSesijuBezResuma(razlog);
-    log(`svjez .env primijenjen (${razlog}), sesija ugasena bez --resume`);
-  }
 
-  if (trebaLiNocniRez({ sad, restartSat: RESTART_SAT, zadnjiNocni, zauzet })) {
-    // Upisano PRVO, prije samog posla: sprjecava da se rez ponovi vise puta u istom danu ako
-    // vise provjera padne u isti sat.
-    zadnjiNocni = lokalniDatum(sad);
-    nocniRez();
+    // Vanjski zahtjev za svjez .env (npr. nov OLX_TOKEN iz onboardinga): za razliku od
+    // cuvar-sesije.mjs, ovdje NEMA restarta procesa koji bi ga sam dici nazad, pa most mora
+    // primijeniti novu vrijednost u vlastitom process.env i sam ugasiti sesiju koja je radila bez
+    // nje. Kad je uloga zauzeta, njen zahtjev se NE dira: potez u toku se ne smije presjeci na
+    // pola, fajl ceka sljedecu minutu.
+    if (existsSync(u.restartZahtjev) && !zauzet) {
+      let razlog = "vanjski zahtjev";
+      try {
+        razlog = readFileSync(u.restartZahtjev, "utf8").trim() || razlog;
+      } catch {
+        // fajl je nestao ili je necitljiv: primjena ide dalje, razlog ostaje opsti
+      }
+      try {
+        unlinkSync(u.restartZahtjev);
+      } catch {
+        // ako se ne moze obrisati, zahtjev se ne vrti u krug: ignorise se dalje
+      }
+      osvjeziEnvIzFajla();
+      // Sesija koja je radila bez svjezeg tokena nema upotrebljiv kontekst za nastavak.
+      ugasiSesijuBezResuma(u, razlog);
+      log(`svjez .env primijenjen (${razlog}), sesija ugasena bez --resume`);
+    }
+
+    if (trebaLiNocniRez({ sad, restartSat: RESTART_SAT, zadnjiNocni: u.zadnjiNocni, zauzet })) {
+      // Upisano PRVO, prije samog posla: sprjecava da se rez ponovi vise puta u istom danu ako
+      // vise provjera padne u isti sat.
+      u.zadnjiNocni = lokalniDatum(sad);
+      nocniRez(u);
+    }
   }
 }
 setInterval(tikMinute, 60_000).unref?.();
@@ -1006,8 +1182,11 @@ setInterval(tikMinute, 60_000).unref?.();
 while (!gasenje) {
   let noviji;
   try {
+    // Offset pripada TOKENU, dakle GLAVNOJ ulozi (vlasniku bot tokena), ne svakoj ulozi
+    // pojedinacno: u fazi C drugi unos u mapi deli isti token i isti offset preko `glavna`, ne
+    // dobija svoj.
     noviji = await tg("getUpdates", {
-      offset: stanje.offset,
+      offset: glavna.stanje.offset,
       timeout: JEDNOM ? 0 : POLL_TIMEOUT_S,
       allowed_updates: ["message"],
     });
@@ -1019,27 +1198,45 @@ while (!gasenje) {
 
   for (const u of noviji) {
     const poruka = u.message;
-    if (poruka && dozvoljena(poruka, pristup, botIme)) {
+    const odluka = poruka ? odlukaPoruke(poruka, pristup, botIme, ADMIN_TG_ID) : { prihvacena: false, uloga: null };
+    if (poruka && odluka.prihvacena) {
       const tekst = (poruka.text ?? poruka.caption ?? "").trim();
       if (tekst.startsWith("/")) {
         log(`komanda ${tekst.split(" ")[0]} preskocena`); // komande ne idu u sesiju
       } else {
-        const slika = await skiniFoto(poruka);
-        if (tekst || slika) ubaci(poruka.chat.id, tekst, slika ? [slika] : [], poruka.media_group_id ?? null);
+        // Uslov sadrzi i JEDNOBOTNI: u dvobotnom rezimu je ADMIN_TG_ID prazan, pa odlukaPoruke
+        // uvijek vraca "klijent", ali kad je TIP admin-bot onda je `glavna` BAS admin uloga (svoj
+        // proces, svoj token). Bez ovog uslova bi se dvobotni admin most pokusao rutirati na
+        // adminUnos, koji u tom rezimu ne postoji (null) - ovako dvobotni rezim ostaje bajt za
+        // bajt isti, a jednobotni ide na pravi cilj.
+        const cilj = JEDNOBOTNI && odluka.uloga === "admin-bot" ? adminUnos : glavna;
+        const slika = await skiniFoto(cilj, poruka);
+        if (tekst || slika) {
+          if (JEDNOBOTNI) log(`poruka iz chata ${poruka.chat.id} rutirana na ulogu ${cilj.tip}`);
+          ubaci(cilj, poruka.chat.id, tekst, slika ? [slika] : [], poruka.media_group_id ?? null);
+        }
       }
     } else if (poruka) {
       log(`ispusteno: chat ${poruka.chat?.id}, od ${poruka.from?.id}`);
     }
     // Offset se pomjera tek kad je poruka obradjena do reda: pad prije ovoga znaci da je
     // Telegram i dalje drzi i dostavlja je ponovo.
-    stanje = { ...stanje, offset: u.update_id + 1 };
-    sacuvaj();
+    glavna.stanje = { ...glavna.stanje, offset: u.update_id + 1 };
+    sacuvaj(glavna);
   }
 
   if (JEDNOM) {
-    while (radi || stanje.red.length > 0 || albumi.size > 0) await new Promise((r) => setTimeout(r, 500));
-    otkaziIdle();
-    sesija?.dijete.kill("SIGTERM");
+    // radnikAktivan pokriva prozor izmedju "stavka je u redu" i "radnik je stigao da je uzme":
+    // bez njega bi drain provjera mogla proci kroz sve redove PRAZNE (radnik je jos u pripremi,
+    // npr. na dinamickom importu) i probno pokretanje bi zavrsilo prije nego je posao stvarno
+    // odradjen.
+    while (radnikAktivan || [...uloge.values()].some((u) => u.stanje.red.length > 0) || albumi.size > 0) {
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    for (const u of uloge.values()) {
+      otkaziIdle(u);
+      u.sesija?.dijete.kill("SIGTERM");
+    }
     break;
   }
 }

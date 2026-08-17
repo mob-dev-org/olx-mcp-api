@@ -699,6 +699,31 @@ test("ocekivaniPoslovi: oba uslovna zajedno daju 6 poslova", () => {
   assert.equal(r.length, 6);
 });
 
+// ---- jednobotni rezim: admin-bot se NIKAD ne dodaje kao odvojen posao ----
+
+test("ocekivaniPoslovi: imaAdminRuntime true + jednobotni false -> admin-bot JESTE u listi", () => {
+  const r = ocekivaniPoslovi({ imaAdminRuntime: true, jednobotni: false });
+  assert.ok(r.includes("admin-bot"));
+  assert.equal(r.length, OBAVEZNI_POSLOVI.length + 1);
+});
+
+test("ocekivaniPoslovi: imaAdminRuntime true + jednobotni true -> admin-bot NIJE u listi", () => {
+  const r = ocekivaniPoslovi({ imaAdminRuntime: true, jednobotni: true });
+  assert.ok(!r.includes("admin-bot"));
+  assert.deepEqual(r, OBAVEZNI_POSLOVI);
+});
+
+test("ocekivaniPoslovi: imaAdminRuntime false -> admin-bot NIJE u listi bez obzira na jednobotni", () => {
+  assert.deepEqual(ocekivaniPoslovi({ imaAdminRuntime: false, jednobotni: false }), OBAVEZNI_POSLOVI);
+  assert.deepEqual(ocekivaniPoslovi({ imaAdminRuntime: false, jednobotni: true }), OBAVEZNI_POSLOVI);
+});
+
+test("ocekivaniPoslovi: izostavljen jednobotni se ponasa kao false (admin-bot i dalje ulazi)", () => {
+  const r = ocekivaniPoslovi({ imaAdminRuntime: true });
+  assert.ok(r.includes("admin-bot"));
+  assert.equal(r.length, OBAVEZNI_POSLOVI.length + 1);
+});
+
 test("izvuciSufiksPosla: launchctl red (macOS) daje lowercase sufiks", () => {
   const red = "12345\t0\tba.codefactory.olx.klijent-x.snapshot";
   assert.equal(izvuciSufiksPosla(red, "klijent-x"), "snapshot");

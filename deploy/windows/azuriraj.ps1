@@ -136,6 +136,11 @@ foreach ($linija in Get-Content $Popis) {
     $greska = "instalacija zadataka"
     Write-Host "  PALO: definicija zadatka NIJE osvjezena. Rucno pokreni: powershell -ExecutionPolicy Bypass -File deploy\windows\instaliraj-zadatke.ps1 $ime (u $klon)"
     Write-Host "  rezerva: Stop/Start nad starom definicijom, da barem novi kod ude u memoriju"
+    # Na jednobotnom klonu (OLX_MOST_ADMIN_TG_ID popunjen u .env tog klona) zadatak admin-bot
+    # uopste ne postoji: JEDAN bot token vozi obje sesije kroz zadatak "sesija". Get-ScheduledTask
+    # provjera ispod vec sprecava laznu gresku (Start-ScheduledTask na nepostojecem zadatku BACA
+    # gresku bez ove provjere): kad zadatak nije registrovan, if je false i petlja ga tiho
+    # preskace, bez poziva Stop/Start-ScheduledTask.
     foreach ($posao in @("sesija", "admin-bot")) {
       $oznaka = "ba.codefactory.olx.$ime.$posao"
       if (Get-ScheduledTask -TaskName $oznaka -ErrorAction SilentlyContinue) {

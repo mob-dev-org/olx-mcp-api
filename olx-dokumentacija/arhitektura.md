@@ -9,22 +9,25 @@ kosta nula tokena; AI se poziva samo tamo gdje treba razumijevanje ili prosudba.
 ## 1. Velika slika
 
 Jedan klon repoa po klijentu, sve na admin masini. Po klonu DVIJE stalne sesije (klijentska i
-admin bot), plus cron poslovi bez modela i sedmicna AI runda.
+admin bot), plus cron poslovi bez modela i sedmicna AI runda. Sesije su uvijek dvije, ali broj
+botova i procesa ZAVISI OD REZIMA: dvobotni rezim (default) drzi dva bota, dva tokena i dva
+procesa mosta, a jednobotni rezim (opcion, ukljucuje se sa `OLX_MOST_ADMIN_TG_ID` u `.env`) drzi
+JEDAN bot, JEDAN token i JEDAN proces mosta koji vozi obje sesije, rutirajuci po poruci.
 
 ```mermaid
 flowchart LR
     vlasnik["Vlasnik shopa"] <-->|"poruke i slike"| tg["Telegram grupa klijenta"]
-    admin["Administrator"] <-->|"mention ili reply"| atg["Admin Telegram grupa ili DM<br/>botovi svih klonova, privacy ukljucen"]
+    admin["Administrator"] <-->|"dvobotni: mention ili reply u grupi<br/>jednobotni: samo privatna poruka"| atg["Admin Telegram grupa ili DM<br/>dvobotni: botovi vise klonova, privacy ukljucen<br/>jednobotni: DM sa istim bot tokenom kao klijent"]
 
     subgraph klon["Klon repoa za JEDNOG klijenta"]
         sesija["Klijentska Claude sesija<br/>SISTEM-klijent.md, profil klijent<br/>pogon: OLX_KLIJENT_AI iz .env<br/>(pretplata dok se testira, kasnije DeepSeek)"]
         asesija["Admin bot sesija (opcion)<br/>SISTEM-admin-bot.md, profil admin<br/>uvijek pretplata, bez Bash-a"]
         mcp["MCP server<br/>klijent 32 / admin 45 alata<br/>zastite u kodu: potvrda troska,<br/>dnevni plafon, nema brisanja"]
         cron["Cron poslovi BEZ modela<br/>CLI: snapshot, dnevni, sedmicni<br/>nula tokena"]
-        disk[("Disk klona<br/>.olx-pik: audit, snapshoti, prijedlozi<br/>.claude-runtime i .claude-runtime-admin")]
+        disk[("Disk klona<br/>.olx-pik: audit, snapshoti, prijedlozi<br/>.claude-runtime i .claude-runtime-admin<br/>(admin runtime treba u OBA rezima)")]
     end
 
-    most["Telegram most<br/>telegram-most.mjs, isti fajl vozi klijent i admin-bot<br/>jedan dugoziv proces, drzi getUpdates i red na disku"] -.->|"digne na prvu poruku, gasi na<br/>idle prag OLX_MOST_IDLE_MIN (default 30min,<br/>admin OLX_MOST_ADMIN_IDLE_MIN) ili<br/>nocni rez OLX_MOST_RESTART_SAT (default 3h)"| sesija
+    most["Telegram most<br/>telegram-most.mjs<br/>dvobotni: dva procesa, po jedan token svaki<br/>jednobotni: JEDAN proces, JEDAN token, rutira po poruci"] -.->|"digne na prvu poruku, gasi na<br/>idle prag OLX_MOST_IDLE_MIN (default 30min,<br/>admin OLX_MOST_ADMIN_IDLE_MIN) ili<br/>nocni rez OLX_MOST_RESTART_SAT (default 3h)"| sesija
     most -.-> asesija
 
     tg <--> sesija
@@ -40,6 +43,14 @@ flowchart LR
     runda --> disk
     runda --> mcp
 ```
+
+Napomena o rezimima (radi citljivosti dijagrama nije sve u njemu): u **dvobotnom** rezimu (default)
+klijentski i admin bot su dva odvojena Telegram bota, svaki sa svojim tokenom, i most ih vozi kao
+dva odvojena procesa. U **jednobotnom** rezimu (opcion, ukljucuje se sa `OLX_MOST_ADMIN_TG_ID` u
+`.env` klona) postoji samo JEDAN bot token i JEDAN proces mosta; `sesija` i `asesija` su i dalje
+dvije odvojene zive Claude sesije sa odvojenim kontekstom i alatima, ali ih vozi isti proces, koji
+rutira svaku dolaznu poruku na jednu od njih po posiljaocu (vlasnikova privatna poruka ide na
+admin sesiju, sve ostalo na klijentsku). Detalji rutiranja su u sekciji 2.
 
 Prompt sesije se SASTAVLJA pri svakom pokretanju (`scripts/sastavi-prompt.mjs`): pravila
 razgovora, pa javni profil klijenta (`KLIJENT-javno.md`), pa pamcenje koje je bot sam zapisao
@@ -94,6 +105,12 @@ sequenceDiagram
 Za trosak kredita (izdvajanje, akcija, naplatna objava) alat u kodu ODBIJA izvrsenje bez
 `confirm`; prompt trazi da se klijentu prvo kaze cijena. Dvije nezavisne brane.
 
+Ovaj tok vazi za "T" (Telegram bot) kao klijentski bot, u oba rezima. U jednobotnom rezimu, PRIJE
+nego poruka udje u ovaj tok, most odlucuje KOJA sesija je prima: privatna poruka tacno sa
+`OLX_MOST_ADMIN_TG_ID` ide na admin sesiju (ne na ovaj dijagram, nego na admin ekvivalent, MCP
+profil admin), svaka poruka u grupi i svaka privatna poruka drugog ID-a ide na sesiju iznad. To
+rutiranje je jedina razlika prema dvobotnom rezimu; sve od "S" nadalje je isto.
+
 ## 3. Automatski poslovi: ko, kad i sta
 
 Nista od ovoga ne poziva model osim AI runde. Termini su razmaknuti namjerno.
@@ -116,7 +133,7 @@ flowchart TB
     end
     subgraph stalno["Stalno"]
         s6["Telegram most, klijent<br/>jedan proces, drzi getUpdates i red na disku<br/>digne sesiju na poruku, gasi na idle 30min<br/>(OLX_MOST_IDLE_MIN) ili nocni rez 03h<br/>uzorak resursa svakih 5min aktivno / 30min mirno"]
-        s7["Telegram most, admin-bot (opcion)<br/>ista mehanika, isti fajl, druga uloga<br/>OLX_MOST_ADMIN_IDLE_MIN override po potrebi"]
+        s7["Telegram most, admin-bot (opcion)<br/>SAMO u dvobotnom rezimu, odvojen proces<br/>ista mehanika, isti fajl, druga uloga<br/>OLX_MOST_ADMIN_IDLE_MIN override po potrebi<br/>u jednobotnom rezimu ovog posla NEMA,<br/>admin uloga zivi u istom procesu kao s6"]
     end
 
     s1 --> s3
@@ -233,11 +250,17 @@ stavka FALI, sa klijentom se ne pocinje.
    kad je podesen.
 8. Dodaj putanju klona u `~/.olx-klijenti.txt` NA MASINI GDJE KLON ZIVI (azuriranja i AI runda).
 9. Test iz grupe: pitanje, objava sa slikom, i jedan trosak da se vidi tok potvrde.
-10. Opcion, admin bot: novi bot u BotFatheru (privacy NE dirati, ostaje ukljucen), pa
-   `bun scripts/pripremi-admin-runtime.mjs <bot_token> <tvoj_id> [id_admin_grupe]`, pa ponovo
-   instalater poslova iz koraka 7. Na Windowsu jos i jedan `claude login` sa
+10. Opcion, admin sesija, dva rezima (izbor se pravi na pocetku postavke):
+    - **Dvobotni** (dva bota, admin grupa moguca): novi bot u BotFatheru (privacy NE dirati,
+      ostaje ukljucen), pa `bun scripts/pripremi-admin-runtime.mjs <bot_token> <tvoj_id>
+      [id_admin_grupe]`, pa ponovo instalater poslova iz koraka 7.
+    - **Jednobotni** (jedan bot, samo privatni razgovor): `bun scripts/pripremi-admin-runtime.mjs
+      --bez-bota <tvoj_id>` (drugog bota nema, ne pise token), pa u `.env` klona
+      `OLX_MOST_ADMIN_TG_ID=<tvoj_id>`, pa ponovo instalater poslova iz koraka 7 (posao `admin-bot`
+      se u ovom rezimu ne instalira, admin uloga ide kroz isti posao `sesija`).
+    Windows login korak OSTAJE isti u OBA rezima: jedan `claude login` sa
    `$env:CLAUDE_CONFIG_DIR=".claude-runtime-admin"` (na macOS-u ne treba, pretplata je u
-   Keychainu).
+   Keychainu), jer `.claude-runtime-admin` treba u oba rezima bez obzira nosi li svoj bot token.
 
 ## 7. Kako nova verzija dolazi do klijenata
 
@@ -294,7 +317,9 @@ ostavljaju checkout, pa klon zavrsi sa novim `src` i starim `dist`. Vrijedi ih n
 se budu dirale.
 
 Oba rade isto, po klonu iz `~/.olx-klijenti.txt`: fetch tagova **sa `--force`**, checkout
-`stabilno`, `bun install`, build, testovi, pa restart samo DUGOZIVIH poslova (`sesija`, `admin-bot`).
+`stabilno`, `bun install`, build, testovi, pa restart samo DUGOZIVIH poslova (`sesija`,
+`admin-bot` u dvobotnom rezimu; u jednobotnom rezimu postoji samo `sesija`, jer admin uloga zivi u
+istom procesu).
 Na kraju prijavljuju i na kojem je izdanju flota (`git describe --tags`), pa razilazenje izdanja
 medju klonovima ne moze proci neopazeno.
 
@@ -376,6 +401,19 @@ Pogon Telegram botova vozi `scripts/telegram-most.mjs`: jedan dugoziv proces koj
 (`bun scripts/telegram-most.mjs` za klijenta, `bun scripts/telegram-most.mjs admin-bot` za
 vlasnika), razlike su parametrizovane kroz `ulogaMosta` u `scripts/lib/most.mjs`. Sve ostalo iz
 sekcija 1 do 8 ostaje netaknuto: isti klon po klijentu, isti MCP, isti cron poslovi, isti backup.
+
+U **dvobotnom** rezimu (default) to su dva odvojena procesa, svaki na svom bot tokenu, kao gore.
+U **jednobotnom** rezimu (opcion, `OLX_MOST_ADMIN_TG_ID` popunjen) JEDAN proces vozi OBJE uloge
+kao dvije odvojene zive sesije (svoj kontekst, svoji alati, svoj MCP profil), rutirajuci svaku
+dolaznu poruku po posiljaocu. Stanje ostaje po ulozi, u istim fajlovima kao do sada
+(`.olx-pik/most-stanje.json` za klijenta, `.olx-pik/most-admin-stanje.json` za admina), samo sto
+oba fajla sada odrzava jedan proces umjesto dva. Poteze vodi JEDAN globalni radnik, round robin po
+jednoj stavci: kad admin i klijent obojica cekaju, admin ceka najvise jedan klijentski potez, ali
+dva poteza NIKAD ne rade paralelno. Razlog nije samo jednostavnost koda: `slikeNovijeOd` vezuje
+prispjele slike za odgovor po VREMENU nastanka iz jedne dijeljene mape na disku, pa bi dva poteza
+u letu istovremeno mogla svaki pokupiti sliku koja pripada onom drugom razgovoru i poslati je u
+pogresnu sesiju. Serijalizacija poteza je zato namjerna odluka o ispravnosti, ne mjesto za
+optimizaciju paralelizmom.
 
 Iscrtana verzija starijih dijagrama ovog otiska (cuvar i strazar rezim), sa trakovima potrosnje i
 vremenskom trakom dana: <https://claude.ai/code/artifact/741fa916-9b97-4308-956d-eb5309bdf112>.

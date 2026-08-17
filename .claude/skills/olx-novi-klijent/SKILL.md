@@ -37,6 +37,10 @@ a onboarding zna trajati i preko vise sesija. Zato:
   NIKAD `/telegram:configure`: on pise u globalni `~/.claude/channels/telegram/`, koji
   ovaj sistem ne cita (svaki bot zivi u svom `.claude-runtime*/channels/telegram/`), pa
   token zavrsi na pogresnom mjestu i curi van klona.
+- U jednobotnom rezimu postoji samo JEDAN token, i njega nosi klijentski runtime
+  (`pripremi-runtime.mjs`). `pripremi-admin-runtime.mjs --bez-bota <admin_telegram_id>` u tom
+  rezimu ne pise nikakav token: pravi samo `.claude-runtime-admin/` (config, prompt, MCP profil
+  admin) i ispisuje sta upisati u `.env`.
 
 ## 0. Sta treba prikupiti prije pocetka
 
@@ -46,14 +50,28 @@ Trazi od covjeka redom, objasni gdje se sta dobija:
    foldera i ime zakazanih poslova.
 2. **OLX token klijenta** — kako se trazi od klijenta objasnjava
    `olx-klijent-flow` (poruka za klijenta je u references tog skilla).
-3. **Dva Telegram bota iz BotFathera** (`@BotFather`, komanda `/newbot`, jedan pa drugi):
-   - KLIJENTOV bot: u BotFatheru `/setprivacy` -> **Disable** (mora vidjeti sve poruke grupe).
-   - ADMIN bot: privacy se NE dira (ostaje Enable; u grupi prima samo mention i reply).
-   Od oba treba bot token.
+3. **Prvi izbor: jedan bot ili dva bota.** Ovo se odlucuje NA POCETKU, jer mijenja sve dalje
+   korake postavke (stavku 4 ispod, sekciju "## 4. Telegram runtime", "## 5. Zakazani poslovi" i
+   "## 7. Probe uzivo").
+   - **Dva bota** kad vlasnik zeli ZAJEDNICKU admin grupu sa botovima vise klonova (dvobotni
+     rezim, do sada jedini): `@BotFather`, komanda `/newbot`, jedan pa drugi.
+     - KLIJENTOV bot: `/setprivacy` -> **Disable** (mora vidjeti sve poruke grupe).
+     - ADMIN bot: privacy se NE dira (ostaje Enable; u grupi prima samo mention i reply).
+     Od oba treba bot token.
+   - **Jedan bot** kad vlasnik sa ovim klonom razgovara SAMO privatno (jednobotni rezim, opcion):
+     samo JEDAN `/newbot`, `/setprivacy` -> **Disable** (isto kao klijentov bot gore, jer isti
+     token nosi i klijentsku grupu). Drugi bot se ne pravi, ID admin grupe se NE trazi (taj bot ne
+     ide u admin grupu), a vlasnikov Telegram ID je OBAVEZAN, ne opcion (korak 5 dolje) jer bez
+     njega admin smjer nema kome ici.
 4. **ID klijentske grupe** (negativan broj) i **Telegram ID-evi** klijenta i njegovih ljudi
    koji smiju pisati botu. Najlakse: covjek posalje poruku botu `@userinfobot` (za svoj ID),
-   a ID grupe se vidi kad se bot doda u grupu (ili kroz `@getidsbot`).
-5. **Adminov Telegram ID** (za alarme i admin bota) i, opciono, ID admin grupe.
+   a ID grupe se vidi kad se bot doda u grupu (ili kroz `@getidsbot`). Pouzdanija alternativa za
+   ID (radi u oba rezima): pokreni most, posalji botu privatnu poruku, i procitaj u logu liniju
+   "ispusteno: chat X, od Y" — Y je pravi ID.
+5. **Adminov Telegram ID** (za alarme i admin sesiju) i, SAMO u dvobotnom rezimu opciono, ID
+   admin grupe. U jednobotnom rezimu ovaj ID je obavezan i MORA i u allowFrom listu klijentskog
+   `access.json` (korak 4), inace admin DM ne prolazi pristupnu kontrolu i vlasnik dobija tisinu
+   umjesto odgovora.
 6. **Dnevni plafon kredita** (`OLX_MAX_SPEND_PER_DAY`) — odluka admina, ne ostavljati 0.
 7. **Pogon klijentske sesije**: pretplata (faza testiranja) ili DeepSeek (tada treba i
    DeepSeek API kljuc).
@@ -107,23 +125,44 @@ bun run build
 bun run test
 ```
 
-## 4. Telegram runtime, oba bota
+## 4. Telegram runtime
+
+Dva razlicita toka, prema izboru iz koraka 0.3.
+
+**Dvobotni (dva bota):**
 
 ```
 bun scripts/pripremi-runtime.mjs <klijentov_bot_token> <id_grupe> <id1,id2,...>
 bun scripts/pripremi-admin-runtime.mjs <admin_bot_token> <admin_telegram_id> [id_admin_grupe]
 ```
 
+**Jednobotni (jedan bot):**
+
+```
+bun scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <id1,id2,...>
+bun scripts/pripremi-admin-runtime.mjs --bez-bota <admin_telegram_id>
+```
+
+zatim u `.env`: `OLX_MOST_ADMIN_TG_ID=<admin_telegram_id>`.
+
+Spisak `<id1,id2,...>` u prvoj komandi MORA sadrzati i vlasnikov Telegram ID: token je klijentski,
+pa dolaznu pristupnu kontrolu odlucuje njegov `access.json`; bez vlasnikovog ID-a na toj listi
+admin DM ne prolazi, admin grana koda se nikad ne pozove, i vlasnik dobija TISINU bez ijedne
+poruke greske. Druga komanda u ovom rezimu ne pravi drugi bot ni token: samo priprema
+`.claude-runtime-admin/` (config, prompt, MCP profil admin).
+
 - Prva komanda pravi `.claude-runtime/` (klijentska sesija), druga `.claude-runtime-admin/`
-  (adminova sesija). Token svakog bota zivi u SVOM runtime folderu i sesije se ne mogu
-  pomijesati: most (`telegram-most.mjs`) svakoj kaze njen folder kroz CLAUDE_CONFIG_DIR.
+  (adminova sesija) — treba u OBA rezima, sa ili bez svog bota. Token svakog bota zivi u SVOM
+  runtime folderu i sesije se ne mogu pomijesati: most (`telegram-most.mjs`) svakoj kaze njen
+  folder kroz CLAUDE_CONFIG_DIR.
 - Windows: kredencijali pretplate zive u config diru, pa jednom po runtime-u u PowerShellu
   `claude login`, i to PRIJE instalacije poslova (korak 5), jer instalater sesije startuje
   odmah. Prvo obavezni klijentski runtime AKO sesija ide na pretplatu
   (`$env:CLAUDE_CONFIG_DIR=".claude-runtime"` pa `claude login`); na DeepSeeku ne treba
   (auth ide kroz `OLX_DEEPSEEK_AUTH_TOKEN` iz `.env`). Zatim isto sa
-  `.claude-runtime-admin` ako se postavlja admin bot (on je uvijek na pretplati).
-  macOS to ne treba, Keychain.
+  `.claude-runtime-admin` (on je uvijek na pretplati) — OVAJ KORAK OSTAJE U OBA REZIMA, i u
+  jednobotnom, jer kredencijali pretplate zive u config diru bez obzira nosi li taj runtime svoj
+  bot token. macOS to ne treba, Keychain.
 - **Telegram plugin se instalira PO RUNTIME-u, ne globalno.** Plugin cache stoji u
   `$CLAUDE_CONFIG_DIR/plugins/`, pa instalacija u `~/.claude` klijentskoj sesiji ne znaci nista.
   Bez njega bot ne odgovara na poruke, a jutarnji izvjestaji svejedno stizu (njih salje cron
@@ -137,11 +176,14 @@ bun scripts/pripremi-admin-runtime.mjs <admin_bot_token> <admin_telegram_id> [id
   ```
 
   PowerShell: `$env:CLAUDE_CONFIG_DIR=".claude-runtime"; claude plugin marketplace add ...` pa
-  `claude plugin install ...`. Isto ponovi sa `.claude-runtime-admin` ako se postavlja i admin
-  bot. Zauzima oko 38 MB po runtime-u.
+  `claude plugin install ...`. Isto ponovi sa `.claude-runtime-admin` u OBA rezima, jer plugin
+  cache ide po `CLAUDE_CONFIG_DIR` bez obzira ima li taj runtime svoj bot token. Zauzima oko
+  38 MB po runtime-u.
 - **`bun` mora biti u PATH-u.** Plugin dize svoj MCP server sa `bun run`; bez njega bot cuti bez
   ijedne greske na vidljivom mjestu. Instalacija: https://bun.sh
-- Dodaj oba bota u odgovarajuce grupe na Telegramu.
+- Dvobotni: dodaj oba bota u odgovarajuce grupe na Telegramu. Jednobotni: taj bot ide SAMO u
+  klijentsku grupu; NE dodavati ga u zajednicku admin grupu, jer bi privacy Disable (obavezan
+  zbog klijentske grupe) pustio cijeli promet te grupe u klijentsku sesiju.
 - **Druga i svaka sljedeca klijentova grupa NE ide ponovnim pokretanjem `pripremi-runtime.mjs`**:
   ta skripta odbija rad na postojecem runtime-u, pa bi je covjek prosao tek nakon brisanja
   runtimea, sto gubi sva uparivanja. Umjesto toga:
@@ -175,6 +217,10 @@ scripts/instaliraj-cron.sh
 
 Windows: `powershell -ExecutionPolicy Bypass -File deploy/windows/instaliraj-zadatke.ps1`
 
+Instalira posao `sesija` u oba rezima. Posao `admin-bot` (odvojen proces za admin sesiju) se
+instalira SAMO u dvobotnom rezimu; u jednobotnom rezimu ga nema, jer admin sesija zivi u istom
+procesu kao `sesija`, prepoznatom po popunjenom `OLX_MOST_ADMIN_TG_ID`.
+
 ## 6. Preflight, kapija bez izuzetka
 
 ```
@@ -187,8 +233,12 @@ popravku, radi ih redom pa pokreni provjeru ponovo.
 ## 7. Probe uzivo
 
 - U klijentskoj grupi covjek napise "zdravo": bot mora odgovoriti.
-- U admin grupi (ako postoji) mention admin bota: mora odgovoriti; poruka BEZ mentiona ne
-  smije dobiti odgovor.
+- Admin smjer, prema rezimu:
+  - Dvobotni: u admin grupi (ako postoji) mention admin bota: mora odgovoriti; poruka BEZ
+    mentiona ne smije dobiti odgovor.
+  - Jednobotni: admin salje botu PRIVATNU poruku (ne mention u grupi, taj bot ni ne smije biti u
+    admin grupi): mora dobiti odgovor sa admin alatima. Poruka u KLIJENTSKOJ grupi od istog
+    vlasnika mora dobiti klijentski odgovor, ne admin (namjerno, vidi arhitektura.md sekcija 1).
 - Posalji sliku u klijentsku grupu i trazi objavu: prolazi kroz skill objave do potvrde.
 
 ## 8. Upis u flotu

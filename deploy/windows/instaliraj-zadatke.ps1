@@ -3,8 +3,10 @@
 #
 #   sesija    klijentski Telegram most (scripts/telegram-most.mjs), na prijavi korisnika,
 #             samo kad je TELEGRAM_BOT_TOKEN popunjen u .env (uslovni)
-#   admin-bot most u admin ulozi (scripts/telegram-most.mjs admin-bot), samo kad
-#             .claude-runtime-admin postoji (uslovni)
+#   admin-bot most u admin ulozi (scripts/telegram-most.mjs admin-bot), kao ODVOJEN zadatak, samo
+#             kad .claude-runtime-admin postoji I jednobotni rezim NIJE ukljucen (uslovni; vidi
+#             $AdminBotSpreman nize). U jednobotnom rezimu (OLX_MOST_ADMIN_TG_ID popunjen u .env)
+#             admin poruke vozi ISTI proces kao zadatak "sesija", rutiranjem po poruci
 #   snapshot  nocni snimak pregleda, svaki dan 02:40
 #   dnevno    obnove i jutarnja poruka, svaki dan 07:20
 #   sedmicno  sedmicni pregled, ponedjeljkom 07:40
@@ -106,16 +108,30 @@ if ($SesijaSpremna) {
   Unregister-ScheduledTask -TaskName "ba.codefactory.olx.$Ime.sesija" -Confirm:$false -ErrorAction SilentlyContinue
 }
 
-# Admin bot je opcion po klonu: zadatak se registruje samo kad je runtime pripremljen
-# (bun scripts\pripremi-admin-runtime.mjs). Vozi most u admin ulozi. Na Windowsu prije prvog
-# starta treba i jednom claude login po runtime folderu ($env:CLAUDE_CONFIG_DIR=".claude-runtime-admin"
-# pa claude login), jer kredencijali zive u config diru. Isto vazi i za .claude-runtime kad
-# klijentska sesija ide na pretplatu (OLX_KLIJENT_AI nije deepseek).
-if (Test-Path (Join-Path $Korijen ".claude-runtime-admin")) {
+# Admin bot je opcion po klonu, i to na DVA nezavisna uslova koji se lako mijesaju:
+#
+# $AdminRuntimePostoji: samo Test-Path. .claude-runtime-admin postoji u OBA rezima (nosi
+# CLAUDE_CONFIG_DIR, prompt i MCP profil admin sesije), pa kredencijali pretplate u njemu trebaju
+# `claude login` bez obzira da li je jednobotni rezim ukljucen. Koristi ga SAMO UpozoriBezLogina
+# nize, ne odlucuje da li se ODVOJEN zadatak admin-bot registruje.
+#
+# $AdminBotSpreman: runtime postoji I jednobotni rezim NIJE ukljucen (OLX_MOST_ADMIN_TG_ID nije
+# popunjen u .env; prazna vrijednost kao OLX_MOST_ADMIN_TG_ID=, kakvu isporucuje .env.example,
+# znaci NIJE popunjena, isto kao odsutna varijabla). Samo ovaj uslov registruje i pokrece ODVOJEN
+# zadatak admin-bot: u jednobotnom rezimu admin poruke vozi ISTI proces kao zadatak "sesija"
+# (rutiranje po poruci u scripts/telegram-most.mjs), a dva getUpdates konzumera na istom bot
+# tokenu daju 409 Conflict, pa admin-bot mora ostati neregistrovan dok god je rezim ukljucen.
+$AdminRuntimePostoji = Test-Path (Join-Path $Korijen ".claude-runtime-admin")
+$ImaJednobotniId = (Test-Path $EnvFajl) -and (Select-String -Path $EnvFajl -Pattern '^OLX_MOST_ADMIN_TG_ID=.+' -Quiet)
+$AdminBotSpreman = $AdminRuntimePostoji -and -not $ImaJednobotniId
+
+if ($AdminBotSpreman) {
   Registruj -Sufiks "admin-bot" -Komanda "bun scripts\telegram-most.mjs admin-bot" `
     -Trigger (New-ScheduledTaskTrigger -AtLogOn) -Trajni $true
 } else {
-  # Isti razlog kao kod zadatka sesija: preskakanje ne smije ostaviti staru definiciju zivu.
+  # Isti razlog kao kod zadatka sesija: preskakanje ne smije ostaviti staru definiciju zivu. Ovo
+  # takodje uklanja zaostao admin-bot zadatak ako se jednobotni rezim naknadno ukljuci na klonu
+  # koji ga je ranije imao registrovanog.
   Unregister-ScheduledTask -TaskName "ba.codefactory.olx.$Ime.admin-bot" -Confirm:$false -ErrorAction SilentlyContinue
 }
 
@@ -153,14 +169,18 @@ if (Test-Path $EnvFajl) {
   if ($Red) { $KlijentAi = $Red.Matches[0].Groups[1].Value.Trim().ToLower() }
 }
 if ($KlijentAi -ne "deepseek") { UpozoriBezLogina -Runtime ".claude-runtime" -Naziv "klijentska sesija" }
-UpozoriBezLogina -Runtime ".claude-runtime-admin" -Naziv "admin bot (uvijek pretplata)"
+# $AdminRuntimePostoji (ne $AdminBotSpreman): login u ovom config diru treba se god runtime
+# postoji, bez obzira na rezim: admin sesija se stvarno pokrece i u jednobotnom rezimu, samo kroz
+# zadatak "sesija" umjesto kroz odvojen "admin-bot", pa upozorenje ne smije zavisiti od toga je li
+# odvojen zadatak registrovan.
+if ($AdminRuntimePostoji) { UpozoriBezLogina -Runtime ".claude-runtime-admin" -Naziv "admin bot (uvijek pretplata)" }
 
 # Sesije ne cekaju sljedecu prijavu korisnika, krecu odmah. Samo za zadatke koji su stvarno
 # registrovani gore, inace Start-ScheduledTask pada na nepostojecem zadatku.
 if ($SesijaSpremna) {
   Start-ScheduledTask -TaskName "ba.codefactory.olx.$Ime.sesija"
 }
-if (Test-Path (Join-Path $Korijen ".claude-runtime-admin")) {
+if ($AdminBotSpreman) {
   Start-ScheduledTask -TaskName "ba.codefactory.olx.$Ime.admin-bot"
 }
 

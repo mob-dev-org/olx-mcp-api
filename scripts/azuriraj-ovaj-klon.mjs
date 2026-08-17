@@ -179,9 +179,31 @@ if (!instalatorProsao) {
   console.log(`  rucno kasnije: ${komandaInstalateraIspis}`);
   for (const posao of poslovi) {
     const oznaka = `ba.codefactory.olx.${IME}.${posao}`;
-    korak(`restart ${posao}`, () => {
+
+    // Provjera postojanja je NAMJERNO izvan korak(): odsustvo posla admin-bot je normalno stanje
+    // na jednobotnom klonu (OLX_MOST_ADMIN_TG_ID popunjen, JEDAN bot token vozi obje sesije kroz
+    // posao "sesija") i ne smije se prijaviti kao "PALO". Ako komanda za provjeru nije dostupna,
+    // tretira se kao "nije instaliran" (isto "nepoznato je NE" pravilo kao drugdje u repou), pa se
+    // restart tiho preskace umjesto lazne greske.
+    let instaliran = false;
+    try {
       if (WIN) {
         execFileSync("schtasks", ["/query", "/tn", oznaka], { stdio: "pipe" });
+        instaliran = true;
+      } else {
+        const lista = execFileSync("launchctl", ["list"], { stdio: ["ignore", "pipe", "pipe"] }).toString();
+        instaliran = lista.includes(oznaka);
+      }
+    } catch {
+      instaliran = false;
+    }
+    if (!instaliran) {
+      console.log(`  ${posao}: posao nije instaliran na ovoj masini, restart preskocen (normalno za admin-bot na jednobotnom klonu)`);
+      continue;
+    }
+
+    korak(`restart ${posao}`, () => {
+      if (WIN) {
         try {
           execFileSync("schtasks", ["/end", "/tn", oznaka], { stdio: "pipe" });
         } catch {
@@ -189,8 +211,6 @@ if (!instalatorProsao) {
         }
         execFileSync("schtasks", ["/run", "/tn", oznaka], { stdio: "pipe" });
       } else {
-        const lista = execFileSync("launchctl", ["list"], { stdio: ["ignore", "pipe", "pipe"] }).toString();
-        if (!lista.includes(oznaka)) throw new Error("posao nije instaliran na ovoj masini");
         execFileSync("launchctl", ["kickstart", "-k", `gui/${process.getuid?.() ?? 501}/${oznaka}`], {
           stdio: "pipe",
         });

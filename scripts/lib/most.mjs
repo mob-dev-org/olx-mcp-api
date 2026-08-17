@@ -74,6 +74,107 @@ export function dozvoljena(poruka, pristup, botIme) {
 }
 
 /**
+ * Kojoj ulozi mosta pripada poruka, u jednobotnom rezimu (jedan bot token, rutiranje po poruci).
+ *
+ * Vraca "admin-bot" ili "klijent", tacno vrijednosti koje `ulogaMosta` i `stazeSesije` vec
+ * razumiju: nema treceg vokabulara tipa "admin", da se rezultat ove funkcije moze direktno
+ * predati dalje bez prevodjenja.
+ *
+ * Prazan/nedostajuci `adminTgId` znaci da jednobotni rezim za tog klijenta ne postoji, pa se
+ * SVE tretira kao "klijent" - isti duh kao "nepoznata cijena se tretira kao naplatna" iz
+ * olx-dokumentacija/granice.md: nepoznato se tretira kao NE-admin, nikad obrnuto.
+ *
+ * Pogresno upisan grupni (negativan) ID u `adminTgId` je inertan: private chat uvijek ima
+ * pozitivan `from.id`, pa poredjenje s negativnim brojem nikad ne pogadja i poruka ostaje
+ * klijentska, bez obzira sta je administrator upisao u env.
+ */
+export function efektivnaUloga(poruka, adminTgId) {
+  const admin = String(adminTgId ?? "").trim();
+  if (!admin) return "klijent";
+  if (poruka.chat?.type !== "private") return "klijent";
+  if (String(poruka.from?.id ?? "") !== admin) return "klijent";
+  return "admin-bot";
+}
+
+/**
+ * Jedna tacka koja spaja pristupnu kontrolu i rutiranje, da redoslijed provjera bude
+ * testabilan a ne samo dogovor u komentaru.
+ *
+ * `dozvoljena()` ide PRVA i `efektivnaUloga()` se racuna SAMO na poruci koja je vec prosla
+ * pristupnu kontrolu. Uvodjenje rutiranja po ulozi ne smije oslabiti pristupnu kontrolu: admin
+ * ID koji nije u `pristup.allowFrom` (ili u dozvoljenoj grupi) mora biti odbijen kao i svaki
+ * drugi posiljalac, PRIJE nego se uopste pita da li je admin.
+ */
+export function odlukaPoruke(poruka, pristup, botIme, adminTgId) {
+  if (!dozvoljena(poruka, pristup, botIme)) return { prihvacena: false, uloga: null };
+  return { prihvacena: true, uloga: efektivnaUloga(poruka, adminTgId) };
+}
+
+/** Sirovi env.OLX_MOST_ADMIN_TG_ID kao trimovan string. Prazno kad varijabla ne postoji. */
+export function adminTgIdIzEnva(env) {
+  return String(env.OLX_MOST_ADMIN_TG_ID ?? "").trim();
+}
+
+/**
+ * true samo za pozitivan cio broj upisan kao decimalni string ("7061697037"). Prazan string,
+ * negativan broj (izgleda kao ID grupe), decimalna tacka, slova i "sve nule" su false.
+ */
+export function validanAdminTgId(v) {
+  if (!/^\d+$/.test(v)) return false;
+  return !/^0+$/.test(v);
+}
+
+/**
+ * true kad je jednobotni rezim ukljucen za ovaj klon (jedan bot token, dvije zive sesije u
+ * istom procesu).
+ *
+ * NAMJERNO ne trazi da je vrijednost validna: prazan `OLX_MOST_ADMIN_TG_ID` znaci da vlasnik
+ * rezim nije ni pokusao ukljuciti (isto "nepoznato je NE" pravilo kao `efektivnaUloga`), ali
+ * NEPRAZNA i NEVALIDNA vrijednost (npr. negativan grupni ID, slova) znaci da JE pokusao, samo je
+ * pogrijesio unos. To mora biti glasna greska u pozivaocu (telegram-most.mjs), ne tiho vracanje
+ * na dvobotni rezim: tiho gasenje admin grane bi vlasnika ostavilo da ceka odgovor koji nikad ne
+ * dolazi na "bot koji sad valja i za admina", a tiho otvaranje admin grane na pogresnoj/praznoj
+ * vrijednosti bi bilo gore. Zato ova funkcija samo javlja DA JE rezim trazen; da li je zahtjev
+ * ispravan provjerava `validanAdminTgId` posebno, pa pozivalac pravi gresku od razlike.
+ */
+export function jednobotniRezim(env) {
+  return adminTgIdIzEnva(env) !== "";
+}
+
+/**
+ * Lijeno pravi (ako ne postoji) i vraca unos stanja za jednu ulogu mosta unutar zajednicke
+ * mape. Faza B ovim zamjenjuje modul-level singletone (`sesija`, `idleTajmer`, ...): jedan
+ * proces tada drzi DVIJE odvojene zive sesije (klijent i admin-bot) cije se stanje nikad ne
+ * mijesa, jer svaka uloga ima svoj objekat u mapi.
+ *
+ * Isti tip pozvan dva puta vraca ISTI objekat (identitet, ne kopiju): pozivalac mora smjeti da
+ * mutira polja preko reference i da se ta izmjena vidi na sljedecem pozivu, inace bi stanje
+ * tiho nestajalo pri svakom novom citanju.
+ *
+ * Nevalidan tip baca gresku - baca je `ulogaMosta`, ova funkcija ne dodaje vlastitu provjeru.
+ *
+ * `zadnjaAktivnost: 0` a ne `Date.now()`: funkcija ostaje cista i testabilna bez laznog sata.
+ * Pozivalac (koji zna pravo vrijeme) postavlja stvarnu vrijednost kad je potrebno.
+ */
+export function stanjeUloge(mapa, tip) {
+  let unos = mapa.get(tip);
+  if (!unos) {
+    unos = {
+      tip,
+      uloga: ulogaMosta(tip),
+      stanje: null,
+      sesija: null,
+      idleTajmer: null,
+      zadnjaAktivnost: 0,
+      zadnjiNocni: "",
+      cpuStanje: null,
+    };
+    mapa.set(tip, unos);
+  }
+  return unos;
+}
+
+/**
  * Bira izvor slike iz poruke. Redoslijed je namjeran: `document` ide PRIJE `photo`.
  *
  * Telegram za `photo` uvijek rekompresuje u JPEG i skalira (u praksi oko 1280 px duza strana),

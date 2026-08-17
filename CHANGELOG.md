@@ -8,6 +8,41 @@ Kako se cita broj verzije: `bun dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
+## 0.19.0 — 2026-08-17
+
+**Jedan Telegram bot po klonu od sada moze voziti i klijenta i vlasnika.** Do sada je klon trazio
+DVA bota iz BotFathera i dva posla u pogonu: klijentski (`sesija`) i vlasnikov admin bot
+(`admin-bot`). Novi jednobotni rezim se ukljucuje popunjavanjem `OLX_MOST_ADMIN_TG_ID` u `.env`, i
+tada JEDAN proces `telegram-most.mjs` na JEDNOM tokenu vozi obje uloge: privatna poruka tacno sa tog
+ID-a ide na admin sesiju, a svaka poruka u grupi (ukljucujuci vlasnikovu) i svaka privatna poruka
+drugog ID-a idu na klijentsku. Sesije ostaju POTPUNO odvojene, svaka sa svojim sesijskim kljucem,
+svojim promptom, svojim alatima i svojim fajlom stanja (`most-stanje.json` i
+`most-admin-stanje.json`, ista imena kao do sada). Admin grana uvijek ide na pretplatu, bez obzira
+sta `OLX_KLIJENT_AI` kaze za klijenta.
+
+**Rezim je OPCION i prazna varijabla ne mijenja nista.** Postojeci dvobotni klonovi rade tacno kao
+prije, bez migracije: dok je `OLX_MOST_ADMIN_TG_ID` prazan, most vozi samo ulogu iz argv. Ukljucen
+rezim je namjerno neuskladiv sa starim `admin-bot` poslom, jer bi dva `getUpdates` konzumera na
+istom tokenu dala 409 Conflict: most odbija start u oba smjera, a `instaliraj-cron.sh` i
+`instaliraj-zadatke.ps1` taj posao vise ne instaliraju i sklanjaju zaostao. Preflight
+(`provjeri-klon.mjs`) dobio je novu sekciju koja ispisuje adminov ID citljivo i provjerava da je na
+`allowFrom` listi klijentskog `access.json`; bez toga privatna poruka ne prodje pristupnu kontrolu i
+vlasnik dobija tisinu bez ijedne poruke greske.
+
+**Sto jednobotni rezim NE uklanja.** Mapa `.claude-runtime-admin` i dalje treba (nosi prompt,
+settings i MCP profil admin sesije) i pravi se novim rezimom `pripremi-admin-runtime.mjs --bez-bota
+<admin_telegram_id>`, koji ne pise nikakav bot token. Na Windowsu ostaje jedan `claude login` po tom
+config diru. Taj bot NE SMIJE u zajednicku admin grupu, jer mu je privacy iskljucen zbog klijentske
+grupe, pa bi cijeli promet te grupe usao u klijentsku sesiju; vlasnik s tim klonom razgovara samo
+privatno.
+
+**Potezi mosta idu kroz jedan globalni radnik, nikad dva paralelno.** Radnik obilazi uloge round
+robin po JEDNOJ stavci, pa admin ceka najvise jedan klijentski potez. To nije stedenje resursa nego
+brana: `slikeNovijeOd` vezuje generisane slike za odgovor po VREMENU nastanka iz jedne dijeljene
+mape, pa bi dva paralelna poteza mogla poslati sliku iz klijentske sesije u vlasnikov privatni
+razgovor, ili obrnuto. Uz to je popravljena i stara latentna greska: neuspio `import` Telegram
+modula je ranije zauvijek ostavljao red mosta zaglavljen, jer je stajao van `try/finally`.
+
 ## 0.18.1 — 2026-08-17
 
 **Novi klijentski klon vise ne ignorise musterije u grupi.** `pripremi-runtime.mjs` je grupno

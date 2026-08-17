@@ -9,16 +9,22 @@ import {
   DOZVOLJENI_ALATI_ADMIN,
   ZABRANJENI_ALATI,
   ZABRANJENI_ALATI_ADMIN,
+  adminTgIdIzEnva,
   argviSesije,
   dozvoljena,
+  efektivnaUloga,
   idleRokMs,
   izvorSlike,
+  jednobotniRezim,
   lokalniDatum,
+  odlukaPoruke,
+  stanjeUloge,
   tekstStavke,
   trebaLiNocniRez,
   trebaLiUgasiti,
   trebaLiUzorkovati,
   ulogaMosta,
+  validanAdminTgId,
 } from "./most.mjs";
 
 // ---- dozvoljena: privatna poruka ----
@@ -117,6 +123,146 @@ test("dozvoljena: nepoznat tip chata je odbijen", () => {
   const pristup = { dmPolicy: "allowlist", allowFrom: ["111"], groups: { "-100": { allowFrom: [] } } };
   const poruka = { from: { id: 111 }, chat: { type: "channel", id: -100 } };
   assert.equal(dozvoljena(poruka, pristup, "bot"), false);
+});
+
+// ---- efektivnaUloga ----
+
+test("efektivnaUloga: private od tacnog admin ID-a daje admin-bot", () => {
+  const poruka = { from: { id: 7061697037 }, chat: { type: "private" } };
+  assert.equal(efektivnaUloga(poruka, "7061697037"), "admin-bot");
+});
+
+test("efektivnaUloga: private od drugog ID-a daje klijent", () => {
+  const poruka = { from: { id: 111 }, chat: { type: "private" } };
+  assert.equal(efektivnaUloga(poruka, "7061697037"), "klijent");
+});
+
+test("efektivnaUloga: group od admin ID-a daje klijent", () => {
+  const poruka = { from: { id: 7061697037 }, chat: { type: "group", id: -100 } };
+  assert.equal(efektivnaUloga(poruka, "7061697037"), "klijent");
+});
+
+test("efektivnaUloga: supergroup od admin ID-a daje klijent", () => {
+  const poruka = { from: { id: 7061697037 }, chat: { type: "supergroup", id: -100 } };
+  assert.equal(efektivnaUloga(poruka, "7061697037"), "klijent");
+});
+
+test("efektivnaUloga: prazan adminTgId daje klijent cak i za private od bilo kog ID-a", () => {
+  const poruka = { from: { id: 7061697037 }, chat: { type: "private" } };
+  assert.equal(efektivnaUloga(poruka, ""), "klijent");
+});
+
+test("efektivnaUloga: adminTgId undefined daje klijent", () => {
+  const poruka = { from: { id: 7061697037 }, chat: { type: "private" } };
+  assert.equal(efektivnaUloga(poruka, undefined), "klijent");
+});
+
+test("efektivnaUloga: adminTgId samo razmaci daje klijent", () => {
+  const poruka = { from: { id: 7061697037 }, chat: { type: "private" } };
+  assert.equal(efektivnaUloga(poruka, "   "), "klijent");
+});
+
+test("efektivnaUloga: from.id broj naspram adminTgId string daju admin-bot", () => {
+  const poruka = { from: { id: 7061697037 }, chat: { type: "private" } };
+  assert.equal(efektivnaUloga(poruka, "7061697037"), "admin-bot");
+});
+
+test("efektivnaUloga: adminTgId sa razmacima oko broja daje admin-bot (trim radi)", () => {
+  const poruka = { from: { id: 7061697037 }, chat: { type: "private" } };
+  assert.equal(efektivnaUloga(poruka, " 7061697037 "), "admin-bot");
+});
+
+test("efektivnaUloga: negativan grupni ID kao adminTgId daje klijent za private poruku", () => {
+  const poruka = { from: { id: 7061697037 }, chat: { type: "private" } };
+  assert.equal(efektivnaUloga(poruka, "-100987654321"), "klijent");
+});
+
+test("efektivnaUloga: poruka bez from daje klijent, ne baca", () => {
+  const poruka = { chat: { type: "private" } };
+  assert.equal(efektivnaUloga(poruka, "7061697037"), "klijent");
+});
+
+test("efektivnaUloga: poruka bez chat daje klijent, ne baca", () => {
+  const poruka = { from: { id: 7061697037 } };
+  assert.equal(efektivnaUloga(poruka, "7061697037"), "klijent");
+});
+
+// ---- odlukaPoruke ----
+
+test("odlukaPoruke: dozvoljena odbija cak i tacan admin ID koji nije u allowFrom", () => {
+  const pristup = { dmPolicy: "allowlist", allowFrom: ["111"], groups: {} };
+  const poruka = { from: { id: 7061697037 }, chat: { type: "private" } };
+  assert.deepEqual(odlukaPoruke(poruka, pristup, "bot", "7061697037"), { prihvacena: false, uloga: null });
+});
+
+test("odlukaPoruke: private od admin ID-a koji JE u allowFrom daje admin-bot", () => {
+  const pristup = { dmPolicy: "allowlist", allowFrom: ["7061697037"], groups: {} };
+  const poruka = { from: { id: 7061697037 }, chat: { type: "private" } };
+  assert.deepEqual(odlukaPoruke(poruka, pristup, "bot", "7061697037"), { prihvacena: true, uloga: "admin-bot" });
+});
+
+test("odlukaPoruke: grupna poruka od admin ID-a iz dozvoljene grupe daje klijent", () => {
+  const pristup = {
+    dmPolicy: "allowlist",
+    allowFrom: [],
+    groups: { "-100": { allowFrom: ["7061697037"], requireMention: false } },
+  };
+  const poruka = { from: { id: 7061697037 }, chat: { type: "group", id: -100 } };
+  assert.deepEqual(odlukaPoruke(poruka, pristup, "bot", "7061697037"), { prihvacena: true, uloga: "klijent" });
+});
+
+test("odlukaPoruke: private od drugog dozvoljenog korisnika daje klijent", () => {
+  const pristup = { dmPolicy: "allowlist", allowFrom: ["111"], groups: {} };
+  const poruka = { from: { id: 111 }, chat: { type: "private" } };
+  assert.deepEqual(odlukaPoruke(poruka, pristup, "bot", "7061697037"), { prihvacena: true, uloga: "klijent" });
+});
+
+test("odlukaPoruke: prazan adminTgId daje klijent za svaku prihvacenu poruku", () => {
+  const pristup = { dmPolicy: "allowlist", allowFrom: ["7061697037"], groups: {} };
+  const poruka = { from: { id: 7061697037 }, chat: { type: "private" } };
+  assert.deepEqual(odlukaPoruke(poruka, pristup, "bot", ""), { prihvacena: true, uloga: "klijent" });
+});
+
+// ---- stanjeUloge ----
+
+test("stanjeUloge: prvi poziv pravi unos sa ispravnim tip i uloga.stanjeFajl", () => {
+  const mapa = new Map();
+  const unos = stanjeUloge(mapa, "klijent");
+  assert.equal(unos.tip, "klijent");
+  assert.equal(unos.uloga.stanjeFajl, ".olx-pik/most-stanje.json");
+  assert.equal(unos.zadnjaAktivnost, 0);
+});
+
+test("stanjeUloge: drugi poziv sa istim tipom vraca isti objekat (identitet)", () => {
+  const mapa = new Map();
+  const prvi = stanjeUloge(mapa, "klijent");
+  prvi.zadnjaAktivnost = 12345;
+  const drugi = stanjeUloge(mapa, "klijent");
+  assert.equal(drugi, prvi);
+  assert.equal(drugi.zadnjaAktivnost, 12345);
+});
+
+test("stanjeUloge: dva razlicita tipa daju dva razlicita objekta sa nezavisnim poljima", () => {
+  const mapa = new Map();
+  const klijent = stanjeUloge(mapa, "klijent");
+  const admin = stanjeUloge(mapa, "admin-bot");
+  assert.notEqual(klijent, admin);
+  assert.equal(klijent.uloga.stanjeFajl, ".olx-pik/most-stanje.json");
+  assert.equal(admin.uloga.stanjeFajl, ".olx-pik/most-admin-stanje.json");
+  klijent.zadnjaAktivnost = 999;
+  assert.equal(admin.zadnjaAktivnost, 0);
+});
+
+test("stanjeUloge: nevalidan tip baca", () => {
+  const mapa = new Map();
+  assert.throws(() => stanjeUloge(mapa, "nesto-pogresno"));
+});
+
+test("stanjeUloge: mapa nakon dva razlicita tipa ima size 2", () => {
+  const mapa = new Map();
+  stanjeUloge(mapa, "klijent");
+  stanjeUloge(mapa, "admin-bot");
+  assert.equal(mapa.size, 2);
 });
 
 // ---- izvorSlike ----
@@ -341,6 +487,59 @@ test("trebaLiNocniRez: nakon promjene datuma isti sat sljedeceg dana ponovo daje
   const sutra = new Date(2026, 7, 16, 4, 0, 0);
   assert.equal(trebaLiNocniRez({ sad: danas, restartSat: 4, zadnjiNocni: "2026-08-14", zauzet: false }), true);
   assert.equal(trebaLiNocniRez({ sad: sutra, restartSat: 4, zadnjiNocni: "2026-08-15", zauzet: false }), true);
+});
+
+// ---- adminTgIdIzEnva / validanAdminTgId / jednobotniRezim ----
+
+test("adminTgIdIzEnva: prazno/razmaci/undefined daju prazan string", () => {
+  assert.equal(adminTgIdIzEnva({}), "");
+  assert.equal(adminTgIdIzEnva({ OLX_MOST_ADMIN_TG_ID: "" }), "");
+  assert.equal(adminTgIdIzEnva({ OLX_MOST_ADMIN_TG_ID: "   " }), "");
+  assert.equal(adminTgIdIzEnva({ OLX_MOST_ADMIN_TG_ID: undefined }), "");
+});
+
+test("adminTgIdIzEnva: popunjena vrijednost se trimuje", () => {
+  assert.equal(adminTgIdIzEnva({ OLX_MOST_ADMIN_TG_ID: " 7061697037 " }), "7061697037");
+});
+
+test("validanAdminTgId: validan pozitivan cio broj daje true", () => {
+  assert.equal(validanAdminTgId("7061697037"), true);
+});
+
+test("validanAdminTgId: prazan string daje false", () => {
+  assert.equal(validanAdminTgId(""), false);
+});
+
+test("validanAdminTgId: negativan ID (izgleda kao grupa) daje false", () => {
+  assert.equal(validanAdminTgId("-100987654321"), false);
+});
+
+test("validanAdminTgId: ID sa slovima daje false", () => {
+  assert.equal(validanAdminTgId("706169abc"), false);
+});
+
+test("validanAdminTgId: ID sa decimalnom tackom daje false", () => {
+  assert.equal(validanAdminTgId("706169.037"), false);
+});
+
+test("validanAdminTgId: sve nule daju false", () => {
+  assert.equal(validanAdminTgId("0"), false);
+  assert.equal(validanAdminTgId("0000"), false);
+});
+
+test("jednobotniRezim: prazan OLX_MOST_ADMIN_TG_ID daje false", () => {
+  assert.equal(jednobotniRezim({}), false);
+  assert.equal(jednobotniRezim({ OLX_MOST_ADMIN_TG_ID: "" }), false);
+  assert.equal(jednobotniRezim({ OLX_MOST_ADMIN_TG_ID: "   " }), false);
+});
+
+test("jednobotniRezim: validan ID daje true", () => {
+  assert.equal(jednobotniRezim({ OLX_MOST_ADMIN_TG_ID: "7061697037" }), true);
+});
+
+test("jednobotniRezim: NEISPRAVNA ne-prazna vrijednost i dalje daje true (glasna greska ide u pozivaocu)", () => {
+  assert.equal(jednobotniRezim({ OLX_MOST_ADMIN_TG_ID: "-100987654321" }), true);
+  assert.equal(jednobotniRezim({ OLX_MOST_ADMIN_TG_ID: "abc" }), true);
 });
 
 // ---- trebaLiUzorkovati ----

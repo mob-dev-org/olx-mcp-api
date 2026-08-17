@@ -37,13 +37,20 @@ Backup NEMA nijedan token, namjerno. Svi se unose rucno, i svi su obnovljivi.
 3. **Build.** `bun install`, pa `bun run build`, pa `bun run test` (tri poteza; PowerShell 5.1 nema `&&`).
 
 4. **Telegram runtime.** `bun scripts/pripremi-runtime.mjs <bot_token> <id_grupe> <telegram_id>`,
-   pa `pripremi-admin-runtime.mjs` ako klon ima admin bota. Skripte na kraju SAME instaliraju
+   pa admin runtime prema tome sta `.env` (korak 2) kaze:
+   - `OLX_MOST_ADMIN_TG_ID` PRAZAN znaci dvobotni klon: `bun scripts/pripremi-admin-runtime.mjs
+     <admin_bot_token> <admin_telegram_id> [id_admin_grupe]`, i posao `admin-bot` ide u korak 6.
+   - `OLX_MOST_ADMIN_TG_ID` POPUNJEN znaci jednobotni klon: `bun scripts/pripremi-admin-runtime.mjs
+     --bez-bota <admin_telegram_id>` (bez tokena, drugog bota nema), i posao `admin-bot` se u
+     korak 6 NE instalira.
+   `.claude-runtime-admin/` treba u OBA slucaja. Skripte na kraju SAME instaliraju
    Telegram plugin u runtime (provjeri njihov izlaz; padne li, ispisu rucne komande), a `bun`
    mora biti u PATH-u jer plugin njime dize svoj MCP server. Na Windowsu i Linuxu jos i
    `claude login` po runtime folderu, jer kredencijali zive u config diru i ne mogu se
    prenijeti: PowerShell `$env:CLAUDE_CONFIG_DIR=".claude-runtime"` pa `claude login`
    (bash: `CLAUDE_CONFIG_DIR=.claude-runtime claude login`); na DeepSeek pogonu klijentski
-   runtime login ne treba.
+   runtime login ne treba. `.claude-runtime-admin` login se radi u oba rezima (kredencijali
+   pretplate zive u config diru bez obzira nosi li taj runtime svoj bot token).
 
 5. **Vracanje stanja.** Tek sada, kad runtime folderi postoje:
 

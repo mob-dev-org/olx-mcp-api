@@ -112,6 +112,10 @@ while IFS= read -r -u 3 klon; do
     greska="instalacija poslova"
     echo "  PALO: definicija posla NIJE osvjezena. Rucno pokreni: (cd $klon && scripts/instaliraj-cron.sh $ime)"
     echo "  rezerva: kickstart nad starom definicijom, da barem novi kod ude u memoriju"
+    # Na jednobotnom klonu (OLX_MOST_ADMIN_TG_ID popunjen u .env tog klona) posao admin-bot uopste
+    # ne postoji: JEDAN bot token vozi obje sesije kroz posao "sesija". Petlja to ne mora posebno
+    # provjeravati, `grep -q` samo ne pogodi taj oznaka i kickstart se preskace bez greske; to je
+    # vec bezopasno, ne dodaje se uslov koji nista ne mijenja.
     for posao in sesija admin-bot; do
       oznaka="ba.codefactory.olx.$ime.$posao"
       if launchctl list | grep -q "$oznaka"; then

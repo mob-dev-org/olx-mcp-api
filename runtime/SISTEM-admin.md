@@ -35,11 +35,12 @@ Dodaje se povrh `CLAUDE.md` kroz `scripts/claude-olx.sh`. Klijentski runtime ovo
   radi na obje platforme. Stara zsh funkcija `claude-ds` iz `~/.zshrc` se ne koristi: bila je
   globalna po masini, pa je na Windowsu nije ni bilo. Provjera endpointa bez sesije:
   `bun run deepseek:proba`.
-- Admin bot po klonu (opcion): `bun scripts/pripremi-admin-runtime.mjs <bot_token>
-  <admin_id> [id_grupe]` pravi `.claude-runtime-admin/`, pa `instaliraj-cron.sh` sam doda
-  posao `admin-bot`. Vlasnikov privatni kanal, admin MCP profil, uvijek pretplata, bez Bash-a.
-  BotFather privacy za admin bota OSTAJE UKLJUCEN: u grupi prima samo mention i reply, pa se
-  botovi vise klonova ne mijesaju u zajednickoj admin grupi.
+- Admin sesija po klonu (opcion), dva rezima: provjeri PRVO `OLX_MOST_ADMIN_TG_ID` u `.env`, ne
+  pretpostavljaj dvobotni. Prazno je dvobotni (`bun scripts/pripremi-admin-runtime.mjs <bot_token>
+  <admin_id> [id_grupe]`, poseban bot, poseban posao `admin-bot`, privacy ukljucen); popunjeno je
+  jednobotni (`pripremi-admin-runtime.mjs --bez-bota <admin_id>`, isti bot token kao klijent,
+  admin ide privatnom porukom, `admin-bot` posao se ne instalira). U oba rezima admin sesija je
+  vlasnikov privatni kanal, admin MCP profil, uvijek pretplata, bez Bash-a.
 - `scripts/instaliraj-cron.sh` instalira launchd poslove: snapshot 02:40, dnevna poruka 07:20,
   sedmicna ponedjeljkom 07:40, posao `sesija` koji vrti `telegram-most.mjs` (KeepAlive). Poslove
   vrti CLI `posao dnevni` i

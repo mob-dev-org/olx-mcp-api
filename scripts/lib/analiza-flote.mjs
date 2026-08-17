@@ -126,13 +126,21 @@ export const OBAVEZNI_POSLOVI = ["snapshot", "dnevno", "sedmicno", "sesija"];
 
 /**
  * Ocekivani poslovi za jedan klon: 4 obavezna + uslovni "admin-bot" (samo kad postoji
- * `.claude-runtime-admin`) + uslovni "backup" (samo kad je `OLX_STANJE_REPO` popunjen u `.env`
- * tog klona). Isti uslovi kao scripts/instaliraj-cron.sh i deploy/windows/instaliraj-zadatke.ps1:
- * prepisivanje uslovnog posla kao obaveznog bi ispravan klon lazno prijavilo kao nepotpun.
+ * `.claude-runtime-admin` I `jednobotni` NIJE ukljucen) + uslovni "backup" (samo kad je
+ * `OLX_STANJE_REPO` popunjen u `.env` tog klona). Isti uslovi kao scripts/instaliraj-cron.sh i
+ * deploy/windows/instaliraj-zadatke.ps1: prepisivanje uslovnog posla kao obaveznog bi ispravan
+ * klon lazno prijavilo kao nepotpun.
+ *
+ * `jednobotni` (default false, isto ponasanje kao prije uvodjenja ovog parametra kad se izostavi
+ * ili prosledi `undefined`): true znaci da JEDAN bot token vozi obje zive sesije kroz posao
+ * "sesija" (OLX_MOST_ADMIN_TG_ID popunjen u .env klona, vidi scripts/lib/most.mjs). Takav klon IMA
+ * `.claude-runtime-admin` (nosi prompt i profil admin sesije) ali NEMA odvojen posao "admin-bot"
+ * (dva getUpdates konzumera na istom tokenu daju 409 Conflict), pa se admin-bot ovdje ne dodaje
+ * ni kad `imaAdminRuntime` je true.
  */
-export function ocekivaniPoslovi({ imaAdminRuntime = false, imaStanjeRepo = false } = {}) {
+export function ocekivaniPoslovi({ imaAdminRuntime = false, imaStanjeRepo = false, jednobotni = false } = {}) {
   const poslovi = [...OBAVEZNI_POSLOVI];
-  if (imaAdminRuntime) poslovi.push("admin-bot");
+  if (imaAdminRuntime && !jednobotni) poslovi.push("admin-bot");
   if (imaStanjeRepo) poslovi.push("backup");
   return poslovi;
 }
@@ -174,9 +182,9 @@ export function registrovaniSufiksiPosla(redovi, imeKlona) {
  * (`poznato: false`), NIJE greska: obilazak flote ide dalje, samo se taj dan ne moze reci nista o
  * poslovima tog klona.
  */
-export function izracunajStatusPoslova({ redovi, imeKlona, imaAdminRuntime = false, imaStanjeRepo = false } = {}) {
+export function izracunajStatusPoslova({ redovi, imeKlona, imaAdminRuntime = false, imaStanjeRepo = false, jednobotni = false } = {}) {
   if (redovi === null || redovi === undefined) return { poznato: false };
-  const ocekivano = ocekivaniPoslovi({ imaAdminRuntime, imaStanjeRepo });
+  const ocekivano = ocekivaniPoslovi({ imaAdminRuntime, imaStanjeRepo, jednobotni });
   const registrovano = registrovaniSufiksiPosla(redovi, imeKlona);
   const nedostaje = ocekivano.filter((p) => !registrovano.has(p));
   return {

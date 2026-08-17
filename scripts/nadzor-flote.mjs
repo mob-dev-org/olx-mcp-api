@@ -34,6 +34,7 @@ import { nadjiKlonove, pronadjiUgnijezdeneKopije } from "./lib/klonovi.mjs";
 import { obidjiDirektorijum, sazmiSkeniranje, velicinaFolderaBrzo } from "./lib/disk.mjs";
 import { izmjeriCpuMasine, citajPsi } from "./lib/cpu.mjs";
 import { analizirajFlotu, izracunajStatusPoslova } from "./lib/analiza-flote.mjs";
+import { jednobotniRezim } from "./lib/most.mjs";
 import {
   agregiraj,
   citajRedove,
@@ -328,7 +329,11 @@ async function obidjiKlonSaBudzetom(korijenKlona, redoviZadataka) {
     imaAdminRuntime = false;
   }
   const imaStanjeRepo = typeof env?.OLX_STANJE_REPO === "string" && env.OLX_STANJE_REPO.trim() !== "";
-  const poslovi = izracunajStatusPoslova({ redovi: redoviZadataka, imeKlona, imaAdminRuntime, imaStanjeRepo });
+  // Isti procitan env kao gore (OLX_STANJE_REPO): jednobotni klon ima .claude-runtime-admin ali
+  // NEMA odvojen posao admin-bot (isti bot token vozi obje sesije kroz posao "sesija"), pa bi
+  // provjera bez ovog uslova taj klon lazno prijavila kao nepotpun.
+  const jednobotni = jednobotniRezim(env);
+  const poslovi = izracunajStatusPoslova({ redovi: redoviZadataka, imeKlona, imaAdminRuntime, imaStanjeRepo, jednobotni });
 
   const pocetakMs = Date.now();
 

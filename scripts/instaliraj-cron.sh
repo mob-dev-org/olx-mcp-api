@@ -45,11 +45,22 @@ fi
 
 # Admin bot je opcion po klonu (bun scripts/pripremi-admin-runtime.mjs). Posao vozi most u
 # admin ulozi (scripts/telegram-most.mjs admin-bot). Admin token zivi u
-# .claude-runtime-admin/channels/telegram/.env, ne u .env, pa se ovdje ne provjerava .env.
-if [[ -d .claude-runtime-admin ]]; then
+# .claude-runtime-admin/channels/telegram/.env, ne u .env, pa se ovdje ne provjerava .env token.
+#
+# NE instalira se kao ODVOJEN posao kad je jednobotni rezim ukljucen (OLX_MOST_ADMIN_TG_ID
+# popunjen u .env): u tom rezimu admin poruke vozi klijentski most (posao "sesija") u ISTOM
+# procesu, rutiranjem po poruci (scripts/lib/most.mjs). Dva getUpdates konzumera na istom bot
+# tokenu (posao sesija i posao admin-bot odvojeno) daju 409 Conflict, pa admin-bot mora ostati
+# neinstaliran dok god je rezim ukljucen. Prazna vrijednost (OLX_MOST_ADMIN_TG_ID=, kako je
+# isporucuje .env.example) se racuna kao NIJE popunjena, isto kao odsutna varijabla; isti stil
+# citanja .env kao kod OLX_STANJE_REPO nize i tokena gore.
+if [[ -d .claude-runtime-admin ]] && ! { [[ -f .env ]] && grep -qE '^OLX_MOST_ADMIN_TG_ID=.+' .env; }; then
   POSLOVI+=(admin-bot)
 else
-  # Isti razlog kao kod posla sesija: preskakanje ne smije ostaviti staru definiciju ziva.
+  # Isti razlog kao kod posla sesija: preskakanje ne smije ostaviti staru definiciju zivu. Ovo
+  # takodje uklanja zaostao admin-bot posao ako se jednobotni rezim naknadno ukljuci na klonu koji
+  # ga je ranije imao instaliranog (bez ovoga bi dva konzumera ostala ziva do sljedeceg rucnog
+  # ciscenja).
   launchctl bootout "gui/$(id -u)/ba.codefactory.olx.$IME.admin-bot" 2>/dev/null || true
 fi
 

@@ -15,6 +15,8 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { ucitajEnvGlobalno, procitajEnv } from "./lib/envfajl.mjs";
+import { adminTgIdIzEnva, jednobotniRezim, validanAdminTgId } from "./lib/most.mjs";
+import { registrovaniSufiksiPosla } from "./lib/analiza-flote.mjs";
 
 const KORIJEN = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(KORIJEN);
@@ -53,6 +55,36 @@ function grupeIzAccessa(rt = ".claude-runtime") {
   } catch {
     return [];
   }
+}
+
+/** allowFrom (top-level, privatne poruke) iz istog access.json. Prazno kad fajl ili polje ne
+ * postoji. Koristi je jednobotna provjera nize: bez ovog ID-a na listi vlasnikova privatna
+ * poruka nikad ne prodje `dozvoljena()`, pa se admin grana u ruteru nikad ne pozove. */
+function allowFromIzAccessa(rt = ".claude-runtime") {
+  try {
+    const a = JSON.parse(readFileSync(join(rt, "channels", "telegram", "access.json"), "utf8"));
+    return (a?.allowFrom ?? []).map((v) => String(v));
+  } catch {
+    return [];
+  }
+}
+
+/** true kad je posao "admin-bot" registrovan na ovoj masini za OVAJ klon (bilo koja platforma).
+ * Koristi cistu funkciju iz analiza-flote.mjs umjesto vlastitog regexa: sufiks posla se vec
+ * parsira tamo, testirano na oba formata (schtasks CSV, launchctl list). Ako je sama komanda
+ * (schtasks/launchctl) nedostupna, vraca false: to je isti "tretiraj nepoznato kao odsutno" duh
+ * kao ostatak ove skripte, ne novi FALI izvor. */
+function adminBotPosaoRegistrovan() {
+  let izlaz = "";
+  try {
+    izlaz = execFileSync(WIN ? "schtasks" : "launchctl", WIN ? ["/query", "/fo", "csv"] : ["list"], {
+      encoding: "utf8",
+      stdio: "pipe",
+    });
+  } catch {
+    return false;
+  }
+  return registrovaniSufiksiPosla(izlaz.split("\n"), IME).has("admin-bot");
 }
 
 /** Isti split kao `chatIdovi` u src/core/telegram.ts, u tri reda. */
@@ -385,9 +417,11 @@ else paznja("KLIJENT-javno.md", "bot ne zna ton, footer ni granice klijenta", `$
     const nasi = izlaz.split("\n").filter((r) => r.toLowerCase().includes(prefiksZadatka));
     // Backup je uslovni posao (isti uslov kao u instaliraj-cron.sh i instaliraj-zadatke.ps1):
     // instalira se samo kad je repo stanja podesen, pa i ocekivani broj zavisi od toga. Admin-bot
-    // je takodje uslovan, ali .claude-runtime-admin nije nigdje drugo obavezan (za razliku od
-    // .claude-runtime, provjerenog gore u sekciji 6), pa ostaje bonus a ne obavezan, isto kao u
-    // macOS grani.
+    // se u ovaj broj NIKAD ne racuna: u dvobotnom rezimu je uslovan bonus (postojanje
+    // .claude-runtime-admin ne cini taj posao obaveznim), a u jednobotnom rezimu
+    // (OLX_MOST_ADMIN_TG_ID popunjen) admin-bot kao ODVOJEN posao ne smije ni postojati (isti bot
+    // token vozi obje sesije kroz posao "sesija"). Ta grana ima svoju provjeru nize (jednobotna
+    // sekcija), ne ovdje.
     const ocekivano = process.env.OLX_STANJE_REPO ? 5 : 4;
     const imena = ocekivano === 5 ? "snapshot, dnevno, sedmicno, sesija, backup" : "snapshot, dnevno, sedmicno, sesija";
     if (nasi.length >= ocekivano) ok("Zakazani poslovi (Task Scheduler)", `${nasi.length} poslova`);
@@ -413,6 +447,9 @@ else paznja("KLIJENT-javno.md", "bot ne zna ton, footer ni granice klijenta", `$
     const nasi = izlaz.split("\n").filter((r) => r.includes(`ba.codefactory.olx.${IME}.`));
     // Backup je uslovni posao: instalira se samo kad je repo stanja podesen, pa i ocekivani broj
     // zavisi od toga. Fiksna 4 bi tvrdila da je sve u redu na klonu kojem backup nedostaje.
+    // Admin-bot se ovdje NIKAD ne racuna, ni u dvobotnom (uslovan bonus) ni u jednobotnom rezimu
+    // (u jednobotnom taj posao kao ODVOJEN proces ne smije ni postojati), isti razlog kao u
+    // Windows grani iznad.
     const ocekivano = process.env.OLX_STANJE_REPO ? 5 : 4;
     const imena = ocekivano === 5 ? "snapshot, dnevno, sedmicno, sesija, backup" : "snapshot, dnevno, sedmicno, sesija";
     if (nasi.length >= ocekivano) ok("Zakazani poslovi (launchd)", `${nasi.length} poslova`);
@@ -422,9 +459,13 @@ else paznja("KLIJENT-javno.md", "bot ne zna ton, footer ni granice klijenta", `$
 }
 
 // 8. Most radi (scripts/telegram-most.mjs, PID brava po ulozi)
-//    Pogon: bun scripts/telegram-most.mjs (klijentski) i bun scripts/telegram-most.mjs admin-bot
-//    (admin). Instalira ih korak zakazanih poslova (sekcija 7), pa je PAZNJA ovdje normalna na
-//    svjeze podignutoj masini ili prije prve instalacije, ne blokira klon.
+//    Dvobotni rezim (default): DVA odvojena procesa, bun scripts/telegram-most.mjs (klijentski) i
+//    bun scripts/telegram-most.mjs admin-bot (admin), svaki sa svojim PID fajlom. Instalira ih
+//    korak zakazanih poslova (sekcija 7), pa je PAZNJA ovdje normalna na svjeze podignutoj masini
+//    ili prije prve instalacije, ne blokira klon.
+//    Jednobotni rezim (OLX_MOST_ADMIN_TG_ID popunjen): JEDAN proces (posao "sesija") nosi obje
+//    zive sesije rutiranjem po poruci, pa admin most kao ODVOJEN proces ovdje uopste ne postoji i
+//    ne provjerava se (vidi jednobotnu sekciju nize).
 function provjeriMost(naziv, pidIme) {
   const pidFajl = join(".olx-pik", pidIme);
   let radi = false;
@@ -445,7 +486,7 @@ provjeriMost("Most radi", "most.pid");
 // Admin most je opcion po klonu (isto uslovljavanje kao u scripts/instaliraj-cron.sh): stavka se
 // prikazuje samo kad ovaj klon uopste ima admin runtime, inace bi svaki klijentski klon bez admin
 // bota trajno prikazivao paznju za nesto sto tom klonu i ne treba.
-if (existsSync(".claude-runtime-admin")) {
+if (existsSync(".claude-runtime-admin") && !jednobotniRezim(process.env)) {
   provjeriMost("Admin most radi", "most-admin.pid");
 }
 
@@ -480,6 +521,62 @@ if (existsSync(".claude-runtime-admin")) {
     if (!zadnji) paznja("Backup stanja", "podesen, ali jos nijednom nije radio", "bun dist/cli/index.js posao backup --suho  # pa bez --suho");
     else if (Date.now() - zadnji > 48 * 60 * 60 * 1000) paznja("Backup stanja", `zadnji je stariji od 48h (${new Date(zadnji).toISOString().slice(0, 10)})`, "provjeri posao backup; rucno: bun dist/cli/index.js posao backup");
     else ok("Backup stanja svjez");
+  }
+}
+
+// 11. Jednobotni rezim (OLX_MOST_ADMIN_TG_ID popunjen u .env): jedan bot token vozi i klijentsku
+//     i admin zivu sesiju, rutiranjem po poruci (vidi scripts/lib/most.mjs). Ovaj blok se
+//     prikazuje SAMO kad je rezim ukljucen; dvobotni klon (podrazumijevano, varijabla prazna) ga
+//     uopste ne vidi.
+if (jednobotniRezim(process.env)) {
+  const adminId = adminTgIdIzEnva(process.env);
+
+  // ID se ispisuje u DETALJU svake stavke ove sekcije namjerno: pogresno upisan ID bi tudjoj
+  // osobi u privatnom razgovoru dao admin alate, pa mora biti vidljiv pri svakoj provjeri klona.
+  if (validanAdminTgId(adminId)) {
+    ok("Jednobotni rezim: OLX_MOST_ADMIN_TG_ID", `${adminId} (mora biti pozitivan licni Telegram ID vlasnika)`);
+  } else {
+    fali(
+      "Jednobotni rezim: OLX_MOST_ADMIN_TG_ID",
+      `vrijednost "${adminId}" nije validan Telegram ID; mora biti pozitivan cio broj, negativan izgleda kao ID grupe`,
+      "upisi ispravan licni Telegram ID vlasnika u OLX_MOST_ADMIN_TG_ID (.env)",
+    );
+  }
+
+  if (existsSync(".claude-runtime-admin")) {
+    ok("Jednobotni rezim: admin runtime postoji", `.claude-runtime-admin (ID iz .env: ${adminId})`);
+  } else {
+    fali(
+      "Jednobotni rezim: admin runtime",
+      `nema .claude-runtime-admin (nosi prompt i profil admin sesije za ID ${adminId})`,
+      `bun scripts/pripremi-admin-runtime.mjs --bez-bota ${adminId || "<id>"}`,
+    );
+  }
+
+  if (validanAdminTgId(adminId)) {
+    const dozvoljeni = allowFromIzAccessa();
+    if (dozvoljeni.includes(adminId)) {
+      ok("Jednobotni rezim: vlasnik na allowFrom listi", `${adminId} u .claude-runtime/channels/telegram/access.json`);
+    } else {
+      fali(
+        "Jednobotni rezim: vlasnik na allowFrom listi",
+        `${adminId} nije u allowFrom u .claude-runtime/channels/telegram/access.json: privatna poruka ne prolazi ` +
+          `dozvoljena(), admin grana se nikad ne pozove i vlasnik dobija TISINU bez ijedne poruke greske`,
+        `rucno dodaj ${adminId} u allowFrom u .claude-runtime/channels/telegram/access.json (pripremi-runtime.mjs odbija rad na postojecem runtime-u)`,
+      );
+    }
+  }
+
+  // Dva getUpdates konzumera na istom bot tokenu daju 409 Conflict, pa admin-bot NE SMIJE biti
+  // registrovan kao odvojen posao dok je jednobotni rezim ukljucen.
+  if (adminBotPosaoRegistrovan()) {
+    fali(
+      "Jednobotni rezim: posao admin-bot NE SMIJE postojati",
+      "admin-bot je i dalje registrovan kao odvojen posao: dva getUpdates konzumera na istom bot tokenu daju 409 Conflict",
+      WIN ? "powershell -ExecutionPolicy Bypass -File deploy\\windows\\instaliraj-zadatke.ps1" : "scripts/instaliraj-cron.sh",
+    );
+  } else {
+    ok("Jednobotni rezim: posao admin-bot nije registrovan (ocekivano)");
   }
 }
 

@@ -362,7 +362,7 @@ ADMIN poslovi nemaju Windows blizanca namjerno: admin masina na Windowsu nije up
 
 ## Varijable okruzenja u cijelom repou
 
-Ukupno 109 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 100 cini konfiguraciju klona.
+Ukupno 110 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 101 cini konfiguraciju klona.
 
 Ostale dolaze iz okoline (harness sesije, plugin loader, proxy) i u `.env.example` namjerno ne stoje: klijent ih ne postavlja rukom. Zato se prazna kolona kod njih ne racuna kao propust.
 
@@ -424,9 +424,10 @@ Nema takvih.
 | OLX_MAX_STAVKI_U_ODGOVORU | konfiguracija klona | 1 | src/core/config.ts | da |
 | OLX_MAX_STRANICA_LISTE | konfiguracija klona | 2 | scripts/lib/stats-snapshot.test.mjs, src/core/config.ts | da |
 | OLX_MAX_TRAJANJE_SNAPSHOT_PROLAZA_MS | konfiguracija klona | 2 | scripts/lib/stats-snapshot.test.mjs, src/core/config.ts | da |
-| OLX_MCP_PROFILE | konfiguracija klona | 6 | scripts/kontekst-izvjestaj.mjs, scripts/lib/mcp-profil.test.mjs, scripts/lib/popis-kod.mjs, scripts/lib/sesija.mjs, scripts/lib/sesija.test.mjs, scripts/pripremi-runtime.mjs | da |
+| OLX_MCP_PROFILE | konfiguracija klona | 6 | scripts/kontekst-izvjestaj.mjs, scripts/lib/mcp-profil.test.mjs, scripts/lib/popis-kod.mjs, scripts/lib/sesija.mjs, scripts/lib/sesija.test.mjs, scripts/pripremi-admin-runtime.mjs | da |
 | OLX_MIN_REQUEST_INTERVAL_MS | konfiguracija klona | 3 | scripts/lib/pokreni-cli.mjs, src/core/client.test.ts, src/core/config.ts | da |
 | OLX_MOST_ADMIN_IDLE_MIN | konfiguracija klona | 2 | scripts/lib/resursi.mjs, scripts/telegram-most.mjs | da |
+| OLX_MOST_ADMIN_TG_ID | konfiguracija klona | 6 | deploy/windows/azuriraj.ps1, deploy/windows/instaliraj-zadatke.ps1, scripts/azuriraj-ovaj-klon.mjs, scripts/azuriraj-sve.sh, scripts/instaliraj-cron.sh, scripts/lib/analiza-flote.mjs | da |
 | OLX_MOST_IDLE_MIN | konfiguracija klona | 6 | deploy/launchd/ba.codefactory.olx.KLIJENT.sesija.plist, scripts/lib/analiza-flote.mjs, scripts/lib/analiza-flote.test.mjs, scripts/lib/resursi.mjs, scripts/lib/resursi.test.mjs, scripts/telegram-most.mjs | da |
 | OLX_MOST_POTEZ_TIMEOUT_MS | konfiguracija klona | 1 | scripts/telegram-most.mjs | da |
 | OLX_MOST_RESTART_SAT | konfiguracija klona | 2 | deploy/launchd/ba.codefactory.olx.KLIJENT.sesija.plist, scripts/telegram-most.mjs | da |

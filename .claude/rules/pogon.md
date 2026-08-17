@@ -74,15 +74,28 @@ Ucitava se samo kad se diraju skripte ili deploy. Mapa cijelog pogona:
 - Telegram plugin i njegov `bun` su ZAVISNOSTI POGONA, ne opcija. Plugin cache stoji u
   `$CLAUDE_CONFIG_DIR/plugins/`, dakle instalira se posebno za svaki runtime
   (`.claude-runtime`, `.claude-runtime-admin`); globalna instalacija u `~/.claude` klijentskoj
-  sesiji ne vrijedi nista. Pripremi skripte ga instaliraju same (idempotentno, kroz
-  `scripts/lib/telegram-plugin.mjs`), ali instalacija moze pasti (SSH, mreza, bun), pa
-  preflight u `provjeri-klon.mjs` ostaje kapija.
+  sesiji ne vrijedi nista. `.claude-runtime-admin` treba u OBA rezima jednobotnom i dvobotnom
+  (nosi `CLAUDE_CONFIG_DIR` admin sesije, settings, prompt, MCP profil admin), pa plugin ide i u
+  njega bez obzira ima li taj runtime svoj bot token ili je pripremljen sa `--bez-bota`. Pripremi
+  skripte ga instaliraju same (idempotentno, kroz `scripts/lib/telegram-plugin.mjs`), ali
+  instalacija moze pasti (SSH, mreza, bun), pa preflight u `provjeri-klon.mjs` ostaje kapija.
 - Kvar plugina se ne vidi na jutarnjoj poruci: nju salje cron kroz `src/core/telegram.ts`, cist
   fetch mimo sesije i plugina. Bot moze mjesecima cutati na poruke dok izvjestaji uredno stizu.
   Zato preflight provjerava plugin i `bun` odvojeno od svega ostalog.
-- Klijentski bot: BotFather privacy ISKLJUCEN (mora vidjeti sve poruke grupe).
-- Admin bot: privacy UKLJUCEN (u grupi prima samo mention i reply) + `requireMention: true`.
-  Ne mijenjati jedno u drugo; to je razlog zasto se botovi u admin grupi ne mijesaju.
+- **Dvobotni rezim (default, `OLX_MOST_ADMIN_TG_ID` prazan u `.env`):** dva bota, dva tokena, dva
+  procesa mosta. Klijentski bot: BotFather privacy ISKLJUCEN (mora vidjeti sve poruke grupe).
+  Admin bot: privacy UKLJUCEN (u grupi prima samo mention i reply) + `requireMention: true`. Ne
+  mijenjati jedno u drugo; to je razlog zasto se botovi u admin grupi ne mijesaju.
+- **Jednobotni rezim (opcion, `OLX_MOST_ADMIN_TG_ID` popunjen u `.env`):** JEDAN bot, JEDAN token,
+  JEDAN proces mosta koji vozi obje sesije. Privacy tog bota MORA biti ISKLJUCEN, jer isti token
+  nosi i klijentsku grupu; `requireMention` iz BotFathera tu ne postoji i ne moze zamijeniti
+  razdvajanje. Admin smjer se ovdje ne razdvaja postavkom bota nego RUTIRANJEM PO PORUCI u
+  `scripts/telegram-most.mjs`: privatna poruka tacno sa `OLX_MOST_ADMIN_TG_ID` ide na admin
+  sesiju, svaka poruka u GRUPI (ukljucujuci vlasnikovu) i svaka privatna poruka drugog ID-a ide na
+  klijentsku sesiju. Zato u ovom rezimu taj bot NE SMIJE biti dodat u zajednicku admin grupu:
+  cijeli promet te grupe bi usao u klijentsku sesiju. Vlasnik sa ovim klonom razgovara SAMO
+  privatno. Tacna pravila i primjer su komentarisani u `.env.example` uz `OLX_MOST_ADMIN_TG_ID`,
+  ne prepisuju se ovdje.
 - `access.json` je jedan izvor za oba smjera: po njemu bot PRIMA poruke i po njemu izvjestaji
   ODLAZE. `TELEGRAM_CHAT_ID` je samo dopuna. Grupa se dodaje sa `telegram grupe dodaj <id>`, jer
   `pripremi-runtime.mjs` odbija rad na postojecem runtime-u.
@@ -95,6 +108,11 @@ Ucitava se samo kad se diraju skripte ili deploy. Mapa cijelog pogona:
   most je JEDINI konzument u produkciji, jer plugina i njegovog pollera vise nema. Zato se most i
   rucna proba ne smiju voditi istovremeno na istom bot tokenu: dva `getUpdates` konzumera daju 409
   Conflict, pa se posao `sesija` (most) gasi PRIJE `pokreni-klijenta.mjs`, ne obrnuto.
+  U jednobotnom rezimu (`OLX_MOST_ADMIN_TG_ID` popunjen) ovo pravilo je jos vaznije, jer JEDAN
+  token nosi oba smjera: odvojen admin proces mosta u tom rezimu NE POSTOJI, most ima tvrde brane
+  koje odbijaju start ako se pokusa dici klijentska i admin uloga kao dva odvojena procesa na
+  istom tokenu, i posao `admin-bot` se u tom rezimu NE INSTALIRA. Admin i klijent tu dijele isti
+  proces i istog globalnog radnika (round robin, nikad paralelno), ne dva `getUpdates` konzumera.
 - Most zove `getUpdates`, `sendChatAction`, `sendMessage`, `sendPhoto` i `getFile`; nikad
   `deleteWebhook`, `setWebhook` ni `setMyCommands`.
 - Most pomjera `offset` SAMO nakon sto je poruka upisana u red na disku (fsync kroz rename), ne
