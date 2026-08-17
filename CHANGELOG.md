@@ -8,6 +8,15 @@ Kako se cita broj verzije: `bun dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
+## 0.18.1 — 2026-08-17
+
+**Novi klijentski klon vise ne ignorise musterije u grupi.** `pripremi-runtime.mjs` je grupno
+`allowFrom` postavljao na spisak ljudi unesenih pri onboardingu (vlasnik/kontakt), pa bi bot u
+klijentskoj grupi odgovarao SAMO njima, a svaki stvarni kupac koji tu grupu koristi bio bi tiho
+ignorisan - suprotno svrsi klijentskog bota. Grupno `allowFrom` je sada prazno (dozvoljena() to
+vec tumaci kao "svi u grupi dozvoljeni", pokriveno testom). Privatne poruke (`dmPolicy`,
+top-level `allowFrom`) ostaju ogranicene kao i do sada - to ogranicenje ima smisla.
+
 ## 0.18.0 — 2026-08-17
 
 **Telegram most je od sada JEDINI pogon botova, a `cuvar-sesije.mjs` je obrisan.** Novi klijenti su

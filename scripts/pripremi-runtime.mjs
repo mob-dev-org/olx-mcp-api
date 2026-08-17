@@ -78,14 +78,19 @@ copyFileSync(join(KORIJEN, "runtime", "settings.klijent.json"), join(RUNTIME, "s
 const tokenFajl = join(TELEGRAM_DIR, ".env");
 writeFileSync(tokenFajl, `TELEGRAM_BOT_TOKEN=${botToken}\n`, "utf8");
 
-// allowlist umjesto pairing rezima: stranac ne dobija ni pairing kod.
+// allowlist umjesto pairing rezima: stranac ne dobija ni pairing kod. Ovo vrijedi za PRIVATNE
+// poruke (dmPolicy/allowFrom gore) - tamo se ogranicenje zeli, jer stranac u privatnom razgovoru
+// nema sta traziti. Grupa je obrnuto: to je klijentska grupa gdje MUSTERIJE pisu botu, pa grupno
+// allowFrom ostaje PRAZNO (dozvoljena() prazan spisak tumaci kao "svi u grupi dozvoljeni",
+// provjereno testom u most.test.mjs). Popunjen spisak bi bot ucinio glupim za svakog kupca koji
+// nije bio na onboarding listi - upravo suprotno od svrhe klijentskog bota.
 const access = {
   dmPolicy: "allowlist",
   allowFrom: korisnici,
   groups: {
     [String(idGrupe)]: {
       requireMention: false,
-      allowFrom: korisnici,
+      allowFrom: [],
     },
   },
   pending: {},
