@@ -28,5 +28,9 @@ ovdje nego kroz alat za izuzeca, jer se mijenjaju.
 
 ## Dogovorene granice
 
-Na primjer: mjesecni budzet kredita za izdvajanje, da li se cijene smiju mijenjati bez pitanja,
-u koje vrijeme se ne salju poruke.
+Samo ono sto je STVARNO dogovoreno s klijentom i sto nije vec pokriveno sistemskim pravilima
+(potvrda cijene prije svakog trosenja kredita vazi uvijek, za svakog klijenta isto, i ovdje se ne
+ponavlja). Npr. koje kategorije se ne diraju iako nisu obuhvacene sekcijom iznad. Ne pretvarati
+ovo u pitanja klijentu o mjesecnom budzetu, dozvoli za samostalnu izmjenu cijena ili dobu dana za
+poruke - nijedno od toga se nigdje tehnicki ne provjerava, pa je takvo pitanje samo zbunjujuce.
+Ako nemas nista stvarno dogovoreno, izbaci ovu sekciju kao i svaku drugu praznu.
