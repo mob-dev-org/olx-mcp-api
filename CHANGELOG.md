@@ -8,6 +8,26 @@ Kako se cita broj verzije: `bun dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
+## 0.21.0 — 2026-08-18
+
+**`stats snapshot` i `posao dnevni` vise ne padaju na privremeni 429.** Jutros je nocni `snapshot`
+pao sa "429 GET /users/nabavi/listings" na klijentu sa ~2000 oglasa, a par sati kasnije je isti
+klijent oborio i `posao dnevni` istom greskom, dok je manji klijent normalno prosao - obrazac je
+jasan, veci katalog znaci vise stranica liste i vecu sansu na privremeno rate-limitovanje. Oba
+posla sada, SAMO za sebe, dobijaju produzeno strpljenje na 429 (do 6 dodatnih pauza, 5s do 45s,
+kumulativni plafon 10 minuta ispod budzeta pokretanja): kad prodje kroz `listAllByState`/
+`listAllActive`, posao sacekaj i pokusa ponovo umjesto da odmah odustane. Globalni retry koji
+koriste MCP alati i klijentski Telegram bot je netaknut - duze cekanje na 429 usred zivog razgovora
+bi bilo gore od trenutnog brzog odustajanja, pa je prosirenje ograniceno na scope samo za ova dva
+zakazana posla (`OLX_POSAO_429_POKUSAJA`, `OLX_POSAO_429_UKUPNO_MS` u `.env.example`).
+
+**Admin dobija poruku i kad se posao OPORAVI, ne samo kad padne.** Novo stanje po poslu
+(`.olx-pik/posao-stanje.json`) pamti da li je prethodno pokretanje pošlo ili palo; `snapshot` i
+`dnevni` sada salju jednu poruku SAMO na prelazu pad->uspjeh ("juceranji problem je rijesen"), ne
+svaki dan na svaki uspjeh - to bi vremenom postalo sum koji se ignorise. `--suho` ne dira ovo stanje
+(ne smije ugasiti zabiljezen pad koji jos nije stvarno rijesen), `--bez-slanja` upisuje ishod ali ne
+salje poruku.
+
 ## 0.20.0 — 2026-08-17
 
 **Klijentski bot vise sam ne pregovara o budzetu, cijenama ni dobu poruka.** Primjer u
