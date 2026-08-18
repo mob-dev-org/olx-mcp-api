@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { OlxClient, OlxApiError, OlxAuthError, OlxSpendError } from "../core/index.js";
 import { odvojiIzuzete, ucitajIzuzeca } from "../core/izuzeca.js";
 import { loadConfig } from "../core/config.js";
+import { withStrpljenje429 } from "../core/strpljenje.js";
 import { pokrenutDirektno } from "../core/ulaz.js";
 import { potrosenoNaDanUFajlovima, putanjeAuditaZaCitanje, setAuditContext } from "../core/audit.js";
 import { VERZIJA } from "../core/verzija.js";
@@ -46,6 +47,7 @@ import {
   zadnjiSnapshot,
 } from "../core/snapshoti.js";
 import { razvrstaj } from "../core/backup-spisak.js";
+import { procitajIshodPosla, trebaObavijestOOporavku, zapisiIshodPosla, type PosaoZapis } from "../core/posao-stanje.js";
 import { kopirajURadnu, popisiStanje, uporediSaKopijom, vratiIzRadne } from "../core/stanje-kopija.js";
 import { bootstrap, commitIPush, danaDoIsteka, masinaSePoklapa, postavkeStanja, zadnjiUpis } from "../core/git-stanje.js";
 import type { CreateListingInput, Listing, SponsorOptions, SponsorType, SponsorDays, RefreshEvery, CategoryNode, Country, City } from "../core/types.js";
@@ -1343,155 +1345,184 @@ stats
     try {
       const startPokretanja = Date.now();
       const cfg = loadConfig();
-      const c = await withAuth();
-      const username = await c.resolveUsername();
-      mkdirSync(SNAPSHOT_DIR, { recursive: true });
-      const otpusti = zauzmiKljuc(`${SNAPSHOT_DIR}/snapshot`);
-      try {
-        const sadaSekunde = Math.floor(Date.now() / 1000);
-        let radni = ucitajSnapshotUToku();
+      // Cita se PRIJE bilo kakvog rada, van withStrpljenje429 omotaca: nakon uspjesnog upisa
+      // "ok" nize u istoj akciji bi se izgubila informacija da je JUCE bio pad.
+      const prethodniIshodSnapshota = procitajIshodPosla("snapshot");
+      await withStrpljenje429(
+        { pokusaja: cfg.posao429Pokusaja, ukupnoMs: cfg.posao429UkupnoMs },
+        async () => {
+        const c = await withAuth();
+        const username = await c.resolveUsername();
+        mkdirSync(SNAPSHOT_DIR, { recursive: true });
+        const otpusti = zauzmiKljuc(`${SNAPSHOT_DIR}/snapshot`);
+        try {
+          const sadaSekunde = Math.floor(Date.now() / 1000);
+          let radni = ucitajSnapshotUToku();
 
-        // Podmetnut ili zaostao radni fajl drugog naloga se nikad ne nastavlja: jedan klon je
-        // jedan nalog, pa bi nastavak ovdje upisao tudje ID-eve u nas snimak.
-        if (radni && radni.account !== username) {
-          console.error(
-            `Radni fajl snapshota pripada drugom nalogu (${radni.account}), odbacujem i pocinjem prolaz iznova.`,
-          );
+          // Podmetnut ili zaostao radni fajl drugog naloga se nikad ne nastavlja: jedan klon je
+          // jedan nalog, pa bi nastavak ovdje upisao tudje ID-eve u nas snimak.
+          if (radni && radni.account !== username) {
+            console.error(
+              `Radni fajl snapshota pripada drugom nalogu (${radni.account}), odbacujem i pocinjem prolaz iznova.`,
+            );
+            obrisiSnapshotUToku();
+            radni = null;
+          }
+
+          // Prolaz razmazan preko vise pokretanja unosi gresku ogranicenu upravo ovom granicom
+          // (mrtvi oglasi se racunaju tek nad periodom od najmanje 14 dana). Prestar prolaz se
+          // ODBACUJE umjesto da se nastavi, i to se javlja administratoru: to je jedini nacin da
+          // neko sazna da katalog nikako ne stize da se obidje u zadatom roku.
+          if (radni && sadaSekunde - radni.pocetak > cfg.maxTrajanjeSnapshotProlazaMs / 1000) {
+            const poruka =
+              `stats snapshot: prolaz je trajao duze od dozvoljenih ${cfg.maxTrajanjeSnapshotProlazaMs} ms ` +
+              `i odbacen je nedovrsen (procitano ${radni.oglasi.length} od ${radni.idevi.length} oglasa). ` +
+              "Prolaz krece iznova od pocetka kataloga.";
+            console.error(poruka);
+            await javiAdminu(poruka);
+            obrisiSnapshotUToku();
+            radni = null;
+          }
+
+          if (!radni) {
+            // Spisak ID-eva se cita SAMO ovdje, na pocetku prolaza, i dalje se ne osvjezava:
+            // snapshot time ostaje koherentan snimak jednog trenutka. Oglas objavljen usred
+            // prolaza nije u ovom snapshotu, nego u sljedecem.
+            const aktivni = await c.listAllByState("active", username);
+            if (!aktivni.potpuno) {
+              throw new Error(
+                `Lista aktivnih oglasa nije potpuna (procitano ${aktivni.oglasi.length} od ` +
+                  `${aktivni.ukupno ?? "nepoznato"} oglasa, razlog: ${aktivni.razlog ?? "nepoznat"}). ` +
+                  "Snapshot se ne pise: nepotpun snimak bi sutra prijavio zive oglase kao mrtve.",
+              );
+            }
+            radni = {
+              pocetak: sadaSekunde,
+              account: username,
+              idevi: aktivni.oglasi.map((o) => o.id),
+              oglasi: [],
+              broj_poziva: Math.max(1, Math.ceil(aktivni.oglasi.length / 20)) + 1,
+              trajanje_ms: 0,
+            };
+          }
+
+          const vecObidjeno = new Set(radni.oglasi.map((o) => o.id));
+          const preostaliIdevi = radni.idevi.filter((id) => !vecObidjeno.has(id));
+
+          let obradjenoOvajPuta = 0;
+          let budzetIstekao = false;
+          for (const id of preostaliIdevi) {
+            const full = await c.getListing(id);
+            // Polja za higijenu se hvataju ovdje jer je puni oglas ionako vec dohvacen. Bez toga bi
+            // onboarding izvjestaj morao ponoviti isti prolaz kroz sve oglase, a to je minute.
+            const images = Array.isArray(full.images) ? (full.images as unknown[]) : [];
+            const attributes = Array.isArray(full.attributes)
+              ? (full.attributes as { value?: unknown }[]).filter(
+                  (a) => a.value !== null && a.value !== undefined && a.value !== "",
+                )
+              : [];
+            const podnaslov = typeof full.short_description === "string" ? full.short_description.trim() : "";
+            const opis = typeof full.additional?.description === "string" ? full.additional.description.trim() : "";
+            radni.oglasi.push({
+              id: full.id,
+              title: full.title,
+              views: typeof full.views === "number" ? full.views : 0,
+              questions: typeof full.questions === "number" ? full.questions : undefined,
+              sponsored: typeof full.sponsored === "number" ? full.sponsored : undefined,
+              date: typeof full.date === "number" ? full.date : undefined,
+              created_at: typeof full.created_at === "number" ? full.created_at : undefined,
+              status: full.status,
+              price: typeof full.price === "number" ? full.price : undefined,
+              slika_broj: images.length,
+              ima_podnaslov: podnaslov.length > 0,
+              opis_znakova: opis.length,
+              atributa: attributes.length,
+              category_id: typeof full.category_id === "number" ? full.category_id : undefined,
+              // Verzija 3 (vidi ViewsSnapshotOglas): kad je BAS OVAJ oglas procitan. Upisuje se, ali
+              // se namjerno ne koristi ni u jednom racunu ovog izdanja.
+              procitano_ts: Math.floor(Date.now() / 1000),
+            });
+            radni.broj_poziva += 1;
+            obradjenoOvajPuta += 1;
+            if (radni.oglasi.length % 20 === 0) {
+              console.error(`Snapshot: ${radni.oglasi.length}/${radni.idevi.length} oglasa...`);
+            }
+            // Budzet po pokretanju, ne po prolazu: kad istekne, pokretanje staje uredno (radni fajl
+            // upisan, izlazni kod 0), a nastavak ide sljedecim pokretanjem crona.
+            if (Date.now() - startPokretanja >= cfg.budzetSnapshotMs) {
+              budzetIstekao = true;
+              break;
+            }
+          }
+          radni.trajanje_ms += Date.now() - startPokretanja;
+
+          if (budzetIstekao && radni.oglasi.length < radni.idevi.length) {
+            // Djelimican snapshot se NIKAD ne pise. Ovo nije kvar nego planiran nastavak: izlazni
+            // kod ostaje 0 i posaoFail se ne zove. Racuna se kao uspjesno pokretanje, pa i ovdje
+            // gasi eventualno stanje pada i salje obavijest o oporavku.
+            upisiSnapshotUToku(radni);
+            if (trebaObavijestOOporavku(prethodniIshodSnapshota)) {
+              await javiAdminu(
+                porukaOOporavkuPosla(
+                  "snapshot",
+                  prethodniIshodSnapshota,
+                  `Prolaz se nastavlja, obidjeno ${radni.oglasi.length} od ${radni.idevi.length} oglasa.`,
+                ),
+              );
+            }
+            zapisiIshodPosla("snapshot", { ishod: "ok", ts: Math.floor(Date.now() / 1000) });
+            out({
+              nastavlja_se: true,
+              oglasa_obidjeno: radni.oglasi.length,
+              oglasa_ukupno: radni.idevi.length,
+              oglasa_ovo_pokretanje: obradjenoOvajPuta,
+              trajanje_ms: Date.now() - startPokretanja,
+            });
+            return;
+          }
+
+          const snapshot = {
+            // Verzija 3 nosi procitano_ts po oglasu (vidi ViewsSnapshotOglas u stats.ts). Citac ne
+            // gleda broj verzije nego prisustvo polja, pa se snapshoti verzije 1, 2 i 3 i dalje
+            // ucitavaju normalno.
+            verzija: 3,
+            ts: Math.floor(Date.now() / 1000),
+            account: username,
+            broj_poziva: radni.broj_poziva,
+            trajanje_ms: radni.trajanje_ms,
+            oglasi: radni.oglasi,
+          };
+          const putanja = upisiSnapshot(snapshot);
           obrisiSnapshotUToku();
-          radni = null;
-        }
-
-        // Prolaz razmazan preko vise pokretanja unosi gresku ogranicenu upravo ovom granicom
-        // (mrtvi oglasi se racunaju tek nad periodom od najmanje 14 dana). Prestar prolaz se
-        // ODBACUJE umjesto da se nastavi, i to se javlja administratoru: to je jedini nacin da
-        // neko sazna da katalog nikako ne stize da se obidje u zadatom roku.
-        if (radni && sadaSekunde - radni.pocetak > cfg.maxTrajanjeSnapshotProlazaMs / 1000) {
-          const poruka =
-            `stats snapshot: prolaz je trajao duze od dozvoljenih ${cfg.maxTrajanjeSnapshotProlazaMs} ms ` +
-            `i odbacen je nedovrsen (procitano ${radni.oglasi.length} od ${radni.idevi.length} oglasa). ` +
-            "Prolaz krece iznova od pocetka kataloga.";
-          console.error(poruka);
-          await javiAdminu(poruka);
-          obrisiSnapshotUToku();
-          radni = null;
-        }
-
-        if (!radni) {
-          // Spisak ID-eva se cita SAMO ovdje, na pocetku prolaza, i dalje se ne osvjezava:
-          // snapshot time ostaje koherentan snimak jednog trenutka. Oglas objavljen usred
-          // prolaza nije u ovom snapshotu, nego u sljedecem.
-          const aktivni = await c.listAllByState("active", username);
-          if (!aktivni.potpuno) {
-            throw new Error(
-              `Lista aktivnih oglasa nije potpuna (procitano ${aktivni.oglasi.length} od ` +
-                `${aktivni.ukupno ?? "nepoznato"} oglasa, razlog: ${aktivni.razlog ?? "nepoznat"}). ` +
-                "Snapshot se ne pise: nepotpun snimak bi sutra prijavio zive oglase kao mrtve.",
+          // Prorjedjivanje TEK poslije potpunog prolaza i uspjelog upisa: prekid na budzetu ne smije
+          // brisati istoriju, jer bi neuspjeli prolaz svakodnevno grickao seriju bez ijednog novog
+          // snapshota. Funkcija nikad ne baca, pa ne moze oboriti posao koji je svoj dio vec zavrsio.
+          const konfig = loadConfig();
+          const proredjeno = proredjiStareSnapshote(SNAPSHOT_DIR, {
+            pragDana: konfig.snapshotProredjivanjePragDana,
+            gustinaDana: konfig.snapshotProredjivanjeGustinaDana,
+          });
+          if (trebaObavijestOOporavku(prethodniIshodSnapshota)) {
+            await javiAdminu(
+              porukaOOporavkuPosla(
+                "snapshot",
+                prethodniIshodSnapshota,
+                `Snimak je upisan, obidjeno ${snapshot.oglasi.length} oglasa.`,
+              ),
             );
           }
-          radni = {
-            pocetak: sadaSekunde,
-            account: username,
-            idevi: aktivni.oglasi.map((o) => o.id),
-            oglasi: [],
-            broj_poziva: Math.max(1, Math.ceil(aktivni.oglasi.length / 20)) + 1,
-            trajanje_ms: 0,
-          };
-        }
-
-        const vecObidjeno = new Set(radni.oglasi.map((o) => o.id));
-        const preostaliIdevi = radni.idevi.filter((id) => !vecObidjeno.has(id));
-
-        let obradjenoOvajPuta = 0;
-        let budzetIstekao = false;
-        for (const id of preostaliIdevi) {
-          const full = await c.getListing(id);
-          // Polja za higijenu se hvataju ovdje jer je puni oglas ionako vec dohvacen. Bez toga bi
-          // onboarding izvjestaj morao ponoviti isti prolaz kroz sve oglase, a to je minute.
-          const images = Array.isArray(full.images) ? (full.images as unknown[]) : [];
-          const attributes = Array.isArray(full.attributes)
-            ? (full.attributes as { value?: unknown }[]).filter(
-                (a) => a.value !== null && a.value !== undefined && a.value !== "",
-              )
-            : [];
-          const podnaslov = typeof full.short_description === "string" ? full.short_description.trim() : "";
-          const opis = typeof full.additional?.description === "string" ? full.additional.description.trim() : "";
-          radni.oglasi.push({
-            id: full.id,
-            title: full.title,
-            views: typeof full.views === "number" ? full.views : 0,
-            questions: typeof full.questions === "number" ? full.questions : undefined,
-            sponsored: typeof full.sponsored === "number" ? full.sponsored : undefined,
-            date: typeof full.date === "number" ? full.date : undefined,
-            created_at: typeof full.created_at === "number" ? full.created_at : undefined,
-            status: full.status,
-            price: typeof full.price === "number" ? full.price : undefined,
-            slika_broj: images.length,
-            ima_podnaslov: podnaslov.length > 0,
-            opis_znakova: opis.length,
-            atributa: attributes.length,
-            category_id: typeof full.category_id === "number" ? full.category_id : undefined,
-            // Verzija 3 (vidi ViewsSnapshotOglas): kad je BAS OVAJ oglas procitan. Upisuje se, ali
-            // se namjerno ne koristi ni u jednom racunu ovog izdanja.
-            procitano_ts: Math.floor(Date.now() / 1000),
-          });
-          radni.broj_poziva += 1;
-          obradjenoOvajPuta += 1;
-          if (radni.oglasi.length % 20 === 0) {
-            console.error(`Snapshot: ${radni.oglasi.length}/${radni.idevi.length} oglasa...`);
-          }
-          // Budzet po pokretanju, ne po prolazu: kad istekne, pokretanje staje uredno (radni fajl
-          // upisan, izlazni kod 0), a nastavak ide sljedecim pokretanjem crona.
-          if (Date.now() - startPokretanja >= cfg.budzetSnapshotMs) {
-            budzetIstekao = true;
-            break;
-          }
-        }
-        radni.trajanje_ms += Date.now() - startPokretanja;
-
-        if (budzetIstekao && radni.oglasi.length < radni.idevi.length) {
-          // Djelimican snapshot se NIKAD ne pise. Ovo nije kvar nego planiran nastavak: izlazni
-          // kod ostaje 0 i posaoFail se ne zove.
-          upisiSnapshotUToku(radni);
+          zapisiIshodPosla("snapshot", { ishod: "ok", ts: Math.floor(Date.now() / 1000) });
           out({
-            nastavlja_se: true,
-            oglasa_obidjeno: radni.oglasi.length,
-            oglasa_ukupno: radni.idevi.length,
-            oglasa_ovo_pokretanje: obradjenoOvajPuta,
-            trajanje_ms: Date.now() - startPokretanja,
+            fajl: putanja,
+            oglasa: snapshot.oglasi.length,
+            trajanje_ms: snapshot.trajanje_ms,
+            proredjeno: proredjeno.obrisano,
           });
-          return;
+        } finally {
+          otpusti();
         }
-
-        const snapshot = {
-          // Verzija 3 nosi procitano_ts po oglasu (vidi ViewsSnapshotOglas u stats.ts). Citac ne
-          // gleda broj verzije nego prisustvo polja, pa se snapshoti verzije 1, 2 i 3 i dalje
-          // ucitavaju normalno.
-          verzija: 3,
-          ts: Math.floor(Date.now() / 1000),
-          account: username,
-          broj_poziva: radni.broj_poziva,
-          trajanje_ms: radni.trajanje_ms,
-          oglasi: radni.oglasi,
-        };
-        const putanja = upisiSnapshot(snapshot);
-        obrisiSnapshotUToku();
-        // Prorjedjivanje TEK poslije potpunog prolaza i uspjelog upisa: prekid na budzetu ne smije
-        // brisati istoriju, jer bi neuspjeli prolaz svakodnevno grickao seriju bez ijednog novog
-        // snapshota. Funkcija nikad ne baca, pa ne moze oboriti posao koji je svoj dio vec zavrsio.
-        const konfig = loadConfig();
-        const proredjeno = proredjiStareSnapshote(SNAPSHOT_DIR, {
-          pragDana: konfig.snapshotProredjivanjePragDana,
-          gustinaDana: konfig.snapshotProredjivanjeGustinaDana,
-        });
-        out({
-          fajl: putanja,
-          oglasa: snapshot.oglasi.length,
-          trajanje_ms: snapshot.trajanje_ms,
-          proredjeno: proredjeno.obrisano,
-        });
-      } finally {
-        otpusti();
-      }
+        },
+      );
     } catch (e) {
       // Snapshot radi nocu iz crona bez ikoga za ekranom. Pad (istekao token, zaglavljen
       // lock) bez javljanja adminu znaci da vremenska serija tiho stane; zato posaoFail,
@@ -1750,6 +1781,24 @@ function porukaOMrtvimGrupama(mrtvi: NalazChata[]): string {
   ].join("\n");
 }
 
+/**
+ * Tekst obavijesti da se zakazan posao OPORAVIO od prethodnog pada. Jedan izvor teksta za sve
+ * uspjesne izlaze svih poslova koji ga koriste (snapshot: potpun snimak i planiran nastavak;
+ * dnevni: obnovljeno i nista novo za javiti), da se poruke ne razidju u formulaciji kad se jedna
+ * od njih kasnije mijenja.
+ *
+ * `ime` ulazi u tekst da admin iz poruke zna KOJI se posao oporavio. Sta je zavrseno kaze
+ * pozivalac kroz `stanje`, jer se to razlikuje po poslu i po izlazu. Sta je bio prosli pad i kad
+ * je bio ide u poruku uvijek, jer bez toga admin ne zna na sta se oporavak odnosi.
+ */
+function porukaOOporavkuPosla(ime: string, prethodni: PosaoZapis | null, stanje: string): string {
+  const kadaPad = new Date((prethodni?.ts ?? 0) * 1000).toISOString().slice(0, 16).replace("T", " ");
+  return (
+    `Posao "${ime}" se oporavio. Prethodno pokretanje je palo ${kadaPad} UTC ` +
+    `(${prethodni?.greska ?? "nepoznata greska"}). ${stanje}`
+  );
+}
+
 // ---- Zakazani poslovi ----
 //
 // Ovo pokrece launchd, ne covjek. Kljucno: nijedan model se ne poziva, brojeve racuna kod, pa
@@ -1760,8 +1809,14 @@ const posao = program.command("posao").description("Zakazani poslovi za cron (be
 // Greska u poslu ide administratoru, nikad klijentu. Klijent ne treba znati da je nesto puklo,
 // treba mu neko ko to popravi.
 async function posaoFail(ime: string, e: unknown): Promise<never> {
-  const poruka = `Posao "${ime}" nije prosao: ${String(e instanceof Error ? e.message : e)}`;
+  // Samo `message`, nikad cijeli objekat greske: poruka ide i adminu i u fajl stanja, a stack
+  // trace tamo ne znaci nista i moze nositi vise nego sto treba.
+  const razlog = String(e instanceof Error ? e.message : e);
+  const poruka = `Posao "${ime}" nije prosao: ${razlog}`;
   console.error(poruka);
+  // Upis PRIJE javiAdminu i PRIJE exit-a: ovo je jedini trag da je "ime" pao, i po njemu
+  // sljedece uspjesno pokretanje istog posla odlucuje da li salje obavijest o oporavku.
+  zapisiIshodPosla(ime, { ishod: "pad", ts: Math.floor(Date.now() / 1000), greska: razlog });
   await javiAdminu(poruka);
   process.exit(1);
 }
@@ -1773,6 +1828,13 @@ posao
   .option("--bez-slanja", "izvrsi obnove ali ne salji Telegram poruku", false)
   .action(async (opts: { suho?: boolean; bezSlanja?: boolean }) => {
     try {
+      const cfg = loadConfig();
+      // Cita se PRIJE bilo kakvog rada, van withStrpljenje429 omotaca: nakon uspjesnog upisa
+      // "ok" nize u istoj akciji bi se izgubila informacija da je prethodno pokretanje palo.
+      const prethodniIshodDnevnog = procitajIshodPosla("dnevni");
+      await withStrpljenje429(
+        { pokusaja: cfg.posao429Pokusaja, ukupnoMs: cfg.posao429UkupnoMs },
+        async () => {
       const c = await withAuth();
       const user = await c.resolveUsername();
       const sadaTs = Math.floor(Date.now() / 1000);
@@ -1944,6 +2006,14 @@ posao
       // Jutarnja poruka ide samo kad ima sta korisno reci; "sve isto kao juce" se preskace
       // da klijent ne nauci ignorisati poruke. Preskok NIJE greska.
       if (!opts.suho && !opts.bezSlanja && !dnevniVrijedanSlanja(podaci)) {
+        // Ova grana se ulazi samo bez flegova (uslov iznad), pa je posao stvarno provjerio
+        // kandidate i obnove: stanje se upisuje "ok" i admin se obavijesti ako je prosli put pao.
+        if (trebaObavijestOOporavku(prethodniIshodDnevnog)) {
+          await javiAdminu(
+            porukaOOporavkuPosla("dnevni", prethodniIshodDnevnog, "Nije bilo nista novo za javiti klijentu."),
+          );
+        }
+        zapisiIshodPosla("dnevni", { ishod: "ok", ts: Math.floor(Date.now() / 1000) });
         out({ plan, obnovljeno, neuspjelih, poslano_poruka: 0, preskoceno: "nista novo za javiti" });
         return;
       }
@@ -1959,7 +2029,22 @@ posao
       if (obnovePitanje && !obnovePitanje.podsjetnik && poslano > 0) {
         upisiRitam({ ...ritam, pitano: new Date().toISOString() });
       }
+      // Rezimi: --suho ne dira stanje posla i ne salje obavijest (rucna dijagnostika koja nista
+      // ne obnavlja i nista ne salje, ne smije "ugasiti" zabiljezen pad koji jos nije rijesen).
+      // --bez-slanja upisuje "ok" (obnove su stvarno izvrsene), ali ne salje admin obavijest, jer
+      // je korisnik tim flegom izricito rekao da se poruke ne salju. Bez flegova (cron) upisuje
+      // "ok" i salje obavijest o oporavku ako je prethodno pokretanje palo.
+      if (!opts.suho) {
+        if (!opts.bezSlanja && trebaObavijestOOporavku(prethodniIshodDnevnog)) {
+          await javiAdminu(
+            porukaOOporavkuPosla("dnevni", prethodniIshodDnevnog, `Obnovljeno ${obnovljeno ?? 0} oglasa.`),
+          );
+        }
+        zapisiIshodPosla("dnevni", { ishod: "ok", ts: Math.floor(Date.now() / 1000) });
+      }
       out({ plan, obnovljeno, neuspjelih, poslano_poruka: poslano, tekst });
+        },
+      );
     } catch (e) {
       await posaoFail("dnevni", e);
     }

@@ -8,7 +8,7 @@ Ovaj fajl je GENERISAN iz koda, pravi ga `bun scripts/popis-mogucnosti.mjs`. Ne 
 - MCP resursa: 8
 - CLI komandi: 63
 - Zakazanih poslova: 12
-- Postavki: 29
+- Postavki: 31
 - Skillova: 11
 - Podagenata: 6
 
@@ -353,6 +353,8 @@ ADMIN poslovi nemaju Windows blizanca namjerno: admin masina na Windowsu nije up
 | OLX_MCP_PROFILE | mcpProfil | admin | Koje alate MCP server registruje. |
 | OLX_MIN_REQUEST_INTERVAL_MS | minRequestIntervalMs | 350 |  |
 | OLX_PASSWORD | password |  |  |
+| OLX_POSAO_429_POKUSAJA | posao429Pokusaja | 6 | Koliko PROSIRENIH pokusaja (povrh `maxRetries`) smije potrositi ZAKAZAN POSAO (`stats snapshot`, `posao dnevni`) na 429, kroz `withStrpljenje429` (strpljenje.ts). Vazi SAMO za te cron tokove gdje niko ne ceka odgovor uzivo: MCP alat ni Telegram bot nikad ne ulaze u taj scope, jer klijent u zivom razgovoru ne smije cekati minutama. |
+| OLX_POSAO_429_UKUPNO_MS | posao429UkupnoMs | 600000 | Kumulativni plafon (ms) koliko NAJDUZE zakazan posao smije cekati na 429 unutar JEDNOG pokretanja, povrh globalnog backoffa. Mora ostati ISPOD `budzetSnapshotMs` (900000 ms), da svakom pokretanju ostane vremena da posao stvarno makne s mjesta i upise radni fajl, umjesto da cijeli budzet pokretanja ode na cekanje jednog upornog 429. |
 | OLX_SESIJA_TIP | mcpProfil | admin | Koje alate MCP server registruje. |
 | OLX_SNAPSHOT_PROREDJIVANJE_GUSTINA_DANA | snapshotProredjivanjeGustinaDana | 7 | Iznad praga starosti se cuva samo prvi (najstariji) snapshot u svakom bloku od ovoliko dana (npr. 7 = priblizno sedmicno). Vidi `proredjiStareSnapshote` (snapshoti.ts) za tacno pravilo. |
 | OLX_SNAPSHOT_PROREDJIVANJE_PRAG_DANA | snapshotProredjivanjePragDana | 90 | Iznad ove starosti (dana) se dnevni snapshoti pregleda (`views-YYYY-MM-DD.json`) vise ne cuvaju za svaki dan, nego prorjeduju na `snapshotProredjivanjeGustinaDana` (funkcija `proredjiStareSnapshote`, snapshoti.ts). Iznad ove granice dnevna preciznost vec izgubi smisao za postojecu analizu (`mrtviOglasi` trazi 14 dana, efekat izdvajanja do ~30), a fajl po danu na velikom katalogu je krupan i sve ih nosi backup stanja (`src/core/backup-spisak.ts`). |
@@ -362,7 +364,7 @@ ADMIN poslovi nemaju Windows blizanca namjerno: admin masina na Windowsu nije up
 
 ## Varijable okruzenja u cijelom repou
 
-Ukupno 110 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 101 cini konfiguraciju klona.
+Ukupno 113 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 104 cini konfiguraciju klona.
 
 Ostale dolaze iz okoline (harness sesije, plugin loader, proxy) i u `.env.example` namjerno ne stoje: klijent ih ne postavlja rukom. Zato se prazna kolona kod njih ne racuna kao propust.
 
@@ -435,6 +437,9 @@ Nema takvih.
 | OLX_PAMCENJE_FILE | konfiguracija klona | 3 | src/core/backup-spisak.test.ts, src/core/backup-spisak.ts, src/core/pamcenje.ts | da |
 | OLX_PASSWORD | konfiguracija klona | 4 | scripts/provjeri-klon.mjs, scripts/provjeri-prompt.sh, src/core/config.ts, src/core/index.ts | da |
 | OLX_PODSJETNIK_RESURSI_ROK_MS | konfiguracija klona | 1 | scripts/podsjetnik-resursi.mjs |  |
+| OLX_POSAO_429_POKUSAJA | konfiguracija klona | 1 | src/core/config.ts | da |
+| OLX_POSAO_429_UKUPNO_MS | konfiguracija klona | 1 | src/core/config.ts | da |
+| OLX_POSAO_STANJE_FILE | konfiguracija klona | 2 | src/core/backup-spisak.test.ts, src/core/posao-stanje.ts | da |
 | OLX_POZADINA_DIR | konfiguracija klona | 2 | src/core/pozadina.test.ts, src/core/pozadina.ts | da |
 | OLX_PRIJEDLOZI_DIR | konfiguracija klona | 2 | src/core/backup-spisak.ts, src/core/prijedlozi.ts | da |
 | OLX_PROVJERA_IZDANJA_ROK_MS | konfiguracija klona | 1 | scripts/provjeri-izdanje.mjs | da |
