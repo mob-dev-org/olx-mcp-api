@@ -17,6 +17,7 @@ import { nadjiSumnjive } from "./backup-spisak.js";
 import { VERZIJA } from "./verzija.js";
 import { izvuciTelefon } from "./telefon-ekstrakcija.js";
 import { planStrpljenja, trenutnoStrpljenje } from "./strpljenje.js";
+import { azurirajStanje, kljucEndpointa, planKasnjenja, type StanjeTempa } from "./tempo.js";
 import { izmjereniDanReseta, ucitajKvotuDnevnik } from "./kvota-dnevnik.js";
 import {
   alarmiNaloga,
@@ -198,6 +199,8 @@ const RELOGIN_COOLDOWN_MS = 30_000;
 export class OlxClient {
   private token?: string;
   private lastRequestAt = 0;
+  // Knjiga stanja ratelimit zaglavlja po sablonu endpointa (kljucEndpointa). Vidi tempo.ts.
+  private tempo = new Map<string, StanjeTempa>();
   private cachedUsername?: string;
   private readonly audit: AuditSink;
   // Jedan login u letu za sve pozive koji su istovremeno dobili 401.
@@ -229,11 +232,22 @@ export class OlxClient {
     this.token = token;
   }
 
-  // Jednostavan throttle: ceka minRequestIntervalMs izmedju dva zahtjeva.
-  private async throttle(): Promise<void> {
+  // Throttle u dva koraka: prvo globalni minRequestIntervalMs (nepromijenjeno), a poslije njega
+  // dodatno samostalno cekanje PO ENDPOINTU na osnovu izmjerenog ratelimit zaglavlja (tempo.ts).
+  // Cilj drugog koraka je stati PRIJE 429, ne cekati da server odbije zahtjev.
+  private async throttle(kljuc: string): Promise<void> {
     const wait = this.config.minRequestIntervalMs - (Date.now() - this.lastRequestAt);
     if (wait > 0) await sleep(wait);
     this.lastRequestAt = Date.now();
+
+    const stanje = this.tempo.get(kljuc) ?? null;
+    const cekaj = planKasnjenja({ stanje, sada: Date.now() });
+    if (cekaj > 0) {
+      console.error(
+        `Tempo za ${kljuc}: ostatak kvote nizak (remaining=${stanje?.remaining}), cekam ${cekaj}ms prije sljedeceg poziva.`,
+      );
+      await sleep(cekaj);
+    }
   }
 
   private buildUrl(path: string, query?: Query): string {
@@ -272,6 +286,8 @@ export class OlxClient {
     const isForm = typeof FormData !== "undefined" && body instanceof FormData;
     const url = this.buildUrl(path, query);
     const startedAt = Date.now();
+    // Kljuc se racuna jednom, van petlje: sablon endpointa je isti za sve pokusaje istog poziva.
+    const tempoKljuc = kljucEndpointa(path);
     let attempt = 0;
     let reloginTried = false;
     let tokenOsvjezen = false;
@@ -306,7 +322,7 @@ export class OlxClient {
 
     while (true) {
       attempt++;
-      await this.throttle();
+      await this.throttle(tempoKljuc);
 
       // Headeri se grade u svakom pokusaju, jer relogin u medjuvremenu mijenja token.
       const headers: Record<string, string> = isForm ? {} : { "Content-Type": "application/json" };
@@ -324,6 +340,21 @@ export class OlxClient {
         });
         clearTimeout(timer);
 
+        // Zaglavlja ratelimita se citaju za SVAKI odgovor koji ih nosi, uspjesan i neuspjesan,
+        // da knjiga stanja bude tacna cak i kad je pokusaj propao iz drugog razloga (401, 5xx).
+        // 429 je posebno: taj odgovor NE nosi nijedno ratelimit zaglavlje (izmjereno), pa se
+        // knjiga upisuje konzervativno, kao da je brojac prazan i prozor tek poceo, da sljedeci
+        // poziv na taj endpoint saceka do kraja prozora umjesto da odmah probije ponovo.
+        if (res.status === 429) {
+          const staro = this.tempo.get(tempoKljuc) ?? null;
+          this.tempo.set(tempoKljuc, { remaining: 0, limit: staro?.limit ?? null, prozorPoceoMs: Date.now() });
+        } else {
+          this.tempo.set(
+            tempoKljuc,
+            azurirajStanje(this.tempo.get(tempoKljuc) ?? null, ocitajTempoZaglavlja(res.headers), Date.now()),
+          );
+        }
+
         const text = await res.text();
         const parsed: unknown = text ? safeJson(text) : undefined;
 
@@ -336,8 +367,15 @@ export class OlxClient {
         // kredite ili kreiraju oglas, jer je server mogao izvrsiti radnju pa pasti pri odgovoru.
         const retriable = res.status === 429 || (res.status >= 500 && retryOnServerError);
         if (retriable && attempt <= this.config.maxRetries) {
-          const backoff = Math.min(8000, 2 ** attempt * 250) + Math.random() * 200;
-          await sleep(backoff);
+          // Backoff se PRESKACE kad tempo knjiga za ovaj endpoint ionako nalaze cekanje do kraja
+          // prozora (upravo upisano gore, na 429). Inace bi se za istu potrebu cekalo dva puta:
+          // prvo backoff, pa u throttle-u jos do minute. Cekanje na reset prozora je tacnija i
+          // duza mjera od backoffa, pa ostaje ono, a backoff se ne sabira na njega.
+          const tempoCeka = planKasnjenja({ stanje: this.tempo.get(tempoKljuc) ?? null, sada: Date.now() }) > 0;
+          if (!tempoCeka) {
+            const backoff = Math.min(8000, 2 ** attempt * 250) + Math.random() * 200;
+            await sleep(backoff);
+          }
           continue;
         }
 
@@ -356,6 +394,19 @@ export class OlxClient {
               politika: scope.politika,
             });
             if (cekaj !== null) {
+              // Kad tempo knjiga ionako nalaze cekanje do kraja prozora (isti razlog kao kod
+              // backoffa iznad), strpljenje NE spava svoje cekanje i NE trosi svoj plafon
+              // vremena: cekalo je tempo, ne ono. Granica tada ostaje broj prosirenih pokusaja
+              // (`politika.pokusaja`), sto je i dovoljno, jer je cekanje do reseta prozora
+              // tacnija mjera od nagadjanja backoffom.
+              const tempoCeka = planKasnjenja({ stanje: this.tempo.get(tempoKljuc) ?? null, sada: Date.now() }) > 0;
+              if (tempoCeka) {
+                console.error(
+                  `429 na ${method} ${path}: cekanje vodi tempo endpointa, strpljenje samo trosi pokusaj ` +
+                    `(${attempt - this.config.maxRetries}/${scope.politika.pokusaja}).`,
+                );
+                continue;
+              }
               scope.potroseno_ms += cekaj;
               console.error(
                 `429 na ${method} ${path}: prosireno strpljenje ceka ${cekaj}ms ` +
@@ -1582,6 +1633,23 @@ export function naknadaKategorije(odgovor: unknown): number {
   const sirovo = o?.data?.listing_fee ?? o?.listing_fee;
   const n = Number(sirovo);
   return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+// Cita x-ratelimit-remaining i x-ratelimit-limit iz odgovora. Nedostajuce ili neparsivo je null,
+// ne 0: 0 znaci "brojac je stvarno prazan", a nedostatak zaglavlja znaci "ne znamo".
+function ocitajTempoZaglavlja(headers: { get(name: string): string | null }): {
+  remaining: number | null;
+  limit: number | null;
+} {
+  const naBroj = (sirovo: string | null): number | null => {
+    if (sirovo === null) return null;
+    const n = Number(sirovo);
+    return Number.isFinite(n) ? n : null;
+  };
+  return {
+    remaining: naBroj(headers.get("x-ratelimit-remaining")),
+    limit: naBroj(headers.get("x-ratelimit-limit")),
+  };
 }
 
 function safeJson(text: string): unknown {

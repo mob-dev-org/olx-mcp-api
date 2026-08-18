@@ -17,6 +17,7 @@ import {
   procitanoOdgovaraTotalu,
 } from "./index.js";
 import { withStrpljenje429 } from "./strpljenje.js";
+import { _testPostaviTempoKonstante } from "./tempo.js";
 import type { ArhivskiZapis } from "./arhiva.js";
 import { loadConfig } from "./config.js";
 import { potrosenoNaDan, withAuditContext, type AuditEntry } from "./audit.js";
@@ -34,6 +35,9 @@ interface FetchCall {
 interface StubReply {
   status: number;
   body?: unknown;
+  // Opciono: ratelimit (ili druga) zaglavlja odgovora. Nedostatak znaci "odgovor bez zaglavlja",
+  // isto kao stariji odgovori uzivo koji dokazuju da ponasanje bez njih ostaje danasnje.
+  headers?: Record<string, string>;
 }
 
 // Zamjenjuje globalni fetch redom pripremljenih odgovora i pamti sve pozive.
@@ -58,10 +62,12 @@ function stubFetch(replies: StubReply[]): { calls: FetchCall[]; restore: () => v
     index++;
     const status = reply?.status ?? 200;
     const text = reply?.body === undefined ? "" : JSON.stringify(reply.body);
+    const zaglavlja = reply?.headers ?? {};
     return {
       ok: status >= 200 && status < 300,
       status,
       text: async () => text,
+      headers: { get: (name: string) => zaglavlja[name] ?? null },
     };
   }) as unknown as typeof globalThis.fetch;
 
@@ -531,6 +537,10 @@ test("401 se ne ponavlja i daje OlxAuthError", async () => {
 });
 
 test("429 se ponavlja pa uspije", async () => {
+  // Tempo po endpointu (tempo.ts) sad na SVAKI 429 upisuje konzervativno stanje (kao da je
+  // kvota prazna), pa bi sljedeci pokusaj u OVOM retry-u sam cekao do kraja prozora. Prozor je
+  // ovdje skracen da test ostane brz; on ne mijenja SEMANTIKU testa (retry i dalje uspije).
+  _testPostaviTempoKonstante({ prozorMs: 50, rezervaMs: 10 });
   const { calls, restore } = stubFetch([
     { status: 429, body: { message: "too many" } },
     { status: 200, body: { data: { id: 1, username: "shop_test" } } },
@@ -542,6 +552,7 @@ test("429 se ponavlja pa uspije", async () => {
     assert.equal(calls.length, 2, "429 se ponovi tacno jednom prije uspjeha");
   } finally {
     restore();
+    _testPostaviTempoKonstante({ prozorMs: 60_000, rezervaMs: 500 });
   }
 });
 
@@ -553,6 +564,10 @@ test(
     // timer), a Bun test runner ima podrazumijevani timeout od 5000ms po testu. Formula
     // "1+maxRetries poziva" se dokazuje jednako dobro sa manjim brojem, brze.
     const maxRetries = 2;
+    // Tempo po endpointu bi inace, nakon prvog 429, natjerao sljedeci pokusaj da sam ceka do
+    // kraja prozora (60s); prozor je skracen da test ostane brz, semantika (staje na globalnom
+    // budzetu, nema prosirenja) se ne mijenja.
+    _testPostaviTempoKonstante({ prozorMs: 50, rezervaMs: 10 });
     const { calls, restore } = stubFetch(
       Array.from({ length: maxRetries + 1 }, () => ({ status: 429, body: { message: "too many" } })),
     );
@@ -565,6 +580,7 @@ test(
       assert.equal(calls.length, maxRetries + 1, "van withStrpljenje429 scope-a nema prosirenja: staje na globalnom budzetu");
     } finally {
       restore();
+      _testPostaviTempoKonstante({ prozorMs: 60_000, rezervaMs: 500 });
     }
   },
 );
@@ -585,6 +601,10 @@ test(
     // request() zaista spojen (scope stvarno mijenja broj poziva), bez gomilanja daljih
     // prosirenih cekanja koja bi test odvukla u desetine sekundi.
     const maxRetries = 1;
+    // Isti razlog kao gore: tempo po endpointu bi na svaki 429 upisao konzervativno stanje i
+    // sam cekao do kraja prozora, sto bi ovaj test odvuklo u minute. Prozor je skracen ispod
+    // BACKOFF_BAZA_MS (5s prosirenog cekanja) da tempo throttle ovdje ne dominira nad njim.
+    _testPostaviTempoKonstante({ prozorMs: 50, rezervaMs: 10 });
     const { calls, restore } = stubFetch([
       ...Array.from({ length: maxRetries + 1 }, () => ({ status: 429, body: { message: "too many" } })),
       { status: 200, body: { data: { id: 1, username: "shop_test" } } },
@@ -596,6 +616,7 @@ test(
       assert.ok(calls.length > maxRetries + 1, `ocekivano vise od ${maxRetries + 1} poziva zbog scope-a, dobijeno ${calls.length}`);
     } finally {
       restore();
+      _testPostaviTempoKonstante({ prozorMs: 60_000, rezervaMs: 500 });
     }
   },
 );
@@ -1090,10 +1111,12 @@ function stubFetchByUrl(
     calls.push(call);
     const reply = handler(call, calls.length - 1);
     const text = reply.body === undefined ? "" : JSON.stringify(reply.body);
+    const zaglavlja = reply.headers ?? {};
     return {
       ok: reply.status >= 200 && reply.status < 300,
       status: reply.status,
       text: async () => text,
+      headers: { get: (name: string) => zaglavlja[name] ?? null },
     };
   }) as unknown as typeof globalThis.fetch;
 
@@ -1681,5 +1704,77 @@ test("objaviIzArhive: pad setMainImage se guta, objava svejedno prolazi", async 
     else process.env.OLX_ARHIVA_DIR = staraEnv;
     rmSync(arhivaDir, { recursive: true, force: true });
     rmSync(cwdDir, { recursive: true, force: true });
+  }
+});
+
+// ---- Tempo po endpointu (throttle na osnovu ratelimit zaglavlja, vidi tempo.ts) ----
+//
+// PROZOR_MS/REZERVA_MS su ovdje privremeno skraceni (_testPostaviTempoKonstante), da dokaz o
+// samostalnom cekanju ne mora trajati stvarnih 60 sekundi. Svaki test ih vraca na izvorne
+// vrijednosti u finally, da ne "iscure" u ostale test fajlove.
+
+test("tempo: remaining koji padne na prag natjera sljedeci poziv na ISTI endpoint da sam ceka", async () => {
+  _testPostaviTempoKonstante({ prozorMs: 150, rezervaMs: 20 });
+  const { calls, restore } = stubFetch([
+    { status: 200, body: { data: [], meta: {} }, headers: { "x-ratelimit-remaining": "6", "x-ratelimit-limit": "60" } },
+    { status: 200, body: { data: [], meta: {} }, headers: { "x-ratelimit-remaining": "5", "x-ratelimit-limit": "60" } },
+    { status: 200, body: { data: [], meta: {} }, headers: { "x-ratelimit-remaining": "5", "x-ratelimit-limit": "60" } },
+  ]);
+  try {
+    const client = new OlxClient(testConfig());
+    await client.listActive("MixBox", 1); // remaining=6, iznad praga, bez cekanja
+    await client.listActive("MixBox", 2); // remaining pada na 5 (prag), ovaj poziv jos ne ceka
+    const prije = Date.now();
+    await client.listActive("MixBox", 3); // prag je vec dostignut, ovaj MORA sam sacekati
+    const trajanje = Date.now() - prije;
+    assert.ok(trajanje >= 100, `treci poziv je trebao sacekati blizu prozora (trajalo ${trajanje}ms)`);
+    assert.equal(calls.length, 3);
+  } finally {
+    restore();
+    _testPostaviTempoKonstante({ prozorMs: 60_000, rezervaMs: 500 });
+  }
+});
+
+test("tempo: /listings/{id} sa visokim remaining ne uvodi dodatno cekanje", async () => {
+  _testPostaviTempoKonstante({ prozorMs: 150, rezervaMs: 20 });
+  const { calls, restore } = stubFetch(
+    Array.from({ length: 5 }, (_unused, i) => ({
+      status: 200,
+      body: { id: 1, title: "x" },
+      headers: { "x-ratelimit-remaining": String(59 - i), "x-ratelimit-limit": "60" },
+    })),
+  );
+  try {
+    const client = new OlxClient(testConfig());
+    const prije = Date.now();
+    for (let i = 0; i < 5; i++) await client.getListing(1);
+    const trajanje = Date.now() - prije;
+    assert.ok(trajanje < 100, `pozivi sa visokim remaining ne treba da cekaju (trajalo ${trajanje}ms)`);
+    assert.equal(calls.length, 5);
+  } finally {
+    restore();
+    _testPostaviTempoKonstante({ prozorMs: 60_000, rezervaMs: 500 });
+  }
+});
+
+test("tempo: odgovori bez ratelimit zaglavlja ne uvode cekanje (ponasanje ostaje danasnje)", async () => {
+  _testPostaviTempoKonstante({ prozorMs: 150, rezervaMs: 20 });
+  const { calls, restore } = stubFetch([
+    { status: 200, body: { data: [], meta: {} } }, // bez zaglavlja, kao stariji odgovori
+    { status: 500, body: { message: "server" } }, // greska, takodjer bez zaglavlja
+    { status: 200, body: { data: [], meta: {} } },
+  ]);
+  try {
+    const client = new OlxClient(testConfig({ maxRetries: 0 }));
+    const prije = Date.now();
+    await client.listActive("MixBox", 1);
+    await assert.rejects(() => client.listActive("MixBox", 2));
+    await client.listActive("MixBox", 3);
+    const trajanje = Date.now() - prije;
+    assert.ok(trajanje < 100, `bez zaglavlja nema razloga za cekanje (trajalo ${trajanje}ms)`);
+    assert.equal(calls.length, 3);
+  } finally {
+    restore();
+    _testPostaviTempoKonstante({ prozorMs: 60_000, rezervaMs: 500 });
   }
 });
