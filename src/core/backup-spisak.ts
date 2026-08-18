@@ -150,6 +150,10 @@ export function crniObrasci(): { obrazac: RegExp; razlog: string }[] {
     // JEDNOM od spiskova, jer pogon svaki fajl koji nije ni na bijelom ni na crnom svakodnevno
     // prijavljuje adminu kao nepoznato stanje.
     { obrazac: /(^|\/)\.snapshot-u-toku\.json$/, razlog: "prolazni napredak snapshot prolaza" },
+    // Nalaz odbijenog snapshot prolaza (odlukaOUpisuSnimka, snapshoti.ts). Prolazan i sam se
+    // obnavlja: sljedeci prolaz ga ili potvrdi (pa se brise) ili osvjezi novim nalazom, nikad ne
+    // ostaje kao trajna istina. Isti razlog kao ".snapshot-u-toku.json" iznad.
+    { obrazac: /(^|\/)\.odbijen-prolaz\.json$/, razlog: "prolazni nalaz odbijenog snapshot prolaza" },
     { obrazac: /\.tmp$/, razlog: "polovicno upisan fajl" },
     { obrazac: /\.lock$/, razlog: "lock" },
     { obrazac: /\.pid$/, razlog: "pid" },

@@ -93,6 +93,26 @@ function maxDatum(data: ListingSummary[]): number | undefined {
   return max;
 }
 
+// Drugi (slabiji) branik za GitHub issue #6: API na velikom katalogu ponekad prijavi `meta.total`
+// (pa i `last_page`, koji se izvodi iz njega) koji je otprilike POLA stvarnog broja oglasa.
+// Prelistavanje tad procita tacno onoliko stranica koliko `last_page` kaze, pa broj procitanih
+// oglasa i prijavljeni total budu MEDJUSOBNO konzistentni: ova provjera ih poredi i NE VIDI
+// razliku, jer je razlike nema. Ostaje vrijedna za GRUBA neslaganja (prazna stranica u sredini,
+// pokvaren last_page koji se ne poklapa sa totalom), ali NIJE rjesenje za issue #6 (to radi SLOJ 2,
+// vidi odlukaOUpisuSnimka u snapshoti.ts, koji poredi sa PRETHODNIM snimkom, vanjskim referentom).
+//
+// Tolerancija je namjerna, ne kozmeticka: dedupe po ID-u (Map u listAllByState) legitimno
+// smanjuje broj procitanih oglasa kad se oglas TOKOM prelistavanja premjesti sa kasnije stranice
+// na ranije (obnova ga digne na prvu stranicu) - procita se dvaput, jedan primjerak ispadne u
+// dedupu. Takvo malo odstupanje NIJE kvar. Prag: `Math.max(5, 0.02 * ukupno)`, tj. veci od 2%
+// kataloga ili 5 oglasa (sta je vece), da 2% na malom katalogu ne bude nula.
+export function procitanoOdgovaraTotalu(input: { procitano: number; ukupno: number | null }): boolean {
+  if (input.ukupno === null) return true; // nema referenta, nema odluke
+  const odstupanje = Math.abs(input.procitano - input.ukupno);
+  const prag = Math.max(5, 0.02 * input.ukupno);
+  return odstupanje <= prag;
+}
+
 // Greske su tipizovane da CLI i MCP mogu razlikovati uzrok.
 export class OlxApiError extends Error {
   constructor(
@@ -988,6 +1008,14 @@ export class OlxClient {
         potpuno = false;
         razlog = razlog ?? "katalog_se_mijenjao";
       }
+    }
+
+    // Vidi procitanoOdgovaraTotalu: samo kad prolaz nije vec obiljezen kao nepotpun iz drugog
+    // razloga, i samo kad je stvarno stigao do kraja (inace bi "budzet"/"osigurac" vec sam po sebi
+    // objasnio zasto broj procitanih ne odgovara totalu).
+    if (potpuno && !procitanoOdgovaraTotalu({ procitano: mapa.size, ukupno })) {
+      potpuno = false;
+      razlog = "broj_se_ne_poklapa";
     }
 
     return {

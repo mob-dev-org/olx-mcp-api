@@ -48,7 +48,7 @@ export function uputaZaNepotpun(
   ukupno: number | null,
 ): string {
   const obimTekst = `${procitano} od ${ukupno ?? "nepoznato"} oglasa`;
-  if (razlog === "budzet" || razlog === "osigurac") {
+  if (razlog === "budzet" || razlog === "osigurac" || razlog === "broj_se_ne_poklapa") {
     return (
       `Katalog nije procitan u cijelosti (${obimTekst}, razlog: ${razlog}). ` +
       `${sta} nad nepotpunom listom bi preskocilo oglase koje niko nije vidio, pa je radnja zaustavljena. ` +

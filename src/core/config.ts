@@ -129,6 +129,17 @@ export interface OlxConfig {
    * da cijeli budzet pokretanja ode na cekanje jednog upornog 429.
    */
   posao429UkupnoMs: number;
+  /**
+   * Prag (procenat) iznad kojeg `stats snapshot` ODBIJA da upise novi dnevni snimak jer je manji
+   * od prethodnog previse naglo (odlukaOUpisuSnimka, snapshoti.ts). Pravi branik za GitHub issue
+   * #6: API na velikom katalogu ponekad prijavi `meta.total` na otprilike POLOVINU stvarnog broja
+   * oglasa, i to INTERNO KONZISTENTNO (total i last_page padnu zajedno), pa unutrasnje provjere
+   * prolaza (procitanoOdgovaraTotalu, index.ts) to ne mogu otkriti. Vanjski referent (prethodni
+   * dan) to hvata. Dvostruka potvrda (.odbijen-prolaz.json) postoji jer pad kataloga moze biti i
+   * STVARAN (klijent zavrsio veliku hrpu oglasa odjednom): prvi pad se samo zabiljezi, tek DRUGI
+   * nezavisan pad koji se poklapa sa prvim se prihvata kao stvarnost.
+   */
+  maksPadKatalogaPosto: number;
 }
 
 function num(value: string | undefined, fallback: number): number {
@@ -256,6 +267,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): OlxConfig {
     snapshotProredjivanjeGustinaDana: num(env.OLX_SNAPSHOT_PROREDJIVANJE_GUSTINA_DANA, 7),
     posao429Pokusaja: num(env.OLX_POSAO_429_POKUSAJA, 6),
     posao429UkupnoMs: num(env.OLX_POSAO_429_UKUPNO_MS, 600000),
+    maksPadKatalogaPosto: num(env.OLX_MAKS_PAD_KATALOGA_POSTO, 20),
   };
 }
 

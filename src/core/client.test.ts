@@ -7,7 +7,15 @@ import { test } from "node:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { OlxClient, OlxAuthError, OlxApiError, OlxSpendError, OlxPravilaError, naknadaKategorije } from "./index.js";
+import {
+  OlxClient,
+  OlxAuthError,
+  OlxApiError,
+  OlxSpendError,
+  OlxPravilaError,
+  naknadaKategorije,
+  procitanoOdgovaraTotalu,
+} from "./index.js";
 import { withStrpljenje429 } from "./strpljenje.js";
 import type { ArhivskiZapis } from "./arhiva.js";
 import { loadConfig } from "./config.js";
@@ -85,6 +93,7 @@ function testConfig(overrides: Partial<OlxConfig> = {}): OlxConfig {
     snapshotProredjivanjeGustinaDana: 7,
     posao429Pokusaja: 6,
     posao429UkupnoMs: 600000,
+    maksPadKatalogaPosto: 20,
     ...overrides,
   };
 }
@@ -879,6 +888,80 @@ test("listAllByState: osigurac ima prednost nad katalog_se_mijenjao", async () =
     const rezultat = await client.listAllByState("active", "primjer_shop", { maxStranica: 3 });
     assert.equal(rezultat.potpuno, false);
     assert.equal(rezultat.razlog, "osigurac", "osigurac se ne smije prepisati sa katalog_se_mijenjao");
+  } finally {
+    restore();
+  }
+});
+
+// ---- procitanoOdgovaraTotalu (SLOJ 1, drugi branik uz issue #6) ----
+
+test("procitanoOdgovaraTotalu: tacno poklapanje odgovara", () => {
+  assert.equal(procitanoOdgovaraTotalu({ procitano: 2027, ukupno: 2027 }), true);
+});
+
+test("procitanoOdgovaraTotalu: odstupanje unutar tolerancije (dedupe premjestaja) odgovara", () => {
+  // 2027 oglasa, 2% je 40.54, pa odstupanje od 30 (ispod praga) i dalje prolazi.
+  assert.equal(procitanoOdgovaraTotalu({ procitano: 1997, ukupno: 2027 }), true);
+});
+
+test("procitanoOdgovaraTotalu: odstupanje iznad tolerancije ne odgovara", () => {
+  // Isti katalog kao issue #6: total prijavljen na pola stvarnog broja.
+  assert.equal(procitanoOdgovaraTotalu({ procitano: 998, ukupno: 2027 }), false);
+});
+
+test("procitanoOdgovaraTotalu: mali katalog gdje 2% nije ni jedan oglas koristi minimum 5", () => {
+  // Ukupno 10: 2% je 0.2, pa bi bez minimuma i odstupanje od 1 pucalo. Minimum 5 to sprijeci.
+  assert.equal(procitanoOdgovaraTotalu({ procitano: 9, ukupno: 10 }), true);
+  // Odstupanje od 6 je iznad minimuma od 5, pa ne odgovara.
+  assert.equal(procitanoOdgovaraTotalu({ procitano: 4, ukupno: 10 }), false);
+});
+
+test("procitanoOdgovaraTotalu: total null (nema referenta) uvijek odgovara", () => {
+  assert.equal(procitanoOdgovaraTotalu({ procitano: 5, ukupno: null }), true);
+});
+
+// Konzistentna laz iz issue #6 (total i last_page padnu ZAJEDNO) NE aktivira ovaj branik, jer se
+// procita tacno onoliko koliko last_page kaze i to se poklapa sa (laznim) totalom. Ovaj test to
+// dokumentuje da niko kasnije ne pomisli da je issue #6 pokriven ovim slojem.
+test("listAllByState: konzistentna laz (total i last_page padnu zajedno) prolazi kao potpuna", async () => {
+  const PER_PAGE = 20;
+  const stranica = (page: number) => ({
+    status: 200,
+    body: {
+      data: Array.from({ length: PER_PAGE }, (_, j) => ({ id: (page - 1) * PER_PAGE + j + 1, title: "Oglas" })),
+      // Laz: total i last_page su POLA stvarnog kataloga (2027), interno savrseno konzistentni.
+      meta: { total: 1000, last_page: 50, current_page: page, per_page: PER_PAGE },
+    },
+  });
+  const { calls, restore } = stubFetch(Array.from({ length: 50 }, (_, i) => stranica(i + 1)));
+  try {
+    const client = new OlxClient(testConfig());
+    const rezultat = await client.listAllByState("active", "primjer_shop");
+    assert.equal(rezultat.potpuno, true, "SLOJ 1 ne moze otkriti konzistentnu laz, to je poznato ogranicenje");
+    assert.equal(rezultat.oglasi.length, 1000);
+    assert.equal(calls.length, 50);
+  } finally {
+    restore();
+  }
+});
+
+test("listAllByState: grubo neslaganje (broj procitanih daleko od totala) daje broj_se_ne_poklapa", async () => {
+  // last_page kaze 1 stranica (20 oglasa), ali total tvrdi 2027: prelistavanje stane na prvoj
+  // stranici (last_page=1), procita 20 oglasa, i to grubo ne odgovara prijavljenom totalu.
+  const { restore } = stubFetch([
+    {
+      status: 200,
+      body: {
+        data: Array.from({ length: 20 }, (_, j) => ({ id: j + 1, title: "Oglas" })),
+        meta: { total: 2027, last_page: 1, current_page: 1, per_page: 20 },
+      },
+    },
+  ]);
+  try {
+    const client = new OlxClient(testConfig());
+    const rezultat = await client.listAllByState("active", "primjer_shop");
+    assert.equal(rezultat.potpuno, false);
+    assert.equal(rezultat.razlog, "broj_se_ne_poklapa");
   } finally {
     restore();
   }
