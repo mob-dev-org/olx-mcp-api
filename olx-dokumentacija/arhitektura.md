@@ -159,6 +159,21 @@ listom danas dostupnih oglasa, narednih dana samo podsjetnik u jednoj liniji). N
 zapise kao ritam (`.olx-pik/ritam-obnova.json`, ukljucujuci i "iskljuceno"), a pojedinacne
 artikle sklanja lista izuzetaka (`.olx-pik/izuzeca.json`).
 
+Admin i pad, i oporavak: svaki zakazani posao na padu javlja adminu preko `posaoFail`
+(`.olx-pik/posao-stanje.json`, `src/core/posao-stanje.ts` pamti ishod ZADNJEG pokretanja po
+imenu posla). Do sada je to bila jedina poruka; nocni `stats snapshot` i `posao dnevni` sada
+javljaju adminu i na OPORAVAK, ali samo na prelazu pad prema uspjehu, ne na svako uspjesno
+pokretanje: uspjeh poslije uspjeha ne salje nista, jer bi svakodnevna poruka o tome da je sve u
+redu postala sum koji se ignorise. Djelimican prolaz snapshota (nastavak preko vise pokretanja
+zbog budzeta) racuna se kao uspjeh i takodjer gasi zabiljezeni pad, a poruka je iskrena o tome
+sta je zavrseno: kaze da se prolaz nastavlja i koliko je oglasa dosad obidjeno. U dnevnom poslu
+isti tekst (jedan izvor, `porukaOOporavkuPosla`) kaze koliko je oglasa obnovljeno, ili da nije
+bilo nista novo za javiti. Rezim `--suho` dnevnog posla ne dira zabiljezeno stanje i ne salje
+obavijest (rucna dijagnostika ne obnavlja nista), a `--bez-slanja` upisuje uspjeh ali ne salje
+poruku, jer je korisnik izricito trazio da se ne salje. Obrazac je namjerno prosiriv na
+`sedmicni` i `backup` (svaki novi posao samo dodaje svoj kljuc u isti fajl), ali oni jos nisu
+povezani na obavijest o oporavku.
+
 Kome idu izvjestaji: svakoj grupi pod `groups` u `.claude-runtime/channels/telegram/access.json`,
 plus `TELEGRAM_CHAT_ID` iz `.env` kao dopuni, dedupirano. Isti fajl odlucuje i od koga bot PRIMA
 poruke, pa se spisak ne vodi dvaput. Bot API nema poziv koji vraca u kojim je bot grupama, a
@@ -613,6 +628,37 @@ stranica:
   serijski, jednog po jednog, kroz cijeli Excel spisak, pa dugo prelistavanje po jednom kandidatu
   zaustavlja sve iza njega u redu. Bolje je posteno reci da je uzorak nepotpun nego drzati ostale
   kandidate da cekaju.
+
+Trece, i namjerno odvojeno od gornja dva: **strpljenje na 429** (`src/core/strpljenje.ts`) brani od
+preranog odustajanja kad API vrati 429 usred prelistavanja. Osigurac brani od beskonacne petlje,
+budzet vremena od predugog pokretanja, a strpljenje na 429 od toga da posao pukne bas na
+ogranicenju brzine, iako bi kratko cekanje bilo dovoljno da API stigne. Kad globalni `maxRetries`
+(centralni `request()`) potrosi svoj budzet retryja, prosirena grana dodaje jos pokusaja: 5s, 10s,
+20s, 40s, pa plafon od 45000 ms po pokusaju (`BACKOFF_MAX_MS`), do `OLX_POSAO_429_POKUSAJA`
+(default 6) pokusaja i `OLX_POSAO_429_UKUPNO_MS` (default 600000) kumulativnog cekanja unutar
+jednog pokretanja. Kumulativni plafon se drzi ISPOD budzeta pokretanja
+(`OLX_BUDZET_SNAPSHOT_MS`, default 900000), da uporan 429 ne pojede cijelo pokretanje, nego poslu
+ostane vremena da stvarno makne s mjesta i upise radni fajl. Ovi zakazani poslovi prelistavaju bez
+razgovornog budzeta (`OLX_BUDZET_LISTE_MS` vrijedi za pozive gdje neko ceka odgovor), pa mu ta
+granica ovdje nije mjerilo.
+
+Povod: 18.08.2026. je isti 429 pao i poslu `posao dnevni` na klijentu sa oko 2000 artikala (`GET
+/users/.../listings` usred obnove), dok je manji klijent prosao neokrznut. To je potvrdilo obrazac
+vec vidjen na snapshotu: rizik raste sa brojem stranica liste, ne sa vrstom posla, pa je isto
+strpljenje ukablirano i u `posao dnevni`.
+
+Granica je vezana za TOK, ne za klijenta: politika se postavlja preko `withStrpljenje429`
+(AsyncLocalStorage scope, isti obrazac kao `withAuditContext` u `audit.ts`) na ulazu u CLI komande
+`stats snapshot` i `posao dnevni`, a `trenutnoStrpljenje()` je citac koji `request()` provjerava na
+svakom 429. MCP alati i klijentski Telegram bot taj scope NIKAD ne otvaraju, pa je
+`trenutnoStrpljenje()` tamo uvijek `null` i ponasanje ostaje bit za bit staro: klijent u zivom
+razgovoru ne smije cekati minutama na odgovor, pa se globalni `maxRetries` namjerno nije dizao za
+sve pozivaoce, nego je prosireno strpljenje dodato SAMO tamo gdje dugo cekanje nikog ne blokira
+uzivo. Da je politika umjesto scope-a bila parametar kroz `request()` / `listAllByState` /
+`getListing`, svako novo mjesto poziva bi je moralo eksplicitno proslijediti, a tiho zaboravljanje
+je najvjerovatniji nacin da pravilo pukne. I strpljenje je strogo ograniceno na 429: kod 5xx se ne
+zna da li je server radnju vec izvrsio, pa produzeno ponavljanje tamo nosi rizik duplirane radnje,
+a ne samo cekanja.
 
 Konkretne vrijednosti (`5000` / `75000` / `120000` / `20000` / `500`) i njihovo objasnjenje zive u
 `.env.example`, sekcija "CITANJE KATALOGA: OSIGURAC I BUDZETI" — jedan izvor istine, ovdje se ne
