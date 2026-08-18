@@ -20,6 +20,17 @@ test("spisak nosi ono sto se lako previdi: access.json i marker saznanja", () =>
   assert.ok(putanje.includes("KLIJENT-javno.md"));
 });
 
+test("ishod zakazanih poslova je na bijelom spisku i prati env override", () => {
+  const putanje = bijeliSpisak({} as NodeJS.ProcessEnv).map((s) => s.putanja);
+  assert.ok(putanje.includes(".olx-pik/posao-stanje.json"));
+
+  const pomjereno = bijeliSpisak({ OLX_POSAO_STANJE_FILE: "drugdje/posao-stanje.json" } as NodeJS.ProcessEnv).map(
+    (s) => s.putanja,
+  );
+  assert.ok(pomjereno.includes("drugdje/posao-stanje.json"), "mora pratiti env, ne ostati na literalu");
+  assert.ok(!pomjereno.includes(".olx-pik/posao-stanje.json"), "stara putanja ne smije ostati kad je pomjerena");
+});
+
 test("tajne se preskacu, i to izricito a ne slucajno", () => {
   const r = razvrstaj(
     [

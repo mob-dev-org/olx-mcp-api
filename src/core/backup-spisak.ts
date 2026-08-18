@@ -28,6 +28,7 @@ import { mapaPozadine } from "./pozadina.js";
 import { PLAN_FILE } from "./plan-fajl.js";
 import { mapaPrijedloga } from "./prijedlozi.js";
 import { SNAPSHOT_DIR } from "./snapshoti.js";
+import { putanjaPosaoStanja } from "./posao-stanje.js";
 
 export interface StavkaSpiska {
   /** Putanja u klonu. Mapa se prepoznaje po `obrazac`. */
@@ -102,6 +103,11 @@ export function bijeliSpisak(env: NodeJS.ProcessEnv = process.env): StavkaSpiska
     { putanja: mapaPrijedloga(env), obrazac: /^runda-\d{4}-\d{2}-\d{2}\.md$/, opis: "prijedlozi sedmicne runde" },
     { putanja: "KLIJENT.md", opis: "interni kontekst o klijentu" },
     { putanja: "KLIJENT-javno.md", opis: "javni profil, ulazi u prompt" },
+    // Ishod zadnjeg pokretanja zakazanih poslova (trenutno samo snapshot). Nije prolazan radni
+    // fajl kao ".snapshot-u-toku.json" (crni spisak), nego sitan i trajan zapis: jedina oznaka
+    // da je posao pao. Bez njega bi prva noc poslije oporavka klona propustila obavijest o
+    // oporavku, jer bi novo pokretanje vidjelo "nema prethodnog zapisa" umjesto "prethodni je pao".
+    { putanja: putanjaPosaoStanja(env), opis: "ishod zadnjeg pokretanja zakazanih poslova" },
   ];
   // access.json nije tajna (token je u susjednom .env, koji je na crnom spisku), a jeste
   // najbolniji dio rekonstrukcije: ID grupe i spisak ljudi koji smiju pisati botu. Bez njega
