@@ -115,6 +115,20 @@ export interface OlxConfig {
    * (npr. 7 = priblizno sedmicno). Vidi `proredjiStareSnapshote` (snapshoti.ts) za tacno pravilo.
    */
   snapshotProredjivanjeGustinaDana: number;
+  /**
+   * Koliko PROSIRENIH pokusaja (povrh `maxRetries`) smije potrositi ZAKAZAN POSAO (`stats
+   * snapshot`, `posao dnevni`) na 429, kroz `withStrpljenje429` (strpljenje.ts). Vazi SAMO za te
+   * cron tokove gdje niko ne ceka odgovor uzivo: MCP alat ni Telegram bot nikad ne ulaze u taj
+   * scope, jer klijent u zivom razgovoru ne smije cekati minutama.
+   */
+  posao429Pokusaja: number;
+  /**
+   * Kumulativni plafon (ms) koliko NAJDUZE zakazan posao smije cekati na 429 unutar JEDNOG
+   * pokretanja, povrh globalnog backoffa. Mora ostati ISPOD `budzetSnapshotMs` (900000 ms), da
+   * svakom pokretanju ostane vremena da posao stvarno makne s mjesta i upise radni fajl, umjesto
+   * da cijeli budzet pokretanja ode na cekanje jednog upornog 429.
+   */
+  posao429UkupnoMs: number;
 }
 
 function num(value: string | undefined, fallback: number): number {
@@ -240,6 +254,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): OlxConfig {
     maxStavkiUOdgovoru: num(env.OLX_MAX_STAVKI_U_ODGOVORU, 200),
     snapshotProredjivanjePragDana: num(env.OLX_SNAPSHOT_PROREDJIVANJE_PRAG_DANA, 90),
     snapshotProredjivanjeGustinaDana: num(env.OLX_SNAPSHOT_PROREDJIVANJE_GUSTINA_DANA, 7),
+    posao429Pokusaja: num(env.OLX_POSAO_429_POKUSAJA, 6),
+    posao429UkupnoMs: num(env.OLX_POSAO_429_UKUPNO_MS, 600000),
   };
 }
 

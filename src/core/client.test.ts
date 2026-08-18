@@ -7,7 +7,8 @@ import { test } from "node:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { OlxClient, OlxAuthError, OlxSpendError, OlxPravilaError, naknadaKategorije } from "./index.js";
+import { OlxClient, OlxAuthError, OlxApiError, OlxSpendError, OlxPravilaError, naknadaKategorije } from "./index.js";
+import { withStrpljenje429 } from "./strpljenje.js";
 import type { ArhivskiZapis } from "./arhiva.js";
 import { loadConfig } from "./config.js";
 import { potrosenoNaDan, withAuditContext, type AuditEntry } from "./audit.js";
@@ -82,6 +83,8 @@ function testConfig(overrides: Partial<OlxConfig> = {}): OlxConfig {
     maxStavkiUOdgovoru: 200,
     snapshotProredjivanjePragDana: 90,
     snapshotProredjivanjeGustinaDana: 7,
+    posao429Pokusaja: 6,
+    posao429UkupnoMs: 600000,
     ...overrides,
   };
 }
@@ -532,6 +535,61 @@ test("429 se ponavlja pa uspije", async () => {
     restore();
   }
 });
+
+test(
+  "429 van scope-a: uporan 429 baca nakon TACNO 1+maxRetries poziva (ponasanje nepromijenjeno)",
+  { timeout: 10000 },
+  async () => {
+    // maxRetries namjerno malo (2, ne 4 iz zadatka): mainline backoff je stvarno cekanje (real
+    // timer), a Bun test runner ima podrazumijevani timeout od 5000ms po testu. Formula
+    // "1+maxRetries poziva" se dokazuje jednako dobro sa manjim brojem, brze.
+    const maxRetries = 2;
+    const { calls, restore } = stubFetch(
+      Array.from({ length: maxRetries + 1 }, () => ({ status: 429, body: { message: "too many" } })),
+    );
+    try {
+      const client = new OlxClient(testConfig({ maxRetries }));
+      await assert.rejects(
+        () => client.me(),
+        (err: unknown) => err instanceof OlxApiError,
+      );
+      assert.equal(calls.length, maxRetries + 1, "van withStrpljenje429 scope-a nema prosirenja: staje na globalnom budzetu");
+    } finally {
+      restore();
+    }
+  },
+);
+
+// Ovaj test namjerno prolazi kroz mainline backoff (attempt 1-4, oko 7,5s) plus JEDNU prosirenu
+// pauzu (5s, BACKOFF_BAZA_MS) prije uspjeha: stvarno cekanje real timera, ali desetak sekundi, ne
+// minuta. Politika je namjerno usko zadana (pokusaja: 1) da se ne uzme vise prosirenih pokusaja
+// nego sto je nuzno da dokaze da scope stvarno produzava broj poziva iznad globalnog budzeta.
+// Prosirena grana pokusaja/vremena je sama za sebe deterministicki pokrivena testovima nad cistom
+// funkcijom planStrpljenja u strpljenje.test.ts; ovaj test dokazuje samo da je KABLO u request()
+// zaista spojen (scope stvarno mijenja broj HTTP poziva), ne racuna tacne brojeve iznova.
+test(
+  "429 unutar withStrpljenje429: scope produzava broj poziva iznad globalnog budzeta pa uspije",
+  { timeout: 12000 },
+  async () => {
+    // maxRetries malo (1) iz istog razloga kao gore. Politika dozvoljava tacno JEDAN prosireni
+    // pokusaj (cekanje BACKOFF_BAZA_MS = 5s, real timer): dovoljno da se dokaze da je kablo u
+    // request() zaista spojen (scope stvarno mijenja broj poziva), bez gomilanja daljih
+    // prosirenih cekanja koja bi test odvukla u desetine sekundi.
+    const maxRetries = 1;
+    const { calls, restore } = stubFetch([
+      ...Array.from({ length: maxRetries + 1 }, () => ({ status: 429, body: { message: "too many" } })),
+      { status: 200, body: { data: { id: 1, username: "shop_test" } } },
+    ]);
+    try {
+      const client = new OlxClient(testConfig({ maxRetries }));
+      const me = await withStrpljenje429({ pokusaja: 1, ukupnoMs: 6000 }, () => client.me());
+      assert.equal(me.username, "shop_test");
+      assert.ok(calls.length > maxRetries + 1, `ocekivano vise od ${maxRetries + 1} poziva zbog scope-a, dobijeno ${calls.length}`);
+    } finally {
+      restore();
+    }
+  },
+);
 
 test("obnova oglasa ide kao PUT na tacnu putanju", async () => {
   const { calls, restore } = stubFetch([{ status: 200, body: { message: "ok" } }]);

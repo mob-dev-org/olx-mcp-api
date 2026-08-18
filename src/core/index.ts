@@ -16,6 +16,7 @@ import { objasniPogotke, provjeriRobu, type PogodakRobe } from "./zabranjena-rob
 import { nadjiSumnjive } from "./backup-spisak.js";
 import { VERZIJA } from "./verzija.js";
 import { izvuciTelefon } from "./telefon-ekstrakcija.js";
+import { planStrpljenja, trenutnoStrpljenje } from "./strpljenje.js";
 import { izmjereniDanReseta, ucitajKvotuDnevnik } from "./kvota-dnevnik.js";
 import {
   alarmiNaloga,
@@ -318,6 +319,32 @@ export class OlxClient {
           const backoff = Math.min(8000, 2 ** attempt * 250) + Math.random() * 200;
           await sleep(backoff);
           continue;
+        }
+
+        // Prosireno strpljenje SAMO na 429 i SAMO kad je scope aktivan (danas: `stats snapshot`
+        // preko `withStrpljenje429`). STROGO 429, nikad 5xx: kod 5xx se ne zna da li je server
+        // radnju vec izvrsio, pa produzeno ponavljanje tamo nosi rizik duplirane radnje, ne
+        // samo cekanja. Van scope-a (MCP alat, Telegram bot) `trenutnoStrpljenje()` je `null` i
+        // ponasanje ostaje bit za bit danasnje.
+        if (res.status === 429) {
+          const scope = trenutnoStrpljenje();
+          if (scope) {
+            const cekaj = planStrpljenja({
+              attempt,
+              maxRetries: this.config.maxRetries,
+              potroseno_ms: scope.potroseno_ms,
+              politika: scope.politika,
+            });
+            if (cekaj !== null) {
+              scope.potroseno_ms += cekaj;
+              console.error(
+                `429 na ${method} ${path}: prosireno strpljenje ceka ${cekaj}ms ` +
+                  `(potroseno ${scope.potroseno_ms}/${scope.politika.ukupnoMs}ms).`,
+              );
+              await sleep(cekaj + Math.random() * 200);
+              continue;
+            }
+          }
         }
 
         // 401 znaci da token ne vrijedi. Ako imamo kredencijale, obnovimo ga jednom.
