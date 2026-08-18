@@ -8,6 +8,32 @@ Kako se cita broj verzije: `bun dist/cli/index.js --version`, polje `version` u
 `git describe --tags`. Procedura izdanja i vracanja: `olx-dokumentacija/arhitektura.md`,
 sekcija 7.
 
+## 0.22.0 — 2026-08-18
+
+**Nadjen pravi uzrok jutrošnjeg 429: OLX limit od 60 poziva/minuti je PO ENDPOINTU, ne zajednički.**
+Endpoint liste (`GET /users/:user/listings`) ima svoj brojač koji pada za jedan po pozivu, dok
+pojedinačan oglas taj brojač skoro ne troši (izmjereno: 80 poziva na pojedinačan oglas bez pauze,
+nula 429). Klijent sa ~2000 oglasa (102 stranice liste) probije limit za dvadesetak sekundi na
+starom intervalu; manji klijent ga nikad ne dotakne — to je razlog zašto je veliki klijent pao a
+mali prošao istog jutra. `OlxClient` sada čita `x-ratelimit-remaining` po šablonu putanje i sam
+zakoči SLJEDEĆI poziv na taj endpoint prije nego dobije 429, umjesto da čeka pad pa se oporavlja.
+Dokazano uživo: 70 poziva liste kroz klijenta (61. je ranije padao), klijent je sam stao na ostatku
+5, sačekao 41s, svih 70 prošlo. Bez zaglavlja na 429 (OLX ih ne vraća, ni `retry-after`), pa klijent
+sam izvodi kad se prozor resetovao iz ponašanja brojača. Ovo je globalna promjena — vrijedi za MCP
+alate, klijentski bot i CLI podjednako, ne samo cron.
+
+**`stats snapshot` ne može više tiho upisati pola kataloga kao "potpun" (issue #6).** Istraga jednog
+429 pada je otkrila drugi, podmukliji problem: `total` sa liste je jednog jutra dosljedno pao na
+pola stvarnog broja oglasa, i postojeća provjera potpunosti (poredi total prve i zadnje stranice)
+to ne hvata, jer je krnji odgovor bio interno dosljedan. Šteta nije bila lažno prijavljen "mrtav
+oglas" (dokazano: oglas koji ispadne iz krnjeg snimka se prosto ne uporedi, ne prijavi kao mrtav),
+nego suprotno — sistematsko potcjenjivanje: dio stvarnih problema je bio prećutan, a prosjeci
+računati na pola uzorka. Snimak sa padom kataloga iznad 20% se sada NE upisuje bez dvostruke
+potvrde (dva prolaza koja se slažu u granicama 2% u sedam dana), radni fajl se odbacuje i posao
+javlja adminu umjesto da tiho završi kao uspješan. Snimak od sada čuva i prijavljeni `total`, za
+retroaktivnu provjeru. Uzrok krnjeg totala ostaje nepotvrđen (eksperiment na manjem katalogu ga nije
+reprodukovao) — ova brana ne zavisi od uzroka i vrijedi za svaki budući slučaj slične vrste.
+
 ## 0.21.0 — 2026-08-18
 
 **`stats snapshot` i `posao dnevni` vise ne padaju na privremeni 429.** Jutros je nocni `snapshot`
