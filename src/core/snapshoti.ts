@@ -211,6 +211,12 @@ export interface SnapshotUToku {
   account: string;
   /** Spisak ID-eva aktivnih oglasa procitan na POCETKU prolaza, zamrznut do njegovog kraja. */
   idevi: number[];
+  /**
+   * `meta.total` koji je API prijavio na POCETKU prolaza (vidi ViewsSnapshot.ukupno_prijavljeno u
+   * stats.ts). Nosi ga i prvo pokretanje, isto kao `pocetak`, jer se katalog cita samo jednom.
+   * Opciono da stari radni fajlovi (od prije ovog polja) i dalje prolaze ucitajSnapshotUToku.
+   */
+  ukupno_prijavljeno?: number | null;
   /** Oglasi vec obidjeni u prethodnim pokretanjima ovog prolaza. */
   oglasi: ViewsSnapshotOglas[];
   /** Akumulirano kroz sva pokretanja ovog prolaza. */
@@ -273,5 +279,140 @@ export function obrisiSnapshotUToku(putanja: string = putanjaSnapshotaUToku()): 
   } catch {
     // Ne bitno na cemu je puklo (npr. prava pristupa): fajl je sporedan trag napretka, ne
     // izvor istine kao snapshot sam; sljedece pokretanje ga jednostavno pravi iznova.
+  }
+}
+
+// ===== SLOJ 2: odbijanje naglo manjeg kataloga, sa dvostrukom potvrdom =====
+//
+// Ovo je PRAVI branik za GitHub issue #6, za razliku od procitanoOdgovaraTotalu (index.ts), koji
+// ne vidi konzistentnu laz (total i last_page padnu ZAJEDNO). Ovaj sloj poredi novi snimak sa
+// PRETHODNIM danom, sto je vanjski referent koji laz sa API-ja ne moze pokvariti isto kao total.
+//
+// Pad kataloga moze biti STVARAN (klijent zavrsio 500 oglasa odjednom), zato se prvi pad ne
+// upisuje nego se ODBIJA i zapisuje kao nalaz. Ako SLJEDECI prolaz da broj u granicama +-2% od
+// TOG odbijenog nalaza, to su dvije NEZAVISNE mjere (razlicit dan, razlicit prolaz) koje se
+// poklapaju, pa se pad prihvata kao stvarnost.
+
+/** Nalaz jednog odbijenog prolaza, zapisan u OLX_ODBIJEN_PROLAZ_FILE. */
+export interface OdbijenProlaz {
+  /** Unix sekunde kad je prolaz odbijen. */
+  ts: number;
+  /** Broj oglasa procitanih u odbijenom prolazu. */
+  oglasa: number;
+  /** `meta.total` koji je API prijavio na pocetku tog prolaza (dijagnostika, ne ulazi u odluku). */
+  ukupno_prijavljeno: number | null;
+  account: string;
+}
+
+export interface OdlukaOUpisu {
+  akcija: "upisi" | "odbij" | "upisi_potvrdjen";
+  razlog:
+    | "nema_prethodnog_snimka"
+    | "pad_u_granicama"
+    | "pad_iznad_praga"
+    | "potvrdjeno_drugim_nezavisnim_prolazom"
+    | "pad_ne_poklapa_sa_odbijenim";
+  /** Postotak pada u odnosu na prethodni snimak; null kad nema prethodnog snimka (nema od cega racunati). */
+  pad_posto: number | null;
+}
+
+/** Iznad ove starosti se nalaz odbijenog prolaza ignorise: zastario referent ne smije zauvijek otvarati vrata. */
+const ODBIJEN_PROLAZ_MAX_STAROST_DANA = 7;
+
+function jeZastario(odbijen: OdbijenProlaz, sada: number): boolean {
+  return sada - odbijen.ts > ODBIJEN_PROLAZ_MAX_STAROST_DANA * 24 * 60 * 60;
+}
+
+/**
+ * Cista odluka: da li se novi snimak upisuje, odbija, ili upisuje kao POTVRDJEN pad.
+ *
+ * `prethodni` je broj oglasa u zadnjem VEC UPISANOM snimku (null kad ga nema, npr. nov klon).
+ * `odbijen` je nalaz PRETHODNOG odbijenog prolaza, ako postoji (caller ga cita sa diska); zastario
+ * nalaz (stariji od `ODBIJEN_PROLAZ_MAX_STAROST_DANA`) se ovdje ignorise kao da ga nema, ali se
+ * caller ipak mora pobrinuti da ga obrise sa diska (vidi `obrisiOdbijenProlaz` nize) kad akcija
+ * ispadne "upisi" ili "upisi_potvrdjen", da ustajao fajl ne visi zauvijek.
+ */
+export function odlukaOUpisuSnimka(input: {
+  novi: number;
+  prethodni: number | null;
+  odbijen: OdbijenProlaz | null;
+  pragPosto?: number;
+  sada: number;
+}): OdlukaOUpisu {
+  const pragPosto = input.pragPosto ?? 20;
+
+  if (input.prethodni === null) {
+    return { akcija: "upisi", razlog: "nema_prethodnog_snimka", pad_posto: null };
+  }
+
+  const padPosto = input.prethodni > 0 ? ((input.prethodni - input.novi) / input.prethodni) * 100 : 0;
+  if (padPosto <= pragPosto) {
+    return { akcija: "upisi", razlog: "pad_u_granicama", pad_posto: padPosto };
+  }
+
+  const odbijenValidan = input.odbijen && !jeZastario(input.odbijen, input.sada) ? input.odbijen : null;
+  if (odbijenValidan) {
+    // 2% odstupanja izmedju dva NEZAVISNA odbijena mjerenja se smatra poklapanjem; minimum 1 da
+    // mali brojevi ne zahtijevaju bas nulu razlike.
+    const pragPoklapanja = Math.max(1, 0.02 * odbijenValidan.oglasa);
+    if (Math.abs(input.novi - odbijenValidan.oglasa) <= pragPoklapanja) {
+      return { akcija: "upisi_potvrdjen", razlog: "potvrdjeno_drugim_nezavisnim_prolazom", pad_posto: padPosto };
+    }
+    return { akcija: "odbij", razlog: "pad_ne_poklapa_sa_odbijenim", pad_posto: padPosto };
+  }
+
+  return { akcija: "odbij", razlog: "pad_iznad_praga", pad_posto: padPosto };
+}
+
+// OLX_ODBIJEN_PROLAZ_FILE je override putanje, isti obrazac kao OLX_SNAPSHOT_U_TOKU_FILE. Ime
+// pocinje tackom da ga imenaSnapshota (obrazac "views-YYYY-MM-DD.json") nikad ne pokupi kao
+// dnevni snapshot.
+export function putanjaOdbijenogProlaza(env: NodeJS.ProcessEnv = process.env): string {
+  return env.OLX_ODBIJEN_PROLAZ_FILE || `${SNAPSHOT_DIR}/.odbijen-prolaz.json`;
+}
+
+// Nepostojeci ili neispravan fajl vraca null, isti obrazac kao ucitajSnapshotUToku: pozivalac to
+// tumaci kao "nema odbijenog prolaza" i odlucuje bez njega.
+export function ucitajOdbijenProlaz(putanja: string = putanjaOdbijenogProlaza()): OdbijenProlaz | null {
+  let sadrzaj: string;
+  try {
+    sadrzaj = readFileSync(putanja, "utf8");
+  } catch {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(sadrzaj) as Partial<OdbijenProlaz>;
+    if (
+      parsed &&
+      typeof parsed.ts === "number" &&
+      typeof parsed.oglasa === "number" &&
+      (parsed.ukupno_prijavljeno === null || typeof parsed.ukupno_prijavljeno === "number") &&
+      typeof parsed.account === "string"
+    ) {
+      return parsed as OdbijenProlaz;
+    }
+    console.error(`Nalaz odbijenog prolaza (${putanja}) nije ocekivanog oblika, odbacujem.`);
+    return null;
+  } catch {
+    console.error(`Nalaz odbijenog prolaza (${putanja}) nije citljiv JSON, odbacujem.`);
+    return null;
+  }
+}
+
+// tmp + rename, isti obrazac kao upisiSnapshot i upisiSnapshotUToku.
+export function upisiOdbijenProlaz(nalaz: OdbijenProlaz, putanja: string = putanjaOdbijenogProlaza()): void {
+  mkdirSync(dirname(putanja), { recursive: true });
+  const tmp = `${putanja}.tmp`;
+  writeFileSync(tmp, `${JSON.stringify(nalaz)}\n`, "utf8");
+  renameSync(tmp, putanja);
+}
+
+// Brise nalaz kad je pad prihvacen (potvrdjen ili se prolaz ipak upisao normalno). Nepostojeci
+// fajl je uspjeh, ne greska, isti obrazac kao obrisiSnapshotUToku.
+export function obrisiOdbijenProlaz(putanja: string = putanjaOdbijenogProlaza()): void {
+  try {
+    rmSync(putanja, { force: true });
+  } catch {
+    // Sporedan trag odluke, ne izvor istine; sljedeci odbijen prolaz ga jednostavno pravi iznova.
   }
 }

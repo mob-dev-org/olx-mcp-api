@@ -152,7 +152,11 @@ export interface SviOglasi {
   ukupno: number | null;
   procitanoStranica: number;
   stranicaUkupno: number | null;
-  razlog?: "budzet" | "osigurac" | "katalog_se_mijenjao";
+  // "broj_se_ne_poklapa": prolaz je stigao do kraja (nije prekinut osiguracem ni budzetom), ali
+  // broj STVARNO procitanih oglasa (poslije dedupa po ID-u) grubo ne odgovara totalu koji je API
+  // prijavio na pocetku. Vidi procitanoOdgovaraTotalu (index.ts): NE hvata konzistentnu laz kao
+  // u issue #6 (total i last_page padnu ZAJEDNO), samo grubo neslaganje.
+  razlog?: "budzet" | "osigurac" | "katalog_se_mijenjao" | "broj_se_ne_poklapa";
 }
 
 // Koliki dio kataloga stoji iza jednog izvjestaja. `potpuno` i `razlog` namjerno nose ISTA
@@ -162,7 +166,7 @@ export interface Obuhvat {
   potpuno: boolean;
   ukupno: number | null;
   procitano: number;
-  razlog?: "budzet" | "osigurac" | "katalog_se_mijenjao";
+  razlog?: "budzet" | "osigurac" | "katalog_se_mijenjao" | "broj_se_ne_poklapa";
 }
 
 export interface Category {

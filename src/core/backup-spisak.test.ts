@@ -216,3 +216,14 @@ test("REGRESIJA: dnevni snapshoti i dalje idu u backup uz radni fajl na crnom sp
   assert.equal(r.uzmi.length, 1);
   assert.equal(r.preskoci.length, 0);
 });
+
+test("nalaz odbijenog snapshot prolaza se ne salje u backup, ali ni ne prijavljuje kao nepoznato", () => {
+  // odlukaOUpisuSnimka (snapshoti.ts) pise ovaj fajl kad odbije naglo manji katalog. Prolazan je
+  // (potvrdjen se brise, neuspjelo poklapanje se prepise), pa ne ide na daljinu, ali MORA biti na
+  // jednom od spiskova iz istog razloga kao ".snapshot-u-toku.json".
+  const r = razvrstaj([".olx-pik/snapshots/.odbijen-prolaz.json"]);
+  assert.equal(r.uzmi.length, 0);
+  assert.equal(r.nepoznato.length, 0, "ne smije se prijaviti kao nepoznato stanje");
+  assert.equal(r.preskoci.length, 1);
+  assert.match(r.preskoci[0]!.razlog, /prolazn/);
+});

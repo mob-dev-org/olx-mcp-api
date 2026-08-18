@@ -8,7 +8,7 @@ Ovaj fajl je GENERISAN iz koda, pravi ga `bun scripts/popis-mogucnosti.mjs`. Ne 
 - MCP resursa: 8
 - CLI komandi: 63
 - Zakazanih poslova: 12
-- Postavki: 31
+- Postavki: 32
 - Skillova: 11
 - Podagenata: 6
 
@@ -344,6 +344,7 @@ ADMIN poslovi nemaju Windows blizanca namjerno: admin masina na Windowsu nije up
 | OLX_DEFAULT_CITY_ID | defaultCityId |  |  |
 | OLX_DEFAULT_COUNTRY_ID | defaultCountryId |  | Podrazumijevana lokacija za objavu, da model ne mora pretrazivati gradove. |
 | OLX_DEVICE_NAME | deviceName | izvodi se iz pokrenutog procesa |  |
+| OLX_MAKS_PAD_KATALOGA_POSTO | maksPadKatalogaPosto | 20 | Prag (procenat) iznad kojeg `stats snapshot` ODBIJA da upise novi dnevni snimak jer je manji od prethodnog previse naglo (odlukaOUpisuSnimka, snapshoti.ts). Pravi branik za GitHub issue #6: API na velikom katalogu ponekad prijavi `meta.total` na otprilike POLOVINU stvarnog broja oglasa, i to INTERNO KONZISTENTNO (total i last_page padnu zajedno), pa unutrasnje provjere prolaza (procitanoOdgovaraTotalu, index.ts) to ne mogu otkriti. Vanjski referent (prethodni dan) to hvata. Dvostruka potvrda (.odbijen-prolaz.json) postoji jer pad kataloga moze biti i STVARAN (klijent zavrsio veliku hrpu oglasa odjednom): prvi pad se samo zabiljezi, tek DRUGI nezavisan pad koji se poklapa sa prvim se prihvata kao stvarnost. |
 | OLX_MAX_OGLASA_U_ODGOVORU | maxOglasaUOdgovoru | 500 | Najveci broj oglasa koji `olx_list_listings` u grani `all` smije staviti u JEDAN odgovor. Iznad toga se katalog isporucuje u komadima (parametar `komad`), umjesto da se tiho sijece ili da se odgovor odbije (deepseek-nalazi.md, tabela oko linije 110). Izmjereno: 120 oglasa u kompaktnom obliku je 6.135 tokena, a CSV je oko 60% jeftiniji, dakle otprilike 20 tokena po oglasu. 500 oglasa je time oko 10.000 tokena, cetvrtina do trecina cijelog prefiksa jedne sesije (danas oko 34.000 do 40.000 tokena) za JEDAN odgovor jednog alata. |
 | OLX_MAX_RETRIES | maxRetries | 4 |  |
 | OLX_MAX_SPEND_PER_DAY | maxSpendPerDay | 0 | Tvrdi dnevni plafon potrosnje u kreditima. 0 znaci bez plafona. |
@@ -364,12 +365,13 @@ ADMIN poslovi nemaju Windows blizanca namjerno: admin masina na Windowsu nije up
 
 ## Varijable okruzenja u cijelom repou
 
-Ukupno 113 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 104 cini konfiguraciju klona.
+Ukupno 115 varijabli okruzenja pominje se u kodu ili u `.env.example`, od toga 106 cini konfiguraciju klona.
 
 Ostale dolaze iz okoline (harness sesije, plugin loader, proxy) i u `.env.example` namjerno ne stoje: klijent ih ne postavlja rukom. Zato se prazna kolona kod njih ne racuna kao propust.
 
 Varijable koje kod cita a kojih nema u `.env.example` (moguc propust u primjeru, klijent ne vidi da postoje):
 
+- OLX_ODBIJEN_PROLAZ_FILE
 - OLX_PODSJETNIK_RESURSI_ROK_MS
 - OLX_SESIJA_
 - OLX_SNAPSHOT_U_TOKU_FILE
@@ -419,6 +421,7 @@ Nema takvih.
 | OLX_KLIJENTI_ROOT | konfiguracija klona | 4 | deploy/launchd/ba.codefactory.olx.ADMIN.nadzor-flote.plist, scripts/lib/klonovi.mjs, scripts/lib/klonovi.test.mjs, scripts/nadzor-flote.mjs | da |
 | OLX_KLIJENT_AI | konfiguracija klona | 6 | deploy/windows/instaliraj-zadatke.ps1, scripts/ai-runda.sh, scripts/lib/sesija.mjs, scripts/lib/sesija.test.mjs, scripts/pokreni-klijenta.mjs, scripts/pripremi-runtime.mjs | da |
 | OLX_KVOTA_DNEVNIK_FILE | konfiguracija klona | 1 | src/core/kvota-dnevnik.ts | da |
+| OLX_MAKS_PAD_KATALOGA_POSTO | konfiguracija klona | 2 | src/cli/index.ts, src/core/config.ts | da |
 | OLX_MASINA_ALARM_FAJL | konfiguracija klona | 2 | scripts/lib/pritisak-masine.mjs, scripts/lib/pritisak-masine.test.mjs | da |
 | OLX_MAX_OGLASA_U_ODGOVORU | konfiguracija klona | 1 | src/core/config.ts | da |
 | OLX_MAX_RETRIES | konfiguracija klona | 3 | scripts/lib/pokreni-cli.mjs, src/core/client.test.ts, src/core/config.ts | da |
@@ -434,6 +437,7 @@ Nema takvih.
 | OLX_MOST_POTEZ_TIMEOUT_MS | konfiguracija klona | 1 | scripts/telegram-most.mjs | da |
 | OLX_MOST_RESTART_SAT | konfiguracija klona | 2 | deploy/launchd/ba.codefactory.olx.KLIJENT.sesija.plist, scripts/telegram-most.mjs | da |
 | OLX_NADZOR_DIR | konfiguracija klona | 2 | deploy/launchd/ba.codefactory.olx.ADMIN.nadzor-flote.plist, scripts/nadzor-flote.mjs | da |
+| OLX_ODBIJEN_PROLAZ_FILE | konfiguracija klona | 2 | src/core/snapshoti.test.ts, src/core/snapshoti.ts |  |
 | OLX_PAMCENJE_FILE | konfiguracija klona | 3 | src/core/backup-spisak.test.ts, src/core/backup-spisak.ts, src/core/pamcenje.ts | da |
 | OLX_PASSWORD | konfiguracija klona | 4 | scripts/provjeri-klon.mjs, scripts/provjeri-prompt.sh, src/core/config.ts, src/core/index.ts | da |
 | OLX_PODSJETNIK_RESURSI_ROK_MS | konfiguracija klona | 1 | scripts/podsjetnik-resursi.mjs |  |

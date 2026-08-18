@@ -37,11 +37,15 @@ import {
 } from "../core/telegram-grupe.js";
 import {
   imaSnapshotaStarijihOd,
+  obrisiOdbijenProlaz,
   obrisiSnapshotUToku,
+  odlukaOUpisuSnimka,
   proredjiStareSnapshote,
   SNAPSHOT_DIR,
+  ucitajOdbijenProlaz,
   ucitajSnapshote,
   ucitajSnapshotUToku,
+  upisiOdbijenProlaz,
   upisiSnapshot,
   upisiSnapshotUToku,
   zadnjiSnapshot,
@@ -1400,6 +1404,10 @@ stats
               pocetak: sadaSekunde,
               account: username,
               idevi: aktivni.oglasi.map((o) => o.id),
+              // SLOJ 2 (issue #6): total prijavljen na POCETKU prolaza, da se retroaktivno moze
+              // vidjeti da li je API lagao. Ne ulazi u odluku o upisu (ta odluka gleda broj
+              // procitanih oglasa naspram PRETHODNOG snimka), samo je dokaz za kasnije.
+              ukupno_prijavljeno: aktivni.ukupno,
               oglasi: [],
               broj_poziva: Math.max(1, Math.ceil(aktivni.oglasi.length / 20)) + 1,
               trajanje_ms: 0,
@@ -1482,18 +1490,72 @@ stats
           }
 
           const snapshot = {
-            // Verzija 3 nosi procitano_ts po oglasu (vidi ViewsSnapshotOglas u stats.ts). Citac ne
-            // gleda broj verzije nego prisustvo polja, pa se snapshoti verzije 1, 2 i 3 i dalje
-            // ucitavaju normalno.
-            verzija: 3,
+            // Verzija 4 nosi ukupno_prijavljeno (vidi ViewsSnapshot u stats.ts). Citac ne gleda
+            // broj verzije nego prisustvo polja, pa se snapshoti verzije 1 do 4 i dalje ucitavaju
+            // normalno.
+            verzija: 4,
             ts: Math.floor(Date.now() / 1000),
             account: username,
             broj_poziva: radni.broj_poziva,
             trajanje_ms: radni.trajanje_ms,
             oglasi: radni.oglasi,
+            ukupno_prijavljeno: radni.ukupno_prijavljeno ?? null,
           };
+
+          // SLOJ 2 (pravi branik za GitHub issue #6): novi broj oglasa se poredi sa PRETHODNIM
+          // VEC UPISANIM snimkom, vanjskim referentom koji konzistentna laz sa API-ja (total i
+          // last_page padnu ZAJEDNO) ne moze pokvariti isto kao unutrasnje provjere. Vidi
+          // odlukaOUpisuSnimka (snapshoti.ts) za tacno pravilo.
+          // Oba referenta se uzimaju u obzir SAMO ako pripadaju ovom nalogu. Jedan klon je jedan
+          // nalog, pa je tudji referent uvijek zaostao ili podmetnut, a ovdje bi bio stetniji nego
+          // nikakav: tudji broj oglasa bi ili lazno zaustavio ispravan snimak, ili (kroz dvostruku
+          // potvrdu) propustio krnji. Ista zastita kao za radni fajl prolaza iznad.
+          const zadnjiUpisan = zadnjiSnapshot();
+          const prethodniSnimak = zadnjiUpisan && zadnjiUpisan.account === username ? zadnjiUpisan : null;
+          const odbijenSaDiska = ucitajOdbijenProlaz();
+          if (odbijenSaDiska && odbijenSaDiska.account !== username) {
+            console.error(
+              `Nalaz odbijenog prolaza pripada drugom nalogu (${odbijenSaDiska.account}), odbacujem ga.`,
+            );
+            obrisiOdbijenProlaz();
+          }
+          const odbijenNalaz = odbijenSaDiska && odbijenSaDiska.account === username ? odbijenSaDiska : null;
+          const odluka = odlukaOUpisuSnimka({
+            novi: snapshot.oglasi.length,
+            prethodni: prethodniSnimak ? prethodniSnimak.oglasi.length : null,
+            odbijen: odbijenNalaz,
+            pragPosto: cfg.maksPadKatalogaPosto,
+            sada: snapshot.ts,
+          });
+
+          if (odluka.akcija === "odbij") {
+            // Snimak se NE upisuje. Radni fajl (prolaz je inace zavrsen) se odbacuje, nalaz ide u
+            // .odbijen-prolaz.json za sutrasnju dvostruku potvrdu, i posao pada kroz posaoFail:
+            // to je jedini nacin da vremenska serija tiho ne stane bez da niko sazna.
+            obrisiSnapshotUToku();
+            upisiOdbijenProlaz({
+              ts: snapshot.ts,
+              oglasa: snapshot.oglasi.length,
+              ukupno_prijavljeno: snapshot.ukupno_prijavljeno,
+              account: username,
+            });
+            throw new Error(
+              `Novi snimak ima ${snapshot.oglasi.length} oglasa, ${(odluka.pad_posto ?? 0).toFixed(1)}% ` +
+                `manje od prethodnog snimka (${prethodniSnimak?.oglasi.length ?? "nepoznato"}), sto je iznad ` +
+                `praga OLX_MAKS_PAD_KATALOGA_POSTO=${cfg.maksPadKatalogaPosto}%. Snimak NIJE upisan (razlog: ` +
+                `${odluka.razlog}). Ako je pad stvaran (npr. klijent zavrsio veliku hrpu oglasa odjednom), ` +
+                "sutrasnji prolaz koji potvrdi slican broj (+-2%) ce se prihvatiti automatski.",
+            );
+          }
+
           const putanja = upisiSnapshot(snapshot);
           obrisiSnapshotUToku();
+          // Upis (obican "pad_u_granicama" ili "upisi_potvrdjen") brise eventualni zaostali nalaz
+          // odbijenog prolaza: ustajao nalaz ne smije visiti zauvijek i otvarati vrata potvrdi
+          // koja mu vise ne pripada (npr. sutra katalog opet naraste, pa je pad iz proslog nalaza
+          // vise nebitan).
+          if (odbijenNalaz) obrisiOdbijenProlaz();
+
           // Prorjedjivanje TEK poslije potpunog prolaza i uspjelog upisa: prekid na budzetu ne smije
           // brisati istoriju, jer bi neuspjeli prolaz svakodnevno grickao seriju bez ijednog novog
           // snapshota. Funkcija nikad ne baca, pa ne moze oboriti posao koji je svoj dio vec zavrsio.
@@ -1502,6 +1564,14 @@ stats
             pragDana: konfig.snapshotProredjivanjePragDana,
             gustinaDana: konfig.snapshotProredjivanjeGustinaDana,
           });
+          if (odluka.akcija === "upisi_potvrdjen") {
+            await javiAdminu(
+              `stats snapshot: manji katalog je POTVRDJEN i prihvacen. Dva nezavisna prolaza su dala ` +
+                `slican broj oglasa (odbijeni prolaz: ${odbijenNalaz?.oglasa ?? "nepoznato"}, ovaj prolaz: ` +
+                `${snapshot.oglasi.length}), naspram prethodno upisanog snimka od ${prethodniSnimak?.oglasi.length ?? "nepoznato"} ` +
+                `oglasa (pad ${(odluka.pad_posto ?? 0).toFixed(1)}%). Snimak je upisan.`,
+            );
+          }
           if (trebaObavijestOOporavku(prethodniIshodSnapshota)) {
             await javiAdminu(
               porukaOOporavkuPosla(
@@ -1517,6 +1587,7 @@ stats
             oglasa: snapshot.oglasi.length,
             trajanje_ms: snapshot.trajanje_ms,
             proredjeno: proredjeno.obrisano,
+            ...(odluka.akcija === "upisi_potvrdjen" ? { pad_potvrdjen: true } : {}),
           });
         } finally {
           otpusti();

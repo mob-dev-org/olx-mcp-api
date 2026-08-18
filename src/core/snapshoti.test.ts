@@ -9,18 +9,25 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   imaSnapshotaStarijihOd,
+  obrisiOdbijenProlaz,
   obrisiSnapshotUToku,
+  odlukaOUpisuSnimka,
   proredjiStareSnapshote,
+  putanjaOdbijenogProlaza,
   putanjaSnapshotaUToku,
   SNAPSHOT_DIR,
+  ucitajOdbijenProlaz,
   ucitajSnapshote,
   ucitajSnapshotUToku,
+  upisiOdbijenProlaz,
   upisiSnapshot,
   upisiSnapshotUToku,
   zadnjiSnapshot,
 } from "./snapshoti.js";
-import type { SnapshotUToku } from "./snapshoti.js";
+import type { OdbijenProlaz, SnapshotUToku } from "./snapshoti.js";
 import type { ViewsSnapshot } from "./stats.js";
+
+const SEDAM_DANA_S = 7 * 24 * 60 * 60;
 
 function radniDir(): string {
   return mkdtempSync(join(tmpdir(), "olx-snapshoti-"));
@@ -415,6 +422,144 @@ test("imaSnapshotaStarijihOd: radni fajl se ne broji kao snapshot", () => {
   try {
     writeFileSync(join(dir, ".snapshot-u-toku.json"), JSON.stringify({ pocetak: 1 }), "utf8");
     assert.equal(imaSnapshotaStarijihOd(60, dir), false, "radni fajl nema datum u imenu i ne smije se brojati");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// ===== SLOJ 2: odlukaOUpisuSnimka (pravi branik za issue #6) =====
+
+const SADA = Math.floor(Date.parse("2026-08-15T06:00:00Z") / 1000);
+
+function odbijenNalaz(over: Partial<OdbijenProlaz> = {}): OdbijenProlaz {
+  return { ts: SADA, oglasa: 810, ukupno_prijavljeno: 810, account: "testni-shop", ...over };
+}
+
+test("odlukaOUpisuSnimka: nema prethodnog snimka daje upisi (nov klon, nema referenta)", () => {
+  const odluka = odlukaOUpisuSnimka({ novi: 500, prethodni: null, odbijen: null, sada: SADA });
+  assert.equal(odluka.akcija, "upisi");
+  assert.equal(odluka.razlog, "nema_prethodnog_snimka");
+  assert.equal(odluka.pad_posto, null);
+});
+
+test("odlukaOUpisuSnimka: prag pada, 19% prolazi", () => {
+  // 1000 -> 810 je pad od 19%.
+  const odluka = odlukaOUpisuSnimka({ novi: 810, prethodni: 1000, odbijen: null, sada: SADA });
+  assert.equal(odluka.akcija, "upisi");
+  assert.equal(odluka.razlog, "pad_u_granicama");
+  assert.ok(Math.abs((odluka.pad_posto ?? 0) - 19) < 1e-9);
+});
+
+test("odlukaOUpisuSnimka: prag pada, 21% se odbija", () => {
+  // 1000 -> 790 je pad od 21%, nema prethodnog odbijenog nalaza za poredjenje.
+  const odluka = odlukaOUpisuSnimka({ novi: 790, prethodni: 1000, odbijen: null, sada: SADA });
+  assert.equal(odluka.akcija, "odbij");
+  assert.equal(odluka.razlog, "pad_iznad_praga");
+  assert.ok(Math.abs((odluka.pad_posto ?? 0) - 21) < 1e-9);
+});
+
+test("odlukaOUpisuSnimka: rast kataloga (novi > prethodni) nikad se ne odbija", () => {
+  const odluka = odlukaOUpisuSnimka({ novi: 1200, prethodni: 1000, odbijen: null, sada: SADA });
+  assert.equal(odluka.akcija, "upisi");
+});
+
+test("odlukaOUpisuSnimka: odbijen pa poklapanje u granicama 2% daje upisi_potvrdjen", () => {
+  // Prvi prolaz odbijen na 790 (iz prethodnog dana). Danas nezavisan prolaz daje 795 (0.6% razlike
+  // od odbijenog, unutar 2%), pad je i dalje iznad praga u odnosu na PRETHODNI upisan snimak.
+  const odluka = odlukaOUpisuSnimka({
+    novi: 795,
+    prethodni: 1000,
+    odbijen: odbijenNalaz({ oglasa: 790 }),
+    sada: SADA,
+  });
+  assert.equal(odluka.akcija, "upisi_potvrdjen");
+  assert.equal(odluka.razlog, "potvrdjeno_drugim_nezavisnim_prolazom");
+});
+
+test("odlukaOUpisuSnimka: odbijen pa NEpoklapanje daje ponovo odbij", () => {
+  // Odbijeni nalaz kaze 790, novi prolaz daje 650: previse razlicito da bi bilo ista mjera.
+  const odluka = odlukaOUpisuSnimka({
+    novi: 650,
+    prethodni: 1000,
+    odbijen: odbijenNalaz({ oglasa: 790 }),
+    sada: SADA,
+  });
+  assert.equal(odluka.akcija, "odbij");
+  assert.equal(odluka.razlog, "pad_ne_poklapa_sa_odbijenim");
+});
+
+test("odlukaOUpisuSnimka: zastario nalaz odbijenog prolaza (stariji od 7 dana) se ignorise", () => {
+  // Nalaz je star tacno 8 dana: i kad bi se novi broj (795) savrseno poklopio sa njim (790), ne
+  // smije se prihvatiti kao potvrda, jer referent nije nezavisna mjera iz nedavnog prolaza.
+  const stariNalaz = odbijenNalaz({ oglasa: 790, ts: SADA - 8 * 24 * 60 * 60 });
+  const odluka = odlukaOUpisuSnimka({ novi: 795, prethodni: 1000, odbijen: stariNalaz, sada: SADA });
+  assert.equal(odluka.akcija, "odbij");
+  assert.equal(odluka.razlog, "pad_iznad_praga", "zastario nalaz se tretira kao da ga nema");
+});
+
+test("odlukaOUpisuSnimka: nalaz tacno na granici od 7 dana se jos racuna kao validan", () => {
+  const nalaz = odbijenNalaz({ oglasa: 795, ts: SADA - SEDAM_DANA_S });
+  const odluka = odlukaOUpisuSnimka({ novi: 795, prethodni: 1000, odbijen: nalaz, sada: SADA });
+  assert.equal(odluka.akcija, "upisi_potvrdjen");
+});
+
+test("odlukaOUpisuSnimka: prilagodjen prag (pragPosto) se postuje", () => {
+  const odluka = odlukaOUpisuSnimka({ novi: 950, prethodni: 1000, odbijen: null, pragPosto: 3, sada: SADA });
+  assert.equal(odluka.akcija, "odbij", "pad od 5% je iznad zadanog praga od 3%");
+});
+
+// ===== odbijen-prolaz.json: citanje/pisanje/brisanje =====
+
+test("upisiOdbijenProlaz pa ucitajOdbijenProlaz vraca isti sadrzaj", () => {
+  const dir = radniDir();
+  try {
+    const putanja = join(dir, ".odbijen-prolaz.json");
+    const nalaz = odbijenNalaz();
+    upisiOdbijenProlaz(nalaz, putanja);
+    assert.deepEqual(ucitajOdbijenProlaz(putanja), nalaz);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("ucitajOdbijenProlaz: nepostojeci fajl vraca null", () => {
+  assert.equal(ucitajOdbijenProlaz(join(tmpdir(), "olx-nema-ovaj-fajl-nikako.json")), null);
+});
+
+test("ucitajOdbijenProlaz: pokvaren JSON vraca null umjesto da baci", () => {
+  const dir = radniDir();
+  try {
+    const putanja = join(dir, ".odbijen-prolaz.json");
+    writeFileSync(putanja, "{ ovo nije json", "utf8");
+    assert.equal(ucitajOdbijenProlaz(putanja), null);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("obrisiOdbijenProlaz: nepostojeci fajl je uspjeh, ne greska", () => {
+  assert.doesNotThrow(() => obrisiOdbijenProlaz(join(tmpdir(), "olx-nema-ovaj-fajl-nikako-2.json")));
+});
+
+test("putanjaOdbijenogProlaza: default lezi pored dnevnih snapshota, override radi", () => {
+  assert.equal(putanjaOdbijenogProlaza({}), `${SNAPSHOT_DIR}/.odbijen-prolaz.json`);
+  assert.equal(
+    putanjaOdbijenogProlaza({ OLX_ODBIJEN_PROLAZ_FILE: "/tmp/drugdje.json" }),
+    "/tmp/drugdje.json",
+  );
+});
+
+// ===== ViewsSnapshot.ukupno_prijavljeno: opciono, stari fajlovi bez njega se i dalje ucitavaju =====
+
+test("stari snapshot fajl bez polja ukupno_prijavljeno se i dalje ucitava", () => {
+  const dir = radniDir();
+  try {
+    // Simulira snapshot verzije 2/3 (prije nego je ukupno_prijavljeno postojalo).
+    const stari = { verzija: 2, ts: Math.floor(Date.parse("2026-08-10T03:00:00Z") / 1000), oglasi: [] };
+    writeFileSync(join(dir, "views-2026-08-10.json"), `${JSON.stringify(stari)}\n`, "utf8");
+    const [ucitan] = ucitajSnapshote(dir);
+    assert.ok(ucitan, "stari fajl se ucitava bez pucanja");
+    assert.equal(ucitan!.ukupno_prijavljeno, undefined);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

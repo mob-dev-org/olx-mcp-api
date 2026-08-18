@@ -123,7 +123,7 @@ test("drugo pokretanje nastavlja po zapamcenom spisku i dovrsi snapshot", async 
     const snapshotPutanja = join(dir, ".olx-pik", "snapshots", "views-" + danas() + ".json");
     assert.equal(existsSync(snapshotPutanja), true, "snapshot je konacno upisan");
     const snapshot = JSON.parse(readFileSync(snapshotPutanja, "utf8"));
-    assert.equal(snapshot.verzija, 3);
+    assert.equal(snapshot.verzija, 4);
     assert.deepEqual(
       snapshot.oglasi.map((o) => o.id).sort((a, b) => a - b),
       [11, 12, 13],

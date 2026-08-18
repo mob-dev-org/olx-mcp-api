@@ -1493,6 +1493,18 @@ export interface ViewsSnapshot {
   broj_poziva?: number;
   trajanje_ms?: number;
   oglasi: ViewsSnapshotOglas[];
+  /**
+   * `meta.total` koji je API prijavio na POCETKU prolaza (prva stranica liste aktivnih oglasa),
+   * dodano u verziji 4. Opciono namjerno: stari snapshoti (verzija 1-3) ga nemaju, a citac gleda
+   * prisustvo polja, ne broj verzije, pa se i dalje ucitavaju.
+   *
+   * Bez ovog polja se retroaktivno ne moze provjeriti da li je total lagao (GitHub issue #6:
+   * `meta.total` na velikom katalogu ponekad prijavi otprilike pola stvarnog broja oglasa, i to
+   * INTERNO KONZISTENTNO, pa unutrasnje provjere prolaza ne vide razliku). Vanjski branik
+   * (`odlukaOUpisuSnimka`, ova datoteka nize) poredi broj oglasa iz OVOG snimka sa PRETHODNIM
+   * snimkom, ne sa ovim poljem: ovo polje je dokaz za KASNIJE, ne ulaz u tu odluku.
+   */
+  ukupno_prijavljeno?: number | null;
 }
 
 interface Segment {
